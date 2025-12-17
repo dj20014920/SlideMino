@@ -44,6 +44,7 @@ const App: React.FC = () => {
   const boardRef = useRef<HTMLDivElement>(null);
   const dragOverlayRef = useRef<HTMLDivElement>(null); // 드래그 오버레이 직접 제어용 Ref
   const boardRectRef = useRef<DOMRect | null>(null); // 보드 위치 캐싱
+  const swipeStartRef = useRef<{ x: number, y: number } | null>(null); // 스와이프 시작 좌표
 
   // --- Initialization ---
 
@@ -169,32 +170,59 @@ const App: React.FC = () => {
     });
   };
 
+  const handleSwipeStart = (e: React.PointerEvent) => {
+    // 슬라이드 단계일 때만 스와이프 감지 시작
+    if (phase === Phase.SLIDE) {
+      swipeStartRef.current = { x: e.clientX, y: e.clientY };
+    }
+  };
+
   const handlePointerUp = (e: React.PointerEvent) => {
-    if (!draggingPiece) return;
+    // 1. 드래그 중인 조각이 있다면 -> 조각 놓기 처리
+    if (draggingPiece) {
+      if (hoverGridPos && boardRef.current) {
+        if (canPlacePiece(grid, draggingPiece, hoverGridPos.x, hoverGridPos.y)) {
+          const newGrid = placePieceOnGrid(grid, draggingPiece, hoverGridPos.x, hoverGridPos.y);
+          setGrid(newGrid);
 
-    if (hoverGridPos && boardRef.current) {
-      if (canPlacePiece(grid, draggingPiece, hoverGridPos.x, hoverGridPos.y)) {
-        const newGrid = placePieceOnGrid(grid, draggingPiece, hoverGridPos.x, hoverGridPos.y);
-        setGrid(newGrid);
+          const newSlots = [...slots];
+          newSlots[dragOriginIndex] = generateRandomPiece();
+          setSlots(newSlots);
 
-        const newSlots = [...slots];
-        newSlots[dragOriginIndex] = generateRandomPiece();
-        setSlots(newSlots);
+          if (hasPossibleMoves(newGrid)) {
+            setPhase(Phase.SLIDE);
+            setCanSkipSlide(false);
+            setComboMessage(null);
+          } else {
+            setPhase(Phase.PLACE);
+          }
+        }
+      }
 
-        if (hasPossibleMoves(newGrid)) {
-          setPhase(Phase.SLIDE);
-          setCanSkipSlide(false);
-          setComboMessage(null);
+      setDraggingPiece(null);
+      setHoverGridPos(null);
+      setDragOriginIndex(-1);
+      boardRectRef.current = null; // Reset cache
+      return;
+    }
+
+    // 2. 드래그 중이 아니고, 슬라이드 단계라면 -> 스와이프 처리
+    if (phase === Phase.SLIDE && swipeStartRef.current) {
+      const dx = e.clientX - swipeStartRef.current.x;
+      const dy = e.clientY - swipeStartRef.current.y;
+      const absX = Math.abs(dx);
+      const absY = Math.abs(dy);
+
+      // 30px 이상 움직였을 때만 스와이프로 인정
+      if (Math.max(absX, absY) > 30) {
+        if (absX > absY) {
+          executeSlide(dx > 0 ? 'RIGHT' : 'LEFT');
         } else {
-          setPhase(Phase.PLACE);
+          executeSlide(dy > 0 ? 'DOWN' : 'UP');
         }
       }
     }
-
-    setDraggingPiece(null);
-    setHoverGridPos(null);
-    setDragOriginIndex(-1);
-    boardRectRef.current = null; // Reset cache
+    swipeStartRef.current = null;
   };
 
   // --- Event Handlers: Swipe / Slide ---
@@ -402,6 +430,7 @@ const App: React.FC = () => {
   return (
     <div
       className="min-h-screen min-h-[100dvh] flex flex-col items-center text-gray-900 touch-none"
+      onPointerDown={handleSwipeStart}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
     >

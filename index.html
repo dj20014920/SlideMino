@@ -1,39 +1,237 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Block Slide 2048</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-      @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;600;700&display=swap');
-      body {
-        font-family: 'Fredoka', sans-serif;
-        touch-action: none; /* Prevent browser zooming/scrolling gestures */
-        user-select: none;
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Block Slide 2048</title>
+  <meta name="description"
+    content="Place blocks like Tetris. Merge numbers like 2048. A beautifully crafted puzzle game with iOS-inspired liquid glass design.">
+  <meta name="theme-color" content="#fafafa">
+
+  <!-- Font: SF Pro-like modern sans-serif -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'SF Pro Display', 'Segoe UI', 'sans-serif'],
+          },
+          colors: {
+            glass: {
+              white: 'rgba(255, 255, 255, 0.72)',
+              light: 'rgba(255, 255, 255, 0.45)',
+              subtle: 'rgba(255, 255, 255, 0.25)',
+              border: 'rgba(255, 255, 255, 0.35)',
+              dark: 'rgba(0, 0, 0, 0.05)',
+            }
+          },
+          backdropBlur: {
+            glass: '24px',
+            'glass-heavy': '40px',
+          },
+          boxShadow: {
+            'glass': '0 8px 32px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.5)',
+            'glass-lg': '0 16px 48px rgba(0, 0, 0, 0.12), inset 0 2px 0 rgba(255, 255, 255, 0.6)',
+            'glass-inset': 'inset 0 2px 8px rgba(0, 0, 0, 0.04)',
+            'liquid': '0 4px 24px rgba(0, 0, 0, 0.06)',
+            'tile': '0 2px 8px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+          },
+          animation: {
+            'liquid-float': 'liquidFloat 6s ease-in-out infinite',
+            'glass-shimmer': 'glassShimmer 3s ease-in-out infinite',
+            'pulse-soft': 'pulseSoft 2s ease-in-out infinite',
+            'slide-up': 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+            'fade-in': 'fadeIn 0.3s ease-out',
+            'pop-in': 'popIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
+            'bounce-subtle': 'bounceSubtle 0.5s ease-out',
+          },
+        }
       }
-      /* Custom scrollbar for aesthetics */
-      ::-webkit-scrollbar {
-        width: 8px;
+    }
+  </script>
+  <style>
+    /* === Base Styles === */
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      background: linear-gradient(180deg, #fafafa 0%, #f0f0f0 50%, #e8e8e8 100%);
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+
+    /* === Scrollbar (Minimal White Theme) === */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.15);
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 0, 0, 0.25);
+    }
+
+    /* === Animations (Optimized) === */
+    /* liquidFloat 제거 - 보드에 불필요한 애니메이션 */
+
+    @keyframes glassShimmer {
+
+      0%,
+      100% {
+        opacity: 0.85;
       }
-      ::-webkit-scrollbar-track {
-        background: #f1f1f1; 
+
+      50% {
+        opacity: 1;
       }
-      ::-webkit-scrollbar-thumb {
-        background: #888; 
-        border-radius: 4px;
+    }
+
+    @keyframes pulseSoft {
+
+      0%,
+      100% {
+        opacity: 0.9;
       }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #555; 
+
+      50% {
+        opacity: 1;
       }
-      .cell-enter {
-        animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
       }
-      @keyframes popIn {
-        0% { transform: scale(0); opacity: 0; }
-        100% { transform: scale(1); opacity: 1; }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
       }
-    </style>
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes popIn {
+      0% {
+        transform: scale(0.8);
+        opacity: 0;
+      }
+
+      50% {
+        transform: scale(1.05);
+      }
+
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    @keyframes bounceSubtle {
+      0% {
+        transform: scale(1);
+      }
+
+      30% {
+        transform: scale(1.08);
+      }
+
+      60% {
+        transform: scale(0.98);
+      }
+
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    .cell-enter {
+      animation: popIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    /* === Glass Effect Base Classes === */
+    .glass {
+      background: rgba(255, 255, 255, 0.72);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    }
+
+    .glass-dark {
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(40px);
+      -webkit-backdrop-filter: blur(40px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .glass-subtle {
+      background: rgba(255, 255, 255, 0.45);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.35);
+    }
+
+    /* === Liquid Border Effect === */
+    .liquid-border {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .liquid-border::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      padding: 1.5px;
+      background: linear-gradient(135deg,
+          rgba(255, 255, 255, 0.8) 0%,
+          rgba(255, 255, 255, 0.3) 50%,
+          rgba(255, 255, 255, 0.6) 100%);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
+    }
+
+    /* === Frosted Inset Effect === */
+    .frosted-inset {
+      box-shadow:
+        inset 0 2px 4px rgba(0, 0, 0, 0.03),
+        inset 0 0 0 1px rgba(0, 0, 0, 0.04);
+    }
+  </style>
+
   <script type="importmap">
 {
   "imports": {
@@ -44,10 +242,12 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
+  <link rel="stylesheet" href="/index.css">
 </head>
-  <body class="bg-slate-900 text-white overflow-hidden">
-    <div id="root"></div>
+
+<body class="min-h-screen overflow-hidden">
+  <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>
+
 </html>

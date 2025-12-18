@@ -1,5 +1,12 @@
 import { ShapeType, Coordinate } from './types';
 
+// Board slide animation (one swipe)
+export const SLIDE_ANIMATION_MS = 200;
+export const SLIDE_UNLOCK_BUFFER_MS = 50;
+
+// Board rendering/layout constants
+export const BOARD_CELL_GAP_PX = 3;
+
 // Base coordinates for shapes at rotation 0
 export const SHAPES: Record<ShapeType, Coordinate[]> = {
   [ShapeType.I]: [{ x: -1, y: 0 }, { x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }],

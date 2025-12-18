@@ -58,6 +58,7 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
       `}
       onPointerDown={(e) => {
         e.preventDefault();
+        e.stopPropagation();
         onPointerDown(e, piece, index);
       }}
     >

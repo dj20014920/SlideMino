@@ -1,4 +1,19 @@
-export type Grid = number[][];
+export interface Tile {
+  id: string;
+  value: number;
+}
+
+// Tile that is being absorbed during merge (for animation purposes)
+export interface MergingTile {
+  id: string;
+  value: number;
+  fromX: number;
+  fromY: number;
+  toX: number;
+  toY: number;
+}
+
+export type Grid = (Tile | null)[][];
 
 export enum ShapeType {
   I = 'I',

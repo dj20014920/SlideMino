@@ -5,7 +5,8 @@ import {
   Piece,
   Phase,
   BoardSize,
-  ShapeType
+  ShapeType,
+  MergingTile
 } from './types';
 import {
   createEmptyGrid,
@@ -17,14 +18,18 @@ import {
   slideGrid,
   hasPossibleMoves
 } from './services/gameLogic';
-import { Board } from './components/Board';
+import { Board, type BoardHandle } from './components/Board';
 import { Slot } from './components/Slot';
-import { RotateCw, Move, Trophy, Zap } from 'lucide-react';
+import { BOARD_CELL_GAP_PX, SLIDE_ANIMATION_MS, SLIDE_UNLOCK_BUFFER_MS } from './constants';
+import { RotateCw, Move, Trophy } from 'lucide-react';
+
+const EMPTY_TILE_VALUE_OVERRIDES: Record<string, number> = {};
+const EMPTY_MERGING_TILES: MergingTile[] = [];
 
 const App: React.FC = () => {
   // --- State ---
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
-  const [grid, setGrid] = useState<Grid>([]);
+  const [grid, setGrid] = useState<Grid>(createEmptyGrid(8));
   const [slots, setSlots] = useState<(Piece | null)[]>([null, null, null]);
   const [score, setScore] = useState(0);
   const [highScore, setHighScore] = useState(0);
@@ -35,29 +40,77 @@ const App: React.FC = () => {
   // New State for the Rule: "Option to stop sliding if merge happened"
   const [canSkipSlide, setCanSkipSlide] = useState(false);
 
+  // Merging tiles for animation (tiles being absorbed)
+  const [mergingTiles, setMergingTiles] = useState<MergingTile[]>(EMPTY_MERGING_TILES);
+
+  // Animation Lock
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [tileValueOverrides, setTileValueOverrides] = useState<Record<string, number>>(EMPTY_TILE_VALUE_OVERRIDES);
+
   // --- Dragging State ---
   const [draggingPiece, setDraggingPiece] = useState<Piece | null>(null);
   const [dragOriginIndex, setDragOriginIndex] = useState<number>(-1);
-  const [hoverGridPos, setHoverGridPos] = useState<{ x: number, y: number } | null>(null);
 
   // --- Refs ---
   const boardRef = useRef<HTMLDivElement>(null);
+  const boardHandleRef = useRef<BoardHandle | null>(null);
   const dragOverlayRef = useRef<HTMLDivElement>(null); // 드래그 오버레이 직접 제어용 Ref
-  const boardRectRef = useRef<DOMRect | null>(null); // 보드 위치 캐싱
+  const boardMetricsRef = useRef<{
+    rectLeft: number;
+    rectTop: number;
+    paddingLeft: number;
+    paddingTop: number;
+    innerWidth: number;
+    innerHeight: number;
+    cell: number;
+    pitch: number;
+    size: number;
+  } | null>(null);
+  const hoverGridPosRef = useRef<{ x: number; y: number } | null>(null);
   const swipeStartRef = useRef<{ x: number, y: number } | null>(null); // 스와이프 시작 좌표
+  const slideLockRef = useRef(false); // state 반영 전에도 즉시 입력 차단
+  const mergeClearTimeoutRef = useRef<number | null>(null);
+  const mergeFinalizeTimeoutRef = useRef<number | null>(null);
+  const unlockTimeoutRef = useRef<number | null>(null);
 
   // --- Initialization ---
 
   const startGame = (size: BoardSize) => {
+    if (mergeClearTimeoutRef.current) {
+      window.clearTimeout(mergeClearTimeoutRef.current);
+      mergeClearTimeoutRef.current = null;
+    }
+    if (mergeFinalizeTimeoutRef.current) {
+      window.clearTimeout(mergeFinalizeTimeoutRef.current);
+      mergeFinalizeTimeoutRef.current = null;
+    }
+    if (unlockTimeoutRef.current) {
+      window.clearTimeout(unlockTimeoutRef.current);
+      unlockTimeoutRef.current = null;
+    }
+
     setBoardSize(size);
     setGrid(createEmptyGrid(size));
     setSlots([generateRandomPiece(), generateRandomPiece(), generateRandomPiece()]);
     setScore(0);
+    setMergingTiles(EMPTY_MERGING_TILES);
+    setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
+    slideLockRef.current = false;
+    setIsAnimating(false);
     setPhase(Phase.PLACE);
     setGameState(GameState.PLAYING);
     setComboMessage(null);
     setCanSkipSlide(false);
   };
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (mergeClearTimeoutRef.current) window.clearTimeout(mergeClearTimeoutRef.current);
+      if (mergeFinalizeTimeoutRef.current) window.clearTimeout(mergeFinalizeTimeoutRef.current);
+      if (unlockTimeoutRef.current) window.clearTimeout(unlockTimeoutRef.current);
+    };
+  }, []);
 
   // --- Helpers ---
 
@@ -105,21 +158,51 @@ const App: React.FC = () => {
   const handlePointerDown = useCallback((e: React.PointerEvent, piece: Piece, index: number) => {
     const isSlidePhaseButSkippable = phase === Phase.SLIDE && canSkipSlide;
 
+    // Animation/Input Lock Check (ref 기반: state 반영 전에도 즉시 차단)
+    if (slideLockRef.current) return;
+
     if (phase !== Phase.PLACE && !isSlidePhaseButSkippable) return;
 
     if (isSlidePhaseButSkippable) {
+      swipeStartRef.current = null;
       finishSlideTurn();
     }
 
-    // Cache board rect on drag start only
+    // Cache board metrics on drag start only
     if (boardRef.current) {
-      boardRectRef.current = boardRef.current.getBoundingClientRect();
+      const rect = boardRef.current.getBoundingClientRect();
+      const styles = window.getComputedStyle(boardRef.current);
+      const paddingLeft = parseFloat(styles.paddingLeft) || 0;
+      const paddingTop = parseFloat(styles.paddingTop) || 0;
+      const paddingRight = parseFloat(styles.paddingRight) || 0;
+      const paddingBottom = parseFloat(styles.paddingBottom) || 0;
+
+      const size = boardSize;
+      const innerWidth = rect.width - paddingLeft - paddingRight;
+      const innerHeight = rect.height - paddingTop - paddingBottom;
+      const totalGap = (size - 1) * BOARD_CELL_GAP_PX;
+      const cell = (innerWidth - totalGap) / size;
+      const pitch = cell + BOARD_CELL_GAP_PX;
+
+      boardMetricsRef.current = {
+        rectLeft: rect.left,
+        rectTop: rect.top,
+        paddingLeft,
+        paddingTop,
+        innerWidth,
+        innerHeight,
+        cell,
+        pitch,
+        size,
+      };
     }
 
     const initCells = getRotatedCells(piece.type, piece.rotation);
 
     setDraggingPiece({ ...piece, cells: initCells });
     setDragOriginIndex(index);
+    hoverGridPosRef.current = null;
+    boardHandleRef.current?.setHoverLocation(null);
 
     // Direct DOM: set initial drag position
     currentPointerPosRef.current = { x: e.clientX, y: e.clientY };
@@ -129,60 +212,76 @@ const App: React.FC = () => {
     }
 
     (e.target as Element).setPointerCapture(e.pointerId);
-  }, [phase, canSkipSlide, finishSlideTurn]);
+  }, [phase, canSkipSlide, finishSlideTurn, boardSize]);
 
-  // RAF ID for drag animation optimization
+  // RAF 기반으로 포인터 이벤트를 1프레임에 1번으로 합쳐서(코얼레싱) 렌더/연산 폭주를 방지
   const rafIdRef = useRef<number | null>(null);
+  const latestPointerRef = useRef<{ x: number; y: number } | null>(null);
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (!draggingPiece || !boardRef.current || !boardRectRef.current) return;
+    if (!draggingPiece || !boardMetricsRef.current) return;
+    latestPointerRef.current = { x: e.clientX, y: e.clientY };
+    if (rafIdRef.current) return;
 
-    // Cancel any pending RAF to prevent stacking
-    if (rafIdRef.current) {
-      cancelAnimationFrame(rafIdRef.current);
-    }
-
-    const clientX = e.clientX;
-    const clientY = e.clientY;
-
-    // Use RAF for smooth 60fps animation
     rafIdRef.current = requestAnimationFrame(() => {
+      const pointer = latestPointerRef.current;
+      const metrics = boardMetricsRef.current;
+      rafIdRef.current = null;
+      if (!pointer || !metrics) return;
+
       // Direct DOM manipulation for drag overlay (bypass React render)
       if (dragOverlayRef.current) {
-        dragOverlayRef.current.style.transform = `translate3d(${clientX}px, ${clientY}px, 0) scale(1.15)`;
+        dragOverlayRef.current.style.transform = `translate3d(${pointer.x}px, ${pointer.y}px, 0) scale(1.15)`;
       }
 
       // Grid position calculation (cached rect)
-      const rect = boardRectRef.current!;
-      const cellSize = rect.width / grid.length;
-      const relativeX = clientX - rect.left;
-      const relativeY = clientY - rect.top;
-      const gridX = Math.round((relativeX - cellSize / 2) / cellSize);
-      const gridY = Math.round((relativeY - cellSize / 2) / cellSize);
+      const relativeX = pointer.x - metrics.rectLeft - metrics.paddingLeft;
+      const relativeY = pointer.y - metrics.rectTop - metrics.paddingTop;
 
-      // Only update state if position actually changed
-      setHoverGridPos(prev => {
-        if (prev && prev.x === gridX && prev.y === gridY) return prev;
-        return { x: gridX, y: gridY };
-      });
+      // 보드 바깥이면 ghost를 숨기고, 불필요한 업데이트를 막음
+      const isOutside =
+        relativeX < 0 || relativeY < 0 || relativeX > metrics.innerWidth || relativeY > metrics.innerHeight;
+      if (isOutside) {
+        if (hoverGridPosRef.current) {
+          hoverGridPosRef.current = null;
+          boardHandleRef.current?.setHoverLocation(null);
+        }
+        return;
+      }
 
-      rafIdRef.current = null;
+      const gridX = Math.round((relativeX - metrics.cell / 2) / metrics.pitch);
+      const gridY = Math.round((relativeY - metrics.cell / 2) / metrics.pitch);
+
+      const prev = hoverGridPosRef.current;
+      if (prev && prev.x === gridX && prev.y === gridY) return;
+
+      const next = { x: gridX, y: gridY };
+      hoverGridPosRef.current = next;
+      boardHandleRef.current?.setHoverLocation(next);
     });
   };
 
   const handleSwipeStart = (e: React.PointerEvent) => {
-    // 슬라이드 단계일 때만 스와이프 감지 시작
-    if (phase === Phase.SLIDE) {
-      swipeStartRef.current = { x: e.clientX, y: e.clientY };
-    }
+    // 슬라이드는 보드 영역에서만 시작 (슬롯/버튼 터치로 인한 오작동 방지)
+    if (phase !== Phase.SLIDE) return;
+    if (slideLockRef.current) return;
+    if (!boardRef.current) return;
+
+    const target = e.target as Node | null;
+    if (target && !boardRef.current.contains(target)) return;
+
+    swipeStartRef.current = { x: e.clientX, y: e.clientY };
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
     // 1. 드래그 중인 조각이 있다면 -> 조각 놓기 처리
     if (draggingPiece) {
-      if (hoverGridPos && boardRef.current) {
-        if (canPlacePiece(grid, draggingPiece, hoverGridPos.x, hoverGridPos.y)) {
-          const newGrid = placePieceOnGrid(grid, draggingPiece, hoverGridPos.x, hoverGridPos.y);
+      // 드래그 종료 시 스와이프 시작 좌표가 남아있으면 다음 입력에서 오동작 가능
+      swipeStartRef.current = null;
+      const hover = hoverGridPosRef.current;
+      if (hover && boardRef.current) {
+        if (canPlacePiece(grid, draggingPiece, hover.x, hover.y)) {
+          const newGrid = placePieceOnGrid(grid, draggingPiece, hover.x, hover.y);
           setGrid(newGrid);
 
           const newSlots = [...slots];
@@ -200,9 +299,14 @@ const App: React.FC = () => {
       }
 
       setDraggingPiece(null);
-      setHoverGridPos(null);
       setDragOriginIndex(-1);
-      boardRectRef.current = null; // Reset cache
+      boardMetricsRef.current = null; // Reset cache
+      hoverGridPosRef.current = null;
+      boardHandleRef.current?.setHoverLocation(null);
+      if (rafIdRef.current) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
       return;
     }
 
@@ -234,6 +338,9 @@ const App: React.FC = () => {
       }
 
       if (gameState === GameState.PLAYING && phase === Phase.SLIDE) {
+        // Animation/Input Lock Check (ref 기반: state 반영 전에도 즉시 차단)
+        if (slideLockRef.current) return;
+
         let dir: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT' | null = null;
         if (e.key === 'ArrowUp') dir = 'UP';
         if (e.key === 'ArrowDown') dir = 'DOWN';
@@ -251,19 +358,80 @@ const App: React.FC = () => {
   }, [gameState, phase, grid, draggingPiece, rotateActivePiece]);
 
   const executeSlide = (dir: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT') => {
-    const { grid: newGrid, score: scoreAdded, moved } = slideGrid(grid, dir);
+    if (slideLockRef.current) return; // Double check
+
+    const {
+      grid: newGrid,
+      score: scoreAdded,
+      moved,
+      mergingTiles: newMergingTiles,
+      mergedTiles
+    } = slideGrid(grid, dir);
 
     if (!moved) return;
+    const lockMs = SLIDE_ANIMATION_MS + SLIDE_UNLOCK_BUFFER_MS;
+
+    // Lock Input
+    slideLockRef.current = true;
+    setIsAnimating(true);
+
+    // Natural merge: 이동 중에는 합쳐지기 전 값으로 보이도록 오버라이드
+    if (mergedTiles.length > 0) {
+      const overrides: Record<string, number> = {};
+      for (const mt of mergedTiles) overrides[mt.id] = mt.fromValue;
+      setTileValueOverrides(overrides);
+    } else {
+      setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
+    }
+
+    // Set merging tiles for animation
+    if (mergeClearTimeoutRef.current) {
+      window.clearTimeout(mergeClearTimeoutRef.current);
+      mergeClearTimeoutRef.current = null;
+    }
+    if (newMergingTiles.length > 0) {
+      setMergingTiles(newMergingTiles);
+      mergeClearTimeoutRef.current = window.setTimeout(() => {
+        setMergingTiles(EMPTY_MERGING_TILES);
+        mergeClearTimeoutRef.current = null;
+      }, lockMs);
+    } else {
+      setMergingTiles(EMPTY_MERGING_TILES);
+    }
 
     setGrid(newGrid);
-    setScore(prev => prev + scoreAdded);
 
-    if (scoreAdded > 0) {
-      setCanSkipSlide(true);
-      setComboMessage("MERGE! Slide again OR Place block");
-    } else {
-      finishSlideTurn();
+    // Merge 완료 시점에 값/점수 반영 (이동 + 흡수 애니메이션이 끝난 뒤)
+    if (mergeFinalizeTimeoutRef.current) {
+      window.clearTimeout(mergeFinalizeTimeoutRef.current);
+      mergeFinalizeTimeoutRef.current = null;
     }
+    if (scoreAdded > 0) {
+      mergeFinalizeTimeoutRef.current = window.setTimeout(() => {
+        setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
+        setScore(prev => prev + scoreAdded);
+        mergeFinalizeTimeoutRef.current = null;
+      }, lockMs);
+    }
+
+    // Wait for animation to finish before unlocking
+    if (unlockTimeoutRef.current) {
+      window.clearTimeout(unlockTimeoutRef.current);
+      unlockTimeoutRef.current = null;
+    }
+    unlockTimeoutRef.current = window.setTimeout(() => {
+      slideLockRef.current = false;
+      setIsAnimating(false);
+      setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
+      unlockTimeoutRef.current = null;
+
+      if (scoreAdded > 0) {
+        setCanSkipSlide(true);
+        setComboMessage("MERGE! Slide again OR Place block");
+      } else {
+        finishSlideTurn();
+      }
+    }, lockMs);
   };
 
 
@@ -424,7 +592,7 @@ const App: React.FC = () => {
   }
 
   // Calculate if slots should be disabled
-  const isSlotDisabled = phase === Phase.SLIDE && !canSkipSlide;
+  const isSlotDisabled = (phase === Phase.SLIDE && !canSkipSlide) || isAnimating;
 
   // ========== GAME SCREEN ==========
   return (
@@ -460,18 +628,20 @@ const App: React.FC = () => {
       <main className="flex-1 w-full max-w-md flex flex-col items-center justify-start gap-5 p-4 pt-2">
 
         <Board
+          ref={boardHandleRef}
           grid={grid}
           phase={phase}
           activePiece={draggingPiece}
-          hoverLocation={hoverGridPos}
           boardRef={boardRef}
+          mergingTiles={mergingTiles}
+          valueOverrides={tileValueOverrides}
         />
 
 
         {/* Inventory Slots */}
         <div className={`
           w-full grid grid-cols-3 gap-4 
-          transition-all duration-300
+          transition-opacity duration-300
           ${isSlotDisabled ? 'opacity-40 grayscale' : 'opacity-100'}
         `}>
           {slots.map((p, i) => (

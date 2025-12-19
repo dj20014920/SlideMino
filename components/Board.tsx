@@ -25,26 +25,31 @@ interface BoardProps {
   valueOverrides?: Record<string, number>;
 }
 
-const BackgroundGrid = React.memo<{ size: number }>(({ size }) => {
+const BackgroundGrid = React.memo<{ size: number; layout: GridLayout }>(({ size, layout }) => {
+  if (layout.cellPx <= 0) return null;
   return (
-    <div
-      className="absolute inset-0 grid"
-      style={{
-        gap: BOARD_CELL_GAP_PX,
-        gridTemplateColumns: `repeat(${size}, 1fr)`,
-        gridTemplateRows: `repeat(${size}, 1fr)`,
-        zIndex: 0
-      }}
-    >
-      {Array.from({ length: size * size }).map((_, i) => (
-        <div
-          key={`bg-${i}`}
-          className={`
-            w-full h-full rounded-xl
-            ${getTileColor(0)}
-          `}
-        />
-      ))}
+    <div className="absolute inset-0 z-0 pointer-events-none">
+      {Array.from({ length: size * size }).map((_, i) => {
+        const x = i % size;
+        const y = Math.floor(i / size);
+        const transform = `translate3d(${layout.posPx[x]}px, ${layout.posPx[y]}px, 0)`;
+        return (
+          <div
+            key={`bg-${i}`}
+            className={`
+              absolute rounded-xl
+              ${getTileColor(0)}
+            `}
+            style={{
+              width: `${layout.cellPx}px`,
+              height: `${layout.cellPx}px`,
+              left: 0,
+              top: 0,
+              transform,
+            }}
+          />
+        );
+      })}
     </div>
   );
 });
@@ -364,7 +369,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
       className={`
         relative p-3
         bg-white/40
-        rounded-3xl select-none
+        rounded-3xl select-none overflow-hidden
         shadow-lg transition-shadow duration-200 ease-out
         ${boardBorderStyle}
       `}
@@ -390,7 +395,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
       <div className="relative w-full h-full">
 
         {/* 1. Background Grid (Empty Slots) */}
-        <BackgroundGrid size={size} />
+        <BackgroundGrid size={size} layout={layout} />
 
         {/* 2. Merging Tiles Layer (Absorbed tiles animating to merge destination) */}
         <MergingTilesLayer

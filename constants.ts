@@ -3,16 +3,17 @@ import { ShapeType, Coordinate } from './types';
 // Board slide animation (one swipe)
 export const SLIDE_ANIMATION_MS = 200;
 export const SLIDE_UNLOCK_BUFFER_MS = 50;
-// 이동 거리가 길수록(특히 세로 낙하) 200ms 고정은 순간이동처럼 보일 수 있어,
-// 1칸 이동은 기존 체감(200ms)을 유지하되, 추가 이동칸마다 시간을 더해 가시성을 확보한다.
-export const SLIDE_ANIMATION_EXTRA_MS_PER_CELL = 40;
-export const SLIDE_ANIMATION_MAX_MS = 600;
 
 export const getSlideAnimationDurationMs = (distance: number): number => {
   if (!Number.isFinite(distance) || distance <= 0) return 0;
   const scaled = SLIDE_ANIMATION_MS + (distance - 1) * SLIDE_ANIMATION_EXTRA_MS_PER_CELL;
   return Math.min(SLIDE_ANIMATION_MAX_MS, Math.round(scaled));
 };
+
+// 이동 거리가 길수록(특히 세로 낙하) 200ms 고정은 순간이동처럼 보일 수 있어,
+// 1칸 이동은 기존 체감(200ms)을 유지하되, 추가 이동칸마다 시간을 더해 가시성을 확보한다.
+export const SLIDE_ANIMATION_EXTRA_MS_PER_CELL = 40;
+export const SLIDE_ANIMATION_MAX_MS = 600;
 
 // Board rendering/layout constants
 export const BOARD_CELL_GAP_PX = 3;

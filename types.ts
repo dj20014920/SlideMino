@@ -49,8 +49,31 @@ export enum Phase {
   SLIDE = 'SLIDE',
 }
 
-export type BoardSize = 7 | 8 | 10;
+export type BoardSize = 5 | 7 | 8 | 10;
 
 export interface GameSettings {
   boardSize: BoardSize;
+}
+
+// --- Block customization (tile skins) ---
+
+export type TileSkinKind = 'default' | 'color' | 'image';
+
+export type TileSkinOverride =
+  | { kind: 'default' }
+  | { kind: 'color'; color: string } // hex: #RRGGBB
+  | { kind: 'image'; imageDataUrl: string }; // data URL (square, optimized)
+
+export interface GlobalTilePaletteSettings {
+  enabled: boolean;
+  baseColor: string; // hex: #RRGGBB (hue source)
+  saturation: number; // 0..100
+  brightness: number; // 0..100 (HSL lightness baseline)
+  depth: number; // 0..80 (how much darker high values get)
+}
+
+export interface BlockCustomizationSettingsV1 {
+  version: 1;
+  globalPalette: GlobalTilePaletteSettings;
+  perValue: Record<string, TileSkinOverride>; // key = tile value as string (e.g. "1", "2", "4"...)
 }

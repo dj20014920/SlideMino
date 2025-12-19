@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Block Slide 2048</title>
+  <title>SlideMino</title>
   <meta name="description"
     content="Place blocks like Tetris. Merge numbers like 2048. A beautifully crafted puzzle game with iOS-inspired liquid glass design.">
   <meta name="theme-color" content="#fafafa">
@@ -70,6 +70,12 @@
       background: linear-gradient(180deg, #fafafa 0%, #f0f0f0 50%, #e8e8e8 100%);
       min-height: 100vh;
       min-height: 100dvh;
+    }
+
+    :root {
+      /* Safe area insets (iOS notch / gesture areas). Android typically resolves to 0px. */
+      --app-safe-top: env(safe-area-inset-top, 0px);
+      --app-safe-bottom: env(safe-area-inset-bottom, 0px);
     }
 
     /* === Scrollbar (Minimal White Theme) === */

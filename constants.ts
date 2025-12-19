@@ -3,9 +3,164 @@ import { ShapeType, Coordinate } from './types';
 // Board slide animation (one swipe)
 export const SLIDE_ANIMATION_MS = 200;
 export const SLIDE_UNLOCK_BUFFER_MS = 50;
+// 이동 거리가 길수록(특히 세로 낙하) 200ms 고정은 순간이동처럼 보일 수 있어,
+// 1칸 이동은 기존 체감(200ms)을 유지하되, 추가 이동칸마다 시간을 더해 가시성을 확보한다.
+export const SLIDE_ANIMATION_EXTRA_MS_PER_CELL = 40;
+export const SLIDE_ANIMATION_MAX_MS = 600;
+
+export const getSlideAnimationDurationMs = (distance: number): number => {
+  if (!Number.isFinite(distance) || distance <= 0) return 0;
+  const scaled = SLIDE_ANIMATION_MS + (distance - 1) * SLIDE_ANIMATION_EXTRA_MS_PER_CELL;
+  return Math.min(SLIDE_ANIMATION_MAX_MS, Math.round(scaled));
+};
 
 // Board rendering/layout constants
 export const BOARD_CELL_GAP_PX = 3;
+
+// --- Tile typography helpers ---
+
+const TILE_FONT_FAMILY =
+  "Inter, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif";
+const TILE_FONT_WEIGHT = 600; // Tailwind `font-semibold`
+
+let tileMeasureCtx: CanvasRenderingContext2D | null = null;
+const tileTextWidthCache = new Map<string, number>();
+const tileFontSizeCache = new Map<string, number>();
+const tileNumberLayoutCache = new Map<string, { text: string; fontPx: number }>();
+
+const getTileMeasureCtx = (): CanvasRenderingContext2D | null => {
+  if (tileMeasureCtx) return tileMeasureCtx;
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  tileMeasureCtx = canvas.getContext('2d');
+  return tileMeasureCtx;
+};
+
+const measureTileTextWidth = (text: string, fontPx: number): number => {
+  const key = `${fontPx}|${text}`;
+  const cached = tileTextWidthCache.get(key);
+  if (cached !== undefined) return cached;
+
+  const ctx = getTileMeasureCtx();
+  if (!ctx) {
+    const approx = text.length * fontPx * 0.6;
+    tileTextWidthCache.set(key, approx);
+    return approx;
+  }
+
+  ctx.font = `${TILE_FONT_WEIGHT} ${fontPx}px ${TILE_FONT_FAMILY}`;
+  const width = ctx.measureText(text).width;
+  tileTextWidthCache.set(key, width);
+  return width;
+};
+
+export const getTileBaseFontPx = (tilePx: number): number => {
+  return Math.max(12, Math.min(tilePx * 0.45, 40));
+};
+
+const fitFontForLines = (lines: string[], tilePx: number, baseFontPx: number): number => {
+  const maxWidth = tilePx * 0.78;
+  const maxHeight = tilePx * 0.86;
+  const lineHeight = 1;
+
+  const baseWidth = Math.max(...lines.map((line) => measureTileTextWidth(line, baseFontPx)));
+  const baseHeight = baseFontPx * lines.length * lineHeight;
+
+  if (baseWidth <= maxWidth && baseHeight <= maxHeight) return baseFontPx;
+
+  const widthScale = baseWidth > 0 ? maxWidth / baseWidth : 1;
+  const heightScale = baseHeight > 0 ? maxHeight / baseHeight : 1;
+  const scale = Math.min(widthScale, heightScale, 1);
+
+  let fontPx = Math.floor(baseFontPx * scale);
+
+  // 10×10처럼 작은 셀에서도 1024/524288(6 digits)이 반드시 들어가도록 최소 폰트를 낮게 허용.
+  // (너무 큰 수는 가독성보다 'fit'을 우선)
+  const minFontPx = Math.max(4, Math.floor(tilePx * 0.16));
+  if (fontPx < minFontPx) fontPx = minFontPx;
+
+  for (let tries = 0; tries < 24 && fontPx > minFontPx; tries++) {
+    const w = Math.max(...lines.map((line) => measureTileTextWidth(line, fontPx)));
+    const h = fontPx * lines.length * lineHeight;
+    if (w <= maxWidth && h <= maxHeight) break;
+    fontPx -= 1;
+  }
+
+  return fontPx;
+};
+
+const splitNumberForSmallTile = (text: string): string[] => {
+  const len = text.length;
+  if (len <= 3) return [text];
+  if (len === 4) return [text.slice(0, 2), text.slice(2)];
+  const split = Math.max(1, len - 3);
+  return [text.slice(0, split), text.slice(split)];
+};
+
+const splitNumberForTwoLines = (text: string): string[] => {
+  const len = text.length;
+  if (len <= 3) return [text];
+  const split = Math.ceil(len / 2);
+  return [text.slice(0, split), text.slice(split)];
+};
+
+export const getTileNumberLayout = (value: number, tilePx: number): { text: string; fontPx: number } => {
+  if (!Number.isFinite(value) || value <= 0) return { text: '', fontPx: getTileBaseFontPx(tilePx) };
+
+  const key = `${tilePx.toFixed(2)}|${value}`;
+  const cached = tileNumberLayoutCache.get(key);
+  if (cached) return cached;
+
+  const baseFontPx = getTileBaseFontPx(tilePx);
+  const text = String(value);
+
+  // 기본: 한 줄
+  const singleLines = [text];
+  const singleFontPx = fitFontForLines(singleLines, tilePx, baseFontPx);
+
+  // 6글자(예: 524288) 이상은 배열/타일 크기와 무관하게 2줄로 고정 표시
+  if (text.length >= 6) {
+    const forcedLines = splitNumberForTwoLines(text);
+    const forcedFontPx = fitFontForLines(forcedLines, tilePx, baseFontPx);
+    const result = { text: forcedLines.join('\n'), fontPx: forcedFontPx };
+    tileNumberLayoutCache.set(key, result);
+    return result;
+  }
+
+  // 작은 타일에서만(예: 10×10) 줄바꿈 후보를 추가로 고려
+  let bestText = text;
+  let bestFontPx = singleFontPx;
+
+  if (tilePx <= 42 && text.length >= 4) {
+    const wrappedLines = splitNumberForSmallTile(text);
+    const wrappedText = wrappedLines.join('\n');
+    const wrappedFontPx = fitFontForLines(wrappedLines, tilePx, baseFontPx);
+
+    // 의미 있게 커질 때만 줄바꿈을 선택 (레이아웃 일관성 유지)
+    if (wrappedFontPx >= singleFontPx + 1) {
+      bestText = wrappedText;
+      bestFontPx = wrappedFontPx;
+    }
+  }
+
+  const result = { text: bestText, fontPx: bestFontPx };
+  tileNumberLayoutCache.set(key, result);
+  return result;
+};
+
+export const getFittedTileNumberFontPx = (value: number, tilePx: number): number => {
+  const base = getTileBaseFontPx(tilePx);
+  if (!Number.isFinite(value) || value <= 0) return base;
+
+  // 캐시 키는 너무 세분화되지 않게 소수점 2자리로 정규화
+  const key = `${tilePx.toFixed(2)}|${value}`;
+  const cached = tileFontSizeCache.get(key);
+  if (cached !== undefined) return cached;
+
+  const fitted = getTileNumberLayout(value, tilePx);
+  tileFontSizeCache.set(key, fitted.fontPx);
+  return fitted.fontPx;
+};
 
 // Base coordinates for shapes at rotation 0
 export const SHAPES: Record<ShapeType, Coordinate[]> = {

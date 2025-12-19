@@ -20,14 +20,27 @@ import {
 } from './services/gameLogic';
 import { Board, type BoardHandle } from './components/Board';
 import { Slot } from './components/Slot';
-import { BOARD_CELL_GAP_PX, SLIDE_ANIMATION_MS, SLIDE_UNLOCK_BUFFER_MS } from './constants';
-import { RotateCw, Move, Trophy } from 'lucide-react';
+import { TileDebugModal } from './components/TileDebugModal';
+import { BlockCustomizationModal } from './components/BlockCustomizationModal';
+import { BOARD_CELL_GAP_PX, SLIDE_UNLOCK_BUFFER_MS, getSlideAnimationDurationMs } from './constants';
+import { RotateCw, Move, Trophy, Bug, Undo2, Palette, Lock } from 'lucide-react';
+import { useBlockCustomization } from './context/BlockCustomizationContext';
 
 const EMPTY_TILE_VALUE_OVERRIDES: Record<string, number> = {};
 const EMPTY_MERGING_TILES: MergingTile[] = [];
 
+// Undo 시스템: 직전 상태를 저장하기 위한 스냅샷 인터페이스
+interface GameSnapshot {
+  grid: Grid;
+  slots: (Piece | null)[];
+  score: number;
+  phase: Phase;
+  canSkipSlide: boolean;
+}
+
 const App: React.FC = () => {
   // --- State ---
+  const { gate: customizationGate, resolveTileAppearance } = useBlockCustomization();
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
   const [grid, setGrid] = useState<Grid>(createEmptyGrid(8));
   const [slots, setSlots] = useState<(Piece | null)[]>([null, null, null]);
@@ -36,9 +49,15 @@ const App: React.FC = () => {
   const [phase, setPhase] = useState<Phase>(Phase.PLACE);
   const [boardSize, setBoardSize] = useState<BoardSize>(8);
   const [comboMessage, setComboMessage] = useState<string | null>(null);
+  const [isTileDebugOpen, setIsTileDebugOpen] = useState(false);
+  const [isCustomizationOpen, setIsCustomizationOpen] = useState(false);
 
   // New State for the Rule: "Option to stop sliding if merge happened"
   const [canSkipSlide, setCanSkipSlide] = useState(false);
+
+  // Undo 시스템: 직전 스냅샷과 남은 사용 횟수
+  const [lastSnapshot, setLastSnapshot] = useState<GameSnapshot | null>(null);
+  const [undoRemaining, setUndoRemaining] = useState(3);
 
   // Merging tiles for animation (tiles being absorbed)
   const [mergingTiles, setMergingTiles] = useState<MergingTile[]>(EMPTY_MERGING_TILES);
@@ -101,7 +120,44 @@ const App: React.FC = () => {
     setGameState(GameState.PLAYING);
     setComboMessage(null);
     setCanSkipSlide(false);
+    // Undo 초기화
+    setLastSnapshot(null);
+    setUndoRemaining(3);
   };
+
+  // --- Undo 시스템 ---
+
+  // 현재 상태를 스냅샷으로 저장 (행동 실행 전 호출)
+  const saveSnapshot = useCallback(() => {
+    setLastSnapshot({
+      grid: grid.map(row => row.map(tile => tile ? { ...tile } : null)),
+      slots: slots.map(p => p ? { ...p, cells: [...p.cells] } : null),
+      score,
+      phase,
+      canSkipSlide
+    });
+  }, [grid, slots, score, phase, canSkipSlide]);
+
+  // Undo 실행: 직전 스냅샷으로 복원
+  const executeUndo = useCallback(() => {
+    if (!lastSnapshot || undoRemaining <= 0 || isAnimating) return;
+
+    // 스냅샷에서 상태 복원
+    setGrid(lastSnapshot.grid);
+    setSlots(lastSnapshot.slots);
+    setScore(lastSnapshot.score);
+    setPhase(lastSnapshot.phase);
+    setCanSkipSlide(lastSnapshot.canSkipSlide);
+
+    // 사용 횟수 차감 및 스냅샷 초기화 (연속 Undo 방지)
+    setUndoRemaining(prev => prev - 1);
+    setLastSnapshot(null);
+    setComboMessage(null);
+
+    // 애니메이션 관련 상태 정리
+    setMergingTiles(EMPTY_MERGING_TILES);
+    setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
+  }, [lastSnapshot, undoRemaining, isAnimating]);
 
   // Cleanup timers on unmount
   useEffect(() => {
@@ -263,6 +319,7 @@ const App: React.FC = () => {
 
   const handleSwipeStart = (e: React.PointerEvent) => {
     // 슬라이드는 보드 영역에서만 시작 (슬롯/버튼 터치로 인한 오작동 방지)
+    if (isTileDebugOpen) return;
     if (phase !== Phase.SLIDE) return;
     if (slideLockRef.current) return;
     if (!boardRef.current) return;
@@ -274,6 +331,10 @@ const App: React.FC = () => {
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
+    if (isTileDebugOpen) {
+      swipeStartRef.current = null;
+      return;
+    }
     // 1. 드래그 중인 조각이 있다면 -> 조각 놓기 처리
     if (draggingPiece) {
       // 드래그 종료 시 스와이프 시작 좌표가 남아있으면 다음 입력에서 오동작 가능
@@ -281,6 +342,9 @@ const App: React.FC = () => {
       const hover = hoverGridPosRef.current;
       if (hover && boardRef.current) {
         if (canPlacePiece(grid, draggingPiece, hover.x, hover.y)) {
+          // Undo를 위해 현재 상태 저장 (배치 전)
+          saveSnapshot();
+
           const newGrid = placePieceOnGrid(grid, draggingPiece, hover.x, hover.y);
           setGrid(newGrid);
 
@@ -333,6 +397,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isTileDebugOpen) return;
       if (e.key === 'r' || e.key === 'R') {
         if (draggingPiece) rotateActivePiece();
       }
@@ -355,7 +420,7 @@ const App: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [gameState, phase, grid, draggingPiece, rotateActivePiece]);
+  }, [gameState, phase, grid, draggingPiece, rotateActivePiece, isTileDebugOpen]);
 
   const executeSlide = (dir: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT') => {
     if (slideLockRef.current) return; // Double check
@@ -365,11 +430,15 @@ const App: React.FC = () => {
       score: scoreAdded,
       moved,
       mergingTiles: newMergingTiles,
-      mergedTiles
+      mergedTiles,
+      maxDistance
     } = slideGrid(grid, dir);
 
     if (!moved) return;
-    const lockMs = SLIDE_ANIMATION_MS + SLIDE_UNLOCK_BUFFER_MS;
+
+    // Undo를 위해 현재 상태 저장 (슬라이드 전)
+    saveSnapshot();
+    const lockMs = getSlideAnimationDurationMs(maxDistance) + SLIDE_UNLOCK_BUFFER_MS;
 
     // Lock Input
     slideLockRef.current = true;
@@ -462,6 +531,7 @@ const App: React.FC = () => {
 
     const cells = draggingPiece.cells;
     const cellSize = 32;
+    const cellAppearance = resolveTileAppearance(draggingPiece.value);
 
     const minX = Math.min(...cells.map(c => c.x));
     const maxX = Math.max(...cells.map(c => c.x));
@@ -496,10 +566,14 @@ const App: React.FC = () => {
           {cells.map((c, i) => (
             <div
               key={i}
-              className="absolute w-8 h-8 bg-gradient-to-br from-gray-700 to-gray-900 rounded-lg border border-white/30 shadow-lg"
+              className={`
+                absolute w-8 h-8 rounded-lg
+                ${cellAppearance.className}
+              `}
               style={{
                 left: c.x * cellSize,
-                top: c.y * cellSize
+                top: c.y * cellSize,
+                ...(cellAppearance.style ?? {}),
               }}
             />
           ))}
@@ -517,7 +591,7 @@ const App: React.FC = () => {
         {/* 로고 영역 */}
         <div className="text-center space-y-3 animate-fade-in">
           <h1 className="text-5xl font-bold text-gray-900 tracking-tight">
-            Block Slide
+            SlideMino
           </h1>
           <p className="text-gray-500 text-lg max-w-xs mx-auto leading-relaxed">
             Place blocks like Tetris.<br />
@@ -586,7 +660,61 @@ const App: React.FC = () => {
               <span className="text-gray-500 font-normal text-sm">7×7</span>
             </span>
           </button>
+
+          {/* Extreme - 5×5 */}
+          <button
+            onClick={() => startGame(5)}
+            className="
+              relative group w-full py-4 px-6 rounded-2xl
+              bg-gradient-to-br from-red-600 via-red-700 to-red-900
+              border border-red-400/30
+              shadow-lg shadow-red-900/20
+              hover:shadow-xl hover:shadow-red-600/30 hover:-translate-y-0.5
+              active:translate-y-0 active:shadow-md
+              transition-all duration-200 ease-out
+              text-white font-semibold text-lg
+            "
+          >
+            <span className="flex items-center justify-between">
+              <span>🔥 Extreme</span>
+              <span className="text-red-200/70 font-normal text-sm">5×5</span>
+            </span>
+          </button>
+
+          {/* Customization */}
+          <button
+            onClick={() => setIsCustomizationOpen(true)}
+            className={`
+              relative group w-full py-3.5 px-6 rounded-2xl
+              bg-white/60 backdrop-blur-sm
+              border border-white/50
+              shadow-lg
+              hover:shadow-xl hover:-translate-y-0.5
+              active:translate-y-0 active:shadow-md
+              transition-all duration-200 ease-out
+              text-gray-800 font-semibold text-base
+              flex items-center justify-between
+            `}
+          >
+            <span className="flex items-center gap-2">
+              <Palette size={16} />
+              블럭 커스터마이징
+            </span>
+            {!customizationGate.allowed ? (
+              <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-700/90">
+                <Lock size={14} />
+                {customizationGate.reason ?? '잠김'}
+              </span>
+            ) : (
+              <span className="text-gray-400 font-normal text-sm">꾸미기</span>
+            )}
+          </button>
         </div>
+
+        <BlockCustomizationModal
+          open={isCustomizationOpen}
+          onClose={() => setIsCustomizationOpen(false)}
+        />
       </div>
     );
   }
@@ -603,7 +731,10 @@ const App: React.FC = () => {
       onPointerUp={handlePointerUp}
     >
       {/* Header */}
-      <header className="w-full max-w-md flex justify-between items-center p-4 pt-6">
+      <header
+        className="w-full max-w-md flex justify-between items-center p-4"
+        style={{ paddingTop: 'calc(36px + var(--app-safe-top))' }}
+      >
         <div className="space-y-0.5">
           <h2 className="text-sm font-medium text-gray-400 uppercase tracking-wider">Score</h2>
           <p className="text-3xl font-bold text-gray-900 tabular-nums">{score}</p>
@@ -615,17 +746,58 @@ const App: React.FC = () => {
             transition-all duration-200 ease-out
             ${phase === Phase.PLACE
               ? 'bg-white/50 backdrop-blur-sm border border-white/40 text-gray-700 shadow-md'
-              : 'bg-gray-900 text-white shadow-lg'
+              : 'bg-gray-900 text-white shadow-lg border border-transparent'
             }
           `}>
             {phase === Phase.PLACE ? 'PLACE BLOCK' : 'SWIPE BOARD'}
             {phase === Phase.SLIDE && <Move size={14} className="animate-pulse" />}
           </div>
+
+          {/* Undo Button */}
+          <button
+            type="button"
+            onClick={executeUndo}
+            disabled={!lastSnapshot || undoRemaining <= 0 || isAnimating}
+            className={`
+              px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-2
+              border shadow-sm transition-all duration-200
+              ${(!lastSnapshot || undoRemaining <= 0 || isAnimating)
+                ? 'bg-gray-100/50 text-gray-300 border-gray-200/50 cursor-not-allowed'
+                : 'bg-white/70 hover:bg-white text-gray-700 border-white/50 hover:shadow-md active:scale-95'
+              }
+            `}
+          >
+            <Undo2 size={14} />
+            <span className="tabular-nums">{undoRemaining}</span>
+          </button>
+
+          {/* Debug: Tile palette */}
+          {import.meta.env.DEV && (
+            <button
+              type="button"
+              disabled={!!draggingPiece}
+              className={`
+                px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-2
+                border shadow-sm transition-colors
+                ${draggingPiece
+                  ? 'bg-white/40 text-gray-400 border-white/30 opacity-60 cursor-not-allowed'
+                  : 'bg-white/60 hover:bg-white text-gray-700 border-white/50'
+                }
+              `}
+              onClick={() => setIsTileDebugOpen(true)}
+            >
+              <Bug size={14} />
+              Tiles
+            </button>
+          )}
         </div>
       </header>
 
       {/* Main Game Area */}
-      <main className="flex-1 w-full max-w-md flex flex-col items-center justify-start gap-5 p-4 pt-2">
+      <main
+        className="flex-1 w-full max-w-md flex flex-col items-center justify-start gap-5 p-4 pt-2"
+        style={{ paddingBottom: 'calc(16px + var(--app-safe-bottom))' }}
+      >
 
         <Board
           ref={boardHandleRef}
@@ -672,6 +844,12 @@ const App: React.FC = () => {
 
       {/* Dragging Overlay */}
       {renderDraggingPiece()}
+
+      {/* Debug Modal */}
+      <TileDebugModal
+        open={isTileDebugOpen}
+        onClose={() => setIsTileDebugOpen(false)}
+      />
 
       {/* Game Over Modal */}
       {gameState === GameState.GAME_OVER && (

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Piece } from '../types';
-import { SHAPES } from '../constants';
 import { RotateCw } from 'lucide-react';
+import { useBlockCustomization } from '../context/BlockCustomizationContext';
 
 interface SlotProps {
   piece: Piece | null;
@@ -12,6 +12,8 @@ interface SlotProps {
 }
 
 export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, index, disabled }) => {
+  const { resolveTileAppearance } = useBlockCustomization();
+
   // 빈 슬롯 렌더링
   if (!piece) {
     return (
@@ -34,12 +36,12 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
   const width = maxX - minX + 1;
   const height = maxY - minY + 1;
 
-  // Padding to prevent border clipping - tighter fit
-  const padding = 0.1;
-  const viewBoxX = minX - padding;
-  const viewBoxY = minY - padding;
-  const viewBoxW = width + (padding * 2);
-  const viewBoxH = height + (padding * 2);
+  // Slot preview should follow tile customization (default: value 1).
+  // (No number label in slot preview by design.)
+  const previewValue = 1;
+  const appearance = resolveTileAppearance(previewValue);
+  const fitByWidth = width >= height;
+  const normalizedCells = cells.map((c) => ({ x: c.x - minX, y: c.y - minY }));
 
   return (
     <div
@@ -49,11 +51,11 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
         border border-white/50
         shadow-[0_4px_16px_rgba(0,0,0,0.06)]
         cursor-grab active:cursor-grabbing 
-        transition-all duration-200 ease-out
+        transition-shadow duration-200 ease-out
         group
         ${disabled
           ? 'opacity-30 pointer-events-none grayscale'
-          : 'hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] hover:-translate-y-1 hover:bg-white/50'
+          : 'hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] hover:bg-white/50'
         }
       `}
       onPointerDown={(e) => {
@@ -86,33 +88,38 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
         </button>
       )}
 
-      {/* 블록 SVG 미리보기 */}
-      <svg
-        viewBox={`${viewBoxX} ${viewBoxY} ${viewBoxW} ${viewBoxH}`}
-        className="w-full h-full pointer-events-none p-3 drop-shadow-md"
-        preserveAspectRatio="xMidYMid meet"
-      >
-        <defs>
-          {/* 블록용 그라데이션 정의 */}
-          <linearGradient id={`blockGrad-${piece.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#374151" />
-            <stop offset="100%" stopColor="#1f2937" />
-          </linearGradient>
-        </defs>
-        {cells.map((c, i) => (
-          <rect
-            key={i}
-            x={c.x}
-            y={c.y}
-            width={0.92}
-            height={0.92}
-            rx={0.12}
-            fill={`url(#blockGrad-${piece.id})`}
-            stroke="rgba(255,255,255,0.3)"
-            strokeWidth={0.04}
-          />
-        ))}
-      </svg>
+      {/* 블록 미리보기 (커스터마이징 색상 반영) */}
+      <div className="w-full h-full pointer-events-none p-3">
+        <div className="w-full h-full flex items-center justify-center">
+          <div
+            className="grid gap-1"
+            style={{
+              aspectRatio: `${width} / ${height}`,
+              width: fitByWidth ? '100%' : 'auto',
+              height: fitByWidth ? 'auto' : '100%',
+              gridTemplateColumns: `repeat(${width}, 1fr)`,
+              gridTemplateRows: `repeat(${height}, 1fr)`,
+              filter: 'drop-shadow(0 6px 10px rgba(0,0,0,0.10))',
+            }}
+          >
+            {normalizedCells.map((c, i) => (
+              <div
+                key={i}
+                className={`
+                  rounded-lg
+                  border border-white/30
+                  ${appearance.className}
+                `}
+                style={{
+                  gridColumn: c.x + 1,
+                  gridRow: c.y + 1,
+                  ...(appearance.style ?? {}),
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 });

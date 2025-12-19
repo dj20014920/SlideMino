@@ -9,7 +9,8 @@ import React, {
 } from 'react';
 import { Grid, Piece, Phase, Tile, MergingTile } from '../types';
 import { canPlacePiece } from '../services/gameLogic';
-import { getTileColor, SLIDE_ANIMATION_MS, BOARD_CELL_GAP_PX } from '../constants';
+import { getTileColor, getTileNumberLayout, getSlideAnimationDurationMs, BOARD_CELL_GAP_PX } from '../constants';
+import { useBlockCustomization } from '../context/BlockCustomizationContext';
 
 export type BoardHandle = {
   setHoverLocation: (pos: { x: number; y: number } | null) => void;
@@ -55,25 +56,29 @@ type GridLayout = {
 };
 
 const tileTransitionEase = 'cubic-bezier(0.25,0.1,0.25,1.0)';
-const getAnimationDuration = (distance: number) => (distance === 0 ? 0 : SLIDE_ANIMATION_MS);
 
 const MergingTilesLayer = React.memo<{
   animatingMerges: (MergingTile & { currentX: number; currentY: number; distance: number })[];
-  dynamicFontSize: number;
   layout: GridLayout;
-}>(({ animatingMerges, dynamicFontSize, layout }) => {
+}>(({ animatingMerges, layout }) => {
+  const { resolveTileAppearance } = useBlockCustomization();
   return (
     <div className="absolute inset-0 z-5 pointer-events-none">
       {animatingMerges.map((mt) => {
-        const duration = getAnimationDuration(mt.distance);
+        const duration = getSlideAnimationDurationMs(mt.distance);
         const transform = `translate3d(${layout.posPx[mt.currentX]}px, ${layout.posPx[mt.currentY]}px, 0)`;
+        const { text, fontPx } = getTileNumberLayout(mt.value, layout.cellPx);
+        const appearance = resolveTileAppearance(mt.value);
         return (
           <div
             key={`merge-${mt.id}`}
+            data-tile-id={mt.id}
+            data-tile-distance={mt.distance}
+            data-tile-kind="merge"
             className={`
               absolute rounded-xl flex items-center justify-center 
-              font-semibold
-              ${getTileColor(mt.value)}
+              font-semibold overflow-hidden text-center
+              ${appearance.className}
             `}
             style={{
               width: `${layout.cellPx}px`,
@@ -81,15 +86,18 @@ const MergingTilesLayer = React.memo<{
               left: 0,
               top: 0,
               transform,
-              fontSize: `${dynamicFontSize}px`,
+              fontSize: `${fontPx}px`,
+              lineHeight: 1,
+              whiteSpace: 'pre-line',
               opacity: 0.7,
               transition: duration
                 ? `transform ${duration}ms ${tileTransitionEase}`
                 : undefined,
               willChange: duration ? 'transform' : undefined,
+              ...(appearance.style ?? {}),
             }}
           >
-            {mt.value}
+            {text}
           </div>
         );
       })}
@@ -99,24 +107,29 @@ const MergingTilesLayer = React.memo<{
 
 const TilesLayer = React.memo<{
   tiles: (Tile & { x: number; y: number; distance: number })[];
-  dynamicFontSize: number;
   layout: GridLayout;
   valueOverrides?: Record<string, number>;
-}>(({ tiles, dynamicFontSize, layout, valueOverrides }) => {
+}>(({ tiles, layout, valueOverrides }) => {
+  const { resolveTileAppearance } = useBlockCustomization();
   return (
     <div className="absolute inset-0 z-10 pointer-events-none">
       {tiles.map((tile) => {
-        const duration = getAnimationDuration(tile.distance);
+        const duration = getSlideAnimationDurationMs(tile.distance);
         const displayValue = valueOverrides?.[tile.id] ?? tile.value;
         const transform = `translate3d(${layout.posPx[tile.x]}px, ${layout.posPx[tile.y]}px, 0)`;
+        const { text, fontPx } = getTileNumberLayout(displayValue, layout.cellPx);
+        const appearance = resolveTileAppearance(displayValue);
 
         return (
           <div
             key={tile.id}
+            data-tile-id={tile.id}
+            data-tile-distance={tile.distance}
+            data-tile-kind="tile"
             className={`
               absolute rounded-xl flex items-center justify-center 
-              font-semibold
-              ${getTileColor(displayValue)}
+              font-semibold overflow-hidden text-center
+              ${appearance.className}
             `}
             style={{
               width: `${layout.cellPx}px`,
@@ -124,14 +137,17 @@ const TilesLayer = React.memo<{
               left: 0,
               top: 0,
               transform,
-              fontSize: `${dynamicFontSize}px`,
+              fontSize: `${fontPx}px`,
+              lineHeight: 1,
+              whiteSpace: 'pre-line',
               transition: duration
                 ? `transform ${duration}ms ${tileTransitionEase}`
                 : undefined,
               willChange: duration ? 'transform' : undefined,
+              ...(appearance.style ?? {}),
             }}
           >
-            {displayValue}
+            {text}
           </div>
         );
       })}
@@ -336,13 +352,11 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
     };
   }, [grid, activePiece, hoverLocation]);
 
-  // Dynamic font size: ~45% of cell size, clamped reasonably
-  const dynamicFontSize = Math.max(12, Math.min(layout.cellPx * 0.45, 40));
-
   // Phase별 보드 테두리 스타일
   const boardBorderStyle = phase === Phase.SLIDE
-    ? 'ring-2 ring-gray-400/50 shadow-[0_0_30px_rgba(0,0,0,0.15)]'
+    ? 'ring-1 ring-gray-400/50'
     : 'ring-1 ring-white/30';
+  const glowOpacityClass = phase === Phase.SLIDE ? 'opacity-100' : 'opacity-0';
 
   return (
     <div
@@ -351,7 +365,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
         relative p-3
         bg-white/40
         rounded-3xl select-none
-        shadow-lg
+        shadow-lg transition-shadow duration-200 ease-out
         ${boardBorderStyle}
       `}
       style={{
@@ -360,6 +374,18 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
         aspectRatio: '1/1',
       }}
     >
+      {/* Phase glow */}
+      <div
+        className={`
+          absolute inset-0 rounded-3xl pointer-events-none
+          transition-opacity duration-200 ease-out
+          ${glowOpacityClass}
+        `}
+        style={{
+          boxShadow: '0 0 30px rgba(0,0,0,0.15)',
+        }}
+        aria-hidden="true"
+      />
       {/* Container for content aiming to match padding-box area */}
       <div className="relative w-full h-full">
 
@@ -369,14 +395,12 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
         {/* 2. Merging Tiles Layer (Absorbed tiles animating to merge destination) */}
         <MergingTilesLayer
           animatingMerges={animatingMerges}
-          dynamicFontSize={dynamicFontSize}
           layout={layout}
         />
 
         {/* 3. Tiles Layer (Animated with uniform speed) */}
         <TilesLayer
           tiles={renderTiles}
-          dynamicFontSize={dynamicFontSize}
           layout={layout}
           valueOverrides={valueOverrides}
         />

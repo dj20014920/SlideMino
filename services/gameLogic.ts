@@ -71,6 +71,7 @@ interface MergeLineResult {
   score: number;
   absorbedTiles: { tile: Tile; originalIndex: number; mergeIndex: number }[];
   mergedTiles: { id: string; fromValue: number; toValue: number }[];
+  maxDistance: number;
 }
 
 /**
@@ -97,6 +98,7 @@ const mergeLine = (line: (Tile | null)[]): MergeLineResult => {
   let score = 0;
   let i = 0;
   let outIndex = 0;
+  let maxDistance = 0;
 
   // 2. 인접한 동일 값 타일 병합 (한 번에 두 개씩만)
   while (i < tilesWithPos.length) {
@@ -115,6 +117,7 @@ const mergeLine = (line: (Tile | null)[]): MergeLineResult => {
         fromValue: current.tile.value,
         toValue: newVal,
       });
+      maxDistance = Math.max(maxDistance, Math.abs(outIndex - current.originalIndex));
 
       // next 타일이 current로 흡수됨 → 애니메이션 대상
       absorbedTiles.push({
@@ -122,12 +125,14 @@ const mergeLine = (line: (Tile | null)[]): MergeLineResult => {
         originalIndex: next.originalIndex,
         mergeIndex: outIndex // 흡수되는 위치
       });
+      maxDistance = Math.max(maxDistance, Math.abs(outIndex - next.originalIndex));
 
       score += newVal;
       i += 2; // 두 타일 모두 처리됨
     } else {
       // 병합 없음, 그대로 이동
       out.push(current.tile);
+      maxDistance = Math.max(maxDistance, Math.abs(outIndex - current.originalIndex));
       i++;
     }
     outIndex++;
@@ -138,7 +143,7 @@ const mergeLine = (line: (Tile | null)[]): MergeLineResult => {
     out.push(null);
   }
 
-  return { mergedLine: out, score, absorbedTiles, mergedTiles };
+  return { mergedLine: out, score, absorbedTiles, mergedTiles, maxDistance };
 };
 
 export interface MergedTile {
@@ -153,6 +158,7 @@ export interface SlideResult {
   moved: boolean;
   mergingTiles: MergingTile[];
   mergedTiles: MergedTile[];
+  maxDistance: number;
 }
 
 export const slideGrid = (grid: Grid, direction: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT'): SlideResult => {
@@ -162,6 +168,7 @@ export const slideGrid = (grid: Grid, direction: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT
   let somethingChanged = false;
   const mergingTiles: MergingTile[] = [];
   const mergedTiles: MergedTile[] = [];
+  let maxDistance = 0;
 
   const getLineIds = (line: (Tile | null)[]) => line.map(t => t?.id).join(',');
 
@@ -172,9 +179,10 @@ export const slideGrid = (grid: Grid, direction: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT
 
       if (direction === 'RIGHT') line = line.reverse();
 
-      const { mergedLine, score, absorbedTiles, mergedTiles: lineMergedTiles } = mergeLine(line);
+      const { mergedLine, score, absorbedTiles, mergedTiles: lineMergedTiles, maxDistance: lineMaxDistance } = mergeLine(line);
       totalScore += score;
       mergedTiles.push(...lineMergedTiles);
+      maxDistance = Math.max(maxDistance, lineMaxDistance);
 
       let finalLine = [...mergedLine];
       if (direction === 'RIGHT') {
@@ -219,9 +227,10 @@ export const slideGrid = (grid: Grid, direction: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT
 
       if (direction === 'DOWN') line = line.reverse();
 
-      const { mergedLine, score, absorbedTiles, mergedTiles: lineMergedTiles } = mergeLine(line);
+      const { mergedLine, score, absorbedTiles, mergedTiles: lineMergedTiles, maxDistance: lineMaxDistance } = mergeLine(line);
       totalScore += score;
       mergedTiles.push(...lineMergedTiles);
+      maxDistance = Math.max(maxDistance, lineMaxDistance);
 
       let finalLine = [...mergedLine];
       if (direction === 'DOWN') {
@@ -258,7 +267,7 @@ export const slideGrid = (grid: Grid, direction: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT
     }
   }
 
-  return { grid: newGrid, score: totalScore, moved: somethingChanged, mergingTiles, mergedTiles };
+  return { grid: newGrid, score: totalScore, moved: somethingChanged, mergingTiles, mergedTiles, maxDistance };
 };
 
 // Safety check: Can the board move in ANY direction?

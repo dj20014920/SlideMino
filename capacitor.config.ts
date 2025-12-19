@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.slidemino.blockslide2048',
-  appName: 'Block Slide 2048',
+  appName: 'SlideMino',
   webDir: 'dist',
   server: {
     androidScheme: 'https'

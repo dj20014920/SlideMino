@@ -20,11 +20,11 @@ import {
 } from './services/gameLogic';
 import { Board, type BoardHandle } from './components/Board';
 import { Slot } from './components/Slot';
-import { TileDebugModal } from './components/TileDebugModal';
 import { BlockCustomizationModal } from './components/BlockCustomizationModal';
 import { BOARD_CELL_GAP_PX, SLIDE_UNLOCK_BUFFER_MS, getSlideAnimationDurationMs } from './constants';
-import { RotateCw, Move, Trophy, Bug, Undo2, Palette, Lock } from 'lucide-react';
+import { RotateCw, Move, Trophy, Undo2, Palette, Lock, Home } from 'lucide-react';
 import { useBlockCustomization } from './context/BlockCustomizationContext';
+import { saveGameState, loadGameState, clearGameState, hasActiveGame } from './services/gameStorage';
 
 const EMPTY_TILE_VALUE_OVERRIDES: Record<string, number> = {};
 const EMPTY_MERGING_TILES: MergingTile[] = [];
@@ -49,7 +49,6 @@ const App: React.FC = () => {
   const [phase, setPhase] = useState<Phase>(Phase.PLACE);
   const [boardSize, setBoardSize] = useState<BoardSize>(8);
   const [comboMessage, setComboMessage] = useState<string | null>(null);
-  const [isTileDebugOpen, setIsTileDebugOpen] = useState(false);
   const [isCustomizationOpen, setIsCustomizationOpen] = useState(false);
 
   // New State for the Rule: "Option to stop sliding if merge happened"
@@ -93,6 +92,71 @@ const App: React.FC = () => {
   const unlockTimeoutRef = useRef<number | null>(null);
 
   // --- Initialization ---
+
+  // 앱 시작 시 저장된 게임 복원
+  useEffect(() => {
+    const saved = loadGameState();
+    if (saved) {
+      // 저장된 진행중 게임이 있으면 바로 게임 화면으로
+      setGameState(saved.gameState);
+      setGrid(saved.grid);
+      setSlots(saved.slots);
+      setScore(saved.score);
+      setPhase(saved.phase);
+      setBoardSize(saved.boardSize);
+      setCanSkipSlide(saved.canSkipSlide);
+      setUndoRemaining(saved.undoRemaining);
+    }
+  }, []);
+
+  // 게임 상태 자동 저장 (게임 진행중일 때만)
+  useEffect(() => {
+    if (gameState === GameState.PLAYING) {
+      saveGameState({
+        gameState,
+        grid,
+        slots,
+        score,
+        phase,
+        boardSize,
+        canSkipSlide,
+        undoRemaining,
+      });
+    } else if (gameState === GameState.GAME_OVER) {
+      // 게임 오버 시에만 저장된 게임 삭제 (메뉴로 돌아갈 때는 유지)
+      clearGameState();
+    }
+  }, [gameState, grid, slots, score, phase, boardSize, canSkipSlide, undoRemaining]);
+
+  // 메인 화면으로 돌아가기 (게임 상태 유지)
+  const goToMenu = useCallback(() => {
+    // 현재 게임 상태는 이미 자동 저장되어 있으므로 메뉴로만 이동
+    setGameState(GameState.MENU);
+    // 드래그 상태 정리
+    setDraggingPiece(null);
+    setDragOriginIndex(-1);
+    boardMetricsRef.current = null;
+    hoverGridPosRef.current = null;
+    boardHandleRef.current?.setHoverLocation(null);
+    if (rafIdRef.current) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+  }, []);
+
+  // 난이도 선택 시 진행중 게임 경고
+  const tryStartGame = useCallback((size: BoardSize) => {
+    // 진행중인 게임이 있고, 다른 난이도를 선택하려는 경우 경고
+    if (hasActiveGame() && (gameState === GameState.MENU || boardSize !== size)) {
+      const confirmed = window.confirm(
+        '진행 중인 게임이 있습니다.\n새 게임을 시작하면 현재 게임은 사라집니다.\n\n계속하시겠습니까?'
+      );
+      if (!confirmed) return;
+      // 기존 게임 삭제
+      clearGameState();
+    }
+    startGame(size);
+  }, [gameState, boardSize]);
 
   const startGame = (size: BoardSize) => {
     if (mergeClearTimeoutRef.current) {
@@ -319,7 +383,6 @@ const App: React.FC = () => {
 
   const handleSwipeStart = (e: React.PointerEvent) => {
     // 슬라이드는 보드 영역에서만 시작 (슬롯/버튼 터치로 인한 오작동 방지)
-    if (isTileDebugOpen) return;
     if (phase !== Phase.SLIDE) return;
     if (slideLockRef.current) return;
     if (!boardRef.current) return;
@@ -331,10 +394,6 @@ const App: React.FC = () => {
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
-    if (isTileDebugOpen) {
-      swipeStartRef.current = null;
-      return;
-    }
     // 1. 드래그 중인 조각이 있다면 -> 조각 놓기 처리
     if (draggingPiece) {
       // 드래그 종료 시 스와이프 시작 좌표가 남아있으면 다음 입력에서 오동작 가능
@@ -397,7 +456,6 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isTileDebugOpen) return;
       if (e.key === 'r' || e.key === 'R') {
         if (draggingPiece) rotateActivePiece();
       }
@@ -420,7 +478,7 @@ const App: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [gameState, phase, grid, draggingPiece, rotateActivePiece, isTileDebugOpen]);
+  }, [gameState, phase, grid, draggingPiece, rotateActivePiece]);
 
   const executeSlide = (dir: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT') => {
     if (slideLockRef.current) return; // Double check
@@ -601,9 +659,43 @@ const App: React.FC = () => {
 
         {/* 난이도 선택 버튼들 */}
         <div className="flex flex-col gap-4 w-full max-w-xs animate-slide-up">
+          {/* 게임 이어하기 버튼 - 진행중인 게임이 있을 때만 표시 */}
+          {hasActiveGame() && (
+            <button
+              onClick={() => {
+                const saved = loadGameState();
+                if (saved) {
+                  setGameState(saved.gameState);
+                  setGrid(saved.grid);
+                  setSlots(saved.slots);
+                  setScore(saved.score);
+                  setPhase(saved.phase);
+                  setBoardSize(saved.boardSize);
+                  setCanSkipSlide(saved.canSkipSlide);
+                  setUndoRemaining(saved.undoRemaining);
+                }
+              }}
+              className="
+                relative group w-full py-4 px-6 rounded-2xl
+                bg-gradient-to-br from-emerald-500 to-emerald-600
+                border border-emerald-400/30
+                shadow-lg shadow-emerald-900/20
+                hover:shadow-xl hover:shadow-emerald-600/30 hover:-translate-y-0.5
+                active:translate-y-0 active:shadow-md
+                transition-all duration-200 ease-out
+                text-white font-semibold text-lg
+              "
+            >
+              <span className="flex items-center justify-between">
+                <span>▶ 게임 이어하기</span>
+                <span className="text-emerald-200/70 font-normal text-sm">{boardSize}×{boardSize}</span>
+              </span>
+            </button>
+          )}
+
           {/* Easy */}
           <button
-            onClick={() => startGame(10)}
+            onClick={() => tryStartGame(10)}
             className="
               relative group w-full py-4 px-6 rounded-2xl
               bg-white/60 backdrop-blur-sm
@@ -623,7 +715,7 @@ const App: React.FC = () => {
 
           {/* Normal */}
           <button
-            onClick={() => startGame(8)}
+            onClick={() => tryStartGame(8)}
             className="
               relative group w-full py-4 px-6 rounded-2xl
               bg-gradient-to-br from-gray-800 to-gray-900
@@ -643,7 +735,7 @@ const App: React.FC = () => {
 
           {/* Hard */}
           <button
-            onClick={() => startGame(7)}
+            onClick={() => tryStartGame(7)}
             className="
               relative group w-full py-4 px-6 rounded-2xl
               bg-black
@@ -663,7 +755,7 @@ const App: React.FC = () => {
 
           {/* Extreme - 5×5 */}
           <button
-            onClick={() => startGame(5)}
+            onClick={() => tryStartGame(5)}
             className="
               relative group w-full py-4 px-6 rounded-2xl
               bg-gradient-to-br from-red-600 via-red-700 to-red-900
@@ -735,9 +827,28 @@ const App: React.FC = () => {
         className="w-full max-w-md flex justify-between items-center p-4"
         style={{ paddingTop: 'calc(36px + var(--app-safe-top))' }}
       >
-        <div className="space-y-0.5">
-          <h2 className="text-sm font-medium text-gray-400 uppercase tracking-wider">Score</h2>
-          <p className="text-3xl font-bold text-gray-900 tabular-nums">{score}</p>
+        <div className="flex items-center gap-3">
+          {/* Home Button */}
+          <button
+            type="button"
+            onClick={goToMenu}
+            disabled={isAnimating}
+            className={`
+              p-2.5 rounded-full flex items-center justify-center
+              border shadow-sm transition-all duration-200
+              ${isAnimating
+                ? 'bg-gray-100/50 text-gray-300 border-gray-200/50 cursor-not-allowed'
+                : 'bg-white/70 hover:bg-white text-gray-700 border-white/50 hover:shadow-md active:scale-95'
+              }
+            `}
+            aria-label="홈으로"
+          >
+            <Home size={18} />
+          </button>
+          <div className="space-y-0.5">
+            <h2 className="text-sm font-medium text-gray-400 uppercase tracking-wider">Score</h2>
+            <p className="text-3xl font-bold text-gray-900 tabular-nums">{score}</p>
+          </div>
         </div>
         <div className="flex flex-col items-end gap-2">
           {/* Phase Indicator - Glass Pill */}
@@ -770,26 +881,6 @@ const App: React.FC = () => {
             <Undo2 size={14} />
             <span className="tabular-nums">{undoRemaining}</span>
           </button>
-
-          {/* Debug: Tile palette */}
-          {import.meta.env.DEV && (
-            <button
-              type="button"
-              disabled={!!draggingPiece}
-              className={`
-                px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-2
-                border shadow-sm transition-colors
-                ${draggingPiece
-                  ? 'bg-white/40 text-gray-400 border-white/30 opacity-60 cursor-not-allowed'
-                  : 'bg-white/60 hover:bg-white text-gray-700 border-white/50'
-                }
-              `}
-              onClick={() => setIsTileDebugOpen(true)}
-            >
-              <Bug size={14} />
-              Tiles
-            </button>
-          )}
         </div>
       </header>
 
@@ -844,12 +935,6 @@ const App: React.FC = () => {
 
       {/* Dragging Overlay */}
       {renderDraggingPiece()}
-
-      {/* Debug Modal */}
-      <TileDebugModal
-        open={isTileDebugOpen}
-        onClose={() => setIsTileDebugOpen(false)}
-      />
 
       {/* Game Over Modal */}
       {gameState === GameState.GAME_OVER && (

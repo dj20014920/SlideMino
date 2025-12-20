@@ -4,11 +4,12 @@ import { X, Play } from 'lucide-react';
 interface NameInputModalProps {
     open: boolean;
     difficulty: number | null;
+    hasActiveGame?: boolean;
     onClose: () => void;
     onSubmit: (name: string) => void;
 }
 
-export const NameInputModal: React.FC<NameInputModalProps> = ({ open, difficulty, onClose, onSubmit }) => {
+export const NameInputModal: React.FC<NameInputModalProps> = ({ open, difficulty, hasActiveGame, onClose, onSubmit }) => {
     const [name, setName] = useState('');
     const [error, setError] = useState<string | null>(null);
 
@@ -80,6 +81,13 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({ open, difficulty
                             <X size={20} />
                         </button>
                     </div>
+
+                    {hasActiveGame && (
+                        <div className="mb-6 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800 flex flex-col gap-1">
+                            <span className="font-bold">⚠️ 진행 중인 게임이 있습니다</span>
+                            <span className="text-amber-700/80">새 게임을 시작하면 현재 게임은 삭제됩니다.</span>
+                        </div>
+                    )}
 
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div>

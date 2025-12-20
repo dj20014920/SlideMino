@@ -60,6 +60,7 @@ const App: React.FC = () => {
   const [isNameInputOpen, setIsNameInputOpen] = useState(false);
   const [pendingDifficulty, setPendingDifficulty] = useState<number | null>(null);
   const [playerName, setPlayerName] = useState<string>('');
+  const [showActiveGameWarning, setShowActiveGameWarning] = useState(false);
 
   // New State for the Rule: "Option to stop sliding if merge happened"
   const [canSkipSlide, setCanSkipSlide] = useState(false);
@@ -159,27 +160,25 @@ const App: React.FC = () => {
 
   // 난이도 선택 시 진행중 게임 경고 -> 이름 입력 모달
   const tryStartGame = useCallback((size: BoardSize) => {
-    // 진행중인 게임이 있고, 다른 난이도를 선택하려는 경우 경고
-    if (hasActiveGame() && (gameState === GameState.MENU || boardSize !== size)) {
-      const confirmed = window.confirm(
-        '진행 중인 게임이 있습니다.\n새 게임을 시작하면 현재 게임은 사라집니다.\n\n계속하시겠습니까?'
-      );
-      if (!confirmed) return;
-      // 기존 게임 삭제
-      clearGameState();
-    }
+    const active = hasActiveGame() && (gameState === GameState.MENU || boardSize !== size);
+    setShowActiveGameWarning(active);
 
-    // Open Name Input Modal
+    // Open Name Input Modal directly (no window.confirm)
     setPendingDifficulty(size);
     setIsNameInputOpen(true);
   }, [gameState, boardSize]);
 
   const handleNameSubmit = (name: string) => {
     if (pendingDifficulty) {
+      // If we warned about active game, clear it now
+      if (showActiveGameWarning) {
+        clearGameState();
+      }
       setPlayerName(name);
       startGame(pendingDifficulty as BoardSize);
       setIsNameInputOpen(false);
       setPendingDifficulty(null);
+      setShowActiveGameWarning(false);
     }
   };
 
@@ -872,6 +871,7 @@ const App: React.FC = () => {
         <NameInputModal
           open={isNameInputOpen}
           difficulty={pendingDifficulty}
+          hasActiveGame={showActiveGameWarning}
           onClose={() => setIsNameInputOpen(false)}
           onSubmit={handleNameSubmit}
         />

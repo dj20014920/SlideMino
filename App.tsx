@@ -410,13 +410,13 @@ const App: React.FC = () => {
   };
 
   const handleSwipeStart = (e: React.PointerEvent) => {
-    // 슬라이드는 보드 영역에서만 시작 (슬롯/버튼 터치로 인한 오작동 방지)
+    // 슬라이드는 보드 영역에서만 시작하지 않고 전체 화면 허용
+    // 단, 버튼 등 상호작용 요소 위에서는 스와이프 시작 방지
     if (phase !== Phase.SLIDE) return;
     if (slideLockRef.current) return;
-    if (!boardRef.current) return;
 
-    const target = e.target as Node | null;
-    if (target && !boardRef.current.contains(target)) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('button, input, select, textarea, [role="button"]')) return;
 
     swipeStartRef.current = { x: e.clientX, y: e.clientY };
   };

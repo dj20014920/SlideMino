@@ -151,9 +151,9 @@ export function BlockCustomizationModal({ open, onClose }: BlockCustomizationMod
     >
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative z-10 w-full max-w-5xl rounded-3xl bg-white/90 backdrop-blur-sm border border-white/60 shadow-2xl overflow-hidden">
+      <div className="relative z-10 w-full max-w-5xl max-h-[90dvh] rounded-3xl bg-white/90 backdrop-blur-sm border border-white/60 shadow-2xl overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-start justify-between px-5 py-4 border-b border-black/5">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-5 py-4 border-b border-black/5 gap-3 shrink-0">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <h3 className="text-lg font-semibold text-gray-900">블럭 커스터마이징</h3>
@@ -164,11 +164,11 @@ export function BlockCustomizationModal({ open, onClose }: BlockCustomizationMod
                 </span>
               )}
             </div>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 hidden sm:block">
               전체 톤(자동 그라데이션) 또는 개별 블럭(1,2,4,8…)을 사진/색상으로 설정할 수 있어요.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 self-end sm:self-auto">
             <button
               type="button"
               disabled={!gate.allowed}
@@ -183,9 +183,10 @@ export function BlockCustomizationModal({ open, onClose }: BlockCustomizationMod
                 resetAll();
               }}
             >
-              <span className="inline-flex items-center gap-2 text-sm font-semibold">
+              <span className="inline-flex items-center gap-2 text-sm font-semibold whitespace-nowrap">
                 <RotateCcw size={16} />
-                전체 초기화
+                <span className="hidden sm:inline">전체 초기화</span>
+                <span className="sm:hidden">초기화</span>
               </span>
             </button>
 
@@ -201,18 +202,18 @@ export function BlockCustomizationModal({ open, onClose }: BlockCustomizationMod
         </div>
 
         {/* Tabs */}
-        <div className="px-5 py-3 border-b border-black/5">
-          <div className="inline-flex rounded-2xl bg-white/70 border border-white/60 shadow-sm overflow-hidden">
+        <div className="px-4 sm:px-5 py-3 border-b border-black/5 shrink-0">
+          <div className="inline-flex rounded-2xl bg-white/70 border border-white/60 shadow-sm overflow-hidden w-full sm:w-auto">
             <button
               type="button"
-              className={`px-4 py-2 text-sm font-semibold transition ${tab === 'global' ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-white'}`}
+              className={`flex-1 sm:flex-none px-4 py-2 text-sm font-semibold transition ${tab === 'global' ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-white'}`}
               onClick={() => setTab('global')}
             >
               전체 톤
             </button>
             <button
               type="button"
-              className={`px-4 py-2 text-sm font-semibold transition ${tab === 'perValue' ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-white'}`}
+              className={`flex-1 sm:flex-none px-4 py-2 text-sm font-semibold transition ${tab === 'perValue' ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-white'}`}
               onClick={() => setTab('perValue')}
             >
               개별 블럭
@@ -221,7 +222,7 @@ export function BlockCustomizationModal({ open, onClose }: BlockCustomizationMod
         </div>
 
         {/* Body */}
-        <div className="p-5 max-h-[78vh] overflow-auto">
+        <div className="p-4 sm:p-5 overflow-y-auto min-h-0 flex-1">
           {tab === 'global' ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <section className="space-y-4">
@@ -343,7 +344,7 @@ export function BlockCustomizationModal({ open, onClose }: BlockCustomizationMod
                 <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
                   <div className="space-y-0.5">
                     <div className="text-sm font-semibold text-gray-900">블럭 선택</div>
-                    <div className="text-xs text-gray-500">값을 눌러 편집하세요. (이미지/색상 아이콘은 개별 설정)</div>
+                    <div className="text-xs text-gray-500">값을 눌러 편집하세요.</div>
                   </div>
 
                   <div className="flex items-center gap-2">

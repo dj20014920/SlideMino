@@ -21,8 +21,12 @@ import {
 import { Board, type BoardHandle } from './components/Board';
 import { Slot } from './components/Slot';
 import { BlockCustomizationModal } from './components/BlockCustomizationModal';
+import { Undo2, Home, RotateCw, Move, Palette, Lock, Trophy } from 'lucide-react';
+
+import { GameOverModal } from './components/GameOverModal';
+import { LeaderboardModal } from './components/LeaderboardModal';
+import { NameInputModal } from './components/NameInputModal';
 import { BOARD_CELL_GAP_PX, SLIDE_UNLOCK_BUFFER_MS, getSlideAnimationDurationMs } from './constants';
-import { RotateCw, Move, Trophy, Undo2, Palette, Lock, Home } from 'lucide-react';
 import { useBlockCustomization } from './context/BlockCustomizationContext';
 import { saveGameState, loadGameState, clearGameState, hasActiveGame } from './services/gameStorage';
 
@@ -50,6 +54,12 @@ const App: React.FC = () => {
   const [boardSize, setBoardSize] = useState<BoardSize>(8);
   const [comboMessage, setComboMessage] = useState<string | null>(null);
   const [isCustomizationOpen, setIsCustomizationOpen] = useState(false);
+  const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
+
+  // Name Input State
+  const [isNameInputOpen, setIsNameInputOpen] = useState(false);
+  const [pendingDifficulty, setPendingDifficulty] = useState<number | null>(null);
+  const [playerName, setPlayerName] = useState<string>('');
 
   // New State for the Rule: "Option to stop sliding if merge happened"
   const [canSkipSlide, setCanSkipSlide] = useState(false);
@@ -73,6 +83,9 @@ const App: React.FC = () => {
   const boardRef = useRef<HTMLDivElement>(null);
   const boardHandleRef = useRef<BoardHandle | null>(null);
   const dragOverlayRef = useRef<HTMLDivElement>(null); // 드래그 오버레이 직접 제어용 Ref
+  const gameStartTimeRef = useRef<number>(Date.now()); // Anti-cheat timer
+  const moveCountRef = useRef<number>(0); // Anti-cheat move counter
+
   const boardMetricsRef = useRef<{
     rectLeft: number;
     rectTop: number;
@@ -144,7 +157,7 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // 난이도 선택 시 진행중 게임 경고
+  // 난이도 선택 시 진행중 게임 경고 -> 이름 입력 모달
   const tryStartGame = useCallback((size: BoardSize) => {
     // 진행중인 게임이 있고, 다른 난이도를 선택하려는 경우 경고
     if (hasActiveGame() && (gameState === GameState.MENU || boardSize !== size)) {
@@ -155,8 +168,20 @@ const App: React.FC = () => {
       // 기존 게임 삭제
       clearGameState();
     }
-    startGame(size);
+
+    // Open Name Input Modal
+    setPendingDifficulty(size);
+    setIsNameInputOpen(true);
   }, [gameState, boardSize]);
+
+  const handleNameSubmit = (name: string) => {
+    if (pendingDifficulty) {
+      setPlayerName(name);
+      startGame(pendingDifficulty as BoardSize);
+      setIsNameInputOpen(false);
+      setPendingDifficulty(null);
+    }
+  };
 
   const startGame = (size: BoardSize) => {
     if (mergeClearTimeoutRef.current) {
@@ -187,6 +212,10 @@ const App: React.FC = () => {
     // Undo 초기화
     setLastSnapshot(null);
     setUndoRemaining(3);
+
+    // Anti-cheat: Start Timer
+    gameStartTimeRef.current = Date.now();
+    moveCountRef.current = 0;
   };
 
   // --- Undo 시스템 ---
@@ -407,6 +436,9 @@ const App: React.FC = () => {
           const newGrid = placePieceOnGrid(grid, draggingPiece, hover.x, hover.y);
           setGrid(newGrid);
 
+          // Increment move count
+          moveCountRef.current += 1;
+
           const newSlots = [...slots];
           newSlots[dragOriginIndex] = generateRandomPiece();
           setSlots(newSlots);
@@ -493,6 +525,9 @@ const App: React.FC = () => {
     } = slideGrid(grid, dir);
 
     if (!moved) return;
+
+    // Increment move count for anti-cheat
+    moveCountRef.current += 1;
 
     // Undo를 위해 현재 상태 저장 (슬라이드 전)
     saveSnapshot();
@@ -801,11 +836,44 @@ const App: React.FC = () => {
               <span className="text-gray-400 font-normal text-sm">꾸미기</span>
             )}
           </button>
+
+          {/* Leaderboard Button */}
+          <button
+            onClick={() => setIsLeaderboardOpen(true)}
+            className={`
+              relative group w-full py-3.5 px-6 rounded-2xl
+              bg-white/60 backdrop-blur-sm
+              border border-white/50
+              shadow-lg
+              hover:shadow-xl hover:-translate-y-0.5
+              active:translate-y-0 active:shadow-md
+              transition-all duration-200 ease-out
+              text-gray-800 font-semibold text-base
+              flex items-center justify-between
+            `}
+          >
+            <span className="flex items-center gap-2">
+              <Trophy size={16} className="text-yellow-600" />
+              랭킹 보기
+            </span>
+          </button>
         </div>
 
         <BlockCustomizationModal
           open={isCustomizationOpen}
           onClose={() => setIsCustomizationOpen(false)}
+        />
+
+        <LeaderboardModal
+          open={isLeaderboardOpen}
+          onClose={() => setIsLeaderboardOpen(false)}
+        />
+
+        <NameInputModal
+          open={isNameInputOpen}
+          difficulty={pendingDifficulty}
+          onClose={() => setIsNameInputOpen(false)}
+          onSubmit={handleNameSubmit}
         />
       </div>
     );
@@ -938,53 +1006,14 @@ const App: React.FC = () => {
 
       {/* Game Over Modal */}
       {gameState === GameState.GAME_OVER && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6">
-          {/* Backdrop */}
-          <div className="absolute inset-0 bg-white/70 backdrop-blur-lg animate-fade-in" />
-
-          {/* Modal Content */}
-          <div className="relative z-10 flex flex-col items-center space-y-8 animate-slide-up">
-            {/* Trophy Icon */}
-            <div className="
-              w-24 h-24 rounded-full 
-              bg-gradient-to-br from-amber-100 to-yellow-200
-              border border-amber-200/50
-              shadow-xl
-              flex items-center justify-center
-            ">
-              <Trophy size={40} className="text-amber-600" />
-            </div>
-
-            {/* Title */}
-            <h2 className="text-4xl font-bold text-gray-900">Game Over</h2>
-
-            {/* Score Display */}
-            <div className="
-              text-center px-10 py-6 rounded-3xl
-              bg-white/60 backdrop-blur-sm
-              border border-white/50
-              shadow-lg
-            ">
-              <p className="text-gray-400 text-sm font-medium uppercase tracking-wider mb-1">Final Score</p>
-              <p className="text-5xl font-bold text-gray-900 tabular-nums">{score}</p>
-            </div>
-
-            {/* Play Again Button */}
-            <button
-              onClick={() => setGameState(GameState.MENU)}
-              className="
-                py-4 px-12 rounded-full
-                bg-gray-900 text-white font-semibold text-lg
-                shadow-lg
-                hover:shadow-xl hover:-translate-y-0.5 hover:bg-gray-800
-                active:translate-y-0 active:shadow-md
-                transition-all duration-200 ease-out
-              "
-            >
-              Play Again
-            </button>
-          </div>
-        </div>
+        <GameOverModal
+          score={score}
+          difficulty={`${boardSize}x${boardSize}`}
+          duration={Math.floor((Date.now() - gameStartTimeRef.current) / 1000)}
+          moves={moveCountRef.current}
+          playerName={playerName}
+          onClose={() => setGameState(GameState.MENU)}
+        />
       )}
     </div>
   );

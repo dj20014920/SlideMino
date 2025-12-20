@@ -26,6 +26,7 @@ import { Undo2, Home, RotateCw, Move, Palette, Lock, Trophy } from 'lucide-react
 import { GameOverModal } from './components/GameOverModal';
 import { LeaderboardModal } from './components/LeaderboardModal';
 import { NameInputModal } from './components/NameInputModal';
+import AdBanner from './components/AdBanner';
 import { BOARD_CELL_GAP_PX, SLIDE_UNLOCK_BUFFER_MS, getSlideAnimationDurationMs } from './constants';
 import { useBlockCustomization } from './context/BlockCustomizationContext';
 import { saveGameState, loadGameState, clearGameState, hasActiveGame } from './services/gameStorage';
@@ -858,6 +859,8 @@ const App: React.FC = () => {
           </button>
         </div>
 
+        <AdBanner />
+
         <BlockCustomizationModal
           open={isCustomizationOpen}
           onClose={() => setIsCustomizationOpen(false)}
@@ -1000,6 +1003,11 @@ const App: React.FC = () => {
         </div>
 
       </main>
+
+      {/* Ad Banner for Game Screen */}
+      <div className="w-full shrink-0 z-10 bg-white/50 backdrop-blur-sm border-t border-white/20">
+        <AdBanner />
+      </div>
 
       {/* Dragging Overlay */}
       {renderDraggingPiece()}

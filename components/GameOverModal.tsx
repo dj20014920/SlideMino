@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Trophy, Send, Check, X, Medal } from 'lucide-react';
 import { rankingService } from '../services/rankingService';
+import AdBanner from './AdBanner';
 
 interface GameOverModalProps {
     score: number;
@@ -216,6 +217,11 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({ score, difficulty,
                         </button>
                     </div>
                 )}
+
+
+                <div className="w-full mt-4">
+                    <AdBanner />
+                </div>
             </div>
         </div>
     );

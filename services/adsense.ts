@@ -6,7 +6,7 @@ export type AdSenseMode = 'personalized' | 'nonPersonalized';
 export const loadAdSenseScript = (mode: AdSenseMode = 'personalized'): void => {
   if (typeof document === 'undefined' || typeof window === 'undefined') return;
 
-  const win = window as unknown as { adsbygoogle?: { requestNonPersonalizedAds?: number }[] };
+  const win = window as unknown as { adsbygoogle?: any[] & { requestNonPersonalizedAds?: number } };
   win.adsbygoogle = win.adsbygoogle || [];
   win.adsbygoogle.requestNonPersonalizedAds = mode === 'nonPersonalized' ? 1 : 0;
 

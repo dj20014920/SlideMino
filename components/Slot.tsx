@@ -3,15 +3,16 @@ import { Piece } from '../types';
 import { RotateCw } from 'lucide-react';
 import { useBlockCustomization } from '../context/BlockCustomizationContext';
 
-interface SlotProps {
+export interface SlotProps {
   piece: Piece | null;
   onPointerDown: (e: React.PointerEvent, piece: Piece, index: number) => void;
   onRotate: (index: number) => void;
   index: number;
   disabled: boolean;
+  htmlId?: string; // For tutorial overlay targeting
 }
 
-export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, index, disabled }) => {
+export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, index, disabled, htmlId }) => {
   const { resolveTileAppearance } = useBlockCustomization();
 
   // 빈 슬롯 렌더링
@@ -58,6 +59,7 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
           : 'hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] hover:bg-white/50'
         }
       `}
+      id={htmlId}
       onPointerDown={(e) => {
         e.preventDefault();
         e.stopPropagation();

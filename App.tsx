@@ -26,6 +26,7 @@ import { Undo2, Home, RotateCw, Move, Palette, Lock, Trophy } from 'lucide-react
 import { GameOverModal } from './components/GameOverModal';
 import { LeaderboardModal } from './components/LeaderboardModal';
 import { NameInputModal } from './components/NameInputModal';
+import { TutorialOverlay } from './components/TutorialOverlay';
 import AdBanner from './components/AdBanner';
 import { CookieConsent } from './components/CookieConsent';
 import { BOARD_CELL_GAP_PX, SLIDE_UNLOCK_BUFFER_MS, getSlideAnimationDurationMs } from './constants';
@@ -82,6 +83,18 @@ const App: React.FC = () => {
 
   // Merging tiles for animation (tiles being absorbed)
   const [mergingTiles, setMergingTiles] = useState<MergingTile[]>(EMPTY_MERGING_TILES);
+
+  // Tutorial State: 0=Off, 1=Drag, 2=Swipe
+  const [tutorialStep, setTutorialStep] = useState<number>(0);
+
+  // Check tutorial status on load
+  useEffect(() => {
+    const tutorialCompleted = localStorage.getItem('tutorial_completed');
+    if (!tutorialCompleted) {
+      setTutorialStep(1); // Start with Drag tutorial
+    }
+  }, []);
+
 
   // Animation Lock
   const [isAnimating, setIsAnimating] = useState(false);
@@ -259,6 +272,14 @@ const App: React.FC = () => {
     moveCountRef.current = 0;
     sessionIdRef.current = crypto.randomUUID(); // 새 게임마다 고유 세션 ID 생성
     setCurrentRank(null); // 순위 초기화
+
+    // 온보딩: 튜토리얼 미완료 시 활성화
+    const tutorialCompleted = localStorage.getItem('tutorial_completed');
+    if (!tutorialCompleted) {
+      setTutorialStep(1);
+    } else {
+      setTutorialStep(0);
+    }
   };
 
   // --- Undo 시스템 ---
@@ -404,7 +425,7 @@ const App: React.FC = () => {
     }
 
     (e.target as Element).setPointerCapture(e.pointerId);
-  }, [phase, canSkipSlide, finishSlideTurn, boardSize]);
+  }, [phase, canSkipSlide, finishSlideTurn, boardSize, tutorialStep]);
 
   // RAF 기반으로 포인터 이벤트를 1프레임에 1번으로 합쳐서(코얼레싱) 렌더/연산 폭주를 방지
   const rafIdRef = useRef<number | null>(null);
@@ -478,6 +499,10 @@ const App: React.FC = () => {
 
           const newGrid = placePieceOnGrid(grid, draggingPiece, hover.x, hover.y);
           setGrid(newGrid);
+
+          if (tutorialStep === 1) {
+            setTutorialStep(2); // Proceed to Swipe Tutorial
+          }
 
           // Increment move count
           moveCountRef.current += 1;
@@ -568,6 +593,11 @@ const App: React.FC = () => {
     } = slideGrid(grid, dir);
 
     if (!moved) return;
+
+    if (tutorialStep === 2) {
+      setTutorialStep(0);
+      localStorage.setItem('tutorial_completed', 'true');
+    }
 
     // Increment move count for anti-cheat
     moveCountRef.current += 1;
@@ -799,36 +829,36 @@ const App: React.FC = () => {
       <>
         <CookieConsent />
         <div className="min-h-screen min-h-[100dvh] flex flex-col items-center justify-center p-6 space-y-10">
-        {/* 로고 영역 */}
-        <div className="text-center space-y-3 animate-fade-in">
-          <h1 className="text-5xl font-bold text-gray-900 tracking-tight">
-            SlideMino
-          </h1>
-          <p className="text-gray-500 text-lg max-w-xs mx-auto leading-relaxed">
-            Place blocks like Tetris.<br />
-            Merge numbers like 2048.
-          </p>
-        </div>
+          {/* 로고 영역 */}
+          <div className="text-center space-y-3 animate-fade-in">
+            <h1 className="text-5xl font-bold text-gray-900 tracking-tight">
+              SlideMino
+            </h1>
+            <p className="text-gray-500 text-lg max-w-xs mx-auto leading-relaxed">
+              Place blocks like Tetris.<br />
+              Merge numbers like 2048.
+            </p>
+          </div>
 
-        {/* 난이도 선택 버튼들 */}
-        <div className="flex flex-col gap-4 w-full max-w-xs animate-slide-up">
-          {/* 게임 이어하기 버튼 - 진행중인 게임이 있을 때만 표시 */}
-          {hasActiveGame() && (
-            <button
-              onClick={() => {
-                const saved = loadGameState();
-                if (saved) {
-                  setGameState(saved.gameState);
-                  setGrid(saved.grid);
-                  setSlots(saved.slots);
-                  setScore(saved.score);
-                  setPhase(saved.phase);
-                  setBoardSize(saved.boardSize);
-                  setCanSkipSlide(saved.canSkipSlide);
-                  setUndoRemaining(saved.undoRemaining);
-                }
-              }}
-              className="
+          {/* 난이도 선택 버튼들 */}
+          <div className="flex flex-col gap-4 w-full max-w-xs animate-slide-up">
+            {/* 게임 이어하기 버튼 - 진행중인 게임이 있을 때만 표시 */}
+            {hasActiveGame() && (
+              <button
+                onClick={() => {
+                  const saved = loadGameState();
+                  if (saved) {
+                    setGameState(saved.gameState);
+                    setGrid(saved.grid);
+                    setSlots(saved.slots);
+                    setScore(saved.score);
+                    setPhase(saved.phase);
+                    setBoardSize(saved.boardSize);
+                    setCanSkipSlide(saved.canSkipSlide);
+                    setUndoRemaining(saved.undoRemaining);
+                  }
+                }}
+                className="
                 relative group w-full py-4 px-6 rounded-2xl
                 bg-gradient-to-br from-emerald-500 to-emerald-600
                 border border-emerald-400/30
@@ -838,18 +868,18 @@ const App: React.FC = () => {
                 transition-all duration-200 ease-out
                 text-white font-semibold text-lg
               "
-            >
-              <span className="flex items-center justify-between">
-                <span>▶ 게임 이어하기</span>
-                <span className="text-emerald-200/70 font-normal text-sm">{boardSize}×{boardSize}</span>
-              </span>
-            </button>
-          )}
+              >
+                <span className="flex items-center justify-between">
+                  <span>▶ 게임 이어하기</span>
+                  <span className="text-emerald-200/70 font-normal text-sm">{boardSize}×{boardSize}</span>
+                </span>
+              </button>
+            )}
 
-          {/* Easy */}
-          <button
-            onClick={() => tryStartGame(10)}
-            className="
+            {/* Easy */}
+            <button
+              onClick={() => tryStartGame(10)}
+              className="
               relative group w-full py-4 px-6 rounded-2xl
               bg-white/60 backdrop-blur-sm
               border border-white/50
@@ -859,17 +889,17 @@ const App: React.FC = () => {
               transition-all duration-200 ease-out
               text-gray-800 font-semibold text-lg
             "
-          >
-            <span className="flex items-center justify-between">
-              <span>Easy</span>
-              <span className="text-gray-400 font-normal text-sm">10×10</span>
-            </span>
-          </button>
+            >
+              <span className="flex items-center justify-between">
+                <span>Easy</span>
+                <span className="text-gray-400 font-normal text-sm">10×10</span>
+              </span>
+            </button>
 
-          {/* Normal */}
-          <button
-            onClick={() => tryStartGame(8)}
-            className="
+            {/* Normal */}
+            <button
+              onClick={() => tryStartGame(8)}
+              className="
               relative group w-full py-4 px-6 rounded-2xl
               bg-gradient-to-br from-gray-800 to-gray-900
               border border-white/10
@@ -879,17 +909,17 @@ const App: React.FC = () => {
               transition-all duration-200 ease-out
               text-white font-semibold text-lg
             "
-          >
-            <span className="flex items-center justify-between">
-              <span>Normal</span>
-              <span className="text-gray-400 font-normal text-sm">8×8</span>
-            </span>
-          </button>
+            >
+              <span className="flex items-center justify-between">
+                <span>Normal</span>
+                <span className="text-gray-400 font-normal text-sm">8×8</span>
+              </span>
+            </button>
 
-          {/* Hard */}
-          <button
-            onClick={() => tryStartGame(7)}
-            className="
+            {/* Hard */}
+            <button
+              onClick={() => tryStartGame(7)}
+              className="
               relative group w-full py-4 px-6 rounded-2xl
               bg-black
               border border-white/10
@@ -899,17 +929,17 @@ const App: React.FC = () => {
               transition-all duration-200 ease-out
               text-white font-semibold text-lg
             "
-          >
-            <span className="flex items-center justify-between">
-              <span>Hard</span>
-              <span className="text-gray-500 font-normal text-sm">7×7</span>
-            </span>
-          </button>
+            >
+              <span className="flex items-center justify-between">
+                <span>Hard</span>
+                <span className="text-gray-500 font-normal text-sm">7×7</span>
+              </span>
+            </button>
 
-          {/* Extreme - 5×5 */}
-          <button
-            onClick={() => tryStartGame(5)}
-            className="
+            {/* Extreme - 5×5 */}
+            <button
+              onClick={() => tryStartGame(5)}
+              className="
               relative group w-full py-4 px-6 rounded-2xl
               bg-gradient-to-br from-red-600 via-red-700 to-red-900
               border border-red-400/30
@@ -919,46 +949,17 @@ const App: React.FC = () => {
               transition-all duration-200 ease-out
               text-white font-semibold text-lg
             "
-          >
-            <span className="flex items-center justify-between">
-              <span>🔥 Extreme</span>
-              <span className="text-red-200/70 font-normal text-sm">5×5</span>
-            </span>
-          </button>
-
-          {/* Customization */}
-          <button
-            onClick={() => setIsCustomizationOpen(true)}
-            className={`
-              relative group w-full py-3.5 px-6 rounded-2xl
-              bg-white/60 backdrop-blur-sm
-              border border-white/50
-              shadow-lg
-              hover:shadow-xl hover:-translate-y-0.5
-              active:translate-y-0 active:shadow-md
-              transition-all duration-200 ease-out
-              text-gray-800 font-semibold text-base
-              flex items-center justify-between
-            `}
-          >
-            <span className="flex items-center gap-2">
-              <Palette size={16} />
-              블럭 커스터마이징
-            </span>
-            {!customizationGate.allowed ? (
-              <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-700/90">
-                <Lock size={14} />
-                {customizationGate.reason ?? '잠김'}
+            >
+              <span className="flex items-center justify-between">
+                <span>🔥 Extreme</span>
+                <span className="text-red-200/70 font-normal text-sm">5×5</span>
               </span>
-            ) : (
-              <span className="text-gray-400 font-normal text-sm">꾸미기</span>
-            )}
-          </button>
+            </button>
 
-          {/* Leaderboard Button */}
-          <button
-            onClick={() => setIsLeaderboardOpen(true)}
-            className={`
+            {/* Customization */}
+            <button
+              onClick={() => setIsCustomizationOpen(true)}
+              className={`
               relative group w-full py-3.5 px-6 rounded-2xl
               bg-white/60 backdrop-blur-sm
               border border-white/50
@@ -969,57 +970,86 @@ const App: React.FC = () => {
               text-gray-800 font-semibold text-base
               flex items-center justify-between
             `}
-          >
-            <span className="flex items-center gap-2">
-              <Trophy size={16} className="text-yellow-600" />
-              랭킹 보기
-            </span>
-          </button>
-        </div>
+            >
+              <span className="flex items-center gap-2">
+                <Palette size={16} />
+                블럭 커스터마이징
+              </span>
+              {!customizationGate.allowed ? (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-700/90">
+                  <Lock size={14} />
+                  {customizationGate.reason ?? '잠김'}
+                </span>
+              ) : (
+                <span className="text-gray-400 font-normal text-sm">꾸미기</span>
+              )}
+            </button>
 
-        {/* 푸터 네비게이션 */}
-        <footer className="w-full max-w-md mt-8 pt-6 border-t border-gray-200">
-          <nav className="flex flex-wrap justify-center gap-4 text-sm text-gray-600">
-            <a href="#/about" className="hover:text-gray-900 transition-colors">
-              About
-            </a>
-            <span className="text-gray-300">•</span>
-            <a href="#/privacy" className="hover:text-gray-900 transition-colors">
-              Privacy
-            </a>
-            <span className="text-gray-300">•</span>
-            <a href="#/terms" className="hover:text-gray-900 transition-colors">
-              Terms
-            </a>
-            <span className="text-gray-300">•</span>
-            <a href="#/contact" className="hover:text-gray-900 transition-colors">
-              Contact
-            </a>
-          </nav>
-          <p className="text-center text-xs text-gray-400 mt-3">
-            © 2025 SlideMino. All rights reserved.
-          </p>
-        </footer>
+            {/* Leaderboard Button */}
+            <button
+              onClick={() => setIsLeaderboardOpen(true)}
+              className={`
+              relative group w-full py-3.5 px-6 rounded-2xl
+              bg-white/60 backdrop-blur-sm
+              border border-white/50
+              shadow-lg
+              hover:shadow-xl hover:-translate-y-0.5
+              active:translate-y-0 active:shadow-md
+              transition-all duration-200 ease-out
+              text-gray-800 font-semibold text-base
+              flex items-center justify-between
+            `}
+            >
+              <span className="flex items-center gap-2">
+                <Trophy size={16} className="text-yellow-600" />
+                랭킹 보기
+              </span>
+            </button>
+          </div>
 
-        <AdBanner />
+          {/* 푸터 네비게이션 */}
+          <footer className="w-full max-w-md mt-8 pt-6 border-t border-gray-200">
+            <nav className="flex flex-wrap justify-center gap-4 text-sm text-gray-600">
+              <a href="#/about" className="hover:text-gray-900 transition-colors">
+                About
+              </a>
+              <span className="text-gray-300">•</span>
+              <a href="#/privacy" className="hover:text-gray-900 transition-colors">
+                Privacy
+              </a>
+              <span className="text-gray-300">•</span>
+              <a href="#/terms" className="hover:text-gray-900 transition-colors">
+                Terms
+              </a>
+              <span className="text-gray-300">•</span>
+              <a href="#/contact" className="hover:text-gray-900 transition-colors">
+                Contact
+              </a>
+            </nav>
+            <p className="text-center text-xs text-gray-400 mt-3">
+              © 2025 SlideMino. All rights reserved.
+            </p>
+          </footer>
 
-        <BlockCustomizationModal
-          open={isCustomizationOpen}
-          onClose={() => setIsCustomizationOpen(false)}
-        />
+          <AdBanner />
 
-        <LeaderboardModal
-          open={isLeaderboardOpen}
-          onClose={() => setIsLeaderboardOpen(false)}
-        />
+          <BlockCustomizationModal
+            open={isCustomizationOpen}
+            onClose={() => setIsCustomizationOpen(false)}
+          />
 
-        <NameInputModal
-          open={isNameInputOpen}
-          difficulty={pendingDifficulty}
-          hasActiveGame={showActiveGameWarning}
-          onClose={() => setIsNameInputOpen(false)}
-          onSubmit={handleNameSubmit}
-        />
+          <LeaderboardModal
+            open={isLeaderboardOpen}
+            onClose={() => setIsLeaderboardOpen(false)}
+          />
+
+          <NameInputModal
+            open={isNameInputOpen}
+            difficulty={pendingDifficulty}
+            hasActiveGame={showActiveGameWarning}
+            onClose={() => setIsNameInputOpen(false)}
+            onSubmit={handleNameSubmit}
+          />
         </div>
       </>
     );
@@ -1038,144 +1068,148 @@ const App: React.FC = () => {
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
       >
-      {/* Header */}
-      <header
-        className="w-full max-w-md flex justify-between items-center p-4"
-        style={{ paddingTop: 'calc(36px + var(--app-safe-top))' }}
-      >
-        <div className="flex items-center gap-3">
-          {/* Home Button */}
-          <button
-            type="button"
-            onClick={goToMenu}
-            disabled={isAnimating}
-            className={`
+        {/* Header */}
+        <header
+          className="w-full max-w-md flex justify-between items-center p-4"
+          style={{ paddingTop: 'calc(36px + var(--app-safe-top))' }}
+        >
+          <div className="flex items-center gap-3">
+            {/* Home Button */}
+            <button
+              type="button"
+              onClick={goToMenu}
+              disabled={isAnimating}
+              className={`
               p-2.5 rounded-full flex items-center justify-center
               border shadow-sm transition-all duration-200
               ${isAnimating
-                ? 'bg-gray-100/50 text-gray-300 border-gray-200/50 cursor-not-allowed'
-                : 'bg-white/70 hover:bg-white text-gray-700 border-white/50 hover:shadow-md active:scale-95'
-              }
+                  ? 'bg-gray-100/50 text-gray-300 border-gray-200/50 cursor-not-allowed'
+                  : 'bg-white/70 hover:bg-white text-gray-700 border-white/50 hover:shadow-md active:scale-95'
+                }
             `}
-            aria-label="홈으로"
-          >
-            <Home size={18} />
-          </button>
-          <div className="space-y-0.5">
-            <h2 className="text-sm font-medium text-gray-400 uppercase tracking-wider">
-              Score
-              {currentRank !== null && gameState === GameState.PLAYING && (
-                <span className="ml-2 text-xs font-semibold text-blue-600">
-                  #{currentRank}
-                </span>
-              )}
-            </h2>
-            <p className="text-3xl font-bold text-gray-900 tabular-nums">{score}</p>
+              aria-label="홈으로"
+            >
+              <Home size={18} />
+            </button>
+            <div className="space-y-0.5">
+              <h2 className="text-sm font-medium text-gray-400 uppercase tracking-wider">
+                Score
+                {currentRank !== null && gameState === GameState.PLAYING && (
+                  <span className="ml-2 text-xs font-semibold text-blue-600">
+                    #{currentRank}
+                  </span>
+                )}
+              </h2>
+              <p className="text-3xl font-bold text-gray-900 tabular-nums">{score}</p>
+            </div>
           </div>
-        </div>
-        <div className="flex flex-col items-end gap-2">
-          {/* Phase Indicator - Glass Pill */}
-          <div className={`
+          <div className="flex flex-col items-end gap-2">
+            {/* Phase Indicator - Glass Pill */}
+            <div className={`
             px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2 
             transition-all duration-200 ease-out
             ${phase === Phase.PLACE
-              ? 'bg-white/50 backdrop-blur-sm border border-white/40 text-gray-700 shadow-md'
-              : 'bg-gray-900 text-white shadow-lg border border-transparent'
-            }
+                ? 'bg-white/50 backdrop-blur-sm border border-white/40 text-gray-700 shadow-md'
+                : 'bg-gray-900 text-white shadow-lg border border-transparent'
+              }
           `}>
-            {phase === Phase.PLACE ? 'PLACE BLOCK' : 'SWIPE BOARD'}
-            {phase === Phase.SLIDE && <Move size={14} className="animate-pulse" />}
-          </div>
+              {phase === Phase.PLACE ? 'PLACE BLOCK' : 'SWIPE BOARD'}
+              {phase === Phase.SLIDE && <Move size={14} className="animate-pulse" />}
+            </div>
 
-          {/* Undo Button */}
-          <button
-            type="button"
-            onClick={executeUndo}
-            disabled={!lastSnapshot || undoRemaining <= 0 || isAnimating}
-            className={`
+            {/* Undo Button */}
+            <button
+              type="button"
+              onClick={executeUndo}
+              disabled={!lastSnapshot || undoRemaining <= 0 || isAnimating}
+              className={`
               px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-2
               border shadow-sm transition-all duration-200
               ${(!lastSnapshot || undoRemaining <= 0 || isAnimating)
-                ? 'bg-gray-100/50 text-gray-300 border-gray-200/50 cursor-not-allowed'
-                : 'bg-white/70 hover:bg-white text-gray-700 border-white/50 hover:shadow-md active:scale-95'
-              }
+                  ? 'bg-gray-100/50 text-gray-300 border-gray-200/50 cursor-not-allowed'
+                  : 'bg-white/70 hover:bg-white text-gray-700 border-white/50 hover:shadow-md active:scale-95'
+                }
             `}
-          >
-            <Undo2 size={14} />
-            <span className="tabular-nums">{undoRemaining}</span>
-          </button>
-        </div>
-      </header>
+            >
+              <Undo2 size={14} />
+              <span className="tabular-nums">{undoRemaining}</span>
+            </button>
+          </div>
+        </header>
 
-      {/* Main Game Area */}
-      <main
-        className="flex-1 w-full max-w-md flex flex-col items-center justify-start gap-5 p-4 pt-2"
-        style={{ paddingBottom: 'calc(16px + var(--app-safe-bottom))' }}
-      >
+        {/* Main Game Area */}
+        <main
+          className="flex-1 w-full max-w-md flex flex-col items-center justify-start gap-5 p-4 pt-2"
+          style={{ paddingBottom: 'calc(16px + var(--app-safe-bottom))' }}
+        >
 
-        <Board
-          ref={boardHandleRef}
-          grid={grid}
-          phase={phase}
-          activePiece={draggingPiece}
-          boardRef={boardRef}
-          mergingTiles={mergingTiles}
-          valueOverrides={tileValueOverrides}
-        />
+          <Board
+            ref={boardHandleRef}
+            htmlId="game-board"
+            grid={grid}
+            phase={phase}
+            activePiece={draggingPiece}
+            boardRef={boardRef}
+            mergingTiles={mergingTiles}
+            valueOverrides={tileValueOverrides}
+          />
 
 
-        {/* Inventory Slots */}
-        <div className={`
+          {/* Inventory Slots */}
+          <div className={`
           w-full grid grid-cols-3 gap-4 
           transition-opacity duration-300
           ${isSlotDisabled ? 'opacity-40 grayscale' : 'opacity-100'}
         `}>
-          {slots.map((p, i) => (
-            <Slot
-              key={p ? p.id : i}
-              index={i}
-              piece={p}
-              onPointerDown={handlePointerDown}
-              onRotate={rotateSlotPiece}
-              disabled={isSlotDisabled}
-            />
-          ))}
+            {slots.map((p, i) => (
+              <Slot
+                key={p ? p.id : i}
+                index={i}
+                piece={p}
+                htmlId={i === 0 ? 'slot-0' : undefined}
+                onPointerDown={handlePointerDown}
+                onRotate={rotateSlotPiece}
+                disabled={isSlotDisabled}
+              />
+            ))}
+          </div>
+
+          {/* Hints */}
+          <div className="text-gray-400 text-sm text-center font-medium">
+            {draggingPiece ? (
+              <span className="text-gray-600 flex items-center justify-center gap-2">
+                <RotateCw size={14} /> Press 'R' to Rotate
+              </span>
+            ) : (
+              phase === Phase.PLACE ? "Drag blocks to grid" :
+                (canSkipSlide ? "Swipe again OR Drag a block" : "Must slide to continue!")
+            )}
+          </div>
+
+        </main>
+
+        <TutorialOverlay step={tutorialStep} />
+
+        {/* Ad Banner for Game Screen */}
+        <div className="w-full shrink-0 z-10 bg-white/50 backdrop-blur-sm border-t border-white/20">
+          <AdBanner />
         </div>
 
-        {/* Hints */}
-        <div className="text-gray-400 text-sm text-center font-medium">
-          {draggingPiece ? (
-            <span className="text-gray-600 flex items-center justify-center gap-2">
-              <RotateCw size={14} /> Press 'R' to Rotate
-            </span>
-          ) : (
-            phase === Phase.PLACE ? "Drag blocks to grid" :
-              (canSkipSlide ? "Swipe again OR Drag a block" : "Must slide to continue!")
-          )}
-        </div>
+        {/* Dragging Overlay */}
+        {renderDraggingPiece()}
 
-      </main>
-
-      {/* Ad Banner for Game Screen */}
-      <div className="w-full shrink-0 z-10 bg-white/50 backdrop-blur-sm border-t border-white/20">
-        <AdBanner />
-      </div>
-
-      {/* Dragging Overlay */}
-      {renderDraggingPiece()}
-
-      {/* Game Over Modal */}
-      {gameState === GameState.GAME_OVER && (
-        <GameOverModal
-          sessionId={sessionIdRef.current}
-          score={score}
-          difficulty={`${boardSize}x${boardSize}`}
-          duration={Math.floor((Date.now() - gameStartTimeRef.current) / 1000)}
-          moves={moveCountRef.current}
-          playerName={playerName}
-          onClose={() => setGameState(GameState.MENU)}
-        />
-      )}
+        {/* Game Over Modal */}
+        {gameState === GameState.GAME_OVER && (
+          <GameOverModal
+            sessionId={sessionIdRef.current}
+            score={score}
+            difficulty={`${boardSize}x${boardSize}`}
+            duration={Math.floor((Date.now() - gameStartTimeRef.current) / 1000)}
+            moves={moveCountRef.current}
+            playerName={playerName}
+            onClose={() => setGameState(GameState.MENU)}
+          />
+        )}
       </div>
     </>
   );

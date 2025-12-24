@@ -3,6 +3,8 @@
  * Defense in Depth - Layer 3: SQL Injection 방어, Rate Limiting
  */
 
+import { resetRankingsIfNewMonth } from '../utils/monthlyReset';
+
 interface Env {
   DB: D1Database;
   RANKINGS_RATE_LIMITER?: RateLimit; // Rate Limiting 바인딩 (선택적)
@@ -76,6 +78,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         return errorResponse('Too many requests. Please try again later.', 429, corsHeaders);
       }
     }
+
+    await resetRankingsIfNewMonth(env);
 
     // ========== 데이터베이스 조회 (Layer 4) ==========
     // Prepared statement로 SQL Injection 방어

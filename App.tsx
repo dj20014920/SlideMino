@@ -27,9 +27,16 @@ import { GameOverModal } from './components/GameOverModal';
 import { LeaderboardModal } from './components/LeaderboardModal';
 import { NameInputModal } from './components/NameInputModal';
 import AdBanner from './components/AdBanner';
+import { CookieConsent } from './components/CookieConsent';
 import { BOARD_CELL_GAP_PX, SLIDE_UNLOCK_BUFFER_MS, getSlideAnimationDurationMs } from './constants';
 import { useBlockCustomization } from './context/BlockCustomizationContext';
 import { saveGameState, loadGameState, clearGameState, hasActiveGame } from './services/gameStorage';
+import { rankingService } from './services/rankingService';
+import { getCurrentRoute, onRouteChange, updatePageMeta, type Route } from './utils/routing';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import Terms from './pages/Terms';
+import About from './pages/About';
+import Contact from './pages/Contact';
 
 const EMPTY_TILE_VALUE_OVERRIDES: Record<string, number> = {};
 const EMPTY_MERGING_TILES: MergingTile[] = [];
@@ -44,6 +51,9 @@ interface GameSnapshot {
 }
 
 const App: React.FC = () => {
+  // --- Routing State ---
+  const [currentRoute, setCurrentRoute] = useState<Route>(getCurrentRoute());
+
   // --- State ---
   const { gate: customizationGate, resolveTileAppearance } = useBlockCustomization();
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
@@ -87,6 +97,8 @@ const App: React.FC = () => {
   const dragOverlayRef = useRef<HTMLDivElement>(null); // 드래그 오버레이 직접 제어용 Ref
   const gameStartTimeRef = useRef<number>(Date.now()); // Anti-cheat timer
   const moveCountRef = useRef<number>(0); // Anti-cheat move counter
+  const sessionIdRef = useRef<string>(crypto.randomUUID()); // 게임 세션 ID
+  const [currentRank, setCurrentRank] = useState<number | null>(null); // 실시간 순위
 
   const boardMetricsRef = useRef<{
     rectLeft: number;
@@ -107,6 +119,24 @@ const App: React.FC = () => {
   const unlockTimeoutRef = useRef<number | null>(null);
 
   // --- Initialization ---
+
+  // 라우팅 설정
+  useEffect(() => {
+    // 초기 라우트 메타데이터 설정
+    updatePageMeta(currentRoute);
+
+    // 라우트 변경 리스너 등록
+    const unsubscribe = onRouteChange((route) => {
+      setCurrentRoute(route);
+      updatePageMeta(route);
+      // 정적 페이지로 이동 시 스크롤 최상단으로
+      if (route !== '/') {
+        window.scrollTo(0, 0);
+      }
+    });
+
+    return unsubscribe;
+  }, []);
 
   // 앱 시작 시 저장된 게임 복원
   useEffect(() => {
@@ -142,6 +172,17 @@ const App: React.FC = () => {
       clearGameState();
     }
   }, [gameState, grid, slots, score, phase, boardSize, canSkipSlide, undoRemaining]);
+
+  useEffect(() => {
+    const shouldLockScroll = gameState !== GameState.MENU;
+    document.body.classList.toggle('scroll-locked', shouldLockScroll);
+    if (shouldLockScroll) {
+      window.scrollTo(0, 0);
+    }
+    return () => {
+      document.body.classList.remove('scroll-locked');
+    };
+  }, [gameState]);
 
   // 메인 화면으로 돌아가기 (게임 상태 유지)
   const goToMenu = useCallback(() => {
@@ -213,9 +254,11 @@ const App: React.FC = () => {
     setLastSnapshot(null);
     setUndoRemaining(3);
 
-    // Anti-cheat: Start Timer
+    // Anti-cheat: Start Timer & Session ID
     gameStartTimeRef.current = Date.now();
     moveCountRef.current = 0;
+    sessionIdRef.current = crypto.randomUUID(); // 새 게임마다 고유 세션 ID 생성
+    setCurrentRank(null); // 순위 초기화
   };
 
   // --- Undo 시스템 ---
@@ -609,6 +652,45 @@ const App: React.FC = () => {
     }
   }, [phase, grid, slots, gameState, score, highScore]);
 
+  // --- 자동 점수 업데이트 (10초마다) ---
+  useEffect(() => {
+    if (gameState !== GameState.PLAYING) {
+      return;
+    }
+
+    // 즉시 첫 업데이트 실행 (게임 시작 직후)
+    const performUpdate = async () => {
+      const duration = Math.floor((Date.now() - gameStartTimeRef.current) / 1000);
+      const difficultyStr = String(boardSize);
+      const name = playerName || rankingService.getSavedName() || 'Guest';
+
+      console.log('[자동 업데이트] 점수 전송:', { sessionId: sessionIdRef.current, name, score, rank: currentRank });
+
+      const result = await rankingService.updateScore(
+        sessionIdRef.current,
+        name,
+        score,
+        difficultyStr,
+        duration,
+        moveCountRef.current
+      );
+
+      console.log('[자동 업데이트] 응답:', result);
+
+      if (result.success && result.rank !== undefined) {
+        setCurrentRank(result.rank);
+      }
+    };
+
+    // 즉시 첫 업데이트
+    performUpdate();
+
+    // 10초마다 자동 업데이트
+    const intervalId = setInterval(performUpdate, 10000);
+
+    return () => clearInterval(intervalId);
+  }, [gameState, score, boardSize]); // playerName 의존성 제거
+
 
   // --- Render Helpers ---
 
@@ -677,10 +759,46 @@ const App: React.FC = () => {
 
   // --- Views ---
 
+  // ========== 정적 페이지 라우팅 ==========
+  if (currentRoute === '/privacy') {
+    return (
+      <>
+        <CookieConsent />
+        <PrivacyPolicy />
+      </>
+    );
+  }
+  if (currentRoute === '/terms') {
+    return (
+      <>
+        <CookieConsent />
+        <Terms />
+      </>
+    );
+  }
+  if (currentRoute === '/about') {
+    return (
+      <>
+        <CookieConsent />
+        <About />
+      </>
+    );
+  }
+  if (currentRoute === '/contact') {
+    return (
+      <>
+        <CookieConsent />
+        <Contact />
+      </>
+    );
+  }
+
   // ========== MENU SCREEN ==========
   if (gameState === GameState.MENU) {
     return (
-      <div className="min-h-screen min-h-[100dvh] flex flex-col items-center justify-center p-6 space-y-10">
+      <>
+        <CookieConsent />
+        <div className="min-h-screen min-h-[100dvh] flex flex-col items-center justify-center p-6 space-y-10">
         {/* 로고 영역 */}
         <div className="text-center space-y-3 animate-fade-in">
           <h1 className="text-5xl font-bold text-gray-900 tracking-tight">
@@ -859,6 +977,30 @@ const App: React.FC = () => {
           </button>
         </div>
 
+        {/* 푸터 네비게이션 */}
+        <footer className="w-full max-w-md mt-8 pt-6 border-t border-gray-200">
+          <nav className="flex flex-wrap justify-center gap-4 text-sm text-gray-600">
+            <a href="#/about" className="hover:text-gray-900 transition-colors">
+              About
+            </a>
+            <span className="text-gray-300">•</span>
+            <a href="#/privacy" className="hover:text-gray-900 transition-colors">
+              Privacy
+            </a>
+            <span className="text-gray-300">•</span>
+            <a href="#/terms" className="hover:text-gray-900 transition-colors">
+              Terms
+            </a>
+            <span className="text-gray-300">•</span>
+            <a href="#/contact" className="hover:text-gray-900 transition-colors">
+              Contact
+            </a>
+          </nav>
+          <p className="text-center text-xs text-gray-400 mt-3">
+            © 2025 SlideMino. All rights reserved.
+          </p>
+        </footer>
+
         <AdBanner />
 
         <BlockCustomizationModal
@@ -878,7 +1020,8 @@ const App: React.FC = () => {
           onClose={() => setIsNameInputOpen(false)}
           onSubmit={handleNameSubmit}
         />
-      </div>
+        </div>
+      </>
     );
   }
 
@@ -887,12 +1030,14 @@ const App: React.FC = () => {
 
   // ========== GAME SCREEN ==========
   return (
-    <div
-      className="min-h-screen min-h-[100dvh] flex flex-col items-center text-gray-900 touch-none"
-      onPointerDown={handleSwipeStart}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-    >
+    <>
+      <CookieConsent />
+      <div
+        className="min-h-screen min-h-[100dvh] flex flex-col items-center text-gray-900 touch-none"
+        onPointerDown={handleSwipeStart}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+      >
       {/* Header */}
       <header
         className="w-full max-w-md flex justify-between items-center p-4"
@@ -917,7 +1062,14 @@ const App: React.FC = () => {
             <Home size={18} />
           </button>
           <div className="space-y-0.5">
-            <h2 className="text-sm font-medium text-gray-400 uppercase tracking-wider">Score</h2>
+            <h2 className="text-sm font-medium text-gray-400 uppercase tracking-wider">
+              Score
+              {currentRank !== null && gameState === GameState.PLAYING && (
+                <span className="ml-2 text-xs font-semibold text-blue-600">
+                  #{currentRank}
+                </span>
+              )}
+            </h2>
             <p className="text-3xl font-bold text-gray-900 tabular-nums">{score}</p>
           </div>
         </div>
@@ -1015,6 +1167,7 @@ const App: React.FC = () => {
       {/* Game Over Modal */}
       {gameState === GameState.GAME_OVER && (
         <GameOverModal
+          sessionId={sessionIdRef.current}
           score={score}
           difficulty={`${boardSize}x${boardSize}`}
           duration={Math.floor((Date.now() - gameStartTimeRef.current) / 1000)}
@@ -1023,7 +1176,8 @@ const App: React.FC = () => {
           onClose={() => setGameState(GameState.MENU)}
         />
       )}
-    </div>
+      </div>
+    </>
   );
 };
 

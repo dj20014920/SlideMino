@@ -32,9 +32,7 @@
   <meta property="og:image:height" content="2622">
   <meta property="og:image:alt" content="SlideMino game preview">
 
-  <!-- Google AdSense -->
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5319827978116991"
-    crossorigin="anonymous"></script>
+  <!-- AdSense script is loaded after cookie consent (see CookieConsent) -->
 
   <!-- Twitter -->
   <meta property="twitter:card" content="summary_large_image">
@@ -105,12 +103,19 @@
 
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
-      touch-action: none;
+      touch-action: pan-y;
       user-select: none;
       -webkit-user-select: none;
       background: linear-gradient(180deg, #fafafa 0%, #f0f0f0 50%, #e8e8e8 100%);
       min-height: 100vh;
       min-height: 100dvh;
+      overflow-x: hidden;
+      overscroll-behavior-y: contain;
+    }
+
+    body.scroll-locked {
+      overflow: hidden;
+      touch-action: none;
     }
 
     :root {
@@ -277,12 +282,294 @@
         inset 0 2px 4px rgba(0, 0, 0, 0.03),
         inset 0 0 0 1px rgba(0, 0, 0, 0.04);
     }
-  </style>
 
+    /* === 정책 페이지 스타일 === */
+    .policy-page {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #fafafa 0%, #f0f0f0 100%);
+      padding: 2rem 1rem;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .policy-header {
+      max-width: 800px;
+      margin: 0 auto 3rem;
+      text-align: center;
+      padding-bottom: 2rem;
+      border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+    }
+
+    .policy-header h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: #1a1a1a;
+      margin-bottom: 0.5rem;
+    }
+
+    .policy-header .tagline,
+    .policy-header .last-updated {
+      color: #666;
+      font-size: 1rem;
+    }
+
+    .policy-content {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 3rem 2.5rem;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+      line-height: 1.7;
+    }
+
+    .policy-content section {
+      margin-bottom: 2.5rem;
+    }
+
+    .policy-content h2 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-top: 2.5rem;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .policy-content h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #333;
+      margin-top: 1.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .policy-content p {
+      color: #444;
+      margin-bottom: 1rem;
+    }
+
+    .policy-content ul,
+    .policy-content ol {
+      color: #444;
+      margin-left: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .policy-content li {
+      margin-bottom: 0.5rem;
+    }
+
+    .policy-content a {
+      color: #2563eb;
+      text-decoration: underline;
+      transition: color 0.2s;
+    }
+
+    .policy-content a:hover {
+      color: #1d4ed8;
+    }
+
+    .policy-content strong {
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+
+    .back-to-game {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      max-width: 800px;
+      margin: 2rem auto;
+      padding: 0.75rem 1.5rem;
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      color: white;
+      font-weight: 600;
+      border-radius: 12px;
+      text-decoration: none;
+      transition: all 0.2s;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    }
+
+    .back-to-game:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
+    }
+
+    /* About 페이지 특수 스타일 */
+    .about-page .intro-section {
+      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+      padding: 2rem;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+    }
+
+    .gameplay-steps,
+    .feature-grid,
+    .tips-list,
+    .mode-details,
+    .contact-cards {
+      display: grid;
+      gap: 1.5rem;
+      margin-top: 1.5rem;
+    }
+
+    .step,
+    .feature-item,
+    .tip,
+    .mode,
+    .contact-card {
+      padding: 1.5rem;
+      background: #f9fafb;
+      border-radius: 12px;
+      border-left: 4px solid #3b82f6;
+    }
+
+    .feature-grid {
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+
+    .feature-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      align-items: flex-start;
+    }
+
+    .cta-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1rem 2rem;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      font-weight: 700;
+      font-size: 1.125rem;
+      border-radius: 12px;
+      text-decoration: none;
+      transition: all 0.2s;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+      margin-top: 1rem;
+    }
+
+    .cta-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+    }
+
+    /* Contact 페이지 스타일 */
+    .contact-card {
+      background: white;
+      border: 2px solid #e5e7eb;
+      border-left: 4px solid #3b82f6;
+      padding: 2rem;
+    }
+
+    .card-icon {
+      width: 64px;
+      height: 64px;
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      margin-bottom: 1rem;
+    }
+
+    .contact-details {
+      margin-top: 1rem;
+      color: #555;
+    }
+
+    .contact-details a {
+      display: inline-block;
+      margin-top: 0.5rem;
+      font-weight: 600;
+    }
+
+    .action-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: #3b82f6;
+      color: white;
+      border-radius: 8px;
+      text-decoration: none;
+      margin-top: 1rem;
+      transition: all 0.2s;
+    }
+
+    .action-link:hover {
+      background: #2563eb;
+      transform: translateX(4px);
+    }
+
+    .quick-link-card {
+      display: block;
+      padding: 1.5rem;
+      background: white;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    .quick-link-card:hover {
+      border-color: #3b82f6;
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(59, 130, 246, 0.15);
+    }
+
+    .quick-link-card h3 {
+      color: #1a1a1a;
+      margin-top: 0;
+    }
+
+    .quick-link-card p {
+      color: #666;
+      font-size: 0.9rem;
+    }
+
+    .issue-item {
+      background: #fef3c7;
+      padding: 1.5rem;
+      border-radius: 8px;
+      border-left: 4px solid #f59e0b;
+      margin-bottom: 1rem;
+    }
+
+    .acknowledgment {
+      background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+      padding: 2rem;
+      border-radius: 12px;
+      border-left: 4px solid #ef4444;
+    }
+
+    /* 반응형 디자인 */
+    @media (max-width: 768px) {
+      .policy-page {
+        padding: 1rem 0.5rem;
+      }
+
+      .policy-content {
+        padding: 2rem 1.5rem;
+      }
+
+      .policy-header h1 {
+        font-size: 2rem;
+      }
+
+      .policy-content h2 {
+        font-size: 1.5rem;
+      }
+    }
+  </style>
   <script type="importmap">
 {
   "imports": {
-    "react/": "https://esm.sh/react@^19.2.3/",
     "react": "https://esm.sh/react@^19.2.3",
     "lucide-react": "https://esm.sh/lucide-react@^0.561.0",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
@@ -292,7 +579,7 @@
 
 </head>
 
-<body class="min-h-screen overflow-hidden">
+<body class="min-h-screen">
   <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>

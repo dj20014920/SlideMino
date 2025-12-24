@@ -4,30 +4,32 @@ import { rankingService } from '../services/rankingService';
 import AdBanner from './AdBanner';
 
 interface GameOverModalProps {
+    sessionId: string;
     score: number;
     difficulty: string;
     duration: number;
     moves: number;
+    playerName?: string;
     onClose: () => void;
 }
 
-export const GameOverModal: React.FC<GameOverModalProps> = ({ score, difficulty, duration, moves, onClose }) => {
+export const GameOverModal: React.FC<GameOverModalProps> = ({ sessionId, score, difficulty, duration, moves, playerName, onClose }) => {
     const [step, setStep] = useState<'INITIAL' | 'REGISTER' | 'SUBMITTED'>('INITIAL');
     const [name, setName] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
-        // Load saved name
-        setName(rankingService.getSavedName());
-    }, []);
+        // Load saved name or use provided playerName
+        setName(playerName || rankingService.getSavedName());
+    }, [playerName]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!name.trim()) return;
 
         setIsSubmitting(true);
-        // Submit score with anti-cheat metadata
-        await rankingService.submitScore(name, score, difficulty, duration, moves);
+        // Submit score with anti-cheat metadata and session ID
+        await rankingService.submitScore(sessionId, name, score, difficulty, duration, moves);
         setIsSubmitting(false);
         setStep('SUBMITTED');
     };

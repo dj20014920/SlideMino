@@ -7,6 +7,11 @@ export interface RankEntry {
     difficulty: string;
 }
 
+export interface SubmitScoreResponse {
+    success: boolean;
+    rank?: number;
+}
+
 const STORAGE_KEY_NAME = 'slidemino_player_name';
 
 
@@ -26,9 +31,16 @@ export const rankingService = {
     },
 
     /**
-     * Submit score to the ranking backend
+     * Submit score to the ranking backend (게임 종료 시)
      */
-    submitScore: async (name: string, score: number, difficulty: string, duration: number, moves: number): Promise<boolean> => {
+    submitScore: async (
+        sessionId: string,
+        name: string,
+        score: number,
+        difficulty: string,
+        duration: number,
+        moves: number
+    ): Promise<SubmitScoreResponse> => {
         // Save name locally first
         rankingService.saveName(name);
 
@@ -39,6 +51,7 @@ export const rankingService = {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
+                    sessionId,
                     name,
                     score,
                     difficulty,
@@ -47,10 +60,62 @@ export const rankingService = {
                     timestamp: Date.now()
                 }),
             });
-            return response.ok;
+
+            if (!response.ok) {
+                return { success: false };
+            }
+
+            const data = await response.json();
+            return {
+                success: true,
+                rank: data.rank
+            };
         } catch (error) {
             console.error('Failed to submit score:', error);
-            return false;
+            return { success: false };
+        }
+    },
+
+    /**
+     * Update score during gameplay (자동 업데이트용)
+     */
+    updateScore: async (
+        sessionId: string,
+        name: string,
+        score: number,
+        difficulty: string,
+        duration: number,
+        moves: number
+    ): Promise<SubmitScoreResponse> => {
+        try {
+            const response = await fetch('/api/submit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    sessionId,
+                    name,
+                    score,
+                    difficulty,
+                    duration,
+                    moves,
+                    timestamp: Date.now()
+                }),
+            });
+
+            if (!response.ok) {
+                return { success: false };
+            }
+
+            const data = await response.json();
+            return {
+                success: true,
+                rank: data.rank
+            };
+        } catch (error) {
+            console.error('Failed to update score:', error);
+            return { success: false };
         }
     },
 

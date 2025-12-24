@@ -10,7 +10,9 @@ import {
   validateDuration,
   validateMoves,
   validateGameConsistency,
+  validateSessionId,
 } from '../utils/validation';
+import { resetRankingsIfNewMonth } from '../utils/monthlyReset';
 
 interface Env {
   DB: D1Database;
@@ -18,6 +20,7 @@ interface Env {
 }
 
 interface SubmitRequest {
+  sessionId: unknown;
   name: unknown;
   score: unknown;
   difficulty: unknown;
@@ -119,35 +122,42 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     // ========== 입력 검증 (Layer 3) ==========
 
-    // 1. 이름 검증
+    // 1. 세션 ID 검증
+    const sessionIdValidation = validateSessionId(data.sessionId);
+    if (!sessionIdValidation.valid) {
+      return errorResponse(sessionIdValidation.error!, 400, corsHeaders);
+    }
+    const sessionId = sessionIdValidation.value!;
+
+    // 2. 이름 검증
     const nameValidation = validateName(data.name);
     if (!nameValidation.valid) {
       return errorResponse(nameValidation.error!, 400, corsHeaders);
     }
     const sanitizedName = nameValidation.sanitized!;
 
-    // 2. 난이도 검증
+    // 3. 난이도 검증
     const difficultyValidation = validateDifficulty(data.difficulty);
     if (!difficultyValidation.valid) {
       return errorResponse(difficultyValidation.error!, 400, corsHeaders);
     }
     const difficulty = difficultyValidation.value!;
 
-    // 3. 점수 검증
+    // 4. 점수 검증
     const scoreValidation = validateScore(data.score);
     if (!scoreValidation.valid) {
       return errorResponse(scoreValidation.error!, 400, corsHeaders);
     }
     const score = scoreValidation.value!;
 
-    // 4. 게임 시간 검증
+    // 5. 게임 시간 검증
     const durationValidation = validateDuration(data.duration);
     if (!durationValidation.valid) {
       return errorResponse(durationValidation.error!, 400, corsHeaders);
     }
     const duration = durationValidation.value!;
 
-    // 5. 이동 횟수 검증
+    // 6. 이동 횟수 검증
     const movesValidation = validateMoves(data.moves);
     if (!movesValidation.valid) {
       return errorResponse(movesValidation.error!, 400, corsHeaders);
@@ -162,24 +172,48 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       return errorResponse('Your score could not be saved. Please play normally and try again.', 403, corsHeaders);
     }
 
-    // 중복 제출은 Rate Limiting으로 방지 (DB 쿼리 제거로 성능 향상)
+    await resetRankingsIfNewMonth(env);
 
-    // ========== 데이터베이스 삽입 (Layer 4) ==========
+    // ========== 데이터베이스 UPSERT (Layer 4) ==========
     try {
+      const now = Date.now();
+
+      // UPSERT: 세션 ID가 이미 존재하면 업데이트, 없으면 삽입
       await env.DB.prepare(
-        `INSERT INTO rankings (name, score, difficulty, duration, moves, timestamp)
-         VALUES (?, ?, ?, ?, ?, ?)`
+        `INSERT INTO rankings (session_id, name, score, difficulty, duration, moves, timestamp, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(session_id) DO UPDATE SET
+           name = excluded.name,
+           score = excluded.score,
+           duration = excluded.duration,
+           moves = excluded.moves,
+           updated_at = excluded.updated_at`
       ).bind(
+        sessionId,
         sanitizedName,
         score,
         difficulty,
         duration,
         moves,
-        Date.now()
+        now,
+        now
       ).run();
 
+      // ========== 순위 조회 ==========
+      // 같은 난이도 내에서 현재 점수보다 높은 점수의 개수 + 1
+      const rankResult = await env.DB.prepare(
+        `SELECT COUNT(*) + 1 as rank
+         FROM rankings
+         WHERE difficulty = ? AND score > ?`
+      ).bind(difficulty, score).first<{ rank: number }>();
+
+      const currentRank = rankResult?.rank || 1;
+
       return new Response(
-        JSON.stringify({ success: true }),
+        JSON.stringify({
+          success: true,
+          rank: currentRank
+        }),
         {
           status: 201,
           headers: {

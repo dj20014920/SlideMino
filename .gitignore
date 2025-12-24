@@ -75,3 +75,15 @@ build/
 # Archives
 *.zip
 *.tar.gz
+
+# Docs
+docs/
+
+# Dev Tools / Backups
+public/icon_generator.html
+README.old.md
+
+# Configuration & Database (Private)
+wrangler.toml
+schema.sql
+migrate.sql

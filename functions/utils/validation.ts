@@ -220,3 +220,24 @@ export function validateTimestamp(timestamp: unknown): { valid: boolean; error?:
 
   return { valid: true };
 }
+
+/**
+ * 세션 ID 검증
+ * - UUID v4 형식 확인
+ * - 길이 및 형식 검증
+ */
+export function validateSessionId(sessionId: unknown): { valid: boolean; value?: string; error?: string } {
+  if (typeof sessionId !== 'string') {
+    return { valid: false, error: 'Session ID must be a string' };
+  }
+
+  const trimmed = sessionId.trim();
+
+  // UUID v4 형식: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!uuidPattern.test(trimmed)) {
+    return { valid: false, error: 'Invalid session ID format' };
+  }
+
+  return { valid: true, value: trimmed };
+}

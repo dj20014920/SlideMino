@@ -21,7 +21,7 @@ import {
 import { Board, type BoardHandle } from './components/Board';
 import { Slot } from './components/Slot';
 import { BlockCustomizationModal } from './components/BlockCustomizationModal';
-import { Undo2, Home, RotateCw, Move, Palette, Lock, Trophy } from 'lucide-react';
+import { Undo2, Home, RotateCw, Move, Palette, Lock, Trophy, HelpCircle } from 'lucide-react';
 
 import { GameOverModal } from './components/GameOverModal';
 import { LeaderboardModal } from './components/LeaderboardModal';
@@ -29,6 +29,7 @@ import { NameInputModal } from './components/NameInputModal';
 import { TutorialOverlay } from './components/TutorialOverlay';
 import AdBanner from './components/AdBanner';
 import { CookieConsent } from './components/CookieConsent';
+import { HelpModal } from './components/HelpModal';
 import { BOARD_CELL_GAP_PX, SLIDE_UNLOCK_BUFFER_MS, getSlideAnimationDurationMs } from './constants';
 import { useBlockCustomization } from './context/BlockCustomizationContext';
 import { saveGameState, loadGameState, clearGameState, hasActiveGame } from './services/gameStorage';
@@ -86,6 +87,9 @@ const App: React.FC = () => {
 
   // Tutorial State: 0=Off, 1=Drag, 2=Swipe
   const [tutorialStep, setTutorialStep] = useState<number>(0);
+
+  // Help Modal
+  const [showHelpModal, setShowHelpModal] = useState(false);
 
   // Check tutorial status on load
   useEffect(() => {
@@ -1117,23 +1121,40 @@ const App: React.FC = () => {
               {phase === Phase.SLIDE && <Move size={14} className="animate-pulse" />}
             </div>
 
-            {/* Undo Button */}
-            <button
-              type="button"
-              onClick={executeUndo}
-              disabled={!lastSnapshot || undoRemaining <= 0 || isAnimating}
-              className={`
-              px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-2
-              border shadow-sm transition-all duration-200
-              ${(!lastSnapshot || undoRemaining <= 0 || isAnimating)
-                  ? 'bg-gray-100/50 text-gray-300 border-gray-200/50 cursor-not-allowed'
-                  : 'bg-white/70 hover:bg-white text-gray-700 border-white/50 hover:shadow-md active:scale-95'
-                }
-            `}
-            >
-              <Undo2 size={14} />
-              <span className="tabular-nums">{undoRemaining}</span>
-            </button>
+            {/* Help & Undo Buttons - Same Row */}
+            <div className="flex items-center gap-2">
+              {/* Help Button */}
+              <button
+                type="button"
+                onClick={() => setShowHelpModal(true)}
+                className="
+                  p-2 rounded-full text-gray-600
+                  bg-white/70 hover:bg-white border border-white/50
+                  shadow-sm hover:shadow-md transition-all duration-200 active:scale-95
+                "
+                aria-label="Help"
+              >
+                <HelpCircle size={18} />
+              </button>
+
+              {/* Undo Button */}
+              <button
+                type="button"
+                onClick={executeUndo}
+                disabled={!lastSnapshot || undoRemaining <= 0 || isAnimating}
+                className={`
+                px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-2
+                border shadow-sm transition-all duration-200
+                ${(!lastSnapshot || undoRemaining <= 0 || isAnimating)
+                    ? 'bg-gray-100/50 text-gray-300 border-gray-200/50 cursor-not-allowed'
+                    : 'bg-white/70 hover:bg-white text-gray-700 border-white/50 hover:shadow-md active:scale-95'
+                  }
+              `}
+              >
+                <Undo2 size={14} />
+                <span className="tabular-nums">{undoRemaining}</span>
+              </button>
+            </div>
           </div>
         </header>
 
@@ -1189,6 +1210,7 @@ const App: React.FC = () => {
         </main>
 
         <TutorialOverlay step={tutorialStep} />
+        <HelpModal isOpen={showHelpModal} onClose={() => setShowHelpModal(false)} />
 
         {/* Ad Banner for Game Screen */}
         <div className="w-full shrink-0 z-10 bg-white/50 backdrop-blur-sm border-t border-white/20">

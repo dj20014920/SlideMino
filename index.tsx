@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { BlockCustomizationProvider } from './context/BlockCustomizationContext';
+import './i18n/config';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

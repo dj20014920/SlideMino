@@ -1,0 +1,21 @@
+{
+  "about": {
+    "title": "About SlideMino",
+    "tagline": "2048とテトリスの完璧な融合",
+    "description": "SlideMinoは、2048の数字合体とテトリスの戦略的ブロック配置を組み合わせた革新的なブラウザベースのパズルゲームです。"
+  },
+  "contact": {
+    "title": "Contact Us",
+    "tagline": "お気軽にお問い合わせください！",
+    "email": "studio@emozleep.space",
+    "description": "質問、バグレポート、フィードバックがありましたらいつでもご連絡ください！"
+  },
+  "terms": {
+    "title": "利用規約",
+    "lastUpdated": "最終更新日"
+  },
+  "privacy": {
+    "title": "プライバシーポリシー",
+    "lastUpdated": "最終更新日"
+  }
+}

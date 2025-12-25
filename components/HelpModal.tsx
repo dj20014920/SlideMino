@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { X, ChevronLeft, ChevronRight, Smartphone, Mouse, RotateCw, Undo2, Zap } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { LANGUAGE_CONFIGS, SUPPORTED_LANGUAGES, normalizeLanguage, type SupportedLanguage } from '../i18n/constants';
 
 interface HelpModalProps {
     isOpen: boolean;
     onClose: () => void;
 }
 
-type Language = 'ko' | 'en' | 'ja' | 'zh';
+type Language = SupportedLanguage;
 
 interface LocalizedContent {
     title: string;
@@ -150,28 +152,11 @@ const content: Record<Language, LocalizedContent> = {
     }
 };
 
-const languageNames: Record<Language, string> = {
-    ko: '한국어',
-    en: 'English',
-    ja: '日本語',
-    zh: '中文'
-};
-
-const languageOrder: Language[] = ['ko', 'en', 'ja', 'zh'];
-
-// Detect user's browser language and map to supported language
-const detectLanguage = (): Language => {
-    const browserLang = navigator.language || (navigator as any).userLanguage || 'en';
-    const langCode = browserLang.toLowerCase().split('-')[0]; // e.g., 'ko-KR' -> 'ko'
-
-    if (langCode === 'ko') return 'ko';
-    if (langCode === 'ja') return 'ja';
-    if (langCode === 'zh') return 'zh';
-    return 'en'; // Default to English for all other languages
-};
+const languageOrder: Language[] = [...SUPPORTED_LANGUAGES];
 
 export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
-    const [currentLang, setCurrentLang] = useState<Language>(detectLanguage);
+    const { i18n, t } = useTranslation();
+    const currentLang = normalizeLanguage(i18n.resolvedLanguage ?? i18n.language);
 
     if (!isOpen) return null;
 
@@ -180,12 +165,12 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
 
     const prevLang = () => {
         const newIndex = (currentIndex - 1 + languageOrder.length) % languageOrder.length;
-        setCurrentLang(languageOrder[newIndex]);
+        i18n.changeLanguage(languageOrder[newIndex]);
     };
 
     const nextLang = () => {
         const newIndex = (currentIndex + 1) % languageOrder.length;
-        setCurrentLang(languageOrder[newIndex]);
+        i18n.changeLanguage(languageOrder[newIndex]);
     };
 
     return (
@@ -217,7 +202,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                             <ChevronLeft size={18} className="text-white" />
                         </button>
                         <span className="text-white font-medium text-sm px-3 py-1 bg-white/20 rounded-full min-w-[80px] text-center">
-                            {languageNames[currentLang]}
+                            {LANGUAGE_CONFIGS[currentLang]?.displayName ?? currentLang}
                         </span>
                         <button
                             onClick={nextLang}
@@ -268,7 +253,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                         onClick={onClose}
                         className="w-full py-3 rounded-xl font-bold text-white bg-gradient-to-br from-gray-800 to-gray-900 hover:from-gray-900 hover:to-black transition-all shadow-lg hover:shadow-xl active:scale-[0.98] border border-white/10"
                     >
-                        {currentLang === 'ko' ? '확인' : currentLang === 'en' ? 'Got it!' : currentLang === 'ja' ? '了解' : '知道了'}
+                        {t('common:buttons.confirm')}
                     </button>
                 </div>
             </div>

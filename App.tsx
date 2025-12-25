@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   GameState,
   Grid,
@@ -30,11 +31,13 @@ import { TutorialOverlay } from './components/TutorialOverlay';
 import AdBanner from './components/AdBanner';
 import { CookieConsent } from './components/CookieConsent';
 import { HelpModal } from './components/HelpModal';
+import { LanguageSwitcher } from './components/LanguageSwitcher';
 import { BOARD_CELL_GAP_PX, SLIDE_UNLOCK_BUFFER_MS, getSlideAnimationDurationMs } from './constants';
 import { useBlockCustomization } from './context/BlockCustomizationContext';
 import { saveGameState, loadGameState, clearGameState, hasActiveGame } from './services/gameStorage';
 import { rankingService } from './services/rankingService';
 import { getCurrentRoute, onRouteChange, updatePageMeta, type Route } from './utils/routing';
+import { normalizeLanguage } from './i18n/constants';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import Terms from './pages/Terms';
 import About from './pages/About';
@@ -53,8 +56,16 @@ interface GameSnapshot {
 }
 
 const App: React.FC = () => {
+  // --- i18n ---
+  const { t, i18n } = useTranslation();
+  const tagline = String(t('game:tagline'));
+
   // --- Routing State ---
   const [currentRoute, setCurrentRoute] = useState<Route>(getCurrentRoute());
+
+  useEffect(() => {
+    document.documentElement.lang = normalizeLanguage(i18n.resolvedLanguage ?? i18n.language);
+  }, [i18n.language, i18n.resolvedLanguage]);
 
   // --- State ---
   const { gate: customizationGate, resolveTileAppearance } = useBlockCustomization();
@@ -836,11 +847,15 @@ const App: React.FC = () => {
           {/* 로고 영역 */}
           <div className="text-center space-y-3 animate-fade-in">
             <h1 className="text-5xl font-bold text-gray-900 tracking-tight">
-              SlideMino
+              {t('game:title')}
             </h1>
             <p className="text-gray-500 text-lg max-w-xs mx-auto leading-relaxed">
-              Place blocks like Tetris.<br />
-              Merge numbers like 2048.
+              {tagline.split('\n').map((line, index, arr) => (
+                <React.Fragment key={`${line}-${index}`}>
+                  {line}
+                  {index < arr.length - 1 && <br />}
+                </React.Fragment>
+              ))}
             </p>
           </div>
 
@@ -874,53 +889,53 @@ const App: React.FC = () => {
               "
               >
                 <span className="flex items-center justify-between">
-                  <span>▶ 게임 이어하기</span>
+                  <span>{t('game:difficulties.continue')}</span>
                   <span className="text-emerald-200/70 font-normal text-sm">{boardSize}×{boardSize}</span>
                 </span>
               </button>
             )}
 
-            {/* Easy */}
+            {/* 고수 - 4×4 */}
             <button
-              onClick={() => tryStartGame(10)}
+              onClick={() => tryStartGame(4)}
               className="
               relative group w-full py-4 px-6 rounded-2xl
-              bg-white/60 backdrop-blur-sm
-              border border-white/50
-              shadow-lg
-              hover:shadow-xl hover:-translate-y-0.5
-              active:translate-y-0 active:shadow-md
-              transition-all duration-200 ease-out
-              text-gray-800 font-semibold text-lg
-            "
-            >
-              <span className="flex items-center justify-between">
-                <span>Easy</span>
-                <span className="text-gray-400 font-normal text-sm">10×10</span>
-              </span>
-            </button>
-
-            {/* Normal */}
-            <button
-              onClick={() => tryStartGame(8)}
-              className="
-              relative group w-full py-4 px-6 rounded-2xl
-              bg-gradient-to-br from-gray-800 to-gray-900
-              border border-white/10
-              shadow-lg
-              hover:shadow-xl hover:-translate-y-0.5
+              bg-gradient-to-br from-red-600 via-red-700 to-red-900
+              border border-red-400/30
+              shadow-lg shadow-red-900/20
+              hover:shadow-xl hover:shadow-red-600/30 hover:-translate-y-0.5
               active:translate-y-0 active:shadow-md
               transition-all duration-200 ease-out
               text-white font-semibold text-lg
             "
             >
               <span className="flex items-center justify-between">
-                <span>Normal</span>
-                <span className="text-gray-400 font-normal text-sm">8×8</span>
+                <span>{t('game:difficulties.expert')}</span>
+                <span className="text-red-200/70 font-normal text-sm">{t('game:boardSizes.4x4')}</span>
               </span>
             </button>
 
-            {/* Hard */}
+            {/* 일반 - 5×5 */}
+            <button
+              onClick={() => tryStartGame(5)}
+              className="
+              relative group w-full py-4 px-6 rounded-2xl
+              bg-gradient-to-br from-blue-600 to-blue-700
+              border border-blue-400/30
+              shadow-lg shadow-blue-900/20
+              hover:shadow-xl hover:shadow-blue-600/30 hover:-translate-y-0.5
+              active:translate-y-0 active:shadow-md
+              transition-all duration-200 ease-out
+              text-white font-semibold text-lg
+            "
+            >
+              <span className="flex items-center justify-between">
+                <span>{t('game:difficulties.normal')}</span>
+                <span className="text-blue-200/70 font-normal text-sm">{t('game:boardSizes.5x5')}</span>
+              </span>
+            </button>
+
+            {/* 뉴비 - 7×7 */}
             <button
               onClick={() => tryStartGame(7)}
               className="
@@ -935,28 +950,48 @@ const App: React.FC = () => {
             "
             >
               <span className="flex items-center justify-between">
-                <span>Hard</span>
-                <span className="text-gray-500 font-normal text-sm">7×7</span>
+                <span>{t('game:difficulties.beginner')}</span>
+                <span className="text-gray-500 font-normal text-sm">{t('game:boardSizes.7x7')}</span>
               </span>
             </button>
 
-            {/* Extreme - 5×5 */}
+            {/* 왕초보 - 8×8 */}
             <button
-              onClick={() => tryStartGame(5)}
+              onClick={() => tryStartGame(8)}
               className="
               relative group w-full py-4 px-6 rounded-2xl
-              bg-gradient-to-br from-red-600 via-red-700 to-red-900
-              border border-red-400/30
-              shadow-lg shadow-red-900/20
-              hover:shadow-xl hover:shadow-red-600/30 hover:-translate-y-0.5
+              bg-gradient-to-br from-gray-800 to-gray-900
+              border border-white/10
+              shadow-lg
+              hover:shadow-xl hover:-translate-y-0.5
               active:translate-y-0 active:shadow-md
               transition-all duration-200 ease-out
               text-white font-semibold text-lg
             "
             >
               <span className="flex items-center justify-between">
-                <span>🔥 Extreme</span>
-                <span className="text-red-200/70 font-normal text-sm">5×5</span>
+                <span>{t('game:difficulties.easy')}</span>
+                <span className="text-gray-400 font-normal text-sm">{t('game:boardSizes.8x8')}</span>
+              </span>
+            </button>
+
+            {/* 무한모드 - 10×10 */}
+            <button
+              onClick={() => tryStartGame(10)}
+              className="
+              relative group w-full py-4 px-6 rounded-2xl
+              bg-white/60 backdrop-blur-sm
+              border border-white/50
+              shadow-lg
+              hover:shadow-xl hover:-translate-y-0.5
+              active:translate-y-0 active:shadow-md
+              transition-all duration-200 ease-out
+              text-gray-800 font-semibold text-lg
+            "
+            >
+              <span className="flex items-center justify-between">
+                <span>{t('game:difficulties.infinite')}</span>
+                <span className="text-gray-400 font-normal text-sm">{t('game:boardSizes.10x10')}</span>
               </span>
             </button>
 
@@ -977,15 +1012,15 @@ const App: React.FC = () => {
             >
               <span className="flex items-center gap-2">
                 <Palette size={16} />
-                블럭 커스터마이징
+                {t('game:actions.customization')}
               </span>
               {!customizationGate.allowed ? (
                 <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-700/90">
                   <Lock size={14} />
-                  {customizationGate.reason ?? '잠김'}
+                  {customizationGate.reasonKey ? t(customizationGate.reasonKey as any) : t('game:actions.locked')}
                 </span>
               ) : (
-                <span className="text-gray-400 font-normal text-sm">꾸미기</span>
+                <span className="text-gray-400 font-normal text-sm">{t('game:actions.customize')}</span>
               )}
             </button>
 
@@ -1006,32 +1041,35 @@ const App: React.FC = () => {
             >
               <span className="flex items-center gap-2">
                 <Trophy size={16} className="text-yellow-600" />
-                랭킹 보기
+                {t('game:actions.leaderboard')}
               </span>
             </button>
+
+            {/* Language Switcher */}
+            <LanguageSwitcher />
           </div>
 
           {/* 푸터 네비게이션 */}
           <footer className="w-full max-w-md mt-8 pt-6 border-t border-gray-200">
             <nav className="flex flex-wrap justify-center gap-4 text-sm text-gray-600">
               <a href="#/about" className="hover:text-gray-900 transition-colors">
-                About
+                {t('common:footer.about')}
               </a>
               <span className="text-gray-300">•</span>
               <a href="#/privacy" className="hover:text-gray-900 transition-colors">
-                Privacy
+                {t('common:footer.privacy')}
               </a>
               <span className="text-gray-300">•</span>
               <a href="#/terms" className="hover:text-gray-900 transition-colors">
-                Terms
+                {t('common:footer.terms')}
               </a>
               <span className="text-gray-300">•</span>
               <a href="#/contact" className="hover:text-gray-900 transition-colors">
-                Contact
+                {t('common:footer.contact')}
               </a>
             </nav>
             <p className="text-center text-xs text-gray-400 mt-3">
-              © 2025 SlideMino. All rights reserved.
+              {t('common:footer.copyright')}
             </p>
           </footer>
 
@@ -1091,13 +1129,13 @@ const App: React.FC = () => {
                   : 'bg-white/70 hover:bg-white text-gray-700 border-white/50 hover:shadow-md active:scale-95'
                 }
             `}
-              aria-label="홈으로"
+              aria-label={t('common:aria.home')}
             >
               <Home size={18} />
             </button>
             <div className="space-y-0.5">
               <h2 className="text-sm font-medium text-gray-400 uppercase tracking-wider">
-                Score
+                {t('common:labels.score')}
                 {currentRank !== null && gameState === GameState.PLAYING && (
                   <span className="ml-2 text-xs font-semibold text-blue-600">
                     #{currentRank}
@@ -1117,7 +1155,7 @@ const App: React.FC = () => {
                 : 'bg-gray-900 text-white shadow-lg border border-transparent'
               }
           `}>
-              {phase === Phase.PLACE ? 'PLACE BLOCK' : 'SWIPE BOARD'}
+              {phase === Phase.PLACE ? t('game:phases.place') : t('game:phases.swipe')}
               {phase === Phase.SLIDE && <Move size={14} className="animate-pulse" />}
             </div>
 
@@ -1132,7 +1170,7 @@ const App: React.FC = () => {
                   bg-white/70 hover:bg-white border border-white/50
                   shadow-sm hover:shadow-md transition-all duration-200 active:scale-95
                 "
-                aria-label="Help"
+                aria-label={t('common:aria.help')}
               >
                 <HelpCircle size={18} />
               </button>
@@ -1199,11 +1237,11 @@ const App: React.FC = () => {
           <div className="text-gray-400 text-sm text-center font-medium">
             {draggingPiece ? (
               <span className="text-gray-600 flex items-center justify-center gap-2">
-                <RotateCw size={14} /> Press 'R' to Rotate
+                <RotateCw size={14} /> {t('game:hints.rotate')}
               </span>
             ) : (
-              phase === Phase.PLACE ? "Drag blocks to grid" :
-                (canSkipSlide ? "Swipe again OR Drag a block" : "Must slide to continue!")
+              phase === Phase.PLACE ? t('game:hints.drag') :
+                (canSkipSlide ? t('game:hints.combo') : t('game:hints.swipe'))
             )}
           </div>
 

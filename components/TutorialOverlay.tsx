@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Hand } from 'lucide-react';
 
 interface TutorialOverlayProps {
@@ -6,6 +7,7 @@ interface TutorialOverlayProps {
 }
 
 export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ step }) => {
+  const { t } = useTranslation();
   const [positions, setPositions] = useState<{
     startX: number;
     startY: number;
@@ -103,9 +105,8 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ step }) => {
         className="absolute top-1/4 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-md px-6 py-3 rounded-full text-white font-semibold text-lg animate-bounce"
         style={{ animationDuration: '2s' }}
       >
-        {step === 1 ? 'Drag block to board!' : 'Swipe screen/keys to Merge!'}
+        {step === 1 ? t('modals:tutorial.drag') : t('modals:tutorial.swipe')}
       </div>
     </div>
   );
 };
-

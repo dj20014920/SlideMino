@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Check, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 type SquareImageCropperModalProps = {
   open: boolean;
@@ -20,6 +21,7 @@ export function SquareImageCropperModal({
   onCancel,
   onConfirm,
 }: SquareImageCropperModalProps) {
+  const { t } = useTranslation();
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
   const [viewportPx, setViewportPx] = useState(280);
@@ -155,15 +157,15 @@ export function SquareImageCropperModal({
       <div className="relative z-10 w-full max-w-lg rounded-3xl bg-white/90 backdrop-blur-sm border border-white/60 shadow-2xl overflow-hidden">
         <div className="flex items-start justify-between px-5 py-4 border-b border-black/5">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">정사각 크롭</h3>
-            <p className="text-sm text-gray-500">드래그로 위치를 이동하고, 확대/축소로 원하는 영역을 맞춰주세요.</p>
+            <h3 className="text-lg font-semibold text-gray-900">{t('modals:blockCustomization.cropper.title')}</h3>
+            <p className="text-sm text-gray-500">{t('modals:blockCustomization.cropper.description')}</p>
           </div>
           <div className="flex items-center gap-2">
             <button
               type="button"
               className="p-2 rounded-xl bg-white/70 border border-white/60 text-gray-700 hover:bg-white shadow-sm transition-colors"
               onClick={onCancel}
-              aria-label="Close"
+              aria-label={t('common:aria.close')}
             >
               <X size={18} />
             </button>
@@ -174,7 +176,7 @@ export function SquareImageCropperModal({
             >
               <span className="inline-flex items-center gap-2">
                 <Check size={16} />
-                적용
+                {t('modals:blockCustomization.cropper.apply')}
               </span>
             </button>
           </div>
@@ -199,7 +201,7 @@ export function SquareImageCropperModal({
                 <img
                   ref={imgRef}
                   src={src}
-                  alt="Crop source"
+                  alt={t('modals:blockCustomization.cropper.alt')}
                   className="absolute left-1/2 top-1/2 max-w-none select-none"
                   style={{
                     transform: `translate(-50%, -50%) scale(${scale})`,
@@ -222,7 +224,7 @@ export function SquareImageCropperModal({
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <div className="text-sm font-semibold text-gray-800">확대/축소</div>
+              <div className="text-sm font-semibold text-gray-800">{t('modals:blockCustomization.cropper.zoom')}</div>
               <div className="text-xs text-gray-500 tabular-nums">{Math.round(zoom * 100)}%</div>
             </div>
             <input
@@ -243,10 +245,10 @@ export function SquareImageCropperModal({
                   setOffset({ x: 0, y: 0 });
                 }}
               >
-                가운데로
+                {t('modals:blockCustomization.cropper.center')}
               </button>
               <div className="text-xs text-gray-500">
-                저장 시 {outputSize}×{outputSize}로 최적화됩니다.
+                {t('modals:blockCustomization.cropper.optimize', { size: outputSize } as any)}
               </div>
             </div>
           </div>
@@ -255,4 +257,3 @@ export function SquareImageCropperModal({
     </div>
   );
 }
-

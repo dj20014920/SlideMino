@@ -1,0 +1,36 @@
+{
+  "title": "SlideMino",
+  "tagline": "Place blocks like Tetris.\nMerge numbers like 2048.",
+  "difficulties": {
+    "expert": "🔥 Expert",
+    "normal": "Normal",
+    "beginner": "Beginner",
+    "easy": "Easy",
+    "infinite": "Infinite",
+    "continue": "▶ Continue Game"
+  },
+  "boardSizes": {
+    "4x4": "4×4",
+    "5x5": "5×5",
+    "7x7": "7×7",
+    "8x8": "8×8",
+    "10x10": "10×10"
+  },
+  "phases": {
+    "place": "PLACE BLOCK",
+    "swipe": "SWIPE BOARD"
+  },
+  "hints": {
+    "rotate": "Press 'R' to Rotate",
+    "drag": "Drag blocks to grid",
+    "swipe": "Must slide to continue!",
+    "combo": "Swipe again OR Drag a block"
+  },
+  "actions": {
+    "undo": "Undo",
+    "customization": "Block Customization",
+    "leaderboard": "Leaderboard",
+    "locked": "Locked",
+    "customize": "Customize"
+  }
+}

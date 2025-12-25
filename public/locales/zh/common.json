@@ -1,0 +1,39 @@
+{
+  "buttons": {
+    "confirm": "确认",
+    "cancel": "取消",
+    "close": "关闭",
+    "submit": "提交",
+    "decline": "拒绝",
+    "accept": "接受",
+    "home": "主页",
+    "backToMenu": "返回菜单",
+    "backToGame": "返回游戏",
+    "resetAll": "全部重置",
+    "reset": "重置",
+    "retry": "重试"
+  },
+  "labels": {
+    "score": "分数",
+    "finalScore": "最终得分",
+    "rank": "排名",
+    "name": "名称",
+    "loading": "加载中...",
+    "pts": "分",
+    "premiumFeature": "高级功能"
+  },
+  "footer": {
+    "about": "关于",
+    "privacy": "隐私",
+    "terms": "条款",
+    "contact": "联系",
+    "copyright": "© 2025 SlideMino. All rights reserved."
+  },
+  "aria": {
+    "home": "主页",
+    "help": "帮助",
+    "close": "关闭",
+    "selectTile": "选择方块 {{value}}",
+    "rotateBlock": "旋转方块"
+  }
+}

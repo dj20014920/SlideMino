@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Play } from 'lucide-react';
 
 interface NameInputModalProps {
@@ -10,6 +11,7 @@ interface NameInputModalProps {
 }
 
 export const NameInputModal: React.FC<NameInputModalProps> = ({ open, difficulty, hasActiveGame, onClose, onSubmit }) => {
+    const { t } = useTranslation();
     const [name, setName] = useState('');
     const [error, setError] = useState<string | null>(null);
 
@@ -22,14 +24,14 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({ open, difficulty
 
     const validateName = (value: string) => {
         // 1. Length check (1~10)
-        if (value.length === 0) return '이름을 입력해주세요.';
-        if (value.length > 10) return '이름은 최대 10글자입니다.';
+        if (value.length === 0) return t('modals:nameInput.errors.required');
+        if (value.length > 10) return t('modals:nameInput.errors.tooLong');
 
         // 2. Injection Prevention (allow only safe chars)
         // Allowed: Korean (Hangul syllables, Jamo), English, Numbers, Space
         const safePattern = /^[a-zA-Z0-9가-힣ㄱ-ㅎㅏ-ㅣ\s]+$/;
         if (!safePattern.test(value)) {
-            return '특수문자는 사용할 수 없습니다.';
+            return t('modals:nameInput.errors.invalidChars');
         }
 
         return null;
@@ -72,7 +74,7 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({ open, difficulty
                 <div className="p-6">
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-xl font-bold text-gray-800">
-                            {difficulty}x{difficulty} 게임 시작
+                            {t('modals:nameInput.title', { difficulty } as any)}
                         </h2>
                         <button
                             onClick={onClose}
@@ -84,21 +86,21 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({ open, difficulty
 
                     {hasActiveGame && (
                         <div className="mb-6 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800 flex flex-col gap-1">
-                            <span className="font-bold">⚠️ 진행 중인 게임이 있습니다</span>
-                            <span className="text-amber-700/80">새 게임을 시작하면 현재 게임은 삭제됩니다.</span>
+                            <span className="font-bold">{t('modals:nameInput.activeGameWarning')}</span>
+                            <span className="text-amber-700/80">{t('modals:nameInput.activeGameMessage')}</span>
                         </div>
                     )}
 
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
                             <label className="block text-sm font-semibold text-gray-600 mb-2">
-                                사용할 닉네임 (최대 10자)
+                                {t('modals:nameInput.label')}
                             </label>
                             <input
                                 type="text"
                                 value={name}
                                 onChange={handleChange}
-                                placeholder="닉네임을 입력하세요"
+                                placeholder={t('modals:nameInput.placeholder')}
                                 className={`
                             w-full px-4 py-3 rounded-xl border-2 outline-none transition-all
                             font-medium text-gray-800 placeholder-gray-400
@@ -128,7 +130,7 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({ open, difficulty
                         flex items-center justify-center gap-2
                     "
                         >
-                            <span>게임 시작</span>
+                            <span>{t('modals:nameInput.submit')}</span>
                             <Play size={18} fill="currentColor" />
                         </button>
                     </form>

@@ -1,0 +1,21 @@
+{
+  "about": {
+    "title": "About SlideMino",
+    "tagline": "The Perfect Blend of 2048 and Tetris",
+    "description": "SlideMino is an innovative browser-based puzzle game that combines the addictive number-merging mechanics of 2048 with strategic block placement of Tetris."
+  },
+  "contact": {
+    "title": "Contact Us",
+    "tagline": "We'd love to hear from you!",
+    "email": "studio@emozleep.space",
+    "description": "Have questions, bug reports, or feedback? Feel free to reach out anytime!"
+  },
+  "terms": {
+    "title": "Terms of Service",
+    "lastUpdated": "Last Updated"
+  },
+  "privacy": {
+    "title": "Privacy Policy",
+    "lastUpdated": "Last Updated"
+  }
+}

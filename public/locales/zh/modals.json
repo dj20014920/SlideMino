@@ -1,0 +1,105 @@
+{
+  "gameOver": {
+    "title": "游戏结束",
+    "registerRanking": "注册排名",
+    "backToMenu": "返回菜单"
+  },
+  "leaderboard": {
+    "title": "Leaderboard",
+    "tabs": {
+      "all": "全部"
+    },
+    "empty": "暂无排名记录。\n成为第一个冠军吧！",
+    "error": "排行榜加载失败。"
+  },
+  "nameInput": {
+    "title": "开始{{difficulty}}×{{difficulty}}游戏",
+    "label": "您的昵称（最多10个字符）",
+    "placeholder": "输入您的昵称",
+    "submit": "开始游戏",
+    "activeGameWarning": "⚠️ 有正在进行的游戏",
+    "activeGameMessage": "开始新游戏将删除当前游戏。",
+    "errors": {
+      "required": "请输入名称。",
+      "tooLong": "名称最多10个字符。",
+      "invalidChars": "不允许使用特殊字符。"
+    }
+  },
+  "rankingRegister": {
+    "title": "注册排名",
+    "description": "输入名称记录您的分数。\n下次将记住您的名称。",
+    "submit": "注册完成",
+    "submitting": "提交中...",
+    "success": "注册成功！",
+    "successMessage": "您的分数已成功添加到排行榜。"
+  },
+  "tutorial": {
+    "drag": "将方块拖到棋盘！",
+    "swipe": "滑动屏幕/按键进行合并！"
+  },
+  "cookie": {
+    "title": "Cookie与广告提示",
+    "message": "SlideMino使用游戏所需的基本Cookie。接受将允许个性化广告，拒绝将收到非个性化广告。",
+    "learnMore": "了解更多"
+  },
+  "help": {
+    "alreadyImplemented": "HelpModal已实现多语言支持。"
+  },
+  "blockCustomization": {
+    "title": "方块自定义",
+    "description": "可以用照片/颜色设置全局色调（自动渐变）或单个方块（1,2,4,8…）。",
+    "resetConfirm": "重置所有方块自定义？",
+    "tabs": {
+      "global": "全局色调",
+      "perValue": "单个方块"
+    },
+    "global": {
+      "title": "更改全局色调",
+      "note": "如果设置了单个方块，则优先使用该值。",
+      "enable": "启用",
+      "baseColor": "基础颜色",
+      "saturation": "饱和度",
+      "brightness": "亮度",
+      "depth": "对比度深度",
+      "preview": "预览",
+      "previewNote": "根据当前设置显示关键值。",
+      "description": "全局色调通过自动渐变统一所有方块。可以单独自定义单个方块。"
+    },
+    "perValue": {
+      "title": "选择方块",
+      "note": "点击值进行编辑。",
+      "jumpPlaceholder": "值（例如8192）",
+      "jumpButton": "跳转",
+      "selectedBlock": "选中的方块",
+      "mode": "模式",
+      "modes": {
+        "default": "默认",
+        "color": "颜色",
+        "image": "图像"
+      },
+      "colorPicker": "选择颜色",
+      "colorNote": "自动应用3D渐变（高光/阴影）。",
+      "imageLabel": "图像",
+      "imageReplace": "替换",
+      "imageNote": "图像会裁剪为正方形，保存时优化为256×256。",
+      "resetToDefault": "重置为默认",
+      "defaultNote": "\"默认\"使用游戏的基本UI或全局色调设置。切换到颜色/图像以自定义特定值。",
+      "autoSave": "设置自动保存。",
+      "status": {
+        "default": "默认（游戏UI）",
+        "defaultWithGlobal": "默认（应用全局色调）",
+        "color": "自定义颜色",
+        "image": "自定义图像"
+      }
+    },
+    "cropper": {
+      "title": "正方形裁剪",
+      "description": "拖动移动位置，并通过缩放对齐区域。",
+      "apply": "应用",
+      "zoom": "缩放",
+      "center": "居中",
+      "optimize": "保存时优化为{{size}}×{{size}}。",
+      "alt": "裁剪源图"
+    }
+  }
+}

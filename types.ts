@@ -49,7 +49,7 @@ export enum Phase {
   SLIDE = 'SLIDE',
 }
 
-export type BoardSize = 5 | 7 | 8 | 10;
+export type BoardSize = 4 | 5 | 7 | 8 | 10;
 
 export interface GameSettings {
   boardSize: BoardSize;

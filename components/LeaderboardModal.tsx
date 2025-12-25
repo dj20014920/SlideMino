@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Trophy } from 'lucide-react';
 import { rankingService, RankEntry } from '../services/rankingService';
 
@@ -8,22 +9,30 @@ interface LeaderboardModalProps {
 }
 
 export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClose }) => {
+    const { t } = useTranslation();
     const [rankings, setRankings] = useState<RankEntry[]>([]);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'ALL' | '10x10' | '8x8' | '7x7' | '5x5'>('ALL');
+    const [hasError, setHasError] = useState(false);
+    const [activeTab, setActiveTab] = useState<'ALL' | '4x4' | '5x5' | '7x7' | '8x8' | '10x10'>('ALL');
+
+    const formatDifficultyLabel = (difficulty?: string): string | null => {
+        if (!difficulty) return null;
+        const trimmed = difficulty.trim();
+        const match = trimmed.match(/^(\d+)(?:x\1)?$/i);
+        return match ? `${match[1]}x${match[1]}` : trimmed;
+    };
 
     useEffect(() => {
         if (open) {
             setLoading(true);
-            setError(null);
+            setHasError(false);
             rankingService.getLeaderboard()
                 .then(data => {
                     setRankings(data);
                 })
                 .catch(err => {
                     console.error(err);
-                    setError('랭킹을 불러오는데 실패했습니다.');
+                    setHasError(true);
                 })
                 .finally(() => {
                     setLoading(false);
@@ -35,8 +44,8 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
 
     const filteredRankings = rankings.filter(r => {
         if (activeTab === 'ALL') return true;
-        // Check difficulty string format (e.g. "8x8")
-        return r.difficulty === activeTab;
+        const label = formatDifficultyLabel(r.difficulty);
+        return label === activeTab;
     });
 
     return (
@@ -53,7 +62,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
                 <div className="p-6 pb-2 flex justify-between items-center bg-gray-50 border-b border-gray-100">
                     <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
                         <Trophy className="text-yellow-500 fill-yellow-500" />
-                        Leaderboard
+                        {t('modals:leaderboard.title')}
                     </h2>
                     <button
                         onClick={onClose}
@@ -64,8 +73,8 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
                 </div>
 
                 {/* Tabs */}
-                <div className="flex p-2 gap-1 overflow-x-auto border-b border-gray-100 bg-white sticky top-0 z-10 no-scrollbar">
-                    {(['ALL', '10x10', '8x8', '7x7', '5x5'] as const).map(tab => (
+                <div className="flex items-center gap-2 overflow-x-auto overflow-y-visible border-b border-gray-100 bg-white px-4 py-3">
+                    {(['ALL', '4x4', '5x5', '7x7', '8x8', '10x10'] as const).map(tab => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
@@ -77,7 +86,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
                                 }
                             `}
                         >
-                            {tab === 'ALL' ? '전체' : tab}
+                            {tab === 'ALL' ? t('modals:leaderboard.tabs.all') : tab}
                         </button>
                     ))}
                 </div>
@@ -85,13 +94,12 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
                 {/* List */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-50/50">
                     {loading ? (
-                        <div className="text-center py-10 text-gray-400">LOADING...</div>
-                    ) : error ? (
-                        <div className="text-center py-10 text-red-400">{error}</div>
+                        <div className="text-center py-10 text-gray-400">{t('common:labels.loading')}</div>
+                    ) : hasError ? (
+                        <div className="text-center py-10 text-red-400">{t('modals:leaderboard.error')}</div>
                     ) : filteredRankings.length === 0 ? (
-                        <div className="text-center py-10 text-gray-400">
-                            아직 등록된 랭킹이 없습니다.<br />
-                            첫 주인공이 되어보세요!
+                        <div className="text-center py-10 text-gray-400" style={{ whiteSpace: 'pre-line' }}>
+                            {t('modals:leaderboard.empty')}
                         </div>
                     ) : (
                         filteredRankings.map((entry, index) => (
@@ -111,7 +119,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
                                     <div>
                                         <div className="font-bold text-gray-800">{entry.name}</div>
                                         <div className="text-xs text-gray-400 flex items-center gap-2">
-                                            <span>{entry.difficulty || '8x8'}</span>
+                                            <span>{formatDifficultyLabel(entry.difficulty) || '8x8'}</span>
                                             {/* Date optional */}
                                         </div>
                                     </div>
@@ -120,7 +128,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
                                     <div className="text-lg font-bold text-emerald-600 tabular-nums">
                                         {entry.score.toLocaleString()}
                                     </div>
-                                    <div className="text-xs text-gray-400">pts</div>
+                                    <div className="text-xs text-gray-400">{t('common:labels.pts')}</div>
                                 </div>
                             </div>
                         ))

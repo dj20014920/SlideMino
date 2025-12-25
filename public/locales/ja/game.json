@@ -1,0 +1,36 @@
+{
+  "title": "SlideMino",
+  "tagline": "テトリスのようにブロックを配置。\n2048のように数字を合体。",
+  "difficulties": {
+    "expert": "🔥 エキスパート",
+    "normal": "ノーマル",
+    "beginner": "初心者",
+    "easy": "イージー",
+    "infinite": "無限モード",
+    "continue": "▶ ゲームを続ける"
+  },
+  "boardSizes": {
+    "4x4": "4×4",
+    "5x5": "5×5",
+    "7x7": "7×7",
+    "8x8": "8×8",
+    "10x10": "10×10"
+  },
+  "phases": {
+    "place": "ブロック配置",
+    "swipe": "ボードをスワイプ"
+  },
+  "hints": {
+    "rotate": "'R'キーで回転",
+    "drag": "ブロックをグリッドにドラッグ",
+    "swipe": "続けるにはスライドが必要です！",
+    "combo": "再度スワイプ または ブロックをドラッグ"
+  },
+  "actions": {
+    "undo": "元に戻す",
+    "customization": "ブロックカスタマイズ",
+    "leaderboard": "ランキング",
+    "locked": "ロック中",
+    "customize": "カスタマイズ"
+  }
+}

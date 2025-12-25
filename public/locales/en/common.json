@@ -1,0 +1,39 @@
+{
+  "buttons": {
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "close": "Close",
+    "submit": "Submit",
+    "decline": "Decline",
+    "accept": "Accept",
+    "home": "Home",
+    "backToMenu": "Back to Menu",
+    "backToGame": "Back to Game",
+    "resetAll": "Reset All",
+    "reset": "Reset",
+    "retry": "Retry"
+  },
+  "labels": {
+    "score": "Score",
+    "finalScore": "Final Score",
+    "rank": "Rank",
+    "name": "Name",
+    "loading": "LOADING...",
+    "pts": "pts",
+    "premiumFeature": "Premium feature"
+  },
+  "footer": {
+    "about": "About",
+    "privacy": "Privacy",
+    "terms": "Terms",
+    "contact": "Contact",
+    "copyright": "© 2025 SlideMino. All rights reserved."
+  },
+  "aria": {
+    "home": "Home",
+    "help": "Help",
+    "close": "Close",
+    "selectTile": "Select tile {{value}}",
+    "rotateBlock": "Rotate block"
+  }
+}

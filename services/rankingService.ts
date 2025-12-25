@@ -14,6 +14,12 @@ export interface SubmitScoreResponse {
 
 const STORAGE_KEY_NAME = 'slidemino_player_name';
 
+const normalizeDifficultyForApi = (difficulty: string): string => {
+    const trimmed = difficulty.trim();
+    const match = trimmed.match(/^(\d+)(?:x\1)?$/i);
+    return match ? match[1] : trimmed;
+};
+
 
 export const rankingService = {
     /**
@@ -45,6 +51,7 @@ export const rankingService = {
         rankingService.saveName(name);
 
         try {
+            const difficultyValue = normalizeDifficultyForApi(difficulty);
             const response = await fetch('/api/submit', {
                 method: 'POST',
                 headers: {
@@ -54,7 +61,7 @@ export const rankingService = {
                     sessionId,
                     name,
                     score,
-                    difficulty,
+                    difficulty: difficultyValue,
                     duration,
                     moves,
                     timestamp: Date.now()
@@ -88,6 +95,7 @@ export const rankingService = {
         moves: number
     ): Promise<SubmitScoreResponse> => {
         try {
+            const difficultyValue = normalizeDifficultyForApi(difficulty);
             const response = await fetch('/api/submit', {
                 method: 'POST',
                 headers: {
@@ -97,7 +105,7 @@ export const rankingService = {
                     sessionId,
                     name,
                     score,
-                    difficulty,
+                    difficulty: difficultyValue,
                     duration,
                     moves,
                     timestamp: Date.now()

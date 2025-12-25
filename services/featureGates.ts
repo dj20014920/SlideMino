@@ -2,7 +2,7 @@ export type FeatureId = 'blockCustomization';
 
 export type FeatureGateDecision = {
   allowed: boolean;
-  reason?: string;
+  reasonKey?: string;
 };
 
 const LOCAL_OVERRIDE_KEY: Record<FeatureId, string> = {
@@ -23,7 +23,7 @@ export const getFeatureGateDecision = (feature: FeatureId): FeatureGateDecision 
   // - "unlocked" -> force enable
   const override = readLocalOverride(LOCAL_OVERRIDE_KEY[feature]);
   if (override === 'locked') {
-    return { allowed: false, reason: '프리미엄 기능' };
+    return { allowed: false, reasonKey: 'common:labels.premiumFeature' };
   }
   if (override === 'unlocked') {
     return { allowed: true };
@@ -34,11 +34,10 @@ export const getFeatureGateDecision = (feature: FeatureId): FeatureGateDecision 
   if (typeof envFlag === 'string' && envFlag.length > 0) {
     const normalized = envFlag.trim().toLowerCase();
     if (normalized === '0' || normalized === 'false' || normalized === 'off') {
-      return { allowed: false, reason: '프리미엄 기능' };
+      return { allowed: false, reasonKey: 'common:labels.premiumFeature' };
     }
   }
 
   // 3) Default: enabled (later, replace with real entitlement check)
   return { allowed: true };
 };
-

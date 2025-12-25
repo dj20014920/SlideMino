@@ -1,0 +1,21 @@
+{
+  "about": {
+    "title": "About SlideMino",
+    "tagline": "The Perfect Blend of 2048 and Tetris",
+    "description": "SlideMino는 2048의 숫자 합치기와 테트리스의 전략적 블록 배치를 결합한 혁신적인 브라우저 기반 퍼즐 게임입니다."
+  },
+  "contact": {
+    "title": "Contact Us",
+    "tagline": "We'd love to hear from you!",
+    "email": "studio@emozleep.space",
+    "description": "질문, 버그 리포트, 피드백이 있으시면 언제든지 연락주세요!"
+  },
+  "terms": {
+    "title": "Terms of Service",
+    "lastUpdated": "Last Updated"
+  },
+  "privacy": {
+    "title": "Privacy Policy",
+    "lastUpdated": "Last Updated"
+  }
+}

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { loadAdSenseScript } from '../services/adsense';
 
 type ConsentChoice = 'accepted' | 'declined' | null;
@@ -22,6 +23,7 @@ const notifyConsentChange = () => {
 };
 
 export const CookieConsent: React.FC = () => {
+  const { t } = useTranslation();
   const [showBanner, setShowBanner] = useState(false);
 
   useEffect(() => {
@@ -66,12 +68,11 @@ export const CookieConsent: React.FC = () => {
     <div className="fixed bottom-0 left-0 right-0 z-50 animate-slide-up">
       <div className="mx-auto w-full max-w-2xl px-4 pb-4">
         <div className="rounded-2xl border border-white/50 bg-white/80 backdrop-blur-glass shadow-glass p-4 md:p-5 text-sm text-gray-700">
-          <div className="font-semibold text-gray-900 mb-2">Cookie & Ads Notice</div>
+          <div className="font-semibold text-gray-900 mb-2">{t('modals:cookie.title')}</div>
           <p className="text-xs md:text-sm text-gray-600 leading-relaxed">
-            SlideMino uses essential cookies for gameplay. Accept to allow personalized ads, or decline to
-            receive non-personalized ads.{' '}
+            {t('modals:cookie.message')}{' '}
             <a href="#/privacy" className="underline text-gray-800 hover:text-gray-900">
-              Learn more
+              {t('modals:cookie.learnMore')}
             </a>
             .
           </p>
@@ -80,13 +81,13 @@ export const CookieConsent: React.FC = () => {
               onClick={handleDecline}
               className="px-4 py-2 text-xs font-semibold text-gray-700 border border-gray-300/80 rounded-full hover:bg-gray-100 transition"
             >
-              Decline
+              {t('common:buttons.decline')}
             </button>
             <button
               onClick={handleAccept}
               className="px-4 py-2 text-xs font-semibold text-white bg-gray-900 rounded-full hover:bg-black transition"
             >
-              Accept
+              {t('common:buttons.accept')}
             </button>
           </div>
         </div>

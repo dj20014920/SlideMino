@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Image as ImageIcon, Lock, Palette as PaletteIcon, RotateCcw, X } from 'lucide-react';
 import { getTileNumberLayout } from '../constants';
 import { useBlockCustomization } from '../context/BlockCustomizationContext';
@@ -27,6 +28,7 @@ const TileSwatch = React.memo<{
   overrideKind: 'default' | 'color' | 'image';
   onSelect: () => void;
 }>(({ value, tilePx, selected, overrideKind, onSelect }) => {
+  const { t } = useTranslation();
   const { resolveTileAppearance } = useBlockCustomization();
   const appearance = resolveTileAppearance(value);
   const { text, fontPx } = getTileNumberLayout(value, tilePx);
@@ -39,7 +41,7 @@ const TileSwatch = React.memo<{
         relative rounded-2xl p-1 transition
         ${selected ? 'ring-2 ring-gray-900/70' : 'ring-1 ring-black/5 hover:ring-black/10'}
       `}
-      aria-label={`Select tile ${value}`}
+      aria-label={t('common:aria.selectTile', { value } as any)}
     >
       <div
         className={`
@@ -72,6 +74,7 @@ const TileSwatch = React.memo<{
 });
 
 export function BlockCustomizationModal({ open, onClose }: BlockCustomizationModalProps) {
+  const { t } = useTranslation();
   const { gate, settings, setSettings, resetAll } = useBlockCustomization();
   const [tab, setTab] = useState<TabKey>('global');
   const [selectedValue, setSelectedValue] = useState(1);
@@ -156,16 +159,16 @@ export function BlockCustomizationModal({ open, onClose }: BlockCustomizationMod
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-5 py-4 border-b border-black/5 gap-3 shrink-0">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <h3 className="text-lg font-semibold text-gray-900">블럭 커스터마이징</h3>
+              <h3 className="text-lg font-semibold text-gray-900">{t('modals:blockCustomization.title')}</h3>
               {!gate.allowed && (
                 <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-semibold bg-gray-900 text-white">
                   <Lock size={12} />
-                  {gate.reason ?? '잠김'}
+                  {gate.reasonKey ? t(gate.reasonKey as any) : t('game:actions.locked')}
                 </span>
               )}
             </div>
             <p className="text-sm text-gray-500 hidden sm:block">
-              전체 톤(자동 그라데이션) 또는 개별 블럭(1,2,4,8…)을 사진/색상으로 설정할 수 있어요.
+              {t('modals:blockCustomization.description')}
             </p>
           </div>
           <div className="flex items-center gap-2 self-end sm:self-auto">
@@ -178,15 +181,15 @@ export function BlockCustomizationModal({ open, onClose }: BlockCustomizationMod
               `}
               onClick={() => {
                 if (!gate.allowed) return;
-                const ok = window.confirm('모든 블럭 커스터마이징을 초기화할까요?');
+                const ok = window.confirm(t('modals:blockCustomization.resetConfirm'));
                 if (!ok) return;
                 resetAll();
               }}
             >
               <span className="inline-flex items-center gap-2 text-sm font-semibold whitespace-nowrap">
                 <RotateCcw size={16} />
-                <span className="hidden sm:inline">전체 초기화</span>
-                <span className="sm:hidden">초기화</span>
+                <span className="hidden sm:inline">{t('common:buttons.resetAll')}</span>
+                <span className="sm:hidden">{t('common:buttons.reset')}</span>
               </span>
             </button>
 
@@ -194,7 +197,7 @@ export function BlockCustomizationModal({ open, onClose }: BlockCustomizationMod
               type="button"
               className="p-2 rounded-xl bg-white/70 border border-white/60 text-gray-700 hover:bg-white shadow-sm transition-colors"
               onClick={onClose}
-              aria-label="Close"
+              aria-label={t('common:aria.close')}
             >
               <X size={18} />
             </button>
@@ -209,14 +212,14 @@ export function BlockCustomizationModal({ open, onClose }: BlockCustomizationMod
               className={`flex-1 sm:flex-none px-4 py-2 text-sm font-semibold transition ${tab === 'global' ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-white'}`}
               onClick={() => setTab('global')}
             >
-              전체 톤
+              {t('modals:blockCustomization.tabs.global')}
             </button>
             <button
               type="button"
               className={`flex-1 sm:flex-none px-4 py-2 text-sm font-semibold transition ${tab === 'perValue' ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-white'}`}
               onClick={() => setTab('perValue')}
             >
-              개별 블럭
+              {t('modals:blockCustomization.tabs.perValue')}
             </button>
           </div>
         </div>
@@ -228,8 +231,8 @@ export function BlockCustomizationModal({ open, onClose }: BlockCustomizationMod
               <section className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <div className="text-sm font-semibold text-gray-900">전체 톤 변경</div>
-                    <div className="text-xs text-gray-500">개별 블럭 설정이 있다면 그 값이 우선 적용됩니다.</div>
+                    <div className="text-sm font-semibold text-gray-900">{t('modals:blockCustomization.global.title')}</div>
+                    <div className="text-xs text-gray-500">{t('modals:blockCustomization.global.note')}</div>
                   </div>
                   <label className={`inline-flex items-center gap-2 text-sm font-semibold ${!gate.allowed ? 'opacity-50' : ''}`}>
                     <input
@@ -238,14 +241,14 @@ export function BlockCustomizationModal({ open, onClose }: BlockCustomizationMod
                       disabled={!gate.allowed}
                       onChange={(e) => setGlobalPalette({ enabled: e.target.checked })}
                     />
-                    사용
+                    {t('modals:blockCustomization.global.enable')}
                   </label>
                 </div>
 
                 <div className={`space-y-3 ${(!settings.globalPalette.enabled || !gate.allowed) ? 'opacity-60' : ''}`}>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <label className="flex items-center justify-between gap-3 rounded-2xl bg-white/60 border border-white/60 p-4">
-                      <span className="text-sm font-semibold text-gray-800">기준색</span>
+                      <span className="text-sm font-semibold text-gray-800">{t('modals:blockCustomization.global.baseColor')}</span>
                       <input
                         type="color"
                         value={settings.globalPalette.baseColor}
@@ -256,7 +259,7 @@ export function BlockCustomizationModal({ open, onClose }: BlockCustomizationMod
                     </label>
                     <div className="rounded-2xl bg-white/60 border border-white/60 p-4 space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-semibold text-gray-800">채도</span>
+                        <span className="text-sm font-semibold text-gray-800">{t('modals:blockCustomization.global.saturation')}</span>
                         <span className="text-xs text-gray-500 tabular-nums">{settings.globalPalette.saturation}%</span>
                       </div>
                       <input
@@ -275,7 +278,7 @@ export function BlockCustomizationModal({ open, onClose }: BlockCustomizationMod
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="rounded-2xl bg-white/60 border border-white/60 p-4 space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-semibold text-gray-800">밝기</span>
+                        <span className="text-sm font-semibold text-gray-800">{t('modals:blockCustomization.global.brightness')}</span>
                         <span className="text-xs text-gray-500 tabular-nums">{settings.globalPalette.brightness}%</span>
                       </div>
                       <input
@@ -291,7 +294,7 @@ export function BlockCustomizationModal({ open, onClose }: BlockCustomizationMod
                     </div>
                     <div className="rounded-2xl bg-white/60 border border-white/60 p-4 space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-semibold text-gray-800">명암 깊이</span>
+                        <span className="text-sm font-semibold text-gray-800">{t('modals:blockCustomization.global.depth')}</span>
                         <span className="text-xs text-gray-500 tabular-nums">{settings.globalPalette.depth}</span>
                       </div>
                       <input
@@ -311,8 +314,8 @@ export function BlockCustomizationModal({ open, onClose }: BlockCustomizationMod
 
               <section className="space-y-4">
                 <div className="space-y-0.5">
-                  <div className="text-sm font-semibold text-gray-900">미리보기</div>
-                  <div className="text-xs text-gray-500">현재 설정 기준으로 주요 값들을 보여줍니다.</div>
+                  <div className="text-sm font-semibold text-gray-900">{t('modals:blockCustomization.global.preview')}</div>
+                  <div className="text-xs text-gray-500">{t('modals:blockCustomization.global.previewNote')}</div>
                 </div>
 
                 <div className="flex flex-wrap gap-3">
@@ -332,8 +335,7 @@ export function BlockCustomizationModal({ open, onClose }: BlockCustomizationMod
                 </div>
 
                 <div className="rounded-2xl bg-white/60 border border-white/60 p-4 text-sm text-gray-600 leading-relaxed">
-                  전체 톤은 “자동 그라데이션”으로 모든 블럭의 분위기를 통일합니다. 개별 블럭을 설정하면 해당 값만
-                  별도로 커스터마이징됩니다.
+                  {t('modals:blockCustomization.global.description')}
                 </div>
               </section>
             </div>
@@ -343,15 +345,15 @@ export function BlockCustomizationModal({ open, onClose }: BlockCustomizationMod
               <section className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
                   <div className="space-y-0.5">
-                    <div className="text-sm font-semibold text-gray-900">블럭 선택</div>
-                    <div className="text-xs text-gray-500">값을 눌러 편집하세요.</div>
+                    <div className="text-sm font-semibold text-gray-900">{t('modals:blockCustomization.perValue.title')}</div>
+                    <div className="text-xs text-gray-500">{t('modals:blockCustomization.perValue.note')}</div>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <input
                       inputMode="numeric"
                       pattern="[0-9]*"
-                      placeholder="값(예: 8192)"
+                      placeholder={t('modals:blockCustomization.perValue.jumpPlaceholder')}
                       value={jumpValue}
                       onChange={(e) => setJumpValue(e.target.value)}
                       className="w-36 px-3 py-2 rounded-2xl bg-white/70 border border-white/60 text-sm text-gray-800 shadow-sm"
@@ -365,7 +367,7 @@ export function BlockCustomizationModal({ open, onClose }: BlockCustomizationMod
                         setSelectedValue(n);
                       }}
                     >
-                      이동
+                      {t('modals:blockCustomization.perValue.jumpButton')}
                     </button>
                   </div>
                 </div>
@@ -389,14 +391,16 @@ export function BlockCustomizationModal({ open, onClose }: BlockCustomizationMod
                 <div className="rounded-3xl bg-white/60 border border-white/60 shadow-sm p-5 space-y-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-sm font-semibold text-gray-900">선택한 블럭</div>
+                      <div className="text-sm font-semibold text-gray-900">{t('modals:blockCustomization.perValue.selectedBlock')}</div>
                       <div className="text-2xl font-bold text-gray-900 tabular-nums">{selectedValue}</div>
                       <div className="text-xs text-gray-500 mt-1">
                         {selectedKind === 'default'
-                          ? (settings.globalPalette.enabled ? '기본(전체 톤 적용)' : '기본(게임 기본 UI)')
+                          ? (settings.globalPalette.enabled
+                            ? t('modals:blockCustomization.perValue.status.defaultWithGlobal')
+                            : t('modals:blockCustomization.perValue.status.default'))
                           : selectedKind === 'color'
-                            ? '개별 색상'
-                            : '개별 이미지'}
+                            ? t('modals:blockCustomization.perValue.status.color')
+                            : t('modals:blockCustomization.perValue.status.image')}
                       </div>
                     </div>
                     <TileSwatch
@@ -409,7 +413,7 @@ export function BlockCustomizationModal({ open, onClose }: BlockCustomizationMod
                   </div>
 
                   <div className="space-y-2">
-                    <div className="text-sm font-semibold text-gray-900">모드</div>
+                    <div className="text-sm font-semibold text-gray-900">{t('modals:blockCustomization.perValue.mode')}</div>
                     <div className={`grid grid-cols-3 gap-2 ${!gate.allowed ? 'opacity-60' : ''}`}>
                       <button
                         type="button"
@@ -420,7 +424,7 @@ export function BlockCustomizationModal({ open, onClose }: BlockCustomizationMod
                             ? 'bg-gray-900 text-white border-gray-900'
                             : 'bg-white/70 text-gray-700 border-white/60 hover:bg-white'}`}
                       >
-                        기본
+                        {t('modals:blockCustomization.perValue.modes.default')}
                       </button>
                       <button
                         type="button"
@@ -434,7 +438,7 @@ export function BlockCustomizationModal({ open, onClose }: BlockCustomizationMod
                             ? 'bg-gray-900 text-white border-gray-900'
                             : 'bg-white/70 text-gray-700 border-white/60 hover:bg-white'}`}
                       >
-                        색상
+                        {t('modals:blockCustomization.perValue.modes.color')}
                       </button>
                       <button
                         type="button"
@@ -448,7 +452,7 @@ export function BlockCustomizationModal({ open, onClose }: BlockCustomizationMod
                             ? 'bg-gray-900 text-white border-gray-900'
                             : 'bg-white/70 text-gray-700 border-white/60 hover:bg-white'}`}
                       >
-                        이미지
+                        {t('modals:blockCustomization.perValue.modes.image')}
                       </button>
                     </div>
                   </div>
@@ -457,7 +461,7 @@ export function BlockCustomizationModal({ open, onClose }: BlockCustomizationMod
                   {selectedKind === 'color' && (
                     <div className={`rounded-2xl bg-white/70 border border-white/60 p-4 space-y-3 ${!gate.allowed ? 'opacity-60' : ''}`}>
                       <div className="flex items-center justify-between">
-                        <div className="text-sm font-semibold text-gray-800">색상 선택</div>
+                        <div className="text-sm font-semibold text-gray-800">{t('modals:blockCustomization.perValue.colorPicker')}</div>
                         <input
                           type="color"
                           disabled={!gate.allowed}
@@ -467,7 +471,7 @@ export function BlockCustomizationModal({ open, onClose }: BlockCustomizationMod
                         />
                       </div>
                       <div className="text-xs text-gray-500">
-                        자동으로 입체감(하이라이트/섀도) 그라데이션을 적용합니다.
+                        {t('modals:blockCustomization.perValue.colorNote')}
                       </div>
                       <button
                         type="button"
@@ -475,7 +479,7 @@ export function BlockCustomizationModal({ open, onClose }: BlockCustomizationMod
                         onClick={() => setOverride(selectedValue, null)}
                         className="w-full px-3 py-2 rounded-2xl bg-white/70 border border-white/60 text-sm font-semibold text-gray-700 hover:bg-white shadow-sm transition"
                       >
-                        기본으로 되돌리기
+                        {t('modals:blockCustomization.perValue.resetToDefault')}
                       </button>
                     </div>
                   )}
@@ -484,18 +488,18 @@ export function BlockCustomizationModal({ open, onClose }: BlockCustomizationMod
                   {selectedKind === 'image' && (
                     <div className={`rounded-2xl bg-white/70 border border-white/60 p-4 space-y-3 ${!gate.allowed ? 'opacity-60' : ''}`}>
                       <div className="flex items-center justify-between">
-                        <div className="text-sm font-semibold text-gray-800">이미지</div>
+                        <div className="text-sm font-semibold text-gray-800">{t('modals:blockCustomization.perValue.imageLabel')}</div>
                         <button
                           type="button"
                           disabled={!gate.allowed}
                           onClick={requestImagePick}
                           className="px-3 py-2 rounded-2xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800 active:scale-95 transition"
                         >
-                          교체
+                          {t('modals:blockCustomization.perValue.imageReplace')}
                         </button>
                       </div>
                       <div className="text-xs text-gray-500">
-                        이미지는 정사각으로 크롭되며 저장 시 256×256으로 최적화됩니다.
+                        {t('modals:blockCustomization.perValue.imageNote')}
                       </div>
                       <button
                         type="button"
@@ -503,21 +507,20 @@ export function BlockCustomizationModal({ open, onClose }: BlockCustomizationMod
                         onClick={() => setOverride(selectedValue, null)}
                         className="w-full px-3 py-2 rounded-2xl bg-white/70 border border-white/60 text-sm font-semibold text-gray-700 hover:bg-white shadow-sm transition"
                       >
-                        기본으로 되돌리기
+                        {t('modals:blockCustomization.perValue.resetToDefault')}
                       </button>
                     </div>
                   )}
 
                   {selectedKind === 'default' && (
                     <div className="rounded-2xl bg-white/70 border border-white/60 p-4 text-sm text-gray-600 leading-relaxed">
-                      “기본”은 게임 기본 UI 또는 전체 톤 설정을 그대로 사용합니다. 특정 값만 다르게 하고 싶다면
-                      색상/이미지로 전환하세요.
+                      {t('modals:blockCustomization.perValue.defaultNote')}
                     </div>
                   )}
                 </div>
 
                 <div className="flex items-center justify-end">
-                  <div className="text-xs text-gray-500">설정은 자동 저장됩니다.</div>
+                  <div className="text-xs text-gray-500">{t('modals:blockCustomization.perValue.autoSave')}</div>
                 </div>
               </section>
             </div>

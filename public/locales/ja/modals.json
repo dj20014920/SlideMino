@@ -1,0 +1,105 @@
+{
+  "gameOver": {
+    "title": "ゲームオーバー",
+    "registerRanking": "ランキング登録",
+    "backToMenu": "メニューに戻る"
+  },
+  "leaderboard": {
+    "title": "Leaderboard",
+    "tabs": {
+      "all": "全体"
+    },
+    "empty": "まだランキングがありません。\n最初のチャンピオンになりましょう！",
+    "error": "ランキングの読み込みに失敗しました。"
+  },
+  "nameInput": {
+    "title": "{{difficulty}}×{{difficulty}} ゲーム開始",
+    "label": "ニックネーム（最大10文字）",
+    "placeholder": "ニックネームを入力",
+    "submit": "ゲーム開始",
+    "activeGameWarning": "⚠️ 進行中のゲームがあります",
+    "activeGameMessage": "新しいゲームを開始すると、現在のゲームは削除されます。",
+    "errors": {
+      "required": "名前を入力してください。",
+      "tooLong": "名前は10文字以内です。",
+      "invalidChars": "特殊文字は使用できません。"
+    }
+  },
+  "rankingRegister": {
+    "title": "ランキング登録",
+    "description": "名前を入力してスコアを記録しましょう。\n入力した名前は次回も記憶されます。",
+    "submit": "登録完了",
+    "submitting": "送信中...",
+    "success": "登録されました！",
+    "successMessage": "ランキングにスコアが正常に反映されました。"
+  },
+  "tutorial": {
+    "drag": "ブロックをボードにドラッグ！",
+    "swipe": "画面/キーをスワイプして合体！"
+  },
+  "cookie": {
+    "title": "クッキーと広告のご案内",
+    "message": "SlideMinoはゲームプレイに必要なCookieを使用します。承認するとパーソナライズされた広告が表示され、拒否すると非パーソナライズ広告が表示されます。",
+    "learnMore": "詳細"
+  },
+  "help": {
+    "alreadyImplemented": "HelpModalは既に多言語対応されています。"
+  },
+  "blockCustomization": {
+    "title": "ブロックカスタマイズ",
+    "description": "全体トーン（自動グラデーション）または個別ブロック（1,2,4,8…）を写真/色で設定できます。",
+    "resetConfirm": "すべてのブロックカスタマイズをリセットしますか？",
+    "tabs": {
+      "global": "全体トーン",
+      "perValue": "個別ブロック"
+    },
+    "global": {
+      "title": "全体トーン変更",
+      "note": "個別ブロック設定がある場合はその値が優先されます。",
+      "enable": "使用",
+      "baseColor": "基準色",
+      "saturation": "彩度",
+      "brightness": "明度",
+      "depth": "コントラスト深度",
+      "preview": "プレビュー",
+      "previewNote": "現在の設定に基づく主要値を表示します。",
+      "description": "全体トーンは\"自動グラデーション\"ですべてのブロックの雰囲気を統一します。個別ブロックを設定すると、その値だけ別途カスタマイズされます。"
+    },
+    "perValue": {
+      "title": "ブロック選択",
+      "note": "値をタップして編集。",
+      "jumpPlaceholder": "値（例：8192）",
+      "jumpButton": "移動",
+      "selectedBlock": "選択したブロック",
+      "mode": "モード",
+      "modes": {
+        "default": "デフォルト",
+        "color": "カラー",
+        "image": "画像"
+      },
+      "colorPicker": "カラー選択",
+      "colorNote": "自動的に立体感（ハイライト/シャドウ）グラデーションを適用します。",
+      "imageLabel": "画像",
+      "imageReplace": "交換",
+      "imageNote": "画像は正方形にクロップされ、保存時に256×256に最適化されます。",
+      "resetToDefault": "デフォルトに戻す",
+      "defaultNote": "\"デフォルト\"はゲームの基本UIまたは全体トーン設定をそのまま使用します。特定の値だけ変更したい場合は、カラー/画像に切り替えてください。",
+      "autoSave": "設定は自動保存されます。",
+      "status": {
+        "default": "デフォルト（ゲーム基本UI）",
+        "defaultWithGlobal": "デフォルト（全体トーン適用）",
+        "color": "個別カラー",
+        "image": "個別画像"
+      }
+    },
+    "cropper": {
+      "title": "正方形クロップ",
+      "description": "ドラッグで位置を移動し、拡大/縮小で範囲を合わせてください。",
+      "apply": "適用",
+      "zoom": "拡大/縮小",
+      "center": "中央に戻す",
+      "optimize": "保存時に{{size}}×{{size}}に最適化されます。",
+      "alt": "クロップ元画像"
+    }
+  }
+}

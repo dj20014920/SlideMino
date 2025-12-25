@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Piece } from '../types';
 import { RotateCw } from 'lucide-react';
 import { useBlockCustomization } from '../context/BlockCustomizationContext';
@@ -13,6 +14,7 @@ export interface SlotProps {
 }
 
 export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, index, disabled, htmlId }) => {
+  const { t } = useTranslation();
   const { resolveTileAppearance } = useBlockCustomization();
 
   // 빈 슬롯 렌더링
@@ -84,7 +86,7 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
             e.stopPropagation();
             onRotate(index);
           }}
-          aria-label="Rotate block"
+          aria-label={t('common:aria.rotateBlock')}
         >
           <RotateCw size={14} />
         </button>

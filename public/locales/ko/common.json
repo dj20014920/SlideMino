@@ -1,0 +1,39 @@
+{
+  "buttons": {
+    "confirm": "확인",
+    "cancel": "취소",
+    "close": "닫기",
+    "submit": "제출",
+    "decline": "거부",
+    "accept": "수락",
+    "home": "홈으로",
+    "backToMenu": "메뉴로 돌아가기",
+    "backToGame": "게임으로 돌아가기",
+    "resetAll": "전체 초기화",
+    "reset": "초기화",
+    "retry": "다시 시도"
+  },
+  "labels": {
+    "score": "점수",
+    "finalScore": "최종 점수",
+    "rank": "순위",
+    "name": "이름",
+    "loading": "불러오는 중...",
+    "pts": "점",
+    "premiumFeature": "프리미엄 기능"
+  },
+  "footer": {
+    "about": "소개",
+    "privacy": "개인정보",
+    "terms": "약관",
+    "contact": "문의",
+    "copyright": "© 2025 SlideMino. All rights reserved."
+  },
+  "aria": {
+    "home": "홈으로",
+    "help": "도움말",
+    "close": "닫기",
+    "selectTile": "타일 {{value}} 선택",
+    "rotateBlock": "블럭 회전"
+  }
+}

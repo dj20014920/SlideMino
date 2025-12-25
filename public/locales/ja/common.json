@@ -1,0 +1,39 @@
+{
+  "buttons": {
+    "confirm": "確認",
+    "cancel": "キャンセル",
+    "close": "閉じる",
+    "submit": "送信",
+    "decline": "拒否",
+    "accept": "承認",
+    "home": "ホーム",
+    "backToMenu": "メニューに戻る",
+    "backToGame": "ゲームに戻る",
+    "resetAll": "すべてリセット",
+    "reset": "リセット",
+    "retry": "再試行"
+  },
+  "labels": {
+    "score": "スコア",
+    "finalScore": "最終スコア",
+    "rank": "順位",
+    "name": "名前",
+    "loading": "読み込み中...",
+    "pts": "点",
+    "premiumFeature": "プレミアム機能"
+  },
+  "footer": {
+    "about": "概要",
+    "privacy": "プライバシー",
+    "terms": "利用規約",
+    "contact": "お問い合わせ",
+    "copyright": "© 2025 SlideMino. All rights reserved."
+  },
+  "aria": {
+    "home": "ホーム",
+    "help": "ヘルプ",
+    "close": "閉じる",
+    "selectTile": "タイル{{value}}を選択",
+    "rotateBlock": "ブロックを回転"
+  }
+}

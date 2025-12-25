@@ -1,0 +1,21 @@
+{
+  "about": {
+    "title": "About SlideMino",
+    "tagline": "2048与俄罗斯方块的完美融合",
+    "description": "SlideMino是一款创新的基于浏览器的益智游戏，结合了2048的数字合并机制和俄罗斯方块的战略块放置。"
+  },
+  "contact": {
+    "title": "Contact Us",
+    "tagline": "我们期待您的反馈！",
+    "email": "studio@emozleep.space",
+    "description": "如有问题、错误报告或反馈，请随时与我们联系！"
+  },
+  "terms": {
+    "title": "服务条款",
+    "lastUpdated": "最后更新"
+  },
+  "privacy": {
+    "title": "隐私政策",
+    "lastUpdated": "最后更新"
+  }
+}

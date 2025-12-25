@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Trophy, Send, Check, X, Medal } from 'lucide-react';
 import { rankingService } from '../services/rankingService';
 import AdBanner from './AdBanner';
@@ -14,6 +15,7 @@ interface GameOverModalProps {
 }
 
 export const GameOverModal: React.FC<GameOverModalProps> = ({ sessionId, score, difficulty, duration, moves, playerName, onClose }) => {
+    const { t } = useTranslation();
     const [step, setStep] = useState<'INITIAL' | 'REGISTER' | 'SUBMITTED'>('INITIAL');
     const [name, setName] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -56,7 +58,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({ sessionId, score, 
                         </div>
 
                         {/* Title */}
-                        <h2 className="text-4xl font-bold text-gray-900 tracking-tight">Game Over</h2>
+                        <h2 className="text-4xl font-bold text-gray-900 tracking-tight">{t('modals:gameOver.title')}</h2>
 
                         {/* Score Display */}
                         <div className="
@@ -65,7 +67,9 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({ sessionId, score, 
               border border-white/60
               shadow-lg
             ">
-                            <p className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-2">Final Score</p>
+                            <p className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-2">
+                                {t('common:labels.finalScore')}
+                            </p>
                             <p className="text-6xl font-black text-gray-900 tabular-nums tracking-tighter loading-none">
                                 {score}
                             </p>
@@ -87,7 +91,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({ sessionId, score, 
                             >
                                 <span className="flex items-center justify-center gap-2">
                                     <Medal size={20} className="text-indigo-100" />
-                                    랭킹 등록하기
+                                    {t('modals:gameOver.registerRanking')}
                                 </span>
                             </button>
 
@@ -103,7 +107,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({ sessionId, score, 
                   transition-all duration-200
                 "
                             >
-                                메뉴로 돌아가기
+                                {t('modals:gameOver.backToMenu')}
                             </button>
                         </div>
                     </div>
@@ -112,24 +116,23 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({ sessionId, score, 
                 {step === 'REGISTER' && (
                     <form onSubmit={handleSubmit} className="flex flex-col items-center space-y-6 w-full">
                         <div className="text-center space-y-2">
-                            <h3 className="text-2xl font-bold text-gray-900">랭킹 등록</h3>
-                            <p className="text-gray-500 text-sm">
-                                이름을 입력하여 점수를 기록하세요.<br />
-                                입력한 이름은 다음 번에도 기억됩니다.
+                            <h3 className="text-2xl font-bold text-gray-900">{t('modals:rankingRegister.title')}</h3>
+                            <p className="text-gray-500 text-sm" style={{ whiteSpace: 'pre-line' }}>
+                                {t('modals:rankingRegister.description')}
                             </p>
                         </div>
 
                         <div className="w-full space-y-4">
                             <div className="space-y-1.5">
                                 <label htmlFor="playerName" className="text-xs font-bold text-gray-500 uppercase ml-1">
-                                    Name
+                                    {t('common:labels.name')}
                                 </label>
                                 <input
                                     id="playerName"
                                     type="text"
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
-                                    placeholder="Your Name"
+                                    placeholder={t('modals:nameInput.placeholder')}
                                     maxLength={12}
                                     className="
                     w-full px-5 py-4 rounded-2xl
@@ -161,12 +164,12 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({ sessionId, score, 
                                 {isSubmitting ? (
                                     <span className="flex items-center justify-center gap-2">
                                         <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        Booding...
+                                        {t('modals:rankingRegister.submitting')}
                                     </span>
                                 ) : (
                                     <span className="flex items-center justify-center gap-2">
                                         <Send size={18} />
-                                        등록완료
+                                        {t('modals:rankingRegister.submit')}
                                     </span>
                                 )}
                             </button>
@@ -181,7 +184,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({ sessionId, score, 
                   transition-colors
                 "
                             >
-                                취소
+                                {t('common:buttons.cancel')}
                             </button>
                         </div>
                     </form>
@@ -198,9 +201,9 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({ sessionId, score, 
                         </div>
 
                         <div className="text-center space-y-2">
-                            <h3 className="text-2xl font-bold text-gray-900">등록되었습니다!</h3>
+                            <h3 className="text-2xl font-bold text-gray-900">{t('modals:rankingRegister.success')}</h3>
                             <p className="text-gray-500">
-                                랭킹에 점수가 성공적으로 반영되었습니다.
+                                {t('modals:rankingRegister.successMessage')}
                             </p>
                         </div>
 
@@ -215,7 +218,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({ sessionId, score, 
                 transition-all duration-200
               "
                         >
-                            확인
+                            {t('common:buttons.confirm')}
                         </button>
                     </div>
                 )}

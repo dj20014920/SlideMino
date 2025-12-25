@@ -4,11 +4,12 @@
  */
 
 /** 허용 가능한 난이도 목록 (보드 크기) */
-const VALID_DIFFICULTIES = ['5', '7', '8', '10'] as const;
+const VALID_DIFFICULTIES = ['4', '5', '7', '8', '10'] as const;
 type Difficulty = typeof VALID_DIFFICULTIES[number];
 
 /** 난이도별 최소 게임 시간 (초) - 치팅 방지 */
 const MIN_DURATION_BY_DIFFICULTY: Record<Difficulty, number> = {
+  '4': 8,    // Master: 최소 8초
   '5': 8,    // Extreme: 최소 8초 (고수 플레이어 고려)
   '7': 7,    // Hard: 최소 7초
   '8': 5,    // Normal: 최소 5초
@@ -17,6 +18,7 @@ const MIN_DURATION_BY_DIFFICULTY: Record<Difficulty, number> = {
 
 /** 난이도별 최대 점수/초 비율 - 치팅 방지 */
 const MAX_SCORE_PER_SECOND: Record<Difficulty, number> = {
+  '4': 3000,  // Master
   '5': 3000,   // Extreme
   '7': 3500,   // Hard
   '8': 4000,   // Normal
@@ -69,7 +71,7 @@ export function validateName(name: unknown): { valid: boolean; sanitized?: strin
 }
 
 /**
- * 난이도 검증 (보드 크기: '5', '7', '8', '10')
+ * 난이도 검증 (보드 크기: '4', '5', '7', '8', '10')
  */
 export function validateDifficulty(difficulty: unknown): { valid: boolean; value?: Difficulty; error?: string } {
   // 숫자 또는 문자열 허용

@@ -1,0 +1,105 @@
+{
+  "gameOver": {
+    "title": "Game Over",
+    "registerRanking": "Register Score",
+    "backToMenu": "Back to Menu"
+  },
+  "leaderboard": {
+    "title": "Leaderboard",
+    "tabs": {
+      "all": "All"
+    },
+    "empty": "No rankings yet.\nBe the first champion!",
+    "error": "Failed to load leaderboard."
+  },
+  "nameInput": {
+    "title": "Start {{difficulty}}×{{difficulty}} Game",
+    "label": "Your Nickname (max 10 chars)",
+    "placeholder": "Enter your nickname",
+    "submit": "Start Game",
+    "activeGameWarning": "⚠️ Active Game in Progress",
+    "activeGameMessage": "Starting a new game will delete the current game.",
+    "errors": {
+      "required": "Please enter a name.",
+      "tooLong": "Name must be 10 characters or less.",
+      "invalidChars": "Special characters are not allowed."
+    }
+  },
+  "rankingRegister": {
+    "title": "Register Score",
+    "description": "Enter your name to record your score.\nYour name will be remembered next time.",
+    "submit": "Register",
+    "submitting": "Submitting...",
+    "success": "Registered!",
+    "successMessage": "Your score has been successfully added to the leaderboard."
+  },
+  "tutorial": {
+    "drag": "Drag block to board!",
+    "swipe": "Swipe screen/keys to Merge!"
+  },
+  "cookie": {
+    "title": "Cookie & Ads Notice",
+    "message": "SlideMino uses essential cookies for gameplay. Accept to allow personalized ads, or decline to receive non-personalized ads.",
+    "learnMore": "Learn more"
+  },
+  "help": {
+    "alreadyImplemented": "HelpModal already has multi-language support."
+  },
+  "blockCustomization": {
+    "title": "Block Customization",
+    "description": "Set global tone (auto gradient) or individual blocks (1,2,4,8…) with photos/colors.",
+    "resetConfirm": "Reset all block customizations?",
+    "tabs": {
+      "global": "Global Tone",
+      "perValue": "Individual Blocks"
+    },
+    "global": {
+      "title": "Change Global Tone",
+      "note": "Individual block settings take priority if set.",
+      "enable": "Enable",
+      "baseColor": "Base Color",
+      "saturation": "Saturation",
+      "brightness": "Brightness",
+      "depth": "Contrast Depth",
+      "preview": "Preview",
+      "previewNote": "Shows key values based on current settings.",
+      "description": "Global tone unifies all blocks with auto gradient. Individual blocks can be customized separately."
+    },
+    "perValue": {
+      "title": "Select Block",
+      "note": "Tap a value to edit.",
+      "jumpPlaceholder": "Value (e.g. 8192)",
+      "jumpButton": "Jump",
+      "selectedBlock": "Selected Block",
+      "mode": "Mode",
+      "modes": {
+        "default": "Default",
+        "color": "Color",
+        "image": "Image"
+      },
+      "colorPicker": "Pick Color",
+      "colorNote": "Automatically applies 3D gradient (highlight/shadow).",
+      "imageLabel": "Image",
+      "imageReplace": "Replace",
+      "imageNote": "Images are cropped to square and optimized to 256×256 on save.",
+      "resetToDefault": "Reset to Default",
+      "defaultNote": "\"Default\" uses game's base UI or global tone settings. Switch to color/image to customize specific values.",
+      "autoSave": "Settings are auto-saved.",
+      "status": {
+        "default": "Default (Game UI)",
+        "defaultWithGlobal": "Default (Global Tone Applied)",
+        "color": "Custom Color",
+        "image": "Custom Image"
+      }
+    },
+    "cropper": {
+      "title": "Square Crop",
+      "description": "Drag to move the image and use zoom to fit the area.",
+      "apply": "Apply",
+      "zoom": "Zoom",
+      "center": "Center",
+      "optimize": "Optimized to {{size}}×{{size}} on save.",
+      "alt": "Crop source"
+    }
+  }
+}

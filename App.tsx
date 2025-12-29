@@ -67,6 +67,7 @@ const App: React.FC = () => {
 
   // --- Routing State ---
   const [currentRoute, setCurrentRoute] = useState<Route>(getCurrentRoute());
+  const isNative = isNativeApp();
 
   useEffect(() => {
     document.documentElement.lang = normalizeLanguage(i18n.resolvedLanguage ?? i18n.language);
@@ -1093,7 +1094,7 @@ const App: React.FC = () => {
                 {t('common:footer.contact')}
               </a>
 
-              {isNativeApp() && (
+              {isNative && (
                 <>
                   <span className="text-gray-300">•</span>
                   <button

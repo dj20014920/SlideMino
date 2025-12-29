@@ -15,7 +15,7 @@ const config: CapacitorConfig = {
     },
     StatusBar: {
       style: 'DARK',
-      backgroundColor: '#0f172a'
+      backgroundColor: '#fafafa'
     },
     Keyboard: {
       resize: 'body',
@@ -26,7 +26,7 @@ const config: CapacitorConfig = {
     contentInset: 'automatic'
   },
   android: {
-    backgroundColor: '#0f172a'
+    backgroundColor: '#fafafa'
   }
 };
 

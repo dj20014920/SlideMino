@@ -78,7 +78,7 @@ i18n
 
     // LanguageDetector 설정
     detection: {
-      order: ['localStorage', 'navigator'],
+      order: ['navigator', 'localStorage'],
       caches: ['localStorage'],
       lookupLocalStorage: LANGUAGE_STORAGE_KEY,
     },

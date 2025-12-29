@@ -47,13 +47,16 @@ const PrivacyPolicy: React.FC = () => {
         </section>
 
         <section>
-          <h2>3. Google AdSense and Advertising</h2>
+          <h2>3. Advertising (Google AdSense / Google AdMob)</h2>
           <p>
-            SlideMino uses Google AdSense to display advertisements. Google may use cookies and web beacons 
-            to serve ads based on your prior visits to our website or other websites.
+            SlideMino displays advertisements to support the free service. On the web version we use Google AdSense, and on the
+            native mobile app version (iOS/Android) we may use Google AdMob.
           </p>
           <p>
-            Based on your cookie consent choice, we may serve personalized ads or non-personalized ads.
+            Depending on your consent choices and platform capabilities, ads may be personalized or non-personalized.
+          </p>
+          <p>
+            On the web version, Google may use cookies and similar technologies to serve ads based on your prior visits.
           </p>
           
           <h3>3.1 Third-Party Advertising</h3>
@@ -63,11 +66,11 @@ const PrivacyPolicy: React.FC = () => {
             <li>You can also visit <a href="http://www.aboutads.info/choices/" target="_blank" rel="noopener noreferrer">aboutads.info</a> to opt out of third-party vendors' use of cookies for personalized advertising.</li>
           </ul>
 
-          <h3>3.2 AdSense Partner Information</h3>
+          <h3>3.2 AdSense / AdMob Partner Information</h3>
           <p>
-            Google AdSense uses the DoubleClick cookie, which enables it to serve ads to users based on their 
-            visit to SlideMino and other sites on the Internet. For more information about Google's privacy 
-            practices, please visit the <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Google Privacy Policy</a>.
+            Google advertising products (such as AdSense and AdMob) may use cookies and/or device identifiers to provide and
+            measure ads. For more information about Google's privacy practices, please visit the{' '}
+            <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Google Privacy Policy</a>.
           </p>
         </section>
 
@@ -78,7 +81,7 @@ const PrivacyPolicy: React.FC = () => {
             <li><strong>Improvement:</strong> To analyze usage patterns and improve game design and performance.</li>
             <li><strong>Communication:</strong> To respond to your inquiries and provide customer support.</li>
             <li><strong>Security:</strong> To detect and prevent fraud, abuse, or technical issues.</li>
-            <li><strong>Advertising:</strong> To display relevant ads through Google AdSense.</li>
+            <li><strong>Advertising:</strong> To display relevant ads through Google AdSense (web) and/or Google AdMob (native app).</li>
           </ul>
         </section>
 
@@ -105,7 +108,7 @@ const PrivacyPolicy: React.FC = () => {
           <p>We do not sell, trade, or rent your personal information. We may share data only in the following circumstances:</p>
           <ul>
             <li><strong>With Your Consent:</strong> When you explicitly agree to share information.</li>
-            <li><strong>Service Providers:</strong> With trusted partners like Google AdSense who help operate our service.</li>
+            <li><strong>Service Providers:</strong> With trusted partners like Google AdSense and/or Google AdMob who help operate our service.</li>
             <li><strong>Legal Requirements:</strong> When required by law or to protect our rights and safety.</li>
             <li><strong>Business Transfers:</strong> In connection with a merger, acquisition, or sale of assets.</li>
           </ul>

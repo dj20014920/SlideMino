@@ -19,6 +19,12 @@ function getCorsHeaders(request: Request): Record<string, string> {
   const allowedOrigins = [
     'https://slidemino.emozleep.space',
     'https://www.slidemino.emozleep.space',
+    // Capacitor/Ionic native app origins (WebView)
+    'capacitor://localhost',
+    'ionic://localhost',
+    // Some WebView stacks may report as http(s) localhost
+    'http://localhost',
+    'https://localhost',
   ];
 
   if (origin.includes('localhost') || origin.includes('127.0.0.1')) {

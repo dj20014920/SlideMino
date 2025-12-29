@@ -64,7 +64,7 @@ SlideMino/
 - **Database:** Cloudflare D1 (SQLite)
 - **Icons:** Lucide React
 - **Hosting:** Cloudflare Pages
-- **Monetization:** Google AdSense
+- **Monetization:** Google AdSense (web) + Google AdMob (native app)
 
 ## 📄 Pages & Routes
 
@@ -82,6 +82,34 @@ This project includes proper AdSense integration:
 - ✅ Terms of Service page
 - ✅ Sufficient text content for crawlers
 - ✅ Contact information
+
+## 🌐 Web vs 📱 App Monetization (AdSense vs AdMob)
+
+This codebase intentionally **separates web and native app ad stacks**:
+
+- **Web (browser / Cloudflare Pages):** Google AdSense
+   - Renders AdSense units in the DOM.
+   - Uses a cookie-consent style flow appropriate for the web.
+   - Keeps `ads.txt` and crawler-friendly pages for AdSense review.
+
+- **Native App (Capacitor iOS/Android):** Google AdMob
+   - Uses the native Google Mobile Ads SDK via `@capacitor-community/admob`.
+   - Shows a native banner anchored to the bottom and the React UI simply reserves space.
+   - Uses Google’s **User Messaging Platform (UMP)** flow (consent / privacy options) and iOS **ATT** handling.
+
+### Why this split?
+
+- **Policy & compliance:** Web cookie consent and in-app UMP/ATT are not interchangeable; each platform has its own expectations and SDK-level requirements.
+- **UX stability:** Native banners are rendered outside the WebView; the app reserves bottom space to avoid covering gameplay.
+- **Simplicity / DRY:** The app uses a single React entry point (`components/AdBanner.tsx`) and switches behavior based on platform detection.
+- **Avoid mixed stacks:** AdSense should not run inside the native app build; the app build uses AdMob only.
+
+### Where the behavior is implemented
+
+- Platform routing: `utils/platform.ts`
+- Single ad entry component: `components/AdBanner.tsx`
+- Web consent storage/events: `services/adConsent.ts`
+- Native (AdMob + UMP/ATT): `services/admob.ts`
 
 ## 📱 Mobile Support
 

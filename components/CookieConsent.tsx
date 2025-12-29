@@ -1,33 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { loadAdSenseScript } from '../services/adsense';
+import { isNativeApp } from '../utils/platform';
 
-type ConsentChoice = 'accepted' | 'declined' | null;
-
-const CONSENT_KEY = 'slidemino-cookie-consent';
-
-const getConsent = (): ConsentChoice => {
-  if (typeof window === 'undefined') return null;
-  try {
-    const value = localStorage.getItem(CONSENT_KEY);
-    if (value === 'accepted' || value === 'declined') return value;
-    return null;
-  } catch {
-    return null;
-  }
-};
-
-const notifyConsentChange = () => {
-  if (typeof window === 'undefined') return;
-  window.dispatchEvent(new Event('slidemino-consent-change'));
-};
+import { getCookieConsent, notifyCookieConsentChange, setCookieConsent } from '../services/adConsent';
 
 export const CookieConsent: React.FC = () => {
   const { t } = useTranslation();
   const [showBanner, setShowBanner] = useState(false);
+  const native = isNativeApp();
 
   useEffect(() => {
-    const consent = getConsent();
+    if (native) return;
+    const consent = getCookieConsent();
     if (consent === 'accepted') {
       loadAdSenseScript('personalized');
       return;
@@ -38,27 +23,21 @@ export const CookieConsent: React.FC = () => {
     }
     const timer = window.setTimeout(() => setShowBanner(true), 800);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [native]);
+
+  if (native) return null;
 
   const handleAccept = () => {
-    try {
-      localStorage.setItem(CONSENT_KEY, 'accepted');
-    } catch {
-      // Ignore storage errors and proceed for this session.
-    }
+    setCookieConsent('accepted');
     loadAdSenseScript('personalized');
-    notifyConsentChange();
+    notifyCookieConsentChange();
     setShowBanner(false);
   };
 
   const handleDecline = () => {
-    try {
-      localStorage.setItem(CONSENT_KEY, 'declined');
-    } catch {
-      // Ignore storage errors and proceed for this session.
-    }
+    setCookieConsent('declined');
     loadAdSenseScript('nonPersonalized');
-    notifyConsentChange();
+    notifyCookieConsentChange();
     setShowBanner(false);
   };
 

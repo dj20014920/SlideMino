@@ -13,10 +13,13 @@
     "cap:ios": "npx cap run ios --livereload --external"
   },
   "dependencies": {
+    "@capacitor-community/admob": "^8.0.0-0",
     "@capacitor/android": "^8.0.0",
     "@capacitor/cli": "^8.0.0",
     "@capacitor/core": "^8.0.0",
     "@capacitor/ios": "^8.0.0",
+    "@capacitor/splash-screen": "^8.0.0",
+    "framer-motion": "^12.23.26",
     "i18next": "^25.7.3",
     "i18next-browser-languagedetector": "^8.2.0",
     "lucide-react": "^0.561.0",

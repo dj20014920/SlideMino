@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { AnimatePresence } from 'framer-motion';
+import { LoadingScreen } from './components/LoadingScreen';
 import { useTranslation } from 'react-i18next';
+import { SplashScreen } from '@capacitor/splash-screen';
 import {
   GameState,
   Grid,
@@ -37,7 +40,9 @@ import { useBlockCustomization } from './context/BlockCustomizationContext';
 import { saveGameState, loadGameState, clearGameState, hasActiveGame } from './services/gameStorage';
 import { rankingService } from './services/rankingService';
 import { getCurrentRoute, onRouteChange, updatePageMeta, type Route } from './utils/routing';
+import { isNativeApp } from './utils/platform';
 import { normalizeLanguage } from './i18n/constants';
+import { openNativePrivacyOptionsForm } from './services/admob';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import Terms from './pages/Terms';
 import About from './pages/About';
@@ -68,8 +73,24 @@ const App: React.FC = () => {
   }, [i18n.language, i18n.resolvedLanguage]);
 
   // --- State ---
+  const [isLoading, setIsLoading] = useState(true);
   const { gate: customizationGate, resolveTileAppearance } = useBlockCustomization();
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
+
+  // Hide Capacitor Splash Screen immediately
+  useEffect(() => {
+    SplashScreen.hide().catch(() => {
+      // 웹 환경에서는 에러가 발생할 수 있으므로 무시
+    });
+  }, []);
+
+  // Fake loading delay for the premium feel
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, []);
   const [grid, setGrid] = useState<Grid>(createEmptyGrid(8));
   const [slots, setSlots] = useState<(Piece | null)[]>([null, null, null]);
   const [score, setScore] = useState(0);
@@ -861,6 +882,10 @@ const App: React.FC = () => {
 
           {/* 난이도 선택 버튼들 */}
           <div className="flex flex-col gap-4 w-full max-w-xs animate-slide-up">
+            <AnimatePresence mode="wait">
+              {isLoading && <LoadingScreen key="loading-screen-menu" />}
+            </AnimatePresence>
+
             {/* 게임 이어하기 버튼 - 진행중인 게임이 있을 때만 표시 */}
             {hasActiveGame() && (
               <button
@@ -1067,6 +1092,23 @@ const App: React.FC = () => {
               <a href="#/contact" className="hover:text-gray-900 transition-colors">
                 {t('common:footer.contact')}
               </a>
+
+              {isNativeApp() && (
+                <>
+                  <span className="text-gray-300">•</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      openNativePrivacyOptionsForm().catch(() => {
+                        // ignore
+                      });
+                    }}
+                    className="hover:text-gray-900 transition-colors"
+                  >
+                    {t('common:footer.adPrivacy')}
+                  </button>
+                </>
+              )}
             </nav>
             <p className="text-center text-xs text-gray-400 mt-3">
               {t('common:footer.copyright')}
@@ -1271,6 +1313,9 @@ const App: React.FC = () => {
           />
         )}
       </div>
+      <AnimatePresence mode="wait">
+        {isLoading && <LoadingScreen key="loading-screen-game" />}
+      </AnimatePresence>
     </>
   );
 };

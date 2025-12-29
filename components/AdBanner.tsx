@@ -1,31 +1,53 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { loadAdSenseScript } from '../services/adsense';
+import { acquireNativeBannerAd, releaseNativeBannerAd } from '../services/admob';
+import { isNativeApp } from '../utils/platform';
+
+import { getCookieConsent, onCookieConsentChange } from '../services/adConsent';
 
 const AdBanner: React.FC = () => {
     const [consent, setConsent] = useState<'accepted' | 'declined' | null>(null);
 
+    const native = isNativeApp();
+
+    const getNativeBannerHeightPx = (): number => {
+        if (typeof window === 'undefined') return 50;
+        // Standard banner heights: phone ~50dp, tablet ~90dp.
+        // We approximate based on viewport width.
+        return window.innerWidth >= 768 ? 90 : 50;
+    };
+
+    const [nativeBannerHeightPx, setNativeBannerHeightPx] = useState(() => getNativeBannerHeightPx());
+
     useEffect(() => {
-        const readConsent = () => {
-            try {
-                const stored = localStorage.getItem('slidemino-cookie-consent');
-                if (stored === 'accepted' || stored === 'declined') {
-                    setConsent(stored);
-                    return;
-                }
-                setConsent(null);
-            } catch {
-                setConsent(null);
-            }
+        if (!native) return;
+        const handleResize = () => setNativeBannerHeightPx(getNativeBannerHeightPx());
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, [native]);
+
+    useEffect(() => {
+        if (!native) return;
+        // Native (iOS/Android): use AdMob banner only.
+        // The banner is drawn by native SDK, not by <ins />.
+        void acquireNativeBannerAd();
+        return () => {
+            void releaseNativeBannerAd();
         };
+    }, [native]);
+
+    useEffect(() => {
+        if (native) return;
+        const readConsent = () => setConsent(getCookieConsent());
 
         readConsent();
 
-        const handleConsentChange = () => readConsent();
-        window.addEventListener('slidemino-consent-change', handleConsentChange);
-        return () => window.removeEventListener('slidemino-consent-change', handleConsentChange);
-    }, []);
+        const unsubscribe = onCookieConsentChange(readConsent);
+        return unsubscribe;
+    }, [native]);
 
     useEffect(() => {
+        if (native) return;
         if (!consent) return;
         const mode = consent === 'declined' ? 'nonPersonalized' : 'personalized';
         loadAdSenseScript(mode);
@@ -35,7 +57,17 @@ const AdBanner: React.FC = () => {
         } catch (err) {
             console.error('AdSense error:', err);
         }
-    }, [consent]);
+    }, [consent, native]);
+
+    if (native) {
+        // Reserve minimal space so bottom UI isn't covered by the native banner.
+        return (
+            <div
+                className="w-full"
+                style={{ height: `calc(${nativeBannerHeightPx}px + var(--app-safe-bottom))` }}
+            />
+        );
+    }
 
     return (
         <div className="relative w-full flex justify-center items-center bg-gray-50/50 min-h-[50px] transition-all duration-300">

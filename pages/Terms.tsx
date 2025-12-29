@@ -39,7 +39,7 @@ const Terms: React.FC = () => {
             <li>Multiple difficulty levels (10x10 Easy, 8x8 Normal, 7x7 Hard, 5x5 Extreme boards)</li>
             <li>Online leaderboard system to compete with other players</li>
             <li>Local game progress saving and customization features</li>
-            <li>Advertisement display through Google AdSense</li>
+            <li>Advertisement display through Google AdSense (web) and/or Google AdMob (native app)</li>
           </ul>
           <p>
             We reserve the right to modify, suspend, or discontinue any aspect of the Service at any time 
@@ -121,7 +121,7 @@ const Terms: React.FC = () => {
           <ul>
             <li>Game progress is saved locally on your device</li>
             <li>Leaderboard submissions require a nickname (no email required)</li>
-            <li>We use Google AdSense to display advertisements</li>
+            <li>We use Google AdSense (web) and/or Google AdMob (native app) to display advertisements</li>
             <li>Cookies and local storage are used to enhance your experience</li>
           </ul>
         </section>
@@ -129,8 +129,8 @@ const Terms: React.FC = () => {
         <section>
           <h2>7. Advertising</h2>
           <p>
-            The Service displays third-party advertisements through Google AdSense. We do not control the 
-            content of these advertisements. By using the Service, you acknowledge and agree that:
+            The Service may display third-party advertisements through Google AdSense (web) and/or Google AdMob (native app).
+            We do not control the content of these advertisements. By using the Service, you acknowledge and agree that:
           </p>
           <ul>
             <li>Advertisements are provided by third parties and subject to their terms</li>

@@ -1,4 +1,5 @@
 import { GameState } from '../types';
+import { isNativeApp } from '../utils/platform';
 
 export interface RankEntry {
     name: string;
@@ -13,6 +14,16 @@ export interface SubmitScoreResponse {
 }
 
 const STORAGE_KEY_NAME = 'slidemino_player_name';
+
+const API_BASE_URL = 'https://www.slidemino.emozleep.space';
+
+const getApiUrl = (path: string): string => {
+    // In native (Capacitor) builds the app is served from a local origin
+    // (e.g. capacitor://localhost), so relative `/api/*` calls won't hit Cloudflare.
+    // Use the production origin explicitly for API calls.
+    if (isNativeApp()) return `${API_BASE_URL}${path}`;
+    return path;
+};
 
 const normalizeDifficultyForApi = (difficulty: string): string => {
     const trimmed = difficulty.trim();
@@ -52,7 +63,7 @@ export const rankingService = {
 
         try {
             const difficultyValue = normalizeDifficultyForApi(difficulty);
-            const response = await fetch('/api/submit', {
+            const response = await fetch(getApiUrl('/api/submit'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -96,7 +107,7 @@ export const rankingService = {
     ): Promise<SubmitScoreResponse> => {
         try {
             const difficultyValue = normalizeDifficultyForApi(difficulty);
-            const response = await fetch('/api/submit', {
+            const response = await fetch(getApiUrl('/api/submit'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -132,7 +143,7 @@ export const rankingService = {
      */
     getLeaderboard: async (): Promise<RankEntry[]> => {
         try {
-            const response = await fetch('/api/rankings');
+            const response = await fetch(getApiUrl('/api/rankings'));
             if (!response.ok) throw new Error('Network response was not ok');
             const data = await response.json();
             return data as RankEntry[];

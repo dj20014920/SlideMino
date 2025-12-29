@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.slidemino.blockslide2048',
+  appId: 'com.slidemino.app',
   appName: 'SlideMino',
   webDir: 'dist',
   server: {
@@ -9,13 +9,9 @@ const config: CapacitorConfig = {
   },
   plugins: {
     SplashScreen: {
-      launchShowDuration: 2000,
+      launchShowDuration: 0,
       launchAutoHide: true,
-      backgroundColor: '#0f172a', // slate-900 to match app theme
-      showSpinner: false,
-      androidScaleType: 'CENTER_CROP',
-      splashFullScreen: true,
-      splashImmersive: true
+      showSpinner: false
     },
     StatusBar: {
       style: 'DARK',

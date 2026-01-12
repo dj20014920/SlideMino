@@ -1156,7 +1156,7 @@ const App: React.FC = () => {
         {/* Header */}
         <header
           className="w-full max-w-md flex justify-between items-center p-4"
-          style={{ paddingTop: 'calc(36px + var(--app-safe-top))' }}
+          style={{ paddingTop: '36px' }}
         >
           <div className="flex items-center gap-3">
             {/* Home Button */}

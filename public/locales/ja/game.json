@@ -32,5 +32,14 @@
     "leaderboard": "ランキング",
     "locked": "ロック中",
     "customize": "カスタマイズ"
+  },
+  "rewardAd": {
+    "watchButton": "チャージ",
+    "watchButtonFull": "広告視聴",
+    "rewardEarned": "+{{amount}} やり直し回数チャージ完了!",
+    "loading": "広告準備中...",
+    "error": "広告を読み込めません。\nしばらくしてから再度お試しください。",
+    "dailyLimitReached": "本日の広告視聴回数に達しました。\n明日また試してください。",
+    "notSupported": "現在の環境では広告機能がサポートされていません。"
   }
 }

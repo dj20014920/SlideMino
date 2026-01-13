@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Play } from 'lucide-react';
 import { PLAYER_NAME_MAX_LENGTH, validatePlayerName, normalizePlayerName } from '../utils/playerName';
+import { isAndroidApp } from '../utils/platform';
 
 interface NameInputModalProps {
     open: boolean;
@@ -15,6 +16,7 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({ open, difficulty
     const { t } = useTranslation();
     const [name, setName] = useState('');
     const [error, setError] = useState<string | null>(null);
+    const isAndroid = isAndroidApp();
 
     useEffect(() => {
         if (open) {
@@ -87,6 +89,7 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({ open, difficulty
                                 onChange={handleChange}
                                 placeholder={t('modals:nameInput.placeholder')}
                                 maxLength={PLAYER_NAME_MAX_LENGTH}
+                                enterKeyHint="done"
                                 className={`
                             w-full px-4 py-3 rounded-xl border-2 outline-none transition-all
                             font-medium text-gray-800 placeholder-gray-400
@@ -95,7 +98,7 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({ open, difficulty
                                         : 'border-gray-200 focus:border-blue-500 bg-gray-50 focus:bg-white'
                                     }
                         `}
-                                autoFocus
+                                autoFocus={!isAndroid}
                             />
                             {error && (
                                 <p className="mt-1 text-xs text-red-500 font-medium">

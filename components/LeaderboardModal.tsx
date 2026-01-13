@@ -13,6 +13,8 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
     const [rankings, setRankings] = useState<RankEntry[]>([]);
     const [loading, setLoading] = useState(false);
     const [hasError, setHasError] = useState(false);
+    const [isOffline, setIsOffline] = useState(false);
+    const [fromCache, setFromCache] = useState(false);
     const [activeTab, setActiveTab] = useState<'ALL' | '4x4' | '5x5' | '7x7' | '8x8' | '10x10'>('ALL');
 
     const formatDifficultyLabel = (difficulty?: string): string | null => {
@@ -26,9 +28,13 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
         if (open) {
             setLoading(true);
             setHasError(false);
+            setIsOffline(false);
+            setFromCache(false);
             rankingService.getLeaderboard()
-                .then(data => {
-                    setRankings(data);
+                .then(result => {
+                    setRankings(result.data);
+                    setIsOffline(result.offline);
+                    setFromCache(result.fromCache);
                 })
                 .catch(err => {
                     console.error(err);
@@ -93,6 +99,11 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
 
                 {/* List */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-50/50">
+                    {(isOffline || fromCache) && (
+                        <div className="px-4 py-2 rounded-xl text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200">
+                            {isOffline ? t('modals:leaderboard.offline') : t('modals:leaderboard.cached')}
+                        </div>
+                    )}
                     {loading ? (
                         <div className="text-center py-10 text-gray-400">{t('common:labels.loading')}</div>
                     ) : hasError ? (

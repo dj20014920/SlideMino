@@ -210,3 +210,19 @@ export const getTileColor = (val: number): string => {
   if (val in TILE_COLORS) return TILE_COLORS[val];
   return 'bg-black text-amber-200 border-2 border-amber-300/40 shadow-xl';
 };
+
+
+// ==========================================
+// 📌 리워드 광고 관련 상수
+// ==========================================
+
+/**
+ * 리워드 광고 시청 시 지급할 되돌리기 횟수
+ * - 앱인토스 콘솔의 "보상 수량"과 일치해야 함
+ */
+export const REWARD_UNDO_AMOUNT = 3;
+
+/**
+ * 하루 최대 광고 시청 횟수 (남용 방지)
+ */
+export const MAX_DAILY_AD_VIEWS = 5;

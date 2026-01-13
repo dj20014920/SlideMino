@@ -40,13 +40,16 @@ import { useBlockCustomization } from './context/BlockCustomizationContext';
 import { saveGameState, loadGameState, clearGameState, hasActiveGame } from './services/gameStorage';
 import { rankingService } from './services/rankingService';
 import { getCurrentRoute, onRouteChange, updatePageMeta, type Route } from './utils/routing';
-import { isNativeApp } from './utils/platform';
+import { isNativeApp, isAppIntoS } from './utils/platform';
 import { normalizeLanguage } from './i18n/constants';
 import { openNativePrivacyOptionsForm } from './services/admob';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import Terms from './pages/Terms';
 import About from './pages/About';
 import Contact from './pages/Contact';
+import { rewardAdService } from './services/rewardAdService';
+import { isRewardAdSupported } from './services/adConfig';
+import { REWARD_UNDO_AMOUNT } from './constants';
 
 const EMPTY_TILE_VALUE_OVERRIDES: Record<string, number> = {};
 const EMPTY_MERGING_TILES: MergingTile[] = [];
@@ -68,10 +71,21 @@ const App: React.FC = () => {
   // --- Routing State ---
   const [currentRoute, setCurrentRoute] = useState<Route>(getCurrentRoute());
   const isNative = isNativeApp();
+  const isAppIntoSBuild = isAppIntoS();
 
   useEffect(() => {
     document.documentElement.lang = normalizeLanguage(i18n.resolvedLanguage ?? i18n.language);
   }, [i18n.language, i18n.resolvedLanguage]);
+
+  // 앱인토스 빌드 시 body에 클래스 추가 (safe area 활성화)
+  useEffect(() => {
+    if (isAppIntoSBuild) {
+      document.body.classList.add('appintos-build');
+    }
+    return () => {
+      document.body.classList.remove('appintos-build');
+    };
+  }, [isAppIntoSBuild]);
 
   // --- State ---
   const [isLoading, setIsLoading] = useState(true);
@@ -83,6 +97,11 @@ const App: React.FC = () => {
     SplashScreen.hide().catch(() => {
       // 웹 환경에서는 에러가 발생할 수 있으므로 무시
     });
+  }, []);
+
+  // 랭킹 오프라인 큐 자동 동기화
+  useEffect(() => {
+    rankingService.initSync();
   }, []);
 
   // Fake loading delay for the premium feel
@@ -123,6 +142,9 @@ const App: React.FC = () => {
 
   // Help Modal
   const [showHelpModal, setShowHelpModal] = useState(false);
+
+  // 🆕 Reward Ad State
+  const [isAdReady, setIsAdReady] = useState(false);
 
   // Check tutorial status on load
   useEffect(() => {
@@ -172,6 +194,7 @@ const App: React.FC = () => {
   const boardSizeRef = useRef<BoardSize>(boardSize);
   const playerNameRef = useRef<string>(playerName);
   const gameOverUpdateSentRef = useRef(false);
+  const lastScoreSubmittedRef = useRef<number>(-1);
 
   useEffect(() => {
     scoreRef.current = score;
@@ -383,6 +406,64 @@ const App: React.FC = () => {
     setMergingTiles(EMPTY_MERGING_TILES);
     setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
   }, [lastSnapshot, undoRemaining, isAnimating]);
+
+  // 🆕 리워드 광고 시청 핸들러
+  const handleWatchRewardAd = useCallback(() => {
+    rewardAdService.showRewardAd({
+      onRewardEarned: (amount) => {
+        // 🎯 보상 지급: 되돌리기 횟수 충전
+        const actualAmount = amount || REWARD_UNDO_AMOUNT;
+        setUndoRemaining(prev => Math.min(prev + actualAmount, 99)); // 최대 99회 제한
+
+        // 사용자에게 알림 (다국어)
+        setComboMessage(t('game:rewardAd.rewardEarned', { amount: actualAmount }));
+        setTimeout(() => setComboMessage(null), 2000);
+
+        console.log(`[App] 리워드 지급 완료: +${actualAmount}회`);
+      },
+      onAdClosed: () => {
+        console.log('[App] 광고 닫힘');
+        // 광고 로드 상태 업데이트
+        setIsAdReady(rewardAdService.isAdReady());
+      },
+      onError: (error) => {
+        console.error('[App] 광고 오류:', error);
+        // 다국어 에러 메시지
+        alert(t('game:rewardAd.error'));
+      },
+      onDailyLimitReached: () => {
+        // 일일 한도 도달 알림
+        alert(t('game:rewardAd.dailyLimitReached'));
+      },
+    });
+  }, [t]);
+
+  // 🆕 광고 미리 로드 (게임 진행 중이고 되돌리기가 0일 때)
+  useEffect(() => {
+    if (!isRewardAdSupported()) return;
+
+    if (gameState === GameState.PLAYING) {
+      // 되돌리기 횟수가 0 또는 1 이하일 때 광고 미리 로드
+      if (undoRemaining <= 1) {
+        rewardAdService.preloadAd();
+
+        // 광고 로드 상태 주기적 체크 (로드 완료 감지)
+        const checkInterval = setInterval(() => {
+          const ready = rewardAdService.isAdReady();
+          setIsAdReady(ready);
+          if (ready) {
+            clearInterval(checkInterval);
+          }
+        }, 500);
+
+        return () => clearInterval(checkInterval);
+      }
+    } else if (gameState === GameState.MENU) {
+      // 메뉴로 돌아가면 광고 리소스 정리
+      rewardAdService.cleanup();
+      setIsAdReady(false);
+    }
+  }, [gameState, undoRemaining]);
 
   // Cleanup timers on unmount
   useEffect(() => {
@@ -762,6 +843,9 @@ const App: React.FC = () => {
     const difficultyStr = String(boardSizeRef.current);
     const name = playerNameRef.current || rankingService.getSavedName() || 'Guest';
     const latestScore = scoreRef.current;
+    if (source === 'interval' && lastScoreSubmittedRef.current === latestScore) {
+      return;
+    }
 
     if (process.env.NODE_ENV === 'development') {
       console.log(`[자동 업데이트:${source}] 점수 전송:`, { sessionId, name, score: latestScore });
@@ -781,6 +865,7 @@ const App: React.FC = () => {
     }
 
     if (result.success && result.rank !== undefined) {
+      lastScoreSubmittedRef.current = latestScore;
       setCurrentRank(result.rank);
     }
   }, []);
@@ -810,6 +895,7 @@ const App: React.FC = () => {
       return;
     }
 
+    lastScoreSubmittedRef.current = -1;
     // 즉시 첫 업데이트
     performScoreUpdate('interval');
 
@@ -1144,46 +1230,48 @@ const App: React.FC = () => {
             <LanguageSwitcher />
           </div>
 
-          {/* 푸터 네비게이션 */}
-          <footer className="w-full max-w-md mt-8 pt-6 border-t border-gray-200">
-            <nav className="flex flex-wrap justify-center gap-4 text-sm text-gray-600">
-              <a href="#/about" className="hover:text-gray-900 transition-colors">
-                {t('common:footer.about')}
-              </a>
-              <span className="text-gray-300">•</span>
-              <a href="#/privacy" className="hover:text-gray-900 transition-colors">
-                {t('common:footer.privacy')}
-              </a>
-              <span className="text-gray-300">•</span>
-              <a href="#/terms" className="hover:text-gray-900 transition-colors">
-                {t('common:footer.terms')}
-              </a>
-              <span className="text-gray-300">•</span>
-              <a href="#/contact" className="hover:text-gray-900 transition-colors">
-                {t('common:footer.contact')}
-              </a>
+          {/* 푸터 네비게이션 - 앱인토스에서는 숨김 (불필요한 영역 제거) */}
+          {!isAppIntoS() && (
+            <footer className="w-full max-w-md mt-8 pt-6 border-t border-gray-200">
+              <nav className="flex flex-wrap justify-center gap-4 text-sm text-gray-600">
+                <a href="#/about" className="hover:text-gray-900 transition-colors">
+                  {t('common:footer.about')}
+                </a>
+                <span className="text-gray-300">•</span>
+                <a href="#/privacy" className="hover:text-gray-900 transition-colors">
+                  {t('common:footer.privacy')}
+                </a>
+                <span className="text-gray-300">•</span>
+                <a href="#/terms" className="hover:text-gray-900 transition-colors">
+                  {t('common:footer.terms')}
+                </a>
+                <span className="text-gray-300">•</span>
+                <a href="#/contact" className="hover:text-gray-900 transition-colors">
+                  {t('common:footer.contact')}
+                </a>
 
-              {isNative && (
-                <>
-                  <span className="text-gray-300">•</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      openNativePrivacyOptionsForm().catch(() => {
-                        // ignore
-                      });
-                    }}
-                    className="hover:text-gray-900 transition-colors"
-                  >
-                    {t('common:footer.adPrivacy')}
-                  </button>
-                </>
-              )}
-            </nav>
-            <p className="text-center text-xs text-gray-400 mt-3">
-              {t('common:footer.copyright')}
-            </p>
-          </footer>
+                {isNative && (
+                  <>
+                    <span className="text-gray-300">•</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        openNativePrivacyOptionsForm().catch(() => {
+                          // ignore
+                        });
+                      }}
+                      className="hover:text-gray-900 transition-colors"
+                    >
+                      {t('common:footer.adPrivacy')}
+                    </button>
+                  </>
+                )}
+              </nav>
+              <p className="text-center text-xs text-gray-400 mt-3">
+                {t('common:footer.copyright')}
+              </p>
+            </footer>
+          )}
 
           <AdBanner />
 
@@ -1225,7 +1313,11 @@ const App: React.FC = () => {
         {/* Header */}
         <header
           className="w-full max-w-md flex justify-between items-center p-4"
-          style={{ paddingTop: 'calc(16px + var(--app-safe-top))' }}
+          style={{
+            paddingTop: 'calc(16px + var(--app-safe-top))',
+            // 앱인토스: 우측 상단 공통 내비게이션 영역 확보
+            paddingRight: 'calc(16px + var(--appintos-nav-safe-right))'
+          }}
         >
           <div className="flex items-center gap-3">
             {/* Home Button */}
@@ -1304,6 +1396,27 @@ const App: React.FC = () => {
                 <Undo2 size={14} />
                 <span className="tabular-nums">{undoRemaining}</span>
               </button>
+
+              {/* 🆕 Reward Ad Button - 되돌리기 0일 때만 표시 */}
+              {isRewardAdSupported() && undoRemaining === 0 && (
+                <button
+                  type="button"
+                  onClick={handleWatchRewardAd}
+                  disabled={isAnimating}
+                  className={`
+                    px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5
+                    bg-gradient-to-r from-yellow-500 to-amber-500
+                    text-white border border-yellow-400/50
+                    shadow-md hover:shadow-lg
+                    active:scale-95 transition-all duration-200
+                    ${isAnimating ? 'opacity-50 cursor-not-allowed' : 'hover:from-yellow-600 hover:to-amber-600'}
+                  `}
+                  aria-label={t('game:rewardAd.watchButtonFull')}
+                >
+                  <span>📺</span>
+                  <span>{t('game:rewardAd.watchButton')}</span>
+                </button>
+              )}
             </div>
           </div>
         </header>

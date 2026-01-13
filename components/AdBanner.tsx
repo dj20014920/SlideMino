@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { loadAdSenseScript } from '../services/adsense';
 import { acquireNativeBannerAd, releaseNativeBannerAd } from '../services/admob';
-import { isNativeApp } from '../utils/platform';
+import { isNativeApp, isAppIntoS } from '../utils/platform';
 
 import { getCookieConsent, onCookieConsentChange } from '../services/adConsent';
 
@@ -9,6 +9,7 @@ const AdBanner: React.FC = () => {
     const [consent, setConsent] = useState<'accepted' | 'declined' | null>(null);
 
     const native = isNativeApp();
+    const appIntoS = isAppIntoS();
 
     const getNativeBannerHeightPx = (): number => {
         if (typeof window === 'undefined') return 50;
@@ -27,6 +28,8 @@ const AdBanner: React.FC = () => {
     }, [native]);
 
     useEffect(() => {
+        // 앱인토스에서는 배너 광고 사용 안 함
+        if (appIntoS) return;
         if (!native) return;
         // Native (iOS/Android): use AdMob banner only.
         // The banner is drawn by native SDK, not by <ins />.
@@ -34,9 +37,11 @@ const AdBanner: React.FC = () => {
         return () => {
             void releaseNativeBannerAd();
         };
-    }, [native]);
+    }, [native, appIntoS]);
 
     useEffect(() => {
+        // 앱인토스에서는 AdSense 쿠키 동의 불필요
+        if (appIntoS) return;
         if (native) return;
         const readConsent = () => setConsent(getCookieConsent());
 
@@ -44,9 +49,11 @@ const AdBanner: React.FC = () => {
 
         const unsubscribe = onCookieConsentChange(readConsent);
         return unsubscribe;
-    }, [native]);
+    }, [native, appIntoS]);
 
     useEffect(() => {
+        // 앱인토스에서는 AdSense 로드하지 않음
+        if (appIntoS) return;
         if (native) return;
         if (!consent) return;
         const mode = consent === 'declined' ? 'nonPersonalized' : 'personalized';
@@ -57,7 +64,12 @@ const AdBanner: React.FC = () => {
         } catch (err) {
             console.error('AdSense error:', err);
         }
-    }, [consent, native]);
+    }, [consent, native, appIntoS]);
+
+    // 앱인토스에서는 배너 광고 영역 표시 안 함
+    if (appIntoS) {
+        return null;
+    }
 
     if (native) {
         // Reserve minimal space so bottom UI isn't covered by the native banner.

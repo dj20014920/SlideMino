@@ -10,7 +10,9 @@
       "all": "全部"
     },
     "empty": "暂无排名记录。\n成为第一个冠军吧！",
-    "error": "排行榜加载失败。"
+    "error": "排行榜加载失败。",
+    "offline": "当前离线，恢复连接后将刷新排行榜。",
+    "cached": "正在显示最近保存的排行榜。"
   },
   "nameInput": {
     "title": "开始{{difficulty}}×{{difficulty}}游戏",
@@ -33,7 +35,8 @@
     "failure": "提交失败",
     "failureMessage": "无法提交分数，请检查网络或昵称后重试。",
     "success": "注册成功！",
-    "successMessage": "您的分数已成功添加到排行榜。"
+    "successMessage": "您的分数已成功添加到排行榜。",
+    "queuedMessage": "当前离线，恢复连接后会自动提交你的分数。"
   },
   "tutorial": {
     "drag": "将方块拖到棋盘！",

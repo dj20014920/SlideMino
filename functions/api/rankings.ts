@@ -4,6 +4,7 @@
  */
 
 import { resetRankingsIfNewMonth } from '../utils/monthlyReset';
+import { checkRateLimit, getClientIp } from '../utils/rateLimit';
 
 interface Env {
   DB: D1Database;
@@ -76,11 +77,16 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   try {
     // ========== Rate Limiting (Layer 2) ==========
+    const clientIP = getClientIp(request);
     if (env.RANKINGS_RATE_LIMITER) {
-      const clientIP = request.headers.get('CF-Connecting-IP') || 'unknown';
       const { success } = await env.RANKINGS_RATE_LIMITER.limit({ key: clientIP });
 
       if (!success) {
+        return errorResponse('Too many requests. Please try again later.', 429, corsHeaders);
+      }
+    } else {
+      const { allowed } = await checkRateLimit(env.DB, `rankings:${clientIP}`, 120, 60);
+      if (!allowed) {
         return errorResponse('Too many requests. Please try again later.', 429, corsHeaders);
       }
     }

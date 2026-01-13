@@ -32,5 +32,14 @@
     "leaderboard": "排行榜",
     "locked": "锁定",
     "customize": "自定义"
+  },
+  "rewardAd": {
+    "watchButton": "充值",
+    "watchButtonFull": "观看广告",
+    "rewardEarned": "+{{amount}} 撤销次数充值完成!",
+    "loading": "广告准备中...",
+    "error": "无法加载广告。\n请稍后重试。",
+    "dailyLimitReached": "今日广告观看次数已达上限。\n请明天再试。",
+    "notSupported": "当前环境不支持广告功能。"
   }
 }

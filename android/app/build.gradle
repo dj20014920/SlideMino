@@ -16,6 +16,22 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+
+    // 스토어별 빌드 분기 (Google Play vs 앱인토스)
+    flavorDimensions "store"
+    productFlavors {
+        google {
+            dimension "store"
+            resValue "string", "app_name", "SlideMino"
+            buildConfigField "String", "APP_STORE", '"google"'
+        }
+        appintos {
+            dimension "store"
+            resValue "string", "app_name", "슬라이드미노"
+            buildConfigField "String", "APP_STORE", '"appintos"'
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false

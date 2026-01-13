@@ -10,7 +10,9 @@
       "all": "All"
     },
     "empty": "No rankings yet.\nBe the first champion!",
-    "error": "Failed to load leaderboard."
+    "error": "Failed to load leaderboard.",
+    "offline": "You are offline. The leaderboard will refresh when you reconnect.",
+    "cached": "Showing the most recently saved leaderboard."
   },
   "nameInput": {
     "title": "Start {{difficulty}}×{{difficulty}} Game",
@@ -33,7 +35,8 @@
     "failure": "Submission failed",
     "failureMessage": "We couldn't submit your score. Check your connection or nickname and try again.",
     "success": "Registered!",
-    "successMessage": "Your score has been successfully added to the leaderboard."
+    "successMessage": "Your score has been successfully added to the leaderboard.",
+    "queuedMessage": "You are offline. Your score will be submitted automatically when you reconnect."
   },
   "tutorial": {
     "drag": "Drag block to board!",

@@ -4,7 +4,7 @@ export default defineConfig({
   appName: 'slidemino',
   appType: 'game',
   brand: {
-    displayName: 'Slidemino',
+    displayName: '슬라이드미노',
     primaryColor: '#B59D5B',
     icon: 'https://slidemino.private-apps.tossmini.com/brand-icon.png',
   },

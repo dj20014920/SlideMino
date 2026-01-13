@@ -32,5 +32,14 @@
     "leaderboard": "Leaderboard",
     "locked": "Locked",
     "customize": "Customize"
+  },
+  "rewardAd": {
+    "watchButton": "Refill",
+    "watchButtonFull": "Watch Ad",
+    "rewardEarned": "+{{amount}} Undo refilled!",
+    "loading": "Loading ad...",
+    "error": "Failed to load ad.\nPlease try again later.",
+    "dailyLimitReached": "You've reached today's ad limit.\nPlease try again tomorrow.",
+    "notSupported": "Ads are not supported in this environment."
   }
 }

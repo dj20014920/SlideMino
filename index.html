@@ -124,6 +124,13 @@
       /* Safe area insets (iOS notch / gesture areas). Android typically resolves to 0px. */
       --app-safe-top: env(safe-area-inset-top, 0px);
       --app-safe-bottom: env(safe-area-inset-bottom, 0px);
+      /* 앱인토스 공통 내비게이션 safe area (우측 상단 48dp 확보) */
+      --appintos-nav-safe-right: 0px;
+    }
+
+    /* 앱인토스 빌드 시 우측 safe area 활성화 (빌드 타임에 body class 추가) */
+    body.appintos-build {
+      --appintos-nav-safe-right: 48px;
     }
 
     #root {

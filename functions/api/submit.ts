@@ -13,6 +13,7 @@ import {
   validateSessionId,
 } from '../utils/validation';
 import { resetRankingsIfNewMonth } from '../utils/monthlyReset';
+import { checkRateLimit, getClientIp } from '../utils/rateLimit';
 
 interface Env {
   DB: D1Database;
@@ -109,11 +110,16 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   try {
     // ========== Rate Limiting (Layer 2) ==========
+    const clientIP = getClientIp(request);
     if (env.SUBMIT_RATE_LIMITER) {
-      const clientIP = request.headers.get('CF-Connecting-IP') || 'unknown';
       const { success } = await env.SUBMIT_RATE_LIMITER.limit({ key: clientIP });
 
       if (!success) {
+        return errorResponse('Too many requests. Please try again later.', 429, corsHeaders);
+      }
+    } else {
+      const { allowed } = await checkRateLimit(env.DB, `submit:${clientIP}`, 120, 60);
+      if (!allowed) {
         return errorResponse('Too many requests. Please try again later.', 429, corsHeaders);
       }
     }

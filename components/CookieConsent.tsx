@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { loadAdSenseScript } from '../services/adsense';
-import { isNativeApp } from '../utils/platform';
+import { isNativeApp, isAppIntoS } from '../utils/platform';
 
 import { getCookieConsent, notifyCookieConsentChange, setCookieConsent } from '../services/adConsent';
 
@@ -11,7 +11,8 @@ export const CookieConsent: React.FC = () => {
   const native = isNativeApp();
 
   useEffect(() => {
-    if (native) return;
+    // 네이티브 앱이거나 앱인토스 빌드에서는 쿠키 동의 팝업 표시하지 않음
+    if (native || isAppIntoS()) return;
     const consent = getCookieConsent();
     if (consent === 'accepted') {
       loadAdSenseScript('personalized');
@@ -25,7 +26,8 @@ export const CookieConsent: React.FC = () => {
     return () => window.clearTimeout(timer);
   }, [native]);
 
-  if (native) return null;
+  // 네이티브 앱이거나 앱인토스 빌드에서는 렌더링하지 않음
+  if (native || isAppIntoS()) return null;
 
   const handleAccept = () => {
     setCookieConsent('accepted');

@@ -5,7 +5,11 @@ npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
 lerna-debug.log*
+
+# Apps-in-Toss build outputs
 *.ait
+.granite/
+
 # Dependencies
 node_modules
 dist
@@ -22,6 +26,8 @@ dist-ssr
 .vscode/*
 !.vscode/extensions.json
 .idea
+.idea/
+*.iml
 .DS_Store
 *.suo
 *.ntvs*
@@ -88,9 +94,10 @@ coverage/
 # Docs
 docs/
 
-# Dev Tools / Backups
+# Dev Tools / Backups / Internal Guides
 public/icon_generator.html
 README.old.md
+REWARD_AD_GUIDE_COMPLETE.md
 
 # Configuration & Database (Private)
 wrangler.toml

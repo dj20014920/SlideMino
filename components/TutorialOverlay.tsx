@@ -18,7 +18,7 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ step }) => {
   useEffect(() => {
     if (step === 0) return;
 
-    let rafId: number;
+    let rafId: number | null = null;
 
     const updatePositions = () => {
       const slotEl = document.getElementById('slot-0');
@@ -30,31 +30,64 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ step }) => {
         if (step === 1 && slotEl) {
           // STEP 1: DRAG (Slot -> Board)
           const slotRect = slotEl.getBoundingClientRect();
-          setPositions({
+          const next = {
             startX: slotRect.left + slotRect.width / 2,
             startY: slotRect.top + slotRect.height / 2,
             endX: boardRect.left + boardRect.width / 2,
             endY: boardRect.top + boardRect.height / 2,
+          };
+          setPositions((prev) => {
+            if (
+              prev &&
+              prev.startX === next.startX &&
+              prev.startY === next.startY &&
+              prev.endX === next.endX &&
+              prev.endY === next.endY
+            ) {
+              return prev;
+            }
+            return next;
           });
         } else if (step === 2) {
           // STEP 2: SWIPE (Center -> Right)
           const cx = boardRect.left + boardRect.width / 2;
           const cy = boardRect.top + boardRect.height / 2;
-          setPositions({
+          const next = {
             startX: cx - 50,
             startY: cy,
             endX: cx + 100, // Swipe right
             endY: cy,
+          };
+          setPositions((prev) => {
+            if (
+              prev &&
+              prev.startX === next.startX &&
+              prev.startY === next.startY &&
+              prev.endX === next.endX &&
+              prev.endY === next.endY
+            ) {
+              return prev;
+            }
+            return next;
           });
         }
       }
+    };
 
+    const schedule = () => {
+      if (rafId) cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(updatePositions);
     };
 
-    updatePositions();
+    schedule();
+    window.addEventListener('resize', schedule);
+    window.addEventListener('orientationchange', schedule);
 
-    return () => cancelAnimationFrame(rafId);
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', schedule);
+      window.removeEventListener('orientationchange', schedule);
+    };
   }, [step]);
 
   if (step === 0 || !positions) return null;

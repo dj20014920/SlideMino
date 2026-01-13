@@ -103,7 +103,8 @@ export const rankingService = {
         score: number,
         difficulty: string,
         duration: number,
-        moves: number
+        moves: number,
+        retryCount = 0 // 재시도 횟수 추적
     ): Promise<SubmitScoreResponse> => {
         try {
             const difficultyValue = normalizeDifficultyForApi(difficulty);
@@ -124,7 +125,7 @@ export const rankingService = {
             });
 
             if (!response.ok) {
-                return { success: false };
+                throw new Error(`HTTP ${response.status}`);
             }
 
             const data = await response.json();
@@ -133,7 +134,16 @@ export const rankingService = {
                 rank: data.rank
             };
         } catch (error) {
-            console.error('Failed to update score:', error);
+            console.error(`Failed to update score (attempt ${retryCount + 1}/3):`, error);
+
+            // 최대 3회 재시도 (exponential backoff)
+            if (retryCount < 2) {
+                const delay = Math.pow(2, retryCount) * 1000; // 1초, 2초
+                console.log(`Retrying in ${delay}ms...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return rankingService.updateScore(sessionId, name, score, difficulty, duration, moves, retryCount + 1);
+            }
+
             return { success: false };
         }
     },

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Trophy, Send, Check, X, Medal } from 'lucide-react';
 import { rankingService } from '../services/rankingService';
+import { PLAYER_NAME_MAX_LENGTH, normalizePlayerName, validatePlayerName } from '../utils/playerName';
 import AdBanner from './AdBanner';
 
 interface GameOverModalProps {
@@ -19,21 +20,50 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({ sessionId, score, 
     const [step, setStep] = useState<'INITIAL' | 'REGISTER' | 'SUBMITTED'>('INITIAL');
     const [name, setName] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [nameError, setNameError] = useState<string | null>(null);
+    const [submitError, setSubmitError] = useState<string | null>(null);
 
     useEffect(() => {
         // Load saved name or use provided playerName
         setName(playerName || rankingService.getSavedName());
+        setNameError(null);
+        setSubmitError(null);
     }, [playerName]);
+
+    useEffect(() => {
+        if (step === 'REGISTER') {
+            setNameError(null);
+            setSubmitError(null);
+        }
+    }, [step]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!name.trim()) return;
+        const trimmedName = normalizePlayerName(name);
+        const errorKey = validatePlayerName(trimmedName);
+        if (errorKey) {
+            setNameError(t(`modals:nameInput.errors.${errorKey}`));
+            return;
+        }
 
         setIsSubmitting(true);
+        setNameError(null);
+        setSubmitError(null);
         // Submit score with anti-cheat metadata and session ID
-        await rankingService.submitScore(sessionId, name, score, difficulty, duration, moves);
+        const result = await rankingService.submitScore(
+            sessionId,
+            trimmedName,
+            score,
+            difficulty,
+            duration,
+            moves
+        );
         setIsSubmitting(false);
-        setStep('SUBMITTED');
+        if (result.success) {
+            setStep('SUBMITTED');
+        } else {
+            setSubmitError(t('modals:rankingRegister.failureMessage'));
+        }
     };
 
     return (
@@ -131,9 +161,13 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({ sessionId, score, 
                                     id="playerName"
                                     type="text"
                                     value={name}
-                                    onChange={(e) => setName(e.target.value)}
+                                    onChange={(e) => {
+                                        setName(e.target.value);
+                                        setNameError(null);
+                                        setSubmitError(null);
+                                    }}
                                     placeholder={t('modals:nameInput.placeholder')}
-                                    maxLength={12}
+                                    maxLength={PLAYER_NAME_MAX_LENGTH}
                                     className="
                     w-full px-5 py-4 rounded-2xl
                     bg-white/80 border border-gray-200
@@ -144,8 +178,19 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({ sessionId, score, 
                   "
                                     autoFocus
                                 />
+                                {nameError && (
+                                    <p className="mt-1 text-xs text-red-500 font-medium text-center">
+                                        {nameError}
+                                    </p>
+                                )}
                             </div>
                         </div>
+
+                        {submitError && (
+                            <div className="w-full text-center text-sm text-red-500">
+                                {submitError}
+                            </div>
+                        )}
 
                         <div className="flex flex-col gap-3 w-full pt-4">
                             <button

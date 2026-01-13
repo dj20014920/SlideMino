@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Play } from 'lucide-react';
+import { PLAYER_NAME_MAX_LENGTH, validatePlayerName, normalizePlayerName } from '../utils/playerName';
 
 interface NameInputModalProps {
     open: boolean;
@@ -22,28 +23,12 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({ open, difficulty
         }
     }, [open]);
 
-    const validateName = (value: string) => {
-        // 1. Length check (1~10)
-        if (value.length === 0) return t('modals:nameInput.errors.required');
-        if (value.length > 10) return t('modals:nameInput.errors.tooLong');
-
-        // 2. Injection Prevention (allow only safe chars)
-        // Allowed: Korean (Hangul syllables, Jamo), English, Numbers, Space
-        const safePattern = /^[a-zA-Z0-9가-힣ㄱ-ㅎㅏ-ㅣ\s]+$/;
-        if (!safePattern.test(value)) {
-            return t('modals:nameInput.errors.invalidChars');
-        }
-
-        return null;
-    };
-
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const trimmedName = name.trim();
-
-        const validationError = validateName(trimmedName);
-        if (validationError) {
-            setError(validationError);
+        const trimmedName = normalizePlayerName(name);
+        const errorKey = validatePlayerName(trimmedName);
+        if (errorKey) {
+            setError(t(`modals:nameInput.errors.${errorKey}`));
             return;
         }
 
@@ -53,7 +38,7 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({ open, difficulty
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newVal = e.target.value;
         // Pre-validation to prevent typing too long
-        if (newVal.length <= 10) {
+        if (newVal.length <= PLAYER_NAME_MAX_LENGTH) {
             setName(newVal);
             setError(null);
         }
@@ -62,15 +47,15 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({ open, difficulty
     if (!open) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
             {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
                 onClick={onClose}
             />
 
-            {/* Modal Content */}
-            <div className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden animate-scale-in">
+            {/* Modal Content - 키보드 오버랩 방지를 위해 모바일에서는 하단 정렬 */}
+            <div className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden animate-scale-in mb-safe">
                 <div className="p-6">
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-xl font-bold text-gray-800">
@@ -101,6 +86,7 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({ open, difficulty
                                 value={name}
                                 onChange={handleChange}
                                 placeholder={t('modals:nameInput.placeholder')}
+                                maxLength={PLAYER_NAME_MAX_LENGTH}
                                 className={`
                             w-full px-4 py-3 rounded-xl border-2 outline-none transition-all
                             font-medium text-gray-800 placeholder-gray-400

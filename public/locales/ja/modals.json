@@ -14,14 +14,14 @@
   },
   "nameInput": {
     "title": "{{difficulty}}×{{difficulty}} ゲーム開始",
-    "label": "ニックネーム（最大10文字）",
+    "label": "ニックネーム（最大20文字）",
     "placeholder": "ニックネームを入力",
     "submit": "ゲーム開始",
     "activeGameWarning": "⚠️ 進行中のゲームがあります",
     "activeGameMessage": "新しいゲームを開始すると、現在のゲームは削除されます。",
     "errors": {
       "required": "名前を入力してください。",
-      "tooLong": "名前は10文字以内です。",
+      "tooLong": "名前は20文字以内です。",
       "invalidChars": "特殊文字は使用できません。"
     }
   },
@@ -30,6 +30,8 @@
     "description": "名前を入力してスコアを記録しましょう。\n入力した名前は次回も記憶されます。",
     "submit": "登録完了",
     "submitting": "送信中...",
+    "failure": "登録に失敗しました",
+    "failureMessage": "スコアの登録に失敗しました。通信状態や名前を確認して再試行してください。",
     "success": "登録されました！",
     "successMessage": "ランキングにスコアが正常に反映されました。"
   },

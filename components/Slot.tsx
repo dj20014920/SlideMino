@@ -62,6 +62,7 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
         }
       `}
       id={htmlId}
+      data-slot
       onPointerDown={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -71,6 +72,7 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
       {/* 회전 버튼 */}
       {!disabled && (
         <button
+          type="button"
           className="
             absolute top-2 right-2 z-10 
             p-1.5 rounded-full 
@@ -80,8 +82,9 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
             shadow-md
             hover:bg-gray-800 hover:text-white hover:border-gray-700
             transition-colors duration-150
-            opacity-0 group-hover:opacity-100 focus:opacity-100
+            opacity-100
           "
+          data-rotate-button
           onPointerDown={(e) => {
             e.stopPropagation();
             onRotate(index);

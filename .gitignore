@@ -69,6 +69,15 @@ build/
 .gradle/
 *.xcworkspace
 
+# Local artifacts
+screenshots/
+coverage/
+.nyc_output/
+.cache/
+.vite/
+.eslintcache
+.stylelintcache
+
 # Cloudflare
 .wrangler/
 

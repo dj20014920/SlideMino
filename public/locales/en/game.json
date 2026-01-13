@@ -21,7 +21,7 @@
     "swipe": "SWIPE BOARD"
   },
   "hints": {
-    "rotate": "Press 'R' to Rotate",
+    "rotate": "Rotate: tap empty space or button (R on desktop)",
     "drag": "Drag blocks to grid",
     "swipe": "Must slide to continue!",
     "combo": "Swipe again OR Drag a block"

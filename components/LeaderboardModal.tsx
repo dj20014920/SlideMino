@@ -117,7 +117,12 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
                                         {index + 1}
                                     </div>
                                     <div>
-                                        <div className="font-bold text-gray-800">{entry.name}</div>
+                                        <div
+                                            className="font-bold text-gray-800 max-w-[160px] truncate"
+                                            title={entry.name}
+                                        >
+                                            {entry.name}
+                                        </div>
                                         <div className="text-xs text-gray-400 flex items-center gap-2">
                                             <span>{formatDifficultyLabel(entry.difficulty) || '8x8'}</span>
                                             {/* Date optional */}

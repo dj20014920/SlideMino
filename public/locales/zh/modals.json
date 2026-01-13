@@ -14,14 +14,14 @@
   },
   "nameInput": {
     "title": "开始{{difficulty}}×{{difficulty}}游戏",
-    "label": "您的昵称（最多10个字符）",
+    "label": "您的昵称（最多20个字符）",
     "placeholder": "输入您的昵称",
     "submit": "开始游戏",
     "activeGameWarning": "⚠️ 有正在进行的游戏",
     "activeGameMessage": "开始新游戏将删除当前游戏。",
     "errors": {
       "required": "请输入名称。",
-      "tooLong": "名称最多10个字符。",
+      "tooLong": "名称最多20个字符。",
       "invalidChars": "不允许使用特殊字符。"
     }
   },
@@ -30,6 +30,8 @@
     "description": "输入名称记录您的分数。\n下次将记住您的名称。",
     "submit": "注册完成",
     "submitting": "提交中...",
+    "failure": "提交失败",
+    "failureMessage": "无法提交分数，请检查网络或昵称后重试。",
     "success": "注册成功！",
     "successMessage": "您的分数已成功添加到排行榜。"
   },

@@ -44,7 +44,7 @@ const content: Record<Language, LocalizedContent> = {
             {
                 icon: <RotateCw size={20} />,
                 title: '🔄 블록 회전',
-                content: '블록을 드래그하는 동안 화면의 빈 공간을 탭하면 블록이 90도씩 회전합니다. 좁은 공간에 맞춰 넣어보세요!'
+                content: '블록을 드래그하는 동안 빈 공간을 탭하거나 회전 버튼을 누르면 90도 회전합니다. PC는 R 키로도 회전할 수 있어요!'
             },
             {
                 icon: <Undo2 size={20} />,
@@ -76,7 +76,7 @@ const content: Record<Language, LocalizedContent> = {
             {
                 icon: <RotateCw size={20} />,
                 title: '🔄 Rotate Blocks',
-                content: 'While dragging a block, tap anywhere else on the screen to rotate it 90°. Fit blocks into tight spaces!'
+                content: 'While dragging, tap empty space or the rotate button to turn 90°. On desktop, press R.'
             },
             {
                 icon: <Undo2 size={20} />,
@@ -108,7 +108,7 @@ const content: Record<Language, LocalizedContent> = {
             {
                 icon: <RotateCw size={20} />,
                 title: '🔄 ブロック回転',
-                content: 'ブロックをドラッグ中に画面の別の場所をタップすると、ブロックが90度回転します。狭いスペースにフィットさせましょう！'
+                content: 'ドラッグ中に空いている場所をタップするか回転ボタンを押すと90度回転します。PCはRキーです。'
             },
             {
                 icon: <Undo2 size={20} />,
@@ -140,7 +140,7 @@ const content: Record<Language, LocalizedContent> = {
             {
                 icon: <RotateCw size={20} />,
                 title: '🔄 旋转方块',
-                content: '拖动方块时，点击屏幕其他位置可将方块旋转90度。让方块适合狭小空间！'
+                content: '拖动时点击空白或旋转按钮即可旋转90度，桌面端按R。'
             },
             {
                 icon: <Undo2 size={20} />,

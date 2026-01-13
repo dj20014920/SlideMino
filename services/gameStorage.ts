@@ -25,6 +25,10 @@ export interface SavedGameState {
     boardSize: BoardSize;
     canSkipSlide: boolean;
     undoRemaining: number;
+    sessionId?: string;
+    moveCount?: number;
+    startedAt?: number;
+    playerName?: string;
     savedAt: number; // timestamp
 }
 
@@ -76,7 +80,12 @@ export function loadGameState(): SavedGameState | null {
             return null;
         }
 
-        return parsed;
+        const sessionId = typeof parsed.sessionId === 'string' ? parsed.sessionId : undefined;
+        const moveCount = typeof parsed.moveCount === 'number' ? parsed.moveCount : undefined;
+        const startedAt = typeof parsed.startedAt === 'number' ? parsed.startedAt : undefined;
+        const playerName = typeof parsed.playerName === 'string' ? parsed.playerName : undefined;
+
+        return { ...parsed, sessionId, moveCount, startedAt, playerName };
     } catch (e) {
         console.warn('[GameStorage] 게임 로드 실패:', e);
         return null;

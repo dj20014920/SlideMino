@@ -14,14 +14,14 @@
   },
   "nameInput": {
     "title": "Start {{difficulty}}×{{difficulty}} Game",
-    "label": "Your Nickname (max 10 chars)",
+    "label": "Your Nickname (max 20 chars)",
     "placeholder": "Enter your nickname",
     "submit": "Start Game",
     "activeGameWarning": "⚠️ Active Game in Progress",
     "activeGameMessage": "Starting a new game will delete the current game.",
     "errors": {
       "required": "Please enter a name.",
-      "tooLong": "Name must be 10 characters or less.",
+      "tooLong": "Name must be 20 characters or less.",
       "invalidChars": "Special characters are not allowed."
     }
   },
@@ -30,6 +30,8 @@
     "description": "Enter your name to record your score.\nYour name will be remembered next time.",
     "submit": "Register",
     "submitting": "Submitting...",
+    "failure": "Submission failed",
+    "failureMessage": "We couldn't submit your score. Check your connection or nickname and try again.",
     "success": "Registered!",
     "successMessage": "Your score has been successfully added to the leaderboard."
   },

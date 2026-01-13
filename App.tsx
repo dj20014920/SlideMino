@@ -167,6 +167,23 @@ const App: React.FC = () => {
   const mergeClearTimeoutRef = useRef<number | null>(null);
   const mergeFinalizeTimeoutRef = useRef<number | null>(null);
   const unlockTimeoutRef = useRef<number | null>(null);
+  const dragPointerIdRef = useRef<number | null>(null);
+  const scoreRef = useRef<number>(score);
+  const boardSizeRef = useRef<BoardSize>(boardSize);
+  const playerNameRef = useRef<string>(playerName);
+  const gameOverUpdateSentRef = useRef(false);
+
+  useEffect(() => {
+    scoreRef.current = score;
+  }, [score]);
+
+  useEffect(() => {
+    boardSizeRef.current = boardSize;
+  }, [boardSize]);
+
+  useEffect(() => {
+    playerNameRef.current = playerName;
+  }, [playerName]);
 
   // --- Initialization ---
 
@@ -201,27 +218,40 @@ const App: React.FC = () => {
       setBoardSize(saved.boardSize);
       setCanSkipSlide(saved.canSkipSlide);
       setUndoRemaining(saved.undoRemaining);
+      if (saved.playerName) setPlayerName(saved.playerName);
+      if (saved.sessionId) sessionIdRef.current = saved.sessionId;
+      if (typeof saved.moveCount === 'number') moveCountRef.current = saved.moveCount;
+      if (typeof saved.startedAt === 'number') gameStartTimeRef.current = saved.startedAt;
     }
   }, []);
 
-  // 게임 상태 자동 저장 (게임 진행중일 때만)
+  // 게임 상태 자동 저장 (debounce로 최적화)
   useEffect(() => {
     if (gameState === GameState.PLAYING) {
-      saveGameState({
-        gameState,
-        grid,
-        slots,
-        score,
-        phase,
-        boardSize,
-        canSkipSlide,
-        undoRemaining,
-      });
+      // 500ms debounce로 과도한 localStorage 저장 방지
+      const saveTimer = setTimeout(() => {
+        saveGameState({
+          gameState,
+          grid,
+          slots,
+          score,
+          phase,
+          boardSize,
+          canSkipSlide,
+          undoRemaining,
+          sessionId: sessionIdRef.current,
+          moveCount: moveCountRef.current,
+          startedAt: gameStartTimeRef.current,
+          playerName,
+        });
+      }, 500);
+
+      return () => clearTimeout(saveTimer);
     } else if (gameState === GameState.GAME_OVER) {
       // 게임 오버 시에만 저장된 게임 삭제 (메뉴로 돌아갈 때는 유지)
       clearGameState();
     }
-  }, [gameState, grid, slots, score, phase, boardSize, canSkipSlide, undoRemaining]);
+  }, [gameState, grid, slots, score, phase, boardSize, canSkipSlide, undoRemaining, playerName]);
 
   useEffect(() => {
     const shouldLockScroll = gameState !== GameState.MENU;
@@ -308,6 +338,7 @@ const App: React.FC = () => {
     gameStartTimeRef.current = Date.now();
     moveCountRef.current = 0;
     sessionIdRef.current = crypto.randomUUID(); // 새 게임마다 고유 세션 ID 생성
+    gameOverUpdateSentRef.current = false;
     setCurrentRank(null); // 순위 초기화
 
     // 온보딩: 튜토리얼 미완료 시 활성화
@@ -449,6 +480,7 @@ const App: React.FC = () => {
 
     const initCells = getRotatedCells(piece.type, piece.rotation);
 
+    dragPointerIdRef.current = e.pointerId;
     setDraggingPiece({ ...piece, cells: initCells });
     setDragOriginIndex(index);
     hoverGridPosRef.current = null;
@@ -523,6 +555,20 @@ const App: React.FC = () => {
     swipeStartRef.current = { x: e.clientX, y: e.clientY };
   };
 
+  const handleScreenPointerDown = (e: React.PointerEvent) => {
+    if (draggingPiece) {
+      const target = e.target as HTMLElement;
+      if (target.closest('[data-rotate-button], [data-slot], button, input, select, textarea, [role="button"]')) {
+        return;
+      }
+      if (dragPointerIdRef.current !== null && e.pointerId === dragPointerIdRef.current) return;
+      rotateActivePiece();
+      return;
+    }
+
+    handleSwipeStart(e);
+  };
+
   const handlePointerUp = (e: React.PointerEvent) => {
     // 1. 드래그 중인 조각이 있다면 -> 조각 놓기 처리
     if (draggingPiece) {
@@ -560,6 +606,7 @@ const App: React.FC = () => {
 
       setDraggingPiece(null);
       setDragOriginIndex(-1);
+      dragPointerIdRef.current = null;
       boardMetricsRef.current = null; // Reset cache
       hoverGridPosRef.current = null;
       boardHandleRef.current?.setHoverLocation(null);
@@ -707,9 +754,47 @@ const App: React.FC = () => {
   };
 
 
+  const performScoreUpdate = useCallback(async (source: 'interval' | 'gameover') => {
+    const sessionId = sessionIdRef.current;
+    if (!sessionId) return;
+
+    const duration = Math.floor((Date.now() - gameStartTimeRef.current) / 1000);
+    const difficultyStr = String(boardSizeRef.current);
+    const name = playerNameRef.current || rankingService.getSavedName() || 'Guest';
+    const latestScore = scoreRef.current;
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[자동 업데이트:${source}] 점수 전송:`, { sessionId, name, score: latestScore });
+    }
+
+    const result = await rankingService.updateScore(
+      sessionId,
+      name,
+      latestScore,
+      difficultyStr,
+      duration,
+      moveCountRef.current
+    );
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[자동 업데이트:${source}] 응답:`, result);
+    }
+
+    if (result.success && result.rank !== undefined) {
+      setCurrentRank(result.rank);
+    }
+  }, []);
+
+
 
   // --- Game Over Check ---
   useEffect(() => {
+    // 애니메이션이 진행 중이면 게임 오버 체크 연기
+    // (슬라이드 후 grid가 업데이트되는 도중에 체크하면 잘못된 판정 발생)
+    if (isAnimating || slideLockRef.current) {
+      return;
+    }
+
     if (gameState === GameState.PLAYING && phase === Phase.PLACE) {
       const isOver = checkGameOver(grid, slots);
       if (isOver) {
@@ -717,7 +802,7 @@ const App: React.FC = () => {
         if (score > highScore) setHighScore(score);
       }
     }
-  }, [phase, grid, slots, gameState, score, highScore]);
+  }, [phase, grid, slots, gameState, score, highScore, isAnimating]);
 
   // --- 자동 점수 업데이트 (10초마다) ---
   useEffect(() => {
@@ -725,38 +810,22 @@ const App: React.FC = () => {
       return;
     }
 
-    // 즉시 첫 업데이트 실행 (게임 시작 직후)
-    const performUpdate = async () => {
-      const duration = Math.floor((Date.now() - gameStartTimeRef.current) / 1000);
-      const difficultyStr = String(boardSize);
-      const name = playerName || rankingService.getSavedName() || 'Guest';
-
-      console.log('[자동 업데이트] 점수 전송:', { sessionId: sessionIdRef.current, name, score, rank: currentRank });
-
-      const result = await rankingService.updateScore(
-        sessionIdRef.current,
-        name,
-        score,
-        difficultyStr,
-        duration,
-        moveCountRef.current
-      );
-
-      console.log('[자동 업데이트] 응답:', result);
-
-      if (result.success && result.rank !== undefined) {
-        setCurrentRank(result.rank);
-      }
-    };
-
     // 즉시 첫 업데이트
-    performUpdate();
+    performScoreUpdate('interval');
 
     // 10초마다 자동 업데이트
-    const intervalId = setInterval(performUpdate, 10000);
+    const intervalId = setInterval(() => performScoreUpdate('interval'), 10000);
 
     return () => clearInterval(intervalId);
-  }, [gameState, score, boardSize]); // playerName 의존성 제거
+  }, [gameState, performScoreUpdate]);
+
+  // --- 게임 종료 시 즉시 1회 업데이트 ---
+  useEffect(() => {
+    if (gameState !== GameState.GAME_OVER) return;
+    if (gameOverUpdateSentRef.current) return;
+    gameOverUpdateSentRef.current = true;
+    performScoreUpdate('gameover');
+  }, [gameState, performScoreUpdate]);
 
 
   // --- Render Helpers ---
@@ -1149,14 +1218,14 @@ const App: React.FC = () => {
       <CookieConsent />
       <div
         className="min-h-screen min-h-[100dvh] flex flex-col items-center text-gray-900 touch-none"
-        onPointerDown={handleSwipeStart}
+        onPointerDown={handleScreenPointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
       >
         {/* Header */}
         <header
           className="w-full max-w-md flex justify-between items-center p-4"
-          style={{ paddingTop: '36px' }}
+          style={{ paddingTop: 'calc(16px + var(--app-safe-top))' }}
         >
           <div className="flex items-center gap-3">
             {/* Home Button */}
@@ -1279,9 +1348,31 @@ const App: React.FC = () => {
           {/* Hints */}
           <div className="text-gray-400 text-sm text-center font-medium">
             {draggingPiece ? (
-              <span className="text-gray-600 flex items-center justify-center gap-2">
-                <RotateCw size={14} /> {t('game:hints.rotate')}
-              </span>
+              <div className="flex items-center justify-center gap-2 text-gray-600">
+                <button
+                  type="button"
+                  data-rotate-button
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    rotateActivePiece();
+                  }}
+                  className="
+                    inline-flex items-center gap-1.5
+                    px-3 py-1.5 rounded-full
+                    bg-white/80 border border-white/70
+                    text-gray-700 text-xs font-semibold
+                    shadow-sm
+                    hover:bg-white
+                    transition-colors
+                  "
+                  aria-label={t('common:aria.rotateBlock')}
+                >
+                  <RotateCw size={14} />
+                  <span>{t('common:aria.rotateBlock')}</span>
+                </button>
+                <span className="text-xs text-gray-500">{t('game:hints.rotate')}</span>
+              </div>
             ) : (
               phase === Phase.PLACE ? t('game:hints.drag') :
                 (canSkipSlide ? t('game:hints.combo') : t('game:hints.swipe'))

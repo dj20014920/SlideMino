@@ -1036,7 +1036,10 @@ const App: React.FC = () => {
     return (
       <>
         <CookieConsent />
-        <div className="min-h-screen min-h-[100dvh] flex flex-col items-center justify-center p-6 space-y-10">
+        <div
+          className="min-h-screen min-h-[100dvh] flex flex-col items-center justify-center p-6 space-y-10"
+          style={{ paddingTop: 'calc(1.5rem + var(--app-safe-top))' }}
+        >
           {/* 로고 영역 */}
           <div className="text-center space-y-3 animate-fade-in">
             <h1 className="text-5xl font-bold text-gray-900 tracking-tight">
@@ -1330,7 +1333,7 @@ const App: React.FC = () => {
         <header
           className="w-full max-w-md flex justify-between items-center p-4"
           style={{
-            paddingTop: 'calc(16px + var(--app-safe-top))',
+            paddingTop: '16px',
             // 앱인토스: 우측 상단 공통 내비게이션 영역 확보
             paddingRight: 'calc(16px + var(--appintos-nav-safe-right))'
           }}

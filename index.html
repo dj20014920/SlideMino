@@ -83,6 +83,8 @@
       /* Safe area insets (iOS notch / gesture areas). Android typically resolves to 0px. */
       --app-safe-top: env(safe-area-inset-top, 0px);
       --app-safe-bottom: env(safe-area-inset-bottom, 0px);
+      /* Game screen top padding (JS에서 최소값/플랫폼 보정) */
+      --game-safe-top: var(--app-safe-top);
       /* 앱인토스 공통 내비게이션 safe area (우측 상단 48dp 확보) */
       --appintos-nav-safe-right: 0px;
     }

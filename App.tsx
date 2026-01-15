@@ -40,7 +40,7 @@ import { useBlockCustomization } from './context/BlockCustomizationContext';
 import { saveGameState, loadGameState, clearGameState, hasActiveGame } from './services/gameStorage';
 import { rankingService } from './services/rankingService';
 import { getCurrentRoute, onRouteChange, updatePageMeta, type Route } from './utils/routing';
-import { isNativeApp, isAppIntoS } from './utils/platform';
+import { isNativeApp, isAppIntoS, isAndroidApp } from './utils/platform';
 import { normalizeLanguage } from './i18n/constants';
 import { openNativePrivacyOptionsForm } from './services/admob';
 import PrivacyPolicy from './pages/PrivacyPolicy';
@@ -87,6 +87,37 @@ const App: React.FC = () => {
       document.body.classList.remove('appintos-build');
     };
   }, [isAppIntoSBuild]);
+
+  // 게임 화면 전용 안전 상단 여백 계산 (노치/카메라/상단바 대응)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const root = document.documentElement;
+    const isAndroid = isAndroidApp();
+    const minTopPx = isAndroid ? 16 : 8;
+
+    const readSafeTopPx = () => {
+      const raw = getComputedStyle(root).getPropertyValue('--app-safe-top');
+      const parsed = Number.parseFloat(raw);
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+
+    const updateGameSafeTop = () => {
+      const safeTop = readSafeTopPx();
+      const visualTop = window.visualViewport?.offsetTop ?? 0;
+      const nextTop = Math.max(minTopPx, safeTop, visualTop);
+      root.style.setProperty('--game-safe-top', `${nextTop}px`);
+    };
+
+    updateGameSafeTop();
+    window.addEventListener('resize', updateGameSafeTop);
+    window.addEventListener('orientationchange', updateGameSafeTop);
+    window.visualViewport?.addEventListener('resize', updateGameSafeTop);
+    return () => {
+      window.removeEventListener('resize', updateGameSafeTop);
+      window.removeEventListener('orientationchange', updateGameSafeTop);
+      window.visualViewport?.removeEventListener('resize', updateGameSafeTop);
+    };
+  }, []);
 
   // --- State ---
   const [isLoading, setIsLoading] = useState(true);
@@ -1333,7 +1364,7 @@ const App: React.FC = () => {
         <header
           className="w-full max-w-md flex justify-between items-center p-4"
           style={{
-            paddingTop: '16px',
+            paddingTop: 'calc(16px + var(--game-safe-top))',
             // 앱인토스: 우측 상단 공통 내비게이션 영역 확보
             paddingRight: 'calc(16px + var(--appintos-nav-safe-right))'
           }}

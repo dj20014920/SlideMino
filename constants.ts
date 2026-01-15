@@ -175,6 +175,8 @@ export const SHAPES: Record<ShapeType, Coordinate[]> = {
  * - 단순화된 shadow (GPU 부담 감소)
  * - 시각적 효과 유지하면서 60fps 달성
  */
+// 주의: 이 값들은 Tailwind 클래스 문자열이므로 tailwind.config.cjs의 content에 constants.ts가 포함되어야 합니다.
+// 네이티브(안드/아이폰)에서는 CDN tailwind가 로드되지 않으니 항상 로컬 빌드 CSS를 사용하세요.
 export const TILE_COLORS: Record<number, string> = {
   // 빈 셀: 약간 어둡고 안으로 들어간 느낌 (구분감 강화)
   0: 'bg-gray-200/40 border border-gray-300/30 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)]',

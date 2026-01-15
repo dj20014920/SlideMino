@@ -248,7 +248,7 @@ export function SquareImageCropperModal({
                 {t('modals:blockCustomization.cropper.center')}
               </button>
               <div className="text-xs text-gray-500">
-                {t('modals:blockCustomization.cropper.optimize', { size: outputSize } as any)}
+                {String(t('modals:blockCustomization.cropper.optimize', { size: outputSize } as any))}
               </div>
             </div>
           </div>

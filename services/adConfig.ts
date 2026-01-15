@@ -26,6 +26,11 @@ export const APPS_IN_TOSS_AD_IDS = {
   INTERSTITIAL_GAMEOVER: import.meta.env.MODE === 'production'
     ? 'YOUR_PRODUCTION_INTERSTITIAL_AD_ID' // TODO: 승인 후 실제 ID로 교체
     : 'ait-ad-test-interstitial-id', // 테스트용 ID
+
+  // 🆕 배너 광고 (하단 고정 배너)
+  BANNER_BOTTOM: import.meta.env.MODE === 'production'
+    ? 'YOUR_PRODUCTION_BANNER_AD_ID' // TODO: 앱인토스 배너 광고 승인 후 실제 ID로 교체
+    : 'ait-ad-test-banner-id', // 테스트용 ID
 } as const;
 
 /**
@@ -52,6 +57,10 @@ export const ADMOB_AD_IDS = {
     INTERSTITIAL: import.meta.env.MODE === 'production'
       ? 'ca-app-pub-XXXXXXXXXXXXXXXX/ZZZZZZZZZZ' // TODO: AdMob 승인 후 교체
       : 'ca-app-pub-3940256099942544/1033173712', // Google 공식 테스트 ID
+    // 🆕 배너 광고 (프로덕션: 사용자 제공 실제 ID)
+    BANNER: import.meta.env.MODE === 'production'
+      ? 'ca-app-pub-5319827978116991/6947103527' // ✅ 사용자 제공 Android 배너 광고 ID
+      : 'ca-app-pub-3940256099942544/6300978111', // Google 공식 테스트 배너 ID
   },
 
   // iOS
@@ -63,6 +72,10 @@ export const ADMOB_AD_IDS = {
     INTERSTITIAL: import.meta.env.MODE === 'production'
       ? 'ca-app-pub-XXXXXXXXXXXXXXXX/ZZZZZZZZZZ' // TODO: AdMob 승인 후 교체
       : 'ca-app-pub-3940256099942544/4411468910', // Google 공식 테스트 ID
+    // 🆕 배너 광고 (프로덕션: 사용자 제공 실제 ID)
+    BANNER: import.meta.env.MODE === 'production'
+      ? 'ca-app-pub-5319827978116991/1116192349' // ✅ 사용자 제공 iOS 배너 광고 ID
+      : 'ca-app-pub-3940256099942544/2934735716', // Google 공식 테스트 배너 ID
   },
 } as const;
 
@@ -164,13 +177,26 @@ export function getInterstitialAdId(): string {
 }
 
 /**
- * 배너 광고 ID 가져오기 (웹 AdSense용)
+ * 🆕 배너 광고 ID 가져오기 (플랫폼별 분기 - 토스 인앱 리워드와 동일한 패턴)
  */
 export function getBannerAdId(): string {
-  if (CURRENT_AD_PLATFORM === 'adsense') {
-    return ADSENSE_AD_IDS.BANNER;
+  switch (CURRENT_AD_PLATFORM) {
+    case 'apps-in-toss':
+      return APPS_IN_TOSS_AD_IDS.BANNER_BOTTOM;
+
+    case 'admob-android':
+      return ADMOB_AD_IDS.ANDROID.BANNER;
+
+    case 'admob-ios':
+      return ADMOB_AD_IDS.IOS.BANNER;
+
+    case 'adsense':
+      return ADSENSE_AD_IDS.BANNER;
+
+    default:
+      console.warn('[AdConfig] 배너 광고 미지원 플랫폼');
+      return '';
   }
-  return '';
 }
 
 // ==========================================
@@ -189,6 +215,14 @@ export function isRewardAdSupported(): boolean {
 }
 
 /**
+ * 배너 광고 지원 여부
+ */
+export function isBannerAdSupported(): boolean {
+  // 모든 플랫폼에서 배너 광고 지원
+  return CURRENT_AD_PLATFORM !== 'none';
+}
+
+/**
  * 광고 기능 전체 지원 여부
  */
 export function isAdSupported(): boolean {
@@ -204,4 +238,6 @@ if (import.meta.env.DEV) {
   console.log('[AdConfig] 현재 플랫폼:', CURRENT_AD_PLATFORM);
   console.log('[AdConfig] 리워드 광고 ID:', getRewardAdId());
   console.log('[AdConfig] 리워드 광고 지원:', isRewardAdSupported());
+  console.log('[AdConfig] 배너 광고 ID:', getBannerAdId());
+  console.log('[AdConfig] 배너 광고 지원:', isBannerAdSupported());
 }

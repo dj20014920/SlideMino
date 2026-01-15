@@ -41,7 +41,7 @@ const TileSwatch = React.memo<{
         relative rounded-2xl p-1 transition
         ${selected ? 'ring-2 ring-gray-900/70' : 'ring-1 ring-black/5 hover:ring-black/10'}
       `}
-      aria-label={t('common:aria.selectTile', { value } as any)}
+      aria-label={String(t('common:aria.selectTile', { value } as any))}
     >
       <div
         className={`

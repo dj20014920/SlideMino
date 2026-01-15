@@ -24,6 +24,7 @@ interface BoardProps {
   mergingTiles: MergingTile[];
   valueOverrides?: Record<string, number>;
   htmlId?: string;
+  boardScale?: number;
 }
 
 const BackgroundGrid = React.memo<{ size: number; layout: GridLayout }>(({ size, layout }) => {
@@ -205,8 +206,12 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
   phase,
   mergingTiles,
   valueOverrides,
-  htmlId
+  htmlId,
+  boardScale
 }, ref) {
+  const baseBoardPx = 420;
+  const resolvedScale = boardScale ?? 1;
+  const boardPx = Math.round(baseBoardPx * resolvedScale);
   const size = grid.length;
   const [layout, setLayout] = useState<GridLayout>(() => ({
     cellPx: 0,
@@ -377,7 +382,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
         ${boardBorderStyle}
       `}
       style={{
-        width: '420px',
+        width: `${boardPx}px`,
         maxWidth: '100%',
         aspectRatio: '1/1',
       }}

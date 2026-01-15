@@ -61,7 +61,7 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({ open, difficulty
                 <div className="p-6">
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-xl font-bold text-gray-800">
-                            {t('modals:nameInput.title', { difficulty } as any)}
+                            {String(t('modals:nameInput.title', { difficulty } as any))}
                         </h2>
                         <button
                             onClick={onClose}

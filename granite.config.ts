@@ -2,6 +2,7 @@ import { defineConfig } from '@apps-in-toss/web-framework/config';
 
 export default defineConfig({
   appName: 'slidemino',
+  // @ts-expect-error - appType is used by the runtime but missing from current types.
   appType: 'game',
   brand: {
     displayName: '슬라이드미노',

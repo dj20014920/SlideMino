@@ -1,27 +1,15 @@
 import {
   AdMob,
   AdmobConsentStatus,
-  BannerAdPosition,
-  BannerAdSize,
   type AdmobConsentInfo,
 } from '@capacitor-community/admob';
 import { Capacitor } from '@capacitor/core';
-
-const DEFAULT_BANNER_UNIT_ID_ANDROID = 'ca-app-pub-5319827978116991/6947103527';
-const DEFAULT_BANNER_UNIT_ID_IOS = 'ca-app-pub-5319827978116991/1116192349';
-
-const getBannerAdUnitId = (): string => {
-  const platform = Capacitor.getPlatform();
-  if (platform === 'ios') return import.meta.env.VITE_ADMOB_BANNER_IOS ?? DEFAULT_BANNER_UNIT_ID_IOS;
-  if (platform === 'android') return import.meta.env.VITE_ADMOB_BANNER_ANDROID ?? DEFAULT_BANNER_UNIT_ID_ANDROID;
-  return '';
-};
+import { Device } from '@capacitor/device';
 
 let started = false;
 let startPromise: Promise<void> | null = null;
-let bannerUsers = 0;
 let canRequestAds: boolean | null = null;
-let bannerShown = false;
+let isVirtualPromise: Promise<boolean> | null = null;
 
 const normalizeCanRequestAds = (info: AdmobConsentInfo | null | undefined): boolean => {
   // `canRequestAds` is available on newer plugin versions (7.0.3+).
@@ -77,49 +65,20 @@ const ensureStarted = async (): Promise<void> => {
   return startPromise;
 };
 
-export const acquireNativeBannerAd = async (): Promise<void> => {
-  if (Capacitor.getPlatform() === 'web') return;
-
-  bannerUsers += 1;
-
-  // Only show banner when transitioning from 0 -> 1 users.
-  if (bannerUsers !== 1) return;
-
-  const adUnitId = getBannerAdUnitId();
-  if (!adUnitId) return;
-
+export const ensureAdMobReady = async (): Promise<boolean> => {
+  if (Capacitor.getPlatform() === 'web') return false;
   await ensureStarted();
-  if (canRequestAds === false) return;
-
-  try {
-    await AdMob.showBanner({
-      adId: adUnitId,
-      adSize: BannerAdSize.BANNER,
-      position: BannerAdPosition.BOTTOM_CENTER,
-      margin: 0,
-    });
-    bannerShown = true;
-  } catch {
-    // Keep app stable if banner fails to show.
-    bannerShown = false;
-  }
+  return canRequestAds !== false;
 };
 
-export const releaseNativeBannerAd = async (): Promise<void> => {
-  if (Capacitor.getPlatform() === 'web') return;
-
-  bannerUsers = Math.max(0, bannerUsers - 1);
-  if (bannerUsers !== 0) return;
-
-  if (!bannerShown) return;
-
-  try {
-    await AdMob.hideBanner();
-  } catch {
-    // If hide fails (e.g., not shown yet), keep app stable.
-  } finally {
-    bannerShown = false;
+export const isVirtualDevice = async (): Promise<boolean> => {
+  if (Capacitor.getPlatform() === 'web') return false;
+  if (!isVirtualPromise) {
+    isVirtualPromise = Device.getInfo()
+      .then((info) => Boolean(info.isVirtual))
+      .catch(() => false);
   }
+  return isVirtualPromise;
 };
 
 export const openNativePrivacyOptionsForm = async (): Promise<void> => {

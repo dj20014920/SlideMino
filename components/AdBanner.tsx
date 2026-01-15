@@ -1,9 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { loadAdSenseScript } from '../services/adsense';
-import { acquireNativeBannerAd, releaseNativeBannerAd } from '../services/admob';
 import { isNativeApp, isAppIntoS } from '../utils/platform';
-
 import { getCookieConsent, onCookieConsentChange } from '../services/adConsent';
+import { bannerAdService } from '../services/bannerAdService';
 
 const AdBanner: React.FC = () => {
     const [consent, setConsent] = useState<'accepted' | 'declined' | null>(null);
@@ -28,15 +27,13 @@ const AdBanner: React.FC = () => {
     }, [native]);
 
     useEffect(() => {
-        // 앱인토스에서는 배너 광고 사용 안 함
-        if (appIntoS) return;
-        if (!native) return;
-        // Native (iOS/Android): use AdMob banner only.
-        // The banner is drawn by native SDK, not by <ins />.
-        void acquireNativeBannerAd();
-        return () => {
-            void releaseNativeBannerAd();
-        };
+        // 🆕 앱인토스 또는 네이티브: 중앙집중형 배너 서비스 사용
+        if (appIntoS || native) {
+            bannerAdService.showBanner();
+            return () => {
+                bannerAdService.hideBanner();
+            };
+        }
     }, [native, appIntoS]);
 
     useEffect(() => {
@@ -66,12 +63,8 @@ const AdBanner: React.FC = () => {
         }
     }, [consent, native, appIntoS]);
 
-    // 앱인토스에서는 배너 광고 영역 표시 안 함
-    if (appIntoS) {
-        return null;
-    }
-
-    if (native) {
+    // 네이티브(앱인토스 포함): 네이티브 SDK가 직접 배너를 그리므로 공간만 확보
+    if (native || appIntoS) {
         // Reserve minimal space so bottom UI isn't covered by the native banner.
         return (
             <div

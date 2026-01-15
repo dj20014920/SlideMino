@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { LoadingScreen } from './components/LoadingScreen';
 import { useTranslation } from 'react-i18next';
@@ -53,6 +53,7 @@ import { REWARD_UNDO_AMOUNT } from './constants';
 
 const EMPTY_TILE_VALUE_OVERRIDES: Record<string, number> = {};
 const EMPTY_MERGING_TILES: MergingTile[] = [];
+const DRAG_OVERLAY_SCALE = 1.04;
 
 // Undo 시스템: 직전 상태를 저장하기 위한 스냅샷 인터페이스
 interface GameSnapshot {
@@ -118,6 +119,19 @@ const App: React.FC = () => {
   const [phase, setPhase] = useState<Phase>(Phase.PLACE);
   const [boardSize, setBoardSize] = useState<BoardSize>(8);
   const [comboMessage, setComboMessage] = useState<string | null>(null);
+
+  const boardScale = useMemo(() => {
+    switch (boardSize) {
+      case 4:
+        return 0.82;
+      case 5:
+        return 0.88;
+      case 7:
+        return 0.94;
+      default:
+        return 1;
+    }
+  }, [boardSize]);
   const [isCustomizationOpen, setIsCustomizationOpen] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
 
@@ -416,7 +430,7 @@ const App: React.FC = () => {
         setUndoRemaining(prev => Math.min(prev + actualAmount, 99)); // 최대 99회 제한
 
         // 사용자에게 알림 (다국어)
-        setComboMessage(t('game:rewardAd.rewardEarned', { amount: actualAmount }));
+        setComboMessage(String(t('game:rewardAd.rewardEarned', { amount: actualAmount } as any)));
         setTimeout(() => setComboMessage(null), 2000);
 
         console.log(`[App] 리워드 지급 완료: +${actualAmount}회`);
@@ -571,7 +585,7 @@ const App: React.FC = () => {
     currentPointerPosRef.current = { x: e.clientX, y: e.clientY };
 
     if (dragOverlayRef.current) {
-      dragOverlayRef.current.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0) scale(1.15)`;
+      dragOverlayRef.current.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0) scale(${DRAG_OVERLAY_SCALE})`;
     }
 
     (e.target as Element).setPointerCapture(e.pointerId);
@@ -594,7 +608,7 @@ const App: React.FC = () => {
 
       // Direct DOM manipulation for drag overlay (bypass React render)
       if (dragOverlayRef.current) {
-        dragOverlayRef.current.style.transform = `translate3d(${pointer.x}px, ${pointer.y}px, 0) scale(1.15)`;
+        dragOverlayRef.current.style.transform = `translate3d(${pointer.x}px, ${pointer.y}px, 0) scale(${DRAG_OVERLAY_SCALE})`;
       }
 
       // Grid position calculation (cached rect)
@@ -927,7 +941,7 @@ const App: React.FC = () => {
     if (!draggingPiece) return null;
 
     const cells = draggingPiece.cells;
-    const cellSize = 32;
+    const cellSize = boardMetricsRef.current?.cell ?? 32;
     const cellAppearance = resolveTileAppearance(draggingPiece.value);
 
     const minX = Math.min(...cells.map(c => c.x));
@@ -946,7 +960,7 @@ const App: React.FC = () => {
           // 마운트 직후 초기 위치 설정 (깜빡임 방지)
           if (el && currentPointerPosRef.current) {
             const { x, y } = currentPointerPosRef.current;
-            el.style.transform = `translate3d(${x}px, ${y}px, 0) scale(1.15)`;
+            el.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${DRAG_OVERLAY_SCALE})`;
           }
         }}
         className="fixed top-0 left-0 pointer-events-none z-50 opacity-90 will-change-transform"
@@ -964,12 +978,14 @@ const App: React.FC = () => {
             <div
               key={i}
               className={`
-                absolute w-8 h-8 rounded-lg
+                absolute rounded-lg
                 ${cellAppearance.className}
               `}
               style={{
                 left: c.x * cellSize,
                 top: c.y * cellSize,
+                width: `${cellSize}px`,
+                height: `${cellSize}px`,
                 ...(cellAppearance.style ?? {}),
               }}
             />
@@ -1436,6 +1452,7 @@ const App: React.FC = () => {
             boardRef={boardRef}
             mergingTiles={mergingTiles}
             valueOverrides={tileValueOverrides}
+            boardScale={boardScale}
           />
 
 

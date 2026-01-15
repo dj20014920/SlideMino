@@ -11,6 +11,7 @@
 import { GoogleAdMob } from '@apps-in-toss/web-framework';
 import { AdMob, RewardAdOptions, RewardAdPluginEvents, AdMobRewardItem, AdLoadInfo } from '@capacitor-community/admob';
 import { getRewardAdId, isRewardAdSupported, CURRENT_AD_PLATFORM } from './adConfig';
+import { ensureAdMobReady, isVirtualDevice } from './admob';
 import { MAX_DAILY_AD_VIEWS } from '../constants';
 
 // ==========================================
@@ -366,8 +367,18 @@ class RewardAdService {
     this.loadStatus = 'loading';
     console.log('[RewardAdService] AdMob 광고 로드 시작...');
 
+    const canRequest = await ensureAdMobReady();
+    if (!canRequest) {
+      this.loadStatus = 'failed';
+      return;
+    }
+
+    const isVirtual = await isVirtualDevice();
+    const shouldUseTestAds = import.meta.env.MODE !== 'production' || isVirtual;
+
     const options: RewardAdOptions = {
       adId: this.adGroupId,
+      isTesting: shouldUseTestAds,
     };
 
     try {

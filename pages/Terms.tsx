@@ -1,5 +1,6 @@
 import React from 'react';
 import { Home } from 'lucide-react';
+import { withBackNavigation } from '../components/PageWithBackNavigation';
 
 /**
  * 이용약관 페이지
@@ -336,4 +337,4 @@ const Terms: React.FC = () => {
   );
 };
 
-export default Terms;
+export default withBackNavigation(Terms);

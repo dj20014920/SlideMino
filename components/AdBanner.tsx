@@ -3,6 +3,7 @@ import { loadAdSenseScript } from '../services/adsense';
 import { isNativeApp, isAppIntoS } from '../utils/platform';
 import { getCookieConsent, onCookieConsentChange } from '../services/adConsent';
 import { bannerAdService } from '../services/bannerAdService';
+import { isVirtualDevice } from '../services/admob';
 
 const AdBanner: React.FC = () => {
     const [consent, setConsent] = useState<'accepted' | 'declined' | null>(null);
@@ -18,6 +19,7 @@ const AdBanner: React.FC = () => {
     };
 
     const [nativeBannerHeightPx, setNativeBannerHeightPx] = useState(() => getNativeBannerHeightPx());
+    const [nativeBannerAllowed, setNativeBannerAllowed] = useState<boolean | null>(null);
 
     useEffect(() => {
         if (!native) return;
@@ -27,14 +29,31 @@ const AdBanner: React.FC = () => {
     }, [native]);
 
     useEffect(() => {
+        if (!native) return;
+        let mounted = true;
+        isVirtualDevice()
+            .then((virtual) => {
+                if (mounted) setNativeBannerAllowed(!virtual);
+            })
+            .catch(() => {
+                if (mounted) setNativeBannerAllowed(true);
+            });
+        return () => {
+            mounted = false;
+        };
+    }, [native]);
+
+    useEffect(() => {
         // 🆕 앱인토스 또는 네이티브: 중앙집중형 배너 서비스 사용
         if (appIntoS || native) {
+            if (native && nativeBannerAllowed === false) return;
+            if (native && nativeBannerAllowed === null) return;
             bannerAdService.showBanner();
             return () => {
                 bannerAdService.hideBanner();
             };
         }
-    }, [native, appIntoS]);
+    }, [native, appIntoS, nativeBannerAllowed]);
 
     useEffect(() => {
         // 앱인토스에서는 AdSense 쿠키 동의 불필요
@@ -65,6 +84,8 @@ const AdBanner: React.FC = () => {
 
     // 네이티브(앱인토스 포함): 네이티브 SDK가 직접 배너를 그리므로 공간만 확보
     if (native || appIntoS) {
+        if (native && nativeBannerAllowed === false) return null;
+        if (native && nativeBannerAllowed === null) return null;
         // Reserve minimal space so bottom UI isn't covered by the native banner.
         return (
             <div

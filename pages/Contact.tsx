@@ -1,5 +1,6 @@
 import React from 'react';
 import { Home, Mail, MessageCircle, Github, Send } from 'lucide-react';
+import { withBackNavigation } from '../components/PageWithBackNavigation';
 
 /**
  * Contact 페이지 - 연락처 정보 및 피드백 안내
@@ -262,4 +263,4 @@ const Contact: React.FC = () => {
   );
 };
 
-export default Contact;
+export default withBackNavigation(Contact);

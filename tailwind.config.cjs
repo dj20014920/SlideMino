@@ -46,6 +46,13 @@ module.exports = {
         'fade-in': 'fadeIn 0.3s ease-out',
         'pop-in': 'popIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
         'bounce-subtle': 'bounceSubtle 0.5s ease-out',
+        'fade-in-out': 'fadeInOut 3s ease-in-out',
+      },
+      keyframes: {
+        fadeInOut: {
+          '0%, 100%': { opacity: '0' },
+          '10%, 90%': { opacity: '1' },
+        },
       },
     },
   },

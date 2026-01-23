@@ -1,5 +1,6 @@
 import React from 'react';
 import { Home } from 'lucide-react';
+import { withBackNavigation } from '../components/PageWithBackNavigation';
 
 /**
  * 개인정보 처리방침 페이지
@@ -185,4 +186,4 @@ const PrivacyPolicy: React.FC = () => {
   );
 };
 
-export default PrivacyPolicy;
+export default withBackNavigation(PrivacyPolicy);

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Home, Gamepad2, Target, Zap, Trophy, Palette, RotateCw } from 'lucide-react';
+import { withBackNavigation } from '../components/PageWithBackNavigation';
 
 /**
  * About 페이지 - 게임 소개 및 플레이 가이드
@@ -413,4 +414,4 @@ const About: React.FC = () => {
   );
 };
 
-export default About;
+export default withBackNavigation(About);

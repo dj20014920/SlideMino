@@ -1,4 +1,5 @@
 import { isNativeApp } from '../utils/platform';
+import { BASE_URL } from '../config/constants';
 
 export interface RankEntry {
     name: string;
@@ -40,13 +41,11 @@ const STORAGE_KEY_NAME = 'slidemino_player_name';
 const STORAGE_KEY_QUEUE = 'slidemino_pending_scores_v1';
 const STORAGE_KEY_LEADERBOARD_CACHE = 'slidemino_leaderboard_cache_v1';
 
-const API_BASE_URL = 'https://www.slidemino.emozleep.space';
-
 const getApiUrl = (path: string): string => {
     // In native (Capacitor) builds the app is served from a local origin
     // (e.g. capacitor://localhost), so relative `/api/*` calls won't hit Cloudflare.
     // Use the production origin explicitly for API calls.
-    if (isNativeApp()) return `${API_BASE_URL}${path}`;
+    if (isNativeApp()) return `${BASE_URL}${path}`;
     return path;
 };
 

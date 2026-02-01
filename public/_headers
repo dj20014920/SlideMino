@@ -1,0 +1,18 @@
+# Cloudflare Pages 보안 헤더 설정
+# 참고: https://developers.cloudflare.com/pages/platform/headers/
+
+/*
+  # XSS, Clickjacking, MIME Sniffing 방어
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+
+  # 권한 정책 (위치, 마이크, 카메라 비활성화)
+  Permissions-Policy: geolocation=(), microphone=(), camera=()
+
+  # HSTS (HTTPS 강제)
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+
+  # Content Security Policy (XSS 추가 방어)
+  # AdSense, Google Fonts, 자체 도메인만 허용
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://pagead2.googlesyndication.com https://www.googletagmanager.com https://esm.sh; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://pagead2.googlesyndication.com; img-src 'self' data: https: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://slidemino.emozleep.space https://www.google-analytics.com; frame-src https://googleads.g.doubleclick.net https://tpc.googlesyndication.com; frame-ancestors 'none';

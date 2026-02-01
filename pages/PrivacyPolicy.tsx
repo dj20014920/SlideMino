@@ -163,7 +163,7 @@ const PrivacyPolicy: React.FC = () => {
           </p>
           <ul>
             <li><strong>Email:</strong> studio@emozleep.space</li>
-            <li><strong>Website:</strong> <a href="https://www.slidemino.emozleep.space/#/contact">Contact Page</a></li>
+            <li><strong>Website:</strong> <a href="https://slidemino.emozleep.space/#/contact">Contact Page</a></li>
           </ul>
           <p>We will respond to all requests within 30 days.</p>
         </section>

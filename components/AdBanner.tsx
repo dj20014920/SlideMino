@@ -3,9 +3,11 @@ import { loadAdSenseScript } from '../services/adsense';
 import { isNativeApp, isAppIntoS } from '../utils/platform';
 import { getCookieConsent, onCookieConsentChange } from '../services/adConsent';
 import { bannerAdService } from '../services/bannerAdService';
+import { isScreenshotMode } from '../services/adConfig';
 import { isVirtualDevice } from '../services/admob';
 
 const AdBanner: React.FC = () => {
+    if (isScreenshotMode()) return null;
     const [consent, setConsent] = useState<'accepted' | 'declined' | null>(null);
 
     const native = isNativeApp();

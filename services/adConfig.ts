@@ -5,7 +5,22 @@
  * - AdMob (네이티브)
  */
 
-import { isNativeApp } from '../utils/platform';
+import { getNativePlatform, isNativeApp } from '../utils/platform';
+
+// ==========================================
+// 📌 스크린샷 전용 모드 (광고 비활성화)
+// ==========================================
+
+const normalizeBoolEnv = (value?: string): boolean => {
+  if (typeof value !== 'string') return false;
+  const normalized = value.trim().toLowerCase();
+  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
+};
+
+const SCREENSHOT_MODE = import.meta.env.DEV
+  && normalizeBoolEnv(import.meta.env.VITE_SCREENSHOT_MODE);
+
+export const isScreenshotMode = (): boolean => SCREENSHOT_MODE;
 
 // ==========================================
 // 📌 광고 ID 전역 설정 (환경별로 분리)
@@ -103,8 +118,8 @@ export function detectAdPlatform(): AdPlatform {
 
   // 2. 네이티브 앱 체크 (Capacitor)
   if (isNativeApp()) {
-    // iOS/Android 구분
-    const platform = (window as any).Capacitor?.getPlatform?.();
+    // iOS/Android 구분 (Capacitor 모듈 API 사용)
+    const platform = getNativePlatform();
     if (platform === 'ios') {
       return 'admob-ios';
     } else if (platform === 'android') {
@@ -133,6 +148,7 @@ export const CURRENT_AD_PLATFORM = detectAdPlatform();
  * 리워드 광고 ID 가져오기 (플랫폼별 분기)
  */
 export function getRewardAdId(): string {
+  if (SCREENSHOT_MODE) return '';
   switch (CURRENT_AD_PLATFORM) {
     case 'apps-in-toss':
       return APPS_IN_TOSS_AD_IDS.REWARD_UNDO;
@@ -158,6 +174,7 @@ export function getRewardAdId(): string {
  * 전면 광고 ID 가져오기 (플랫폼별 분기)
  */
 export function getInterstitialAdId(): string {
+  if (SCREENSHOT_MODE) return '';
   switch (CURRENT_AD_PLATFORM) {
     case 'apps-in-toss':
       return APPS_IN_TOSS_AD_IDS.INTERSTITIAL_GAMEOVER;
@@ -180,6 +197,7 @@ export function getInterstitialAdId(): string {
  * 🆕 배너 광고 ID 가져오기 (플랫폼별 분기 - 토스 인앱 리워드와 동일한 패턴)
  */
 export function getBannerAdId(): string {
+  if (SCREENSHOT_MODE) return '';
   switch (CURRENT_AD_PLATFORM) {
     case 'apps-in-toss':
       return APPS_IN_TOSS_AD_IDS.BANNER_BOTTOM;
@@ -207,6 +225,7 @@ export function getBannerAdId(): string {
  * 리워드 광고 지원 여부
  */
 export function isRewardAdSupported(): boolean {
+  if (SCREENSHOT_MODE) return false;
   // 앱인토스, AdMob (iOS/Android)에서 리워드 광고 지원
   // (AdSense는 리워드 광고 미지원)
   return CURRENT_AD_PLATFORM === 'apps-in-toss'
@@ -218,6 +237,7 @@ export function isRewardAdSupported(): boolean {
  * 배너 광고 지원 여부
  */
 export function isBannerAdSupported(): boolean {
+  if (SCREENSHOT_MODE) return false;
   // 모든 플랫폼에서 배너 광고 지원
   return CURRENT_AD_PLATFORM !== 'none';
 }
@@ -226,6 +246,7 @@ export function isBannerAdSupported(): boolean {
  * 광고 기능 전체 지원 여부
  */
 export function isAdSupported(): boolean {
+  if (SCREENSHOT_MODE) return false;
   return CURRENT_AD_PLATFORM !== 'none';
 }
 

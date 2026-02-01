@@ -3,6 +3,8 @@
  * React Router 없이 경량 라우팅 시스템 구현
  */
 
+import { BASE_URL } from '../config/constants';
+
 export type Route = '/' | '/privacy' | '/terms' | '/about' | '/contact';
 
 /**
@@ -69,22 +71,35 @@ export const updatePageMeta = (route: Route): void => {
   // Update Open Graph tags
   let ogTitle = document.querySelector('meta[property="og:title"]');
   if (ogTitle) ogTitle.setAttribute('content', meta.title);
-  
+
   let ogDesc = document.querySelector('meta[property="og:description"]');
   if (ogDesc) ogDesc.setAttribute('content', meta.description);
+
+  // Update og:url (SNS 공유 시 올바른 URL 표시)
+  let ogUrl = document.querySelector('meta[property="og:url"]');
+  if (ogUrl) {
+    const path = route === '/' ? '' : route;
+    ogUrl.setAttribute('content', `${BASE_URL}${path}`);
+  }
 
   // Update Twitter tags
   let twitterTitle = document.querySelector('meta[property="twitter:title"]');
   if (twitterTitle) twitterTitle.setAttribute('content', meta.title);
-  
+
   let twitterDesc = document.querySelector('meta[property="twitter:description"]');
   if (twitterDesc) twitterDesc.setAttribute('content', meta.description);
+
+  // Update twitter:url (Twitter/X 공유 시 올바른 URL 표시)
+  let twitterUrl = document.querySelector('meta[property="twitter:url"]');
+  if (twitterUrl) {
+    const path = route === '/' ? '' : route;
+    twitterUrl.setAttribute('content', `${BASE_URL}${path}`);
+  }
 
   // Update canonical URL
   let canonical = document.querySelector('link[rel="canonical"]');
   if (canonical) {
-    const baseUrl = 'https://www.slidemino.emozleep.space';
     const path = route === '/' ? '' : route;
-    canonical.setAttribute('href', `${baseUrl}${path}`);
+    canonical.setAttribute('href', `${BASE_URL}${path}`);
   }
 };

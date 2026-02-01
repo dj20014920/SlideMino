@@ -67,7 +67,7 @@ export const ADMOB_AD_IDS = {
   ANDROID: {
     // 프로덕션: 실제 광고 ID / 개발: 테스트 광고 ID
     REWARD: import.meta.env.MODE === 'production'
-      ? 'ca-app-pub-XXXXXXXXXXXXXXXX/YYYYYYYYYY' // TODO: AdMob 승인 후 교체
+      ? 'ca-app-pub-5319827978116991/4879909972' // ✅ 사용자 제공 Android 리워드 광고 ID
       : 'ca-app-pub-3940256099942544/5224354917', // Google 공식 테스트 ID
     INTERSTITIAL: import.meta.env.MODE === 'production'
       ? 'ca-app-pub-XXXXXXXXXXXXXXXX/ZZZZZZZZZZ' // TODO: AdMob 승인 후 교체
@@ -82,7 +82,7 @@ export const ADMOB_AD_IDS = {
   IOS: {
     // 프로덕션: 실제 광고 ID / 개발: 테스트 광고 ID
     REWARD: import.meta.env.MODE === 'production'
-      ? 'ca-app-pub-XXXXXXXXXXXXXXXX/YYYYYYYYYY' // TODO: AdMob 승인 후 교체
+      ? 'ca-app-pub-5319827978116991/7585964362' // ✅ 사용자 제공 iOS 리워드 광고 ID
       : 'ca-app-pub-3940256099942544/1712485313', // Google 공식 테스트 ID
     INTERSTITIAL: import.meta.env.MODE === 'production'
       ? 'ca-app-pub-XXXXXXXXXXXXXXXX/ZZZZZZZZZZ' // TODO: AdMob 승인 후 교체

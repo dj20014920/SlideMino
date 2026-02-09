@@ -25,9 +25,8 @@ class BannerAdService {
   private cleanupFn: (() => void) | null = null;
   private adUnitId: string = '';
   private bannerUsers = 0;
-
-  // 중복 표시 방지
-  private isProcessingShow = false;
+  // show/hide 레이스 방지용 직렬 큐
+  private syncQueue: Promise<void> = Promise.resolve();
 
   constructor() {
     this.adUnitId = getBannerAdId();
@@ -53,47 +52,12 @@ class BannerAdService {
 
     // 2. 참조 카운트 (여러 컴포넌트에서 호출될 수 있음)
     this.bannerUsers += 1;
-    if (this.bannerUsers !== 1) {
-      if (import.meta.env.DEV) {
-        console.log('[BannerAdService] 배너 사용자 수:', this.bannerUsers);
-      }
-      return;
+    if (import.meta.env.DEV) {
+      console.log('[BannerAdService] show 요청, 사용자 수:', this.bannerUsers);
     }
 
-    // 3. 중복 표시 방지
-    if (this.isProcessingShow || this.showStatus === 'showing') {
-      console.log('[BannerAdService] 이미 표시 중');
-      return;
-    }
-
-    // 4. 광고 ID 유효성 검증
-    if (!this.adUnitId) {
-      console.error('[BannerAdService] 광고 ID 없음');
-      this.showStatus = 'failed';
-      return;
-    }
-
-    // 5. 플랫폼별 분기
-    this.isProcessingShow = true;
-
-    try {
-      if (CURRENT_AD_PLATFORM === 'apps-in-toss') {
-        await this.showAppsInTossBanner();
-      } else if (CURRENT_AD_PLATFORM === 'admob-ios' || CURRENT_AD_PLATFORM === 'admob-android') {
-        const canRequest = await ensureAdMobReady();
-        if (!canRequest) {
-          this.showStatus = 'failed';
-          return;
-        }
-        await this.showAdMobBanner();
-      }
-      // AdSense는 AdBanner.tsx에서 직접 처리 (SSR/CSR 호환성 때문)
-    } catch (error) {
-      console.error('[BannerAdService] 배너 표시 실패:', error);
-      this.showStatus = 'failed';
-    } finally {
-      this.isProcessingShow = false;
-    }
+    // 3. 실제 show/hide는 큐에서 직렬 처리
+    await this.enqueueSync();
   }
 
   /**
@@ -146,6 +110,10 @@ class BannerAdService {
         console.error('[BannerAdService] 앱인토스 배너 에러:', error);
       },
     });
+
+    // 앱인토스는 이벤트 콜백 전에 hide 요청이 들어올 수 있어
+    // cleanup 함수 확보 시점에 표시 상태로 취급한다.
+    this.showStatus = 'showing';
   }
 
   /**
@@ -182,15 +150,81 @@ class BannerAdService {
 
   public async hideBanner(): Promise<void> {
     this.bannerUsers = Math.max(0, this.bannerUsers - 1);
-    if (this.bannerUsers !== 0) {
-      if (import.meta.env.DEV) {
-        console.log('[BannerAdService] 배너 사용자 수:', this.bannerUsers);
+    if (import.meta.env.DEV) {
+      console.log('[BannerAdService] hide 요청, 사용자 수:', this.bannerUsers);
+    }
+
+    await this.enqueueSync();
+  }
+
+  // ==========================================
+  // 📌 리소스 정리
+  // ==========================================
+
+  public cleanup(): void {
+    console.log('[BannerAdService] 리소스 정리 시작');
+
+    this.bannerUsers = 0;
+
+    // 배너 숨기기 (큐 직렬 처리)
+    this.enqueueSync().catch((error) => {
+      console.error('[BannerAdService] cleanup 중 hideBanner 실패:', error);
+    });
+
+    console.log('[BannerAdService] 리소스 정리 완료');
+  }
+
+  // ==========================================
+  // 📌 상태 조회
+  // ==========================================
+
+  public isShowing(): boolean {
+    return this.showStatus === 'showing';
+  }
+
+  public getStatus(): BannerShowStatus {
+    return this.showStatus;
+  }
+
+  private enqueueSync(): Promise<void> {
+    this.syncQueue = this.syncQueue
+      .catch(() => undefined)
+      .then(() => this.syncBannerVisibility());
+    return this.syncQueue;
+  }
+
+  private async syncBannerVisibility(): Promise<void> {
+    const shouldShow = this.bannerUsers > 0;
+
+    if (shouldShow) {
+      if (this.showStatus === 'showing') return;
+
+      if (!this.adUnitId) {
+        console.error('[BannerAdService] 광고 ID 없음');
+        this.showStatus = 'failed';
+        return;
+      }
+
+      try {
+        if (CURRENT_AD_PLATFORM === 'apps-in-toss') {
+          await this.showAppsInTossBanner();
+        } else if (CURRENT_AD_PLATFORM === 'admob-ios' || CURRENT_AD_PLATFORM === 'admob-android') {
+          const canRequest = await ensureAdMobReady();
+          if (!canRequest) {
+            this.showStatus = 'failed';
+            return;
+          }
+          await this.showAdMobBanner();
+        }
+        // AdSense는 AdBanner.tsx에서 직접 처리 (SSR/CSR 호환성 때문)
+      } catch (error) {
+        console.error('[BannerAdService] 배너 표시 실패:', error);
+        this.showStatus = 'failed';
       }
       return;
     }
 
     if (this.showStatus !== 'showing') {
-      console.log('[BannerAdService] 표시 중인 배너 없음');
       this.showStatus = 'idle';
       return;
     }
@@ -207,44 +241,12 @@ class BannerAdService {
         await AdMob.hideBanner();
       }
 
-      this.showStatus = 'idle';
       console.log('[BannerAdService] 배너 숨김 완료');
     } catch (error) {
       console.error('[BannerAdService] 배너 숨기기 실패:', error);
+    } finally {
+      this.showStatus = 'idle';
     }
-  }
-
-  // ==========================================
-  // 📌 리소스 정리
-  // ==========================================
-
-  public cleanup(): void {
-    console.log('[BannerAdService] 리소스 정리 시작');
-
-    // 배너 숨기기
-    this.hideBanner().catch((error) => {
-      console.error('[BannerAdService] cleanup 중 hideBanner 실패:', error);
-    });
-
-    // 상태 초기화
-    this.showStatus = 'idle';
-    this.isProcessingShow = false;
-    this.cleanupFn = null;
-    this.bannerUsers = 0;
-
-    console.log('[BannerAdService] 리소스 정리 완료');
-  }
-
-  // ==========================================
-  // 📌 상태 조회
-  // ==========================================
-
-  public isShowing(): boolean {
-    return this.showStatus === 'showing';
-  }
-
-  public getStatus(): BannerShowStatus {
-    return this.showStatus;
   }
 }
 

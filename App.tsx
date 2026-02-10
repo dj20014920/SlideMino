@@ -571,8 +571,9 @@ const App: React.FC = () => {
     if (phase !== Phase.PLACE && !isSlidePhaseButSkippable) return;
 
     if (isSlidePhaseButSkippable) {
+      // 콤보(추가 스와이프 가능) 상태에서는 드래그 "시도"만으로 턴을 소비하지 않는다.
+      // 실제 배치가 성공했을 때만 콤보를 소모해야 실수 터치로 권한이 사라지지 않는다.
       swipeStartRef.current = null;
-      finishSlideTurn();
     }
 
     // Cache board metrics on drag start only
@@ -620,7 +621,7 @@ const App: React.FC = () => {
     }
 
     (e.target as Element).setPointerCapture(e.pointerId);
-  }, [phase, canSkipSlide, finishSlideTurn, boardSize, tutorialStep]);
+  }, [phase, canSkipSlide, boardSize]);
 
   // RAF 기반으로 포인터 이벤트를 1프레임에 1번으로 합쳐서(코얼레싱) 렌더/연산 폭주를 방지
   const rafIdRef = useRef<number | null>(null);
@@ -709,6 +710,10 @@ const App: React.FC = () => {
           const newGrid = placePieceOnGrid(grid, draggingPiece, hover.x, hover.y);
           setGrid(newGrid);
 
+          // 배치 성공 시점에만 콤보 권한을 소모한다.
+          setCanSkipSlide(false);
+          setComboMessage(null);
+
           if (tutorialStep === 1) {
             setTutorialStep(2); // Proceed to Swipe Tutorial
           }
@@ -722,8 +727,6 @@ const App: React.FC = () => {
 
           if (hasPossibleMoves(newGrid)) {
             setPhase(Phase.SLIDE);
-            setCanSkipSlide(false);
-            setComboMessage(null);
           } else {
             setPhase(Phase.PLACE);
           }

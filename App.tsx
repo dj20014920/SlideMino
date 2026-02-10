@@ -53,7 +53,8 @@ import { REWARD_UNDO_AMOUNT } from './constants';
 
 const EMPTY_TILE_VALUE_OVERRIDES: Record<string, number> = {};
 const EMPTY_MERGING_TILES: MergingTile[] = [];
-const DRAG_OVERLAY_SCALE = 1.04;
+// 고스트(예상 드롭 위치)와 시각적 정합성을 유지하기 위해 오버레이 스케일은 1로 고정한다.
+const DRAG_OVERLAY_SCALE = 1;
 const DRAG_START_THRESHOLD_PX = 8;
 
 // Undo 시스템: 직전 상태를 저장하기 위한 스냅샷 인터페이스
@@ -568,6 +569,16 @@ const App: React.FC = () => {
     return { minX, maxX, minY, maxY };
   }, []);
 
+  const getPiecePixelSize = useCallback((cells: Piece['cells'], cellPx: number, pitchPx: number) => {
+    const { minX, maxX, minY, maxY } = getPieceBounds(cells);
+    const spanX = maxX - minX + 1;
+    const spanY = maxY - minY + 1;
+    return {
+      width: cellPx + Math.max(0, spanX - 1) * pitchPx,
+      height: cellPx + Math.max(0, spanY - 1) * pitchPx,
+    };
+  }, [getPieceBounds]);
+
   const readBoardMetrics = useCallback((): BoardMetrics | null => {
     if (!boardRef.current) return null;
 
@@ -599,30 +610,88 @@ const App: React.FC = () => {
   }, [boardSize]);
 
   const getDragAnchorFromPointer = useCallback(
-    (slotEl: Element, pointerX: number, pointerY: number, cells: Piece['cells'], cellSize: number) => {
+    (slotEl: Element, pointerX: number, pointerY: number, cells: Piece['cells'], cellSize: number, pitchSize: number) => {
       const slotRect = slotEl.getBoundingClientRect();
       const localX = Math.max(0, Math.min(slotRect.width, pointerX - slotRect.left));
       const localY = Math.max(0, Math.min(slotRect.height, pointerY - slotRect.top));
       const normalizedX = slotRect.width > 0 ? localX / slotRect.width : 0.5;
       const normalizedY = slotRect.height > 0 ? localY / slotRect.height : 0.5;
 
-      const { minX, maxX, minY, maxY } = getPieceBounds(cells);
-      const pieceWidthPx = (maxX - minX + 1) * cellSize;
-      const pieceHeightPx = (maxY - minY + 1) * cellSize;
+      const { width: pieceWidthPx, height: pieceHeightPx } = getPiecePixelSize(cells, cellSize, pitchSize);
 
       return {
         x: Math.max(0, Math.min(pieceWidthPx, normalizedX * pieceWidthPx)),
         y: Math.max(0, Math.min(pieceHeightPx, normalizedY * pieceHeightPx)),
       };
     },
+    [getPiecePixelSize]
+  );
+
+  const computeGridPosFromPointer = useCallback(
+    (clientX: number, clientY: number, piece: Piece, metrics: BoardMetrics, anchor: { x: number; y: number }) => {
+      const { minX, minY } = getPieceBounds(piece.cells);
+      const { width: pieceWidth, height: pieceHeight } = getPiecePixelSize(piece.cells, metrics.cell, metrics.pitch);
+
+      const boardLeft = metrics.rectLeft + metrics.paddingLeft;
+      const boardTop = metrics.rectTop + metrics.paddingTop;
+      const boardRight = boardLeft + metrics.innerWidth;
+      const boardBottom = boardTop + metrics.innerHeight;
+
+      const overlayLeft = clientX - anchor.x;
+      const overlayTop = clientY - anchor.y;
+      const overlayRight = overlayLeft + pieceWidth;
+      const overlayBottom = overlayTop + pieceHeight;
+
+      if (overlayRight < boardLeft || overlayLeft > boardRight || overlayBottom < boardTop || overlayTop > boardBottom) {
+        return null;
+      }
+
+      const pieceOriginLeft = overlayLeft - minX * metrics.pitch;
+      const pieceOriginTop = overlayTop - minY * metrics.pitch;
+      return {
+        x: Math.round((pieceOriginLeft - boardLeft) / metrics.pitch),
+        y: Math.round((pieceOriginTop - boardTop) / metrics.pitch),
+      };
+    },
+    [getPieceBounds, getPiecePixelSize]
+  );
+
+  const getOverlayTopLeftFromGridPos = useCallback(
+    (piece: Piece, metrics: BoardMetrics, gridPos: { x: number; y: number }) => {
+      const { minX, minY } = getPieceBounds(piece.cells);
+      const boardLeft = metrics.rectLeft + metrics.paddingLeft;
+      const boardTop = metrics.rectTop + metrics.paddingTop;
+      return {
+        left: boardLeft + (gridPos.x + minX) * metrics.pitch,
+        top: boardTop + (gridPos.y + minY) * metrics.pitch,
+      };
+    },
     [getPieceBounds]
   );
 
-  const applyDragOverlayTransform = useCallback((pointerX: number, pointerY: number) => {
+  const applyDragOverlayTransform = useCallback((
+    pointerX: number,
+    pointerY: number,
+    options?: {
+      piece?: Piece | null;
+      metrics?: BoardMetrics | null;
+      snappedGridPos?: { x: number; y: number } | null;
+    }
+  ) => {
     if (!dragOverlayRef.current) return;
+
     const { x: anchorX, y: anchorY } = dragAnchorRef.current;
-    dragOverlayRef.current.style.transform = `translate3d(${pointerX - anchorX}px, ${pointerY - anchorY}px, 0) scale(${DRAG_OVERLAY_SCALE})`;
-  }, []);
+    let left = pointerX - anchorX;
+    let top = pointerY - anchorY;
+
+    if (options?.piece && options.metrics && options.snappedGridPos) {
+      const snapped = getOverlayTopLeftFromGridPos(options.piece, options.metrics, options.snappedGridPos);
+      left = snapped.left;
+      top = snapped.top;
+    }
+
+    dragOverlayRef.current.style.transform = `translate3d(${left}px, ${top}px, 0) scale(${DRAG_OVERLAY_SCALE})`;
+  }, [getOverlayTopLeftFromGridPos]);
 
   const beginDragFromPending = useCallback((pointerX: number, pointerY: number) => {
     const pending = pendingDragRef.current;
@@ -652,33 +721,35 @@ const App: React.FC = () => {
       const nextRot = (prev.rotation + 1) % 4;
       const nextCells = getRotatedCells(prev.type, nextRot);
 
+      const nextPiece = {
+        ...prev,
+        rotation: nextRot,
+        cells: nextCells,
+      };
+
       if (metrics) {
-        const prevBounds = getPieceBounds(prev.cells);
-        const prevWidth = (prevBounds.maxX - prevBounds.minX + 1) * metrics.cell;
-        const prevHeight = (prevBounds.maxY - prevBounds.minY + 1) * metrics.cell;
+        const { width: prevWidth, height: prevHeight } = getPiecePixelSize(prev.cells, metrics.cell, metrics.pitch);
         const ratioX = prevWidth > 0 ? dragAnchorRef.current.x / prevWidth : 0.5;
         const ratioY = prevHeight > 0 ? dragAnchorRef.current.y / prevHeight : 0.5;
 
-        const nextBounds = getPieceBounds(nextCells);
-        const nextWidth = (nextBounds.maxX - nextBounds.minX + 1) * metrics.cell;
-        const nextHeight = (nextBounds.maxY - nextBounds.minY + 1) * metrics.cell;
+        const { width: nextWidth, height: nextHeight } = getPiecePixelSize(nextCells, metrics.cell, metrics.pitch);
         dragAnchorRef.current = {
           x: Math.max(0, Math.min(nextWidth, ratioX * nextWidth)),
           y: Math.max(0, Math.min(nextHeight, ratioY * nextHeight)),
         };
 
         if (currentPointerPosRef.current) {
-          applyDragOverlayTransform(currentPointerPosRef.current.x, currentPointerPosRef.current.y);
+          applyDragOverlayTransform(currentPointerPosRef.current.x, currentPointerPosRef.current.y, {
+            piece: nextPiece,
+            metrics,
+            snappedGridPos: hoverGridPosRef.current,
+          });
         }
       }
 
-      return {
-        ...prev,
-        rotation: nextRot,
-        cells: nextCells,
-      };
+      return nextPiece;
     });
-  }, [draggingPiece, getPieceBounds, applyDragOverlayTransform]);
+  }, [draggingPiece, getPiecePixelSize, applyDragOverlayTransform]);
 
   // --- Event Handlers: Drag & Drop ---
 
@@ -736,7 +807,14 @@ const App: React.FC = () => {
       startY: e.clientY,
       initCells,
       metrics,
-      anchor: getDragAnchorFromPointer(e.currentTarget as Element, e.clientX, e.clientY, initCells, metrics.cell),
+      anchor: getDragAnchorFromPointer(
+        e.currentTarget as Element,
+        e.clientX,
+        e.clientY,
+        initCells,
+        metrics.cell,
+        metrics.pitch
+      ),
     };
 
     setDragOriginIndex(-1);
@@ -751,22 +829,12 @@ const App: React.FC = () => {
   // RAF 기반으로 포인터 이벤트를 1프레임에 1번으로 합쳐서(코얼레싱) 렌더/연산 폭주를 방지
   const rafIdRef = useRef<number | null>(null);
   const latestPointerRef = useRef<{ x: number; y: number } | null>(null);
-  const getGridPosFromPointer = useCallback((clientX: number, clientY: number) => {
+  const getGridPosFromPointer = useCallback((clientX: number, clientY: number, piece?: Piece | null) => {
     const metrics = boardMetricsRef.current;
-    if (!metrics) return null;
-
-    const relativeX = clientX - metrics.rectLeft - metrics.paddingLeft;
-    const relativeY = clientY - metrics.rectTop - metrics.paddingTop;
-    const isOutside =
-      relativeX < 0 || relativeY < 0 || relativeX >= metrics.innerWidth || relativeY >= metrics.innerHeight;
-    if (isOutside) return null;
-
-    const maxIndex = metrics.size - 1;
-    return {
-      x: Math.max(0, Math.min(maxIndex, Math.round((relativeX - metrics.cell / 2) / metrics.pitch))),
-      y: Math.max(0, Math.min(maxIndex, Math.round((relativeY - metrics.cell / 2) / metrics.pitch))),
-    };
-  }, []);
+    const activePiece = piece ?? draggingPiece;
+    if (!metrics || !activePiece) return null;
+    return computeGridPosFromPointer(clientX, clientY, activePiece, metrics, dragAnchorRef.current);
+  }, [draggingPiece, computeGridPosFromPointer]);
 
   const resetDraggingState = useCallback(() => {
     if (rafIdRef.current) {
@@ -800,6 +868,15 @@ const App: React.FC = () => {
       }
 
       beginDragFromPending(e.clientX, e.clientY);
+      const pendingPiece = { ...pending.piece, cells: pending.initCells };
+      const next = computeGridPosFromPointer(e.clientX, e.clientY, pendingPiece, pending.metrics, pending.anchor);
+      hoverGridPosRef.current = next;
+      boardHandleRef.current?.setHoverLocation(next);
+      applyDragOverlayTransform(e.clientX, e.clientY, {
+        piece: pendingPiece,
+        metrics: pending.metrics,
+        snappedGridPos: next,
+      });
       return;
     }
 
@@ -810,14 +887,18 @@ const App: React.FC = () => {
     rafIdRef.current = requestAnimationFrame(() => {
       const pointer = latestPointerRef.current;
       const metrics = boardMetricsRef.current;
+      const activePiece = draggingPiece;
       rafIdRef.current = null;
-      if (!pointer || !metrics) return;
+      if (!pointer || !metrics || !activePiece) return;
       currentPointerPosRef.current = pointer;
 
-      // Direct DOM manipulation for drag overlay (bypass React render)
-      applyDragOverlayTransform(pointer.x, pointer.y);
-
-      const next = getGridPosFromPointer(pointer.x, pointer.y);
+      const next = getGridPosFromPointer(pointer.x, pointer.y, activePiece);
+      // 보드 위에서는 스냅 좌표에 오버레이를 맞춰 고스트/실배치 시각 오차를 제거한다.
+      applyDragOverlayTransform(pointer.x, pointer.y, {
+        piece: activePiece,
+        metrics,
+        snappedGridPos: next,
+      });
       if (!next) {
         if (hoverGridPosRef.current) {
           hoverGridPosRef.current = null;
@@ -1160,6 +1241,7 @@ const App: React.FC = () => {
 
     const cells = draggingPiece.cells;
     const cellSize = boardMetricsRef.current?.cell ?? 32;
+    const cellPitch = boardMetricsRef.current?.pitch ?? cellSize;
     const cellAppearance = resolveTileAppearance(draggingPiece.value);
     const { minX, minY } = getPieceBounds(cells);
     const normalizedCells = cells.map((c) => ({ x: c.x - minX, y: c.y - minY }));
@@ -1171,10 +1253,14 @@ const App: React.FC = () => {
           // 마운트 직후 초기 위치 설정 (깜빡임 방지)
           if (el && currentPointerPosRef.current) {
             const { x, y } = currentPointerPosRef.current;
-            applyDragOverlayTransform(x, y);
+            applyDragOverlayTransform(x, y, {
+              piece: draggingPiece,
+              metrics: boardMetricsRef.current,
+              snappedGridPos: hoverGridPosRef.current,
+            });
           }
         }}
-        className="fixed top-0 left-0 pointer-events-none z-50 opacity-90 will-change-transform"
+        className="fixed top-0 left-0 pointer-events-none z-50 opacity-90 will-change-transform origin-top-left"
       >
         <div className="relative">
           {normalizedCells.map((c, i) => (
@@ -1185,8 +1271,8 @@ const App: React.FC = () => {
                 ${cellAppearance.className}
               `}
               style={{
-                left: c.x * cellSize,
-                top: c.y * cellSize,
+                left: c.x * cellPitch,
+                top: c.y * cellPitch,
                 width: `${cellSize}px`,
                 height: `${cellSize}px`,
                 ...(cellAppearance.style ?? {}),

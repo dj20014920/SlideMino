@@ -177,3 +177,31 @@ Original prompt: 게임 진행 화면(iPhone 포함)에서 광고 배너가 메�
     - 회전 버튼 클릭 시 실제 회전 발생(`rotated=true`)
     - 버튼에서 드래그 유사 입력 시 드래그 오버레이 미생성(`dragOverlayExists=false`)
   - 스크린샷: `/Users/dj/Desktop/SlideMino/screenshots/slot-rotate-bottom-left-20260210.png`
+
+## 2026-02-10 추가 작업 로그 (드래그 오버레이 vs 고스트 정렬 오차 수정)
+- 이슈 재현:
+  - 사용자 제보와 동일하게 드래그 중 흰색 오버레이와 회색 고스트가 어긋남.
+  - Playwright 수치 계측(패치 전 기준): `avgDx=-17.56px`, `avgDy=+21.14px`, `avgDist=27.58px`.
+- 근본 원인:
+  - 오버레이는 포인터 연속 좌표, 고스트는 그리드 스냅 좌표를 따르면서 서로 다른 기준으로 렌더됨.
+  - 임계치 전환 직후 hover 계산에서 `pending.piece`와 실제 드래그 셀(`initCells`)의 불일치 가능성이 존재.
+  - 오버레이 `scale`이 셀 간 상대 오차를 확대.
+- 조치(`/Users/dj/Desktop/SlideMino/App.tsx`):
+  - `computeGridPosFromPointer()`를 공통 좌표 변환으로 사용해 hover 계산 기준 단일화.
+  - `applyDragOverlayTransform()`에 스냅 옵션 추가:
+    - 보드 위에서는 `hover grid pos` 기준으로 오버레이를 직접 스냅 렌더.
+    - 보드 밖에서는 기존 포인터-앵커 추적 유지.
+  - 임계치 전환 시 hover 계산을 `pending.piece`가 아닌 `{ ...pending.piece, cells: pending.initCells }`로 계산.
+  - 오버레이 셀 배치 간격을 `cellPitch` 기준으로 유지(보드 gap 포함).
+  - 오버레이 기준점 `origin-top-left` 적용.
+  - 최종적으로 오버레이 스케일을 `1`로 고정(`DRAG_OVERLAY_SCALE=1`)해 시각/논리 오차 제거.
+- 검증:
+  - `npm run build` 성공.
+  - Playwright 계측(동일 시나리오) 개선 추이:
+    - 1차: `avgDist 27.58px` (기존)
+    - 2차: `avgDist 5.03px` (스냅 정렬 후)
+    - 최종: `avgDx=0.003px`, `avgDy=0.002px`, `avgDist=0.004px`
+  - 시각 캡처: `/Users/dj/Desktop/SlideMino/screenshots/drag-ghost-aligned-20260210.png`
+- 참고:
+  - 스킬 클라이언트(`web_game_playwright_client.js`) 실행은 로컬 `playwright` 패키지 부재로 `ERR_MODULE_NOT_FOUND` 발생.
+  - 대체로 Playwright MCP 기반 자동 드래그/수치 계측으로 동일 검증 수행.

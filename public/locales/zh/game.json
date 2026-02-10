@@ -23,8 +23,17 @@
   "hints": {
     "rotate": "旋转：点空白/旋转按钮，桌面按R",
     "drag": "将方块拖到网格",
-    "swipe": "必须滑动才能继续！",
+    "swipe": "滑动直到合并停止",
     "combo": "再次滑动 或 拖动方块"
+  },
+  "status": {
+    "turnGuide": "回合指引",
+    "placeBadge": "可放置",
+    "swipeBadge": "需滑动",
+    "placeDescription": "合并已停止。请放置方块开始下一回合。",
+    "swipeDescription": "有合并时继续滑动；若没有合并，将切换到放置阶段。",
+    "mergeContinueMessage": "已合并！本回合继续滑动",
+    "noMergePlaceMessage": "未合并。现在可以放置方块"
   },
   "actions": {
     "undo": "撤销",

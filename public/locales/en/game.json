@@ -23,8 +23,17 @@
   "hints": {
     "rotate": "Rotate: tap empty space or button (R on desktop)",
     "drag": "Drag blocks to grid",
-    "swipe": "Must slide to continue!",
+    "swipe": "Swipe until merges stop",
     "combo": "Swipe again OR Drag a block"
+  },
+  "status": {
+    "turnGuide": "Turn Guide",
+    "placeBadge": "Place Now",
+    "swipeBadge": "Swipe Now",
+    "placeDescription": "Merges stopped. Place a block to start the next turn.",
+    "swipeDescription": "Keep swiping while merges occur. If no merge happens, you can place a block.",
+    "mergeContinueMessage": "Merge! Keep swiping this turn.",
+    "noMergePlaceMessage": "No merge. You can place a block now."
   },
   "actions": {
     "undo": "Undo",

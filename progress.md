@@ -39,3 +39,49 @@ Original prompt: 게임 진행 화면(iPhone 포함)에서 광고 배너가 메�
   - 시나리오 A(무효 배치): 슬롯 드래그 후 보드 밖 드롭 → `canSkipSlide=true` 유지.
   - 시나리오 B(유효 배치): 보드 내 후보 좌표 순차 드롭 중 실제 배치 성공 지점(`gx=1, gy=1`)에서 `canSkipSlide=false`, `moveCount=3` 전환 확인.
 - 결론: 콤보 소모 타이밍이 “드래그 시작”이 아닌 “배치 성공”으로 정상 고정되었고, 오입력으로 스와이프 권한이 소실되는 회귀는 재현되지 않음.
+
+## 2026-02-10 추가 작업 로그 (스와이프/배치 규칙 변경)
+- 요청 규칙:
+  - 스와이프 후 **머지 발생 시**: 블록 배치 불가, 스와이프만 계속 가능.
+  - 스와이프 후 **머지 미발생 시**: 그때만 블록 배치 가능.
+- 핵심 수정(`/Users/dj/Desktop/SlideMino/App.tsx`):
+  - `executeSlide()` 해제 분기에서 `scoreAdded > 0`일 때 `setCanSkipSlide(true)`를 제거하고, `Phase.SLIDE` + `canSkipSlide=false` 유지로 변경.
+  - 저장 게임 복원/이어하기 시 구버전 `canSkipSlide=true`가 남아도 새 규칙에 맞게 `false`로 정규화.
+- 검증:
+  - `npm run build` 성공.
+  - Playwright MCP 상태 주입 기반 시나리오:
+    - 머지 발생 보드: 스와이프 후 `phase='SLIDE'`, `canSkipSlide=false`, 슬롯 `pointer-events='none'` 유지.
+    - 머지 미발생(이동만) 보드: 스와이프 후 `phase='PLACE'`, `canSkipSlide=false`, 슬롯 `pointer-events='auto'` 전환.
+
+## 2026-02-10 추가 작업 로그 (UI/UX 정리 + 교차검증)
+- UI/UX 개선(`/Users/dj/Desktop/SlideMino/App.tsx`):
+  - 상단 Phase pill을 고대비/펄스 스타일에서 저피로 톤(emerald/slate)으로 완화.
+  - Turn Guide 카드 신설: 현재 가능한 행동(배치/스와이프) 배지 + 한 줄 설명 노출.
+  - 하단 힌트 텍스트를 현재 phase 기준으로 단순화(`drag` vs `swipe`).
+  - 머지/비머지 결과 메시지를 공통 helper(`showComboMessage`)로 통합해 타이머 누수/중복 방지.
+- 다국어 추가(`/Users/dj/Desktop/SlideMino/public/locales/{ko,en,ja,zh}/game.json`):
+  - `status.*` 키(턴 안내, 배지, 설명, 머지/비머지 메시지) 추가.
+  - `hints.swipe`를 신규 규칙 문구로 갱신.
+- 빌드 검증:
+  - `npm run build` 성공.
+- Playwright MCP 실검증:
+  - 머지 발생 상태 캡처: `/Users/dj/Desktop/SlideMino/screenshots/phase-swipe-merge-20260210.png`
+    - 확인값: `phase='SLIDE'`, 슬롯 `pointer-events='none'`, 메시지 `머지 성공! 이번 턴은 계속 스와이프`.
+  - 머지 미발생 상태 캡처: `/Users/dj/Desktop/SlideMino/screenshots/phase-place-no-merge-20260210.png`
+    - 확인값: `phase='PLACE'`, 슬롯 `pointer-events='auto'`, 메시지 `머지 없음. 이제 블록을 배치하세요`.
+- 비고:
+  - 콘솔의 `/api/submit` 404 및 `React.Fragment` prop warning은 기존 개발환경/타 기능 이슈로 관측되며, 이번 규칙/UX 변경의 기능 검증에는 영향 없음.
+
+## 2026-02-10 추가 재검증 로그 (결정적 상태 주입 + 키보드 입력)
+- 목적: “머지 시 스와이프 유지 / 비머지 시 배치 전환” 규칙이 실제 런타임에서 일관되게 동작하는지 재확정.
+- 방법:
+  - `localStorage(slidemino_game_state_v1)`에 테스트 보드 상태를 직접 주입한 뒤 페이지 리로드.
+  - 포인터 스와이프 대신 `ArrowLeft` 키 입력으로 `executeSlide()`를 결정적으로 호출.
+- 시나리오 A(비머지):
+  - 초기 보드: `[null,2,4,null]`.
+  - 결과: `phase='PLACE'`, `score=0`, `moveCount=1`, 슬롯 `pointer-events='auto'`, 메시지 `머지 없음. 이제 블록을 배치하세요`.
+- 시나리오 B(머지):
+  - 초기 보드: `[2,2,null,null]`.
+  - 결과: `phase='SLIDE'`, `score=4`, `moveCount=1`, 슬롯 `pointer-events='none'`, 메시지 `머지 성공! 이번 턴은 계속 스와이프`.
+- 결론:
+  - 요청한 규칙 전이가 코드/빌드/실행 상태에서 모두 확인됨.

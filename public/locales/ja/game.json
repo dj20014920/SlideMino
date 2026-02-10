@@ -23,8 +23,17 @@
   "hints": {
     "rotate": "回転: 空白タップ/回転ボタン、PCはR",
     "drag": "ブロックをグリッドにドラッグ",
-    "swipe": "続けるにはスライドが必要です！",
+    "swipe": "合体が止まるまでスワイプ",
     "combo": "再度スワイプ または ブロックをドラッグ"
+  },
+  "status": {
+    "turnGuide": "ターンガイド",
+    "placeBadge": "配置可能",
+    "swipeBadge": "スワイプ中",
+    "placeDescription": "合体が止まりました。次のターンのためにブロックを配置してください。",
+    "swipeDescription": "合体が続く間はスワイプしてください。合体しなければ配置フェーズに移ります。",
+    "mergeContinueMessage": "合体成功! このターンはスワイプ継続",
+    "noMergePlaceMessage": "合体なし。今ブロックを配置できます"
   },
   "actions": {
     "undo": "元に戻す",

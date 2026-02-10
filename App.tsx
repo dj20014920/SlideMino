@@ -172,7 +172,7 @@ const App: React.FC = () => {
   const [playerName, setPlayerName] = useState<string>('');
   const [showActiveGameWarning, setShowActiveGameWarning] = useState(false);
 
-  // New State for the Rule: "Option to stop sliding if merge happened"
+  // 슬라이드 단계에서의 배치 허용 플래그(현재 룰에서는 항상 false를 유지)
   const [canSkipSlide, setCanSkipSlide] = useState(false);
 
   // Undo 시스템: 직전 스냅샷과 남은 사용 횟수
@@ -234,6 +234,7 @@ const App: React.FC = () => {
   const mergeClearTimeoutRef = useRef<number | null>(null);
   const mergeFinalizeTimeoutRef = useRef<number | null>(null);
   const unlockTimeoutRef = useRef<number | null>(null);
+  const comboMessageTimeoutRef = useRef<number | null>(null);
   const dragPointerIdRef = useRef<number | null>(null);
   const scoreRef = useRef<number>(score);
   const boardSizeRef = useRef<BoardSize>(boardSize);
@@ -284,7 +285,9 @@ const App: React.FC = () => {
       setScore(saved.score);
       setPhase(saved.phase);
       setBoardSize(saved.boardSize);
-      setCanSkipSlide(saved.canSkipSlide);
+      // 새 규칙: 머지가 발생한 슬라이드 턴에서는 블록 배치를 허용하지 않는다.
+      // 구버전 저장 데이터의 canSkipSlide=true 상태는 로드 시 정규화한다.
+      setCanSkipSlide(false);
       setUndoRemaining(saved.undoRemaining);
       if (saved.playerName) setPlayerName(saved.playerName);
       if (saved.sessionId) sessionIdRef.current = saved.sessionId;
@@ -385,6 +388,10 @@ const App: React.FC = () => {
       window.clearTimeout(unlockTimeoutRef.current);
       unlockTimeoutRef.current = null;
     }
+    if (comboMessageTimeoutRef.current) {
+      window.clearTimeout(comboMessageTimeoutRef.current);
+      comboMessageTimeoutRef.current = null;
+    }
 
     setBoardSize(size);
     setGrid(createEmptyGrid(size));
@@ -431,6 +438,18 @@ const App: React.FC = () => {
     });
   }, [grid, slots, score, phase, canSkipSlide]);
 
+  const showComboMessage = useCallback((message: string, durationMs = 1600) => {
+    setComboMessage(message);
+    if (comboMessageTimeoutRef.current) {
+      window.clearTimeout(comboMessageTimeoutRef.current);
+      comboMessageTimeoutRef.current = null;
+    }
+    comboMessageTimeoutRef.current = window.setTimeout(() => {
+      setComboMessage(null);
+      comboMessageTimeoutRef.current = null;
+    }, durationMs);
+  }, []);
+
   // Undo 실행: 직전 스냅샷으로 복원
   const executeUndo = useCallback(() => {
     if (!lastSnapshot || undoRemaining <= 0 || isAnimating) return;
@@ -445,6 +464,10 @@ const App: React.FC = () => {
     // 사용 횟수 차감 및 스냅샷 초기화 (연속 Undo 방지)
     setUndoRemaining(prev => prev - 1);
     setLastSnapshot(null);
+    if (comboMessageTimeoutRef.current) {
+      window.clearTimeout(comboMessageTimeoutRef.current);
+      comboMessageTimeoutRef.current = null;
+    }
     setComboMessage(null);
 
     // 애니메이션 관련 상태 정리
@@ -461,8 +484,7 @@ const App: React.FC = () => {
         setUndoRemaining(prev => Math.min(prev + actualAmount, 99)); // 최대 99회 제한
 
         // 사용자에게 알림 (다국어)
-        setComboMessage(String(t('game:rewardAd.rewardEarned', { amount: actualAmount } as any)));
-        setTimeout(() => setComboMessage(null), 2000);
+        showComboMessage(String(t('game:rewardAd.rewardEarned', { amount: actualAmount } as any)), 2000);
 
         console.log(`[App] 리워드 지급 완료: +${actualAmount}회`);
       },
@@ -481,7 +503,7 @@ const App: React.FC = () => {
         alert(t('game:rewardAd.dailyLimitReached'));
       },
     });
-  }, [t]);
+  }, [t, showComboMessage]);
 
   // 🆕 광고 미리 로드 (게임 진행 중이고 되돌리기가 0일 때)
   useEffect(() => {
@@ -516,6 +538,7 @@ const App: React.FC = () => {
       if (mergeClearTimeoutRef.current) window.clearTimeout(mergeClearTimeoutRef.current);
       if (mergeFinalizeTimeoutRef.current) window.clearTimeout(mergeFinalizeTimeoutRef.current);
       if (unlockTimeoutRef.current) window.clearTimeout(unlockTimeoutRef.current);
+      if (comboMessageTimeoutRef.current) window.clearTimeout(comboMessageTimeoutRef.current);
     };
   }, []);
 
@@ -874,10 +897,13 @@ const App: React.FC = () => {
       unlockTimeoutRef.current = null;
 
       if (scoreAdded > 0) {
-        setCanSkipSlide(true);
-        setComboMessage("MERGE! Slide again OR Place block");
+        // 새 규칙: 머지가 발생했다면 이번 턴은 계속 스와이프만 가능
+        setPhase(Phase.SLIDE);
+        setCanSkipSlide(false);
+        showComboMessage(String(t('game:status.mergeContinueMessage')));
       } else {
         finishSlideTurn();
+        showComboMessage(String(t('game:status.noMergePlaceMessage')));
       }
     }, lockMs);
   };
@@ -1107,7 +1133,8 @@ const App: React.FC = () => {
                     setScore(saved.score);
                     setPhase(saved.phase);
                     setBoardSize(saved.boardSize);
-                    setCanSkipSlide(saved.canSkipSlide);
+                    // 구버전 저장 데이터 정규화: 이어하기 시에도 배치 허용 플래그를 초기화
+                    setCanSkipSlide(false);
                     setUndoRemaining(saved.undoRemaining);
                   }
                 }}
@@ -1350,8 +1377,11 @@ const App: React.FC = () => {
     );
   }
 
-  // Calculate if slots should be disabled
-  const isSlotDisabled = (phase === Phase.SLIDE && !canSkipSlide) || isAnimating;
+  const isPlacePhase = phase === Phase.PLACE;
+  const isSwipePhase = phase === Phase.SLIDE;
+
+  // 새 규칙에서는 슬라이드 단계 동안 슬롯(배치 입력)을 잠근다.
+  const isSlotDisabled = isSwipePhase || isAnimating;
 
   // ========== GAME SCREEN ==========
   return (
@@ -1407,13 +1437,13 @@ const App: React.FC = () => {
             <div className={`
             px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2 
             transition-all duration-200 ease-out
-            ${phase === Phase.PLACE
-                ? 'bg-white/50 backdrop-blur-sm border border-white/40 text-gray-700 shadow-md'
-                : 'bg-gray-900 text-white shadow-lg border border-transparent'
+            ${isPlacePhase
+                ? 'bg-emerald-50/90 backdrop-blur-sm border border-emerald-200/90 text-emerald-700 shadow-sm'
+                : 'bg-slate-100/90 backdrop-blur-sm border border-slate-300/80 text-slate-700 shadow-sm'
               }
           `}>
-              {phase === Phase.PLACE ? t('game:phases.place') : t('game:phases.swipe')}
-              {phase === Phase.SLIDE && <Move size={14} className="animate-pulse" />}
+              {isPlacePhase ? t('game:phases.place') : t('game:phases.swipe')}
+              {isSwipePhase && <Move size={14} />}
             </div>
 
             {/* Help & Undo Buttons - Same Row */}
@@ -1512,8 +1542,29 @@ const App: React.FC = () => {
             ))}
           </div>
 
+          {/* Turn Guide */}
+          <div className="w-full rounded-2xl border border-white/60 bg-white/65 backdrop-blur-sm px-4 py-3 shadow-sm">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                {t('game:status.turnGuide')}
+              </span>
+              <span className={`
+                inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold
+                ${isPlacePhase
+                  ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                  : 'bg-slate-100 text-slate-700 border border-slate-200'
+                }
+              `}>
+                {isPlacePhase ? t('game:status.placeBadge') : t('game:status.swipeBadge')}
+              </span>
+            </div>
+            <p className="mt-1.5 text-sm text-gray-700 leading-relaxed">
+              {isPlacePhase ? t('game:status.placeDescription') : t('game:status.swipeDescription')}
+            </p>
+          </div>
+
           {/* Hints */}
-          <div className="text-gray-400 text-sm text-center font-medium">
+          <div className="text-gray-500 text-sm text-center font-medium">
             {draggingPiece ? (
               <div className="flex items-center justify-center gap-2 text-gray-600">
                 <button
@@ -1541,10 +1592,15 @@ const App: React.FC = () => {
                 <span className="text-xs text-gray-500">{t('game:hints.rotate')}</span>
               </div>
             ) : (
-              phase === Phase.PLACE ? t('game:hints.drag') :
-                (canSkipSlide ? t('game:hints.combo') : t('game:hints.swipe'))
+              isPlacePhase ? t('game:hints.drag') : t('game:hints.swipe')
             )}
           </div>
+
+          {comboMessage && (
+            <div className="w-full rounded-xl border border-slate-200/80 bg-slate-50/80 px-3 py-2 text-center text-xs font-medium text-slate-700">
+              {comboMessage}
+            </div>
+          )}
 
         </main>
 

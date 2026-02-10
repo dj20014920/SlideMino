@@ -347,3 +347,21 @@ Original prompt: 게임 진행 화면(iPhone 포함)에서 광고 배너가 메�
     - 모바일+터치 portrait(430x932): 차단 없음, 게임 UI 정상
     - 데스크톱 landscape(1280x900, touch=false): 차단 없음
   - 스크린샷: `/Users/dj/Desktop/SlideMino/screenshots/orientation-lock-landscape-mobile-20260210.png`
+
+
+## 2026-02-10 추가 작업 로그 (App Store iPad orientation 검증 오류 대응)
+- 발생 오류: 업로드 검증에서 `UISupportedInterfaceOrientations`가 iPad 멀티태스킹 요구사항(4방향)과 불일치하여 reject.
+- 원인:
+  - 이전 변경에서 `Info.plist`를 portrait-only로 축소했는데, 현재 번들은 iPad 멀티태스킹 경로를 전제로 검증되어 4방향 요구를 만족해야 함.
+- 대응 전략:
+  - 심사 통과를 위해 `Info.plist`의 iOS/iPad orientation 키를 4방향으로 복원.
+  - 실제 앱 동작은 `AppDelegate` 런타임 orientation mask에서 `.portrait`를 반환해 세로 고정을 유지.
+- 변경 파일:
+  - `/Users/dj/Desktop/SlideMino/ios/App/App/Info.plist`
+    - `UISupportedInterfaceOrientations` / `UISupportedInterfaceOrientations~ipad` 모두 4방향으로 복원
+  - `/Users/dj/Desktop/SlideMino/ios/App/App/AppDelegate.swift`
+    - `application(_:supportedInterfaceOrientationsFor:) -> .portrait` 추가
+- 검증:
+  - `plutil -p ios/App/App/Info.plist`로 4방향 복원 확인
+  - `npm run build` 성공
+  - `npm run cap:sync` 성공

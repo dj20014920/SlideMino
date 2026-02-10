@@ -205,3 +205,41 @@ Original prompt: 게임 진행 화면(iPhone 포함)에서 광고 배너가 메�
 - 참고:
   - 스킬 클라이언트(`web_game_playwright_client.js`) 실행은 로컬 `playwright` 패키지 부재로 `ERR_MODULE_NOT_FOUND` 발생.
   - 대체로 Playwright MCP 기반 자동 드래그/수치 계측으로 동일 검증 수행.
+
+## 2026-02-10 추가 작업 로그 (일반 퍼즐게임식 드래그 프록시 UX 전환)
+- 사용자 추가 요청: "고스트만 보이는 방식 말고, 드래그 중인 블럭 자체가 손가락/포인터를 따라 보여야 함".
+- 적용한 UX 패턴(타 퍼즐게임 공통):
+  - 보드: 스냅 고스트(예상 드롭 위치)
+  - 손가락 근처: 실시간 드래그 프록시 블럭(약간 확대 + 리프트)
+- 구현(`/Users/dj/Desktop/SlideMino/App.tsx`):
+  - `DRAG_OVERLAY_SCALE`를 `1.06`으로 조정, `DRAG_OVERLAY_LIFT_Y=12` 추가.
+  - 드래그 임계치 `DRAG_START_THRESHOLD_PX`를 `4`로 낮춰 시작 반응성 향상.
+  - 오버레이 렌더 위치를 포인터 추종 방식으로 고정(스냅 위치 강제 정렬 제거).
+  - 오버레이 시각 강화: `drop-shadow`, `ring`, `opacity-100`.
+  - 회전/초기 마운트/이동 시 동일한 포인터 추종 transform 경로 사용.
+- 빌드 검증:
+  - `npm run build` 성공.
+- 비고:
+  - 현재 Playwright MCP 세션은 로딩/광고/상호작용 레이어 영향으로 포인터 드래그 자동검증 신뢰도가 낮아, 실제 사용 시나리오(모바일 터치) 기준으로 추가 체감 확인 필요.
+
+## 2026-02-10 추가 작업 로그 (요청 커밋 기준 드래그/미리보기 로직 복원)
+- 사용자 요청: `2776bb1d1a13e352e63b11035a533f247b366072` 시점의 드래그/미리보기 체계를 현재 코드에 최대한 동일하게 반영.
+- 확인 사항:
+  - 해당 커밋은 `App.tsx` 변경 커밋은 아니며, 해당 시점 스냅샷의 `App.tsx`에 원하는 로직이 포함됨.
+  - 따라서 `git show <commit>:App.tsx` 기준으로 함수 단위 대조 후 현재 파일(`/Users/dj/Desktop/SlideMino/App.tsx`)에 이식.
+- 반영 내용(`/Users/dj/Desktop/SlideMino/App.tsx`):
+  - 드래그 시작을 임계치 기반(pending) 방식에서 **즉시 시작 방식**으로 복원.
+  - 드래그 앵커/스냅 계산 계층(`dragAnchorRef`, `pendingDragRef`, 관련 helper) 제거.
+  - 오버레이 transform을 커밋형 단순 포인터 추종(`translate3d(pointerX, pointerY) scale(1.04)`)으로 복원.
+  - `renderDraggingPiece`를 커밋형 중심 보정(`marginTop/marginLeft`) 방식으로 복원.
+  - 그리드 hover 계산을 커밋형 보드 상대 좌표 반올림 방식으로 정리.
+  - 단, 이전에 고친 회귀 방지 포인트는 유지:
+    - `SLIDE && canSkipSlide`에서 드래그 시도만으로 턴 소모되지 않음(배치 성공 시에만 소모).
+    - 회전 버튼 드래그 오인식 방지/포인터 ID 가드/`pointercancel` 정리.
+- 검증:
+  - `npm run build` 성공.
+  - `npm run cap:sync` 성공.
+  - Playwright MCP 드래그 계측:
+    - 드래그 중 `overlayVisible=true`, `ghostCells=4` 확인(오버레이 + 고스트 동시 표시)
+    - 드롭 후 `overlayAfterDrop=false`, phase 전이 정상 확인.
+  - 시각 캡처: `/Users/dj/Desktop/SlideMino/screenshots/drag-proxy-during-hold-20260210.png`

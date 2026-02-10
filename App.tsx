@@ -76,6 +76,139 @@ interface BoardMetrics {
   size: number;
 }
 
+interface ViewportSize {
+  width: number;
+  height: number;
+}
+
+interface GameLayoutProfile {
+  columnMaxWidthPx: number;
+  columnWidthPx: number;
+  boardScaleMultiplier: number;
+  boardScaleCeiling: number;
+  mainGapPx: number;
+  mainTopPaddingPx: number;
+  mainBottomPaddingPx: number;
+}
+
+interface LayoutChromeHeights {
+  header: number;
+  banner: number;
+}
+
+interface OrientationLockMessage {
+  title: string;
+  body: string;
+}
+
+const DEFAULT_LAYOUT_CHROME_HEIGHTS: LayoutChromeHeights = {
+  header: 104,
+  banner: 72,
+};
+
+const ORIENTATION_LOCK_MESSAGES: Record<string, OrientationLockMessage> = {
+  ko: {
+    title: '세로 모드로 전환해 주세요',
+    body: 'SlideMino는 가로 모드를 지원하지 않습니다.',
+  },
+  en: {
+    title: 'Please rotate to portrait mode',
+    body: 'SlideMino does not support landscape mode.',
+  },
+  ja: {
+    title: '縦向きにしてください',
+    body: 'SlideMino は横向きモードに対応していません。',
+  },
+  zh: {
+    title: '请切换为竖屏',
+    body: 'SlideMino 不支持横屏模式。',
+  },
+};
+
+const LEGACY_PORTRAIT_ASPECT = 16 / 9;
+const MODERN_PHONE_PORTRAIT_ASPECT = 19.5 / 9;
+
+const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value));
+
+const lerp = (from: number, to: number, t: number): number => from + (to - from) * t;
+
+const getViewportSize = (): ViewportSize => {
+  if (typeof window === 'undefined') {
+    return { width: 390, height: 844 };
+  }
+  return {
+    width: window.visualViewport?.width ?? window.innerWidth,
+    height: window.visualViewport?.height ?? window.innerHeight,
+  };
+};
+
+const getGameLayoutProfile = (
+  { width, height }: ViewportSize,
+  chromeHeights: LayoutChromeHeights = DEFAULT_LAYOUT_CHROME_HEIGHTS
+): GameLayoutProfile => {
+  const safeWidth = Math.max(240, Math.round(width));
+  const safeHeight = Math.max(320, Math.round(height));
+  const portraitAspect = safeHeight / safeWidth;
+  const isLandscape = safeWidth > safeHeight;
+
+  const tallProgress = clamp(
+    (portraitAspect - LEGACY_PORTRAIT_ASPECT) / (MODERN_PHONE_PORTRAIT_ASPECT - LEGACY_PORTRAIT_ASPECT),
+    0,
+    1
+  );
+  const ultraTallBoost = clamp((portraitAspect - MODERN_PHONE_PORTRAIT_ASPECT) / 0.24, 0, 1);
+  const shortPenalty = clamp((LEGACY_PORTRAIT_ASPECT - portraitAspect) / 0.24, 0, 1);
+
+  const boardScaleMultiplier = clamp(
+    lerp(0.95, 1.02, tallProgress) + ultraTallBoost * 0.02 - shortPenalty * 0.05,
+    0.88,
+    1.04
+  );
+  const mainGapPx = Math.round(clamp(lerp(12, 22, tallProgress) * (isLandscape ? 0.58 : 1), 8, 24));
+  const whitespacePx = clamp(safeHeight * lerp(0.07, 0.14, tallProgress) * (isLandscape ? 0.34 : 1), 10, 96);
+  const columnMaxWidthPx = safeWidth >= 1440 ? 620 : safeWidth >= 1024 ? 560 : safeWidth >= 768 ? 500 : 448;
+  const shouldHeightLimitColumn = isLandscape && safeHeight < 760;
+  const heightLimitedColumnMaxPx = shouldHeightLimitColumn
+    ? Math.max(220, Math.floor(safeHeight * 0.58))
+    : Number.POSITIVE_INFINITY;
+  const columnWidthPx = Math.min(columnMaxWidthPx, safeWidth, heightLimitedColumnMaxPx);
+  const contentWidthPx = Math.max(180, columnWidthPx - 32);
+  const rawSlotHeightPx = Math.max(42, (contentWidthPx - 32) / 3);
+  const slotHeightPx = shouldHeightLimitColumn
+    ? Math.min(rawSlotHeightPx, safeHeight * 0.17)
+    : rawSlotHeightPx;
+  const mainTopPaddingPx = Math.round(whitespacePx * 0.45);
+  const mainBottomPaddingPx = Math.round(whitespacePx * 0.55);
+  const measuredHeaderHeightPx = clamp(chromeHeights.header, 56, 180);
+  const measuredBottomAdHeightPx = clamp(chromeHeights.banner, 0, 160);
+  const availableMainHeightPx = Math.max(180, safeHeight - measuredHeaderHeightPx - measuredBottomAdHeightPx);
+  const boardHeightBudgetPx =
+    availableMainHeightPx - slotHeightPx - mainGapPx - mainTopPaddingPx - mainBottomPaddingPx;
+  const boardScaleCeiling = clamp(
+    Math.min(contentWidthPx, boardHeightBudgetPx) / 420,
+    0.42,
+    1.04
+  );
+
+  return {
+    columnMaxWidthPx,
+    columnWidthPx,
+    boardScaleMultiplier,
+    boardScaleCeiling,
+    mainGapPx,
+    mainTopPaddingPx,
+    mainBottomPaddingPx,
+  };
+};
+
+const getOrientationLockMessage = (language: string): OrientationLockMessage => {
+  const normalized = normalizeLanguage(language);
+  if (normalized.startsWith('ko')) return ORIENTATION_LOCK_MESSAGES.ko;
+  if (normalized.startsWith('ja')) return ORIENTATION_LOCK_MESSAGES.ja;
+  if (normalized.startsWith('zh')) return ORIENTATION_LOCK_MESSAGES.zh;
+  return ORIENTATION_LOCK_MESSAGES.en;
+};
+
 const App: React.FC = () => {
   // --- i18n ---
   const { t, i18n } = useTranslation();
@@ -131,6 +264,33 @@ const App: React.FC = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const updateViewportSize = () => {
+      setViewportSize((prev) => {
+        const next = getViewportSize();
+        const widthChanged = Math.abs(prev.width - next.width) > 0.5;
+        const heightChanged = Math.abs(prev.height - next.height) > 0.5;
+        if (!widthChanged && !heightChanged) return prev;
+        return next;
+      });
+    };
+
+    updateViewportSize();
+    window.addEventListener('resize', updateViewportSize);
+    window.addEventListener('orientationchange', updateViewportSize);
+    window.visualViewport?.addEventListener('resize', updateViewportSize);
+    window.visualViewport?.addEventListener('scroll', updateViewportSize);
+
+    return () => {
+      window.removeEventListener('resize', updateViewportSize);
+      window.removeEventListener('orientationchange', updateViewportSize);
+      window.visualViewport?.removeEventListener('resize', updateViewportSize);
+      window.visualViewport?.removeEventListener('scroll', updateViewportSize);
+    };
+  }, []);
+
   // --- State ---
   const [isLoading, setIsLoading] = useState(true);
   const { gate: customizationGate, resolveTileAppearance } = useBlockCustomization();
@@ -161,9 +321,37 @@ const App: React.FC = () => {
   const [highScore, setHighScore] = useState(0);
   const [phase, setPhase] = useState<Phase>(Phase.PLACE);
   const [boardSize, setBoardSize] = useState<BoardSize>(8);
+  const [viewportSize, setViewportSize] = useState<ViewportSize>(getViewportSize);
+  const [layoutChromeHeights, setLayoutChromeHeights] = useState<LayoutChromeHeights>(DEFAULT_LAYOUT_CHROME_HEIGHTS);
   const [, setComboMessage] = useState<string | null>(null);
+  const isLandscapeViewport = viewportSize.width > viewportSize.height;
+  const isTouchLikeWeb = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 1;
+  }, [viewportSize.width, viewportSize.height]);
+  const shouldBlockLandscapeOnWeb = !isNative && isTouchLikeWeb;
+  const shouldShowPortraitLockOverlay = shouldBlockLandscapeOnWeb && isLandscapeViewport;
+  const orientationLockMessage = useMemo(
+    () => getOrientationLockMessage(i18n.resolvedLanguage ?? i18n.language ?? 'en'),
+    [i18n.language, i18n.resolvedLanguage]
+  );
 
-  const boardScale = useMemo(() => {
+  useEffect(() => {
+    if (!shouldBlockLandscapeOnWeb) return;
+    if (typeof screen === 'undefined' || !screen.orientation?.lock) return;
+
+    screen.orientation.lock('portrait').catch(() => {
+      // 브라우저 정책(사용자 제스처/전체화면 요구)으로 실패할 수 있음.
+      // 실패 시에는 가로모드 차단 오버레이로 UX를 보장한다.
+    });
+  }, [shouldBlockLandscapeOnWeb, viewportSize.width, viewportSize.height]);
+
+  const gameLayoutProfile = useMemo(
+    () => getGameLayoutProfile(viewportSize, layoutChromeHeights),
+    [viewportSize, layoutChromeHeights]
+  );
+
+  const baseBoardScale = useMemo(() => {
     switch (boardSize) {
       case 4:
         return 0.82;
@@ -175,6 +363,11 @@ const App: React.FC = () => {
         return 1;
     }
   }, [boardSize]);
+
+  const boardScale = useMemo(() => {
+    const scaled = baseBoardScale * gameLayoutProfile.boardScaleMultiplier;
+    return Math.min(scaled, gameLayoutProfile.boardScaleCeiling);
+  }, [baseBoardScale, gameLayoutProfile.boardScaleMultiplier, gameLayoutProfile.boardScaleCeiling]);
   const [isCustomizationOpen, setIsCustomizationOpen] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
 
@@ -222,6 +415,8 @@ const App: React.FC = () => {
   const [pressedSlotIndex, setPressedSlotIndex] = useState<number>(-1);
 
   // --- Refs ---
+  const headerRef = useRef<HTMLElement>(null);
+  const bottomBannerRef = useRef<HTMLDivElement>(null);
   const boardRef = useRef<HTMLDivElement>(null);
   const boardHandleRef = useRef<BoardHandle | null>(null);
   const dragOverlayRef = useRef<HTMLDivElement>(null); // 드래그 오버레이 직접 제어용 Ref
@@ -257,6 +452,45 @@ const App: React.FC = () => {
   useEffect(() => {
     playerNameRef.current = playerName;
   }, [playerName]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (gameState !== GameState.PLAYING && gameState !== GameState.GAME_OVER) return;
+
+    const updateChromeHeights = () => {
+      const measuredHeader = headerRef.current?.getBoundingClientRect().height;
+      const measuredBanner = bottomBannerRef.current?.getBoundingClientRect().height;
+
+      setLayoutChromeHeights((prev) => {
+        const nextHeader = measuredHeader ? Math.max(56, measuredHeader) : prev.header;
+        const nextBanner = measuredBanner ? Math.max(0, measuredBanner) : prev.banner;
+        const headerChanged = Math.abs(prev.header - nextHeader) > 0.5;
+        const bannerChanged = Math.abs(prev.banner - nextBanner) > 0.5;
+        if (!headerChanged && !bannerChanged) return prev;
+        return { header: nextHeader, banner: nextBanner };
+      });
+    };
+
+    updateChromeHeights();
+
+    let observer: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(updateChromeHeights);
+      if (headerRef.current) observer.observe(headerRef.current);
+      if (bottomBannerRef.current) observer.observe(bottomBannerRef.current);
+    }
+
+    window.addEventListener('resize', updateChromeHeights);
+    window.visualViewport?.addEventListener('resize', updateChromeHeights);
+    window.visualViewport?.addEventListener('scroll', updateChromeHeights);
+
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', updateChromeHeights);
+      window.visualViewport?.removeEventListener('resize', updateChromeHeights);
+      window.visualViewport?.removeEventListener('scroll', updateChromeHeights);
+    };
+  }, [gameState]);
 
   // --- Initialization ---
 
@@ -1087,6 +1321,23 @@ const App: React.FC = () => {
 
   // --- Views ---
 
+  if (shouldShowPortraitLockOverlay) {
+    return (
+      <>
+        <CookieConsent />
+        <div className="min-h-screen min-h-[100dvh] flex items-center justify-center px-6 py-10 bg-gradient-to-b from-gray-50 to-gray-100 text-gray-900">
+          <div className="w-full max-w-sm rounded-3xl border border-white/70 bg-white/80 backdrop-blur-sm shadow-xl p-8 text-center space-y-3">
+            <div className="mx-auto w-14 h-14 rounded-2xl border border-gray-200 bg-white flex items-center justify-center text-2xl">
+              📱
+            </div>
+            <h1 className="text-xl font-bold tracking-tight">{orientationLockMessage.title}</h1>
+            <p className="text-sm text-gray-600 leading-relaxed">{orientationLockMessage.body}</p>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   // ========== 정적 페이지 라우팅 ==========
   if (currentRoute === '/privacy') {
     return (
@@ -1427,8 +1678,10 @@ const App: React.FC = () => {
       >
         {/* Header */}
         <header
-          className="w-full max-w-md flex justify-between items-center p-4"
+          ref={headerRef}
+          className="w-full flex justify-between items-center p-4"
           style={{
+            maxWidth: `${gameLayoutProfile.columnWidthPx}px`,
             paddingTop: 'calc(16px + var(--game-safe-top))',
             // 앱인토스: 우측 상단 공통 내비게이션 영역 확보
             paddingRight: 'calc(16px + var(--appintos-nav-safe-right))'
@@ -1541,8 +1794,13 @@ const App: React.FC = () => {
 
         {/* Main Game Area */}
         <main
-          className="flex-1 w-full max-w-md flex flex-col items-center justify-start gap-5 p-4 pt-2"
-          style={{ paddingBottom: 'calc(16px + var(--app-safe-bottom))' }}
+          className="flex-1 w-full flex flex-col items-center justify-center min-h-0 p-4"
+          style={{
+            maxWidth: `${gameLayoutProfile.columnWidthPx}px`,
+            gap: `${gameLayoutProfile.mainGapPx}px`,
+            paddingTop: `${gameLayoutProfile.mainTopPaddingPx}px`,
+            paddingBottom: `calc(${gameLayoutProfile.mainBottomPaddingPx}px + var(--app-safe-bottom))`
+          }}
         >
 
           <div className={`
@@ -1617,12 +1875,14 @@ const App: React.FC = () => {
         <HelpModal isOpen={showHelpModal} onClose={() => setShowHelpModal(false)} />
 
         {/* Ad Banner for Game Screen */}
-        <div className={`
+        <div ref={bottomBannerRef} className="w-full">
+          <div className={`
           w-full shrink-0 z-10 bg-white/50 backdrop-blur-sm border-t border-white/20
           transition-opacity duration-200
           ${isSwipeFocusMode ? 'opacity-20 pointer-events-none' : 'opacity-100'}
         `}>
-          <AdBanner />
+            <AdBanner />
+          </div>
         </div>
 
         {/* Dragging Overlay */}

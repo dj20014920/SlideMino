@@ -243,3 +243,107 @@ Original prompt: 게임 진행 화면(iPhone 포함)에서 광고 배너가 메�
     - 드래그 중 `overlayVisible=true`, `ghostCells=4` 확인(오버레이 + 고스트 동시 표시)
     - 드롭 후 `overlayAfterDrop=false`, phase 전이 정상 확인.
   - 시각 캡처: `/Users/dj/Desktop/SlideMino/screenshots/drag-proxy-during-hold-20260210.png`
+
+
+## 2026-02-10 추가 작업 로그 (기기별 UI 비율 동적 통일)
+- 요청 반영: 아이폰/갤럭시/웹에서 UI 비율이 최대한 동일하게 느껴지도록 게임 화면 레이아웃을 비율 기반으로 재설계.
+- 설계 원칙:
+  - 고정 px 중심 레이아웃을 줄이고, 세로 화면 비율(`height/width`) + 실제 뷰포트(`visualViewport`)를 기준으로 보드/여백/간격을 동적으로 계산.
+  - 19.5:9 계열(현대 스마트폰 주류)에서 시각 비율을 맞추되, 16:9 같은 짧은 화면에서도 콘텐츠가 잘리지 않게 `height fit ceiling` 제약 추가.
+  - DRY: `App.tsx`의 단일 `getGameLayoutProfile()`에서 컬럼 폭/보드 스케일/상하 여백/컴포넌트 간 gap을 일관 계산.
+- 구현 변경(`/Users/dj/Desktop/SlideMino/App.tsx`):
+  - `ViewportSize`, `GameLayoutProfile`, `getViewportSize()`, `getGameLayoutProfile()` 추가.
+  - `resize/orientationchange/visualViewport resize+scroll` 이벤트로 실시간 뷰포트 추적.
+  - 보드 스케일 계산을 `baseBoardScale * boardScaleMultiplier`로 확장하고, 짧은 화면 보호용 `boardScaleCeiling`을 적용.
+  - 게임 헤더/메인에 동일 `columnMaxWidthPx` 적용, 메인 컨테이너를 `justify-start` -> `justify-center`로 조정.
+  - 메인 `gap`, `paddingTop`, `paddingBottom`을 프로필 값으로 동적 적용.
+- 근본 원인/반증 점검:
+  - 원인: 기존은 보드 중심 크기 + 상단 정렬이어서 기기 세로 비율이 바뀌면 상/하 공백 균형이 깨지고, 긴 화면에서 상단 몰림 체감 발생.
+  - 반증 시도: 16:9(360x640)에서 오히려 콘텐츠가 넘칠 가능성 확인 -> 실제로 1차 변경에서 하단 잘림(`contentBottomToViewport > 1`) 발생.
+  - 보완: `boardScaleCeiling`(높이 예산 기반 상한) 추가 후 재검증해 잘림 해소.
+- 검증:
+  - `npm run build` 성공(2회).
+  - 뷰포트별 수치 검증(`main/board/slot` 실측):
+    - 430x932 (아이폰 19.5:9):
+      - `boardHeightToViewport=0.427`, `slotHeightToViewport=0.1309`, `boardTopToViewport=0.177`, `contentBottomToViewport=0.7586`
+    - 412x915 (갤럭시 계열):
+      - `boardHeightToViewport=0.4153`, `slotHeightToViewport=0.1268`, `boardTopToViewport=0.1803`, `contentBottomToViewport=0.7464`
+    - 360x640 (레거시 16:9):
+      - `boardHeightToViewport=0.5062`, `slotHeightToViewport=0.1542`, `contentBottomToViewport=0.901` (잘림 없음)
+    - 1280x900 (웹 데스크톱):
+      - `columnWidth=560`, `boardHeightToViewport=0.42`, `contentBottomToViewport=0.7837`
+  - 스크린샷:
+    - `/Users/dj/Desktop/SlideMino/screenshots/layout-ratio-iphone430x932-20260210.png`
+    - `/Users/dj/Desktop/SlideMino/screenshots/layout-ratio-galaxy412x915-20260210.png`
+    - `/Users/dj/Desktop/SlideMino/screenshots/layout-ratio-legacy360x640-20260210.png`
+    - `/Users/dj/Desktop/SlideMino/screenshots/layout-ratio-desktop1280x900-20260210.png`
+- 비고:
+  - `develop-web-game` 스킬의 공식 클라이언트(`web_game_playwright_client.js`)는 로컬 `playwright` 패키지 부재로 `ERR_MODULE_NOT_FOUND` 지속.
+  - 대체로 Chrome DevTools MCP에서 동일 시나리오를 자동 측정/캡처해 교차검증 완료.
+
+
+## 2026-02-10 추가 작업 로그 (초심층 비율/경계점 분석 + 보강)
+- 요청: 태블릿/아이폰/갤럭시/웹 및 경계 조건에서 잠재 문제를 가설 기반으로 초심층 분석하고 보강.
+- 가설 세트:
+  - H1: 세로 기준 수식이 짧은 화면(16:9)에서 보드/슬롯이 잘릴 수 있다.
+  - H2: `safeHeight` 최소값 고정이 실제 낮은 viewport에서 과대 추정 오버플로를 유발한다.
+  - H3: 가로전환(폭 큼/높이 작음)에서 슬롯 높이가 폭 비례로 과도하게 커져 하단 overflow가 발생한다.
+  - H4: 보정된 column 폭이 실제 header/main에 적용되지 않으면 수식 보강이 무효화된다.
+  - H5: 태블릿/대화면에서 지나치게 큰/작은 중앙 컬럼 폭이 UX 불균형을 만들 수 있다.
+- 1차 분석 결과:
+  - 수치 시뮬레이션과 실측에서 H2/H3/H4가 실제로 관찰됨.
+  - 특히 `932x430`(모바일 가로)에서 초기 상태 `slotBottomPastViewport=true` 재현.
+- 보강 내용(`/Users/dj/Desktop/SlideMino/App.tsx`):
+  - 레이아웃 프로필 입력에 `LayoutChromeHeights`(header/banner 실제 높이) 도입.
+  - `ResizeObserver` + `visualViewport` 이벤트로 header/banner 실측값을 지속 반영.
+  - `getGameLayoutProfile()` 강화:
+    - `safeWidth/safeHeight` 하한을 현실적으로 재조정(`240/320`).
+    - landscape 저높이 조건에서 column 폭 상한을 높이 기준으로 제한(`heightLimitedColumnMaxPx`).
+    - landscape 저높이 조건에서 슬롯 높이 상한(`safeHeight*0.17`) 적용.
+    - 높이 예산 기반 `boardScaleCeiling` 하한을 `0.42`로 낮춰 극단 환경에서도 fit 우선.
+  - `GameLayoutProfile`에 `columnWidthPx`를 추가하고, header/main이 `columnMaxWidthPx`가 아닌 `columnWidthPx`를 실제 사용하도록 수정(H4 근본 해결).
+- 교차검증(실측):
+  - iPhone 430x932: overflow 없음, `slotBottom=0.7586`.
+  - Galaxy 412x915: overflow 없음, `slotBottom=0.7464`.
+  - Legacy 360x640: overflow 없음, `slotBottom=0.7104`.
+  - Tablet 768x1024: overflow 없음, `slotBottom=0.6732`.
+  - Tablet 1024x1366: overflow 없음, `slotBottom=0.5273`.
+  - Web 1280x900 / 1920x1080: overflow 없음.
+  - Mobile landscape 932x430:
+    - 보강 전: `slotBottomPastViewport=true`.
+    - 보강 후: `slotBottomPastViewport=false`, `mainPastViewport=false`.
+- 캡처 산출물:
+  - `/Users/dj/Desktop/SlideMino/screenshots/layout-ratio-iphone430x932-deep-20260210.png`
+  - `/Users/dj/Desktop/SlideMino/screenshots/layout-ratio-tablet768x1024-deep-20260210.png`
+  - `/Users/dj/Desktop/SlideMino/screenshots/layout-ratio-landscape932x430-deep-20260210.png`
+  - `/Users/dj/Desktop/SlideMino/screenshots/layout-ratio-web1920x1080-deep-20260210.png`
+  - `/Users/dj/Desktop/SlideMino/screenshots/layout-ratio-split280x653-20260210.png`
+- 잔여 리스크/제한:
+  - 현재 가로전환에서는 fit 안정성 우선으로 보드/슬롯이 작아질 수 있음(의도적). 모바일 가로에서 가독성보다 비잘림 우선 정책.
+  - AdSense iframe이 dev 환경에서 과대 높이로 렌더되는 경우가 있어, 배너 실측값이 환경에 따라 변동 가능(실측 기반이라 기능적으로는 안전).
+
+
+## 2026-02-10 추가 작업 로그 (가로모드 완전 차단 / 세로 고정)
+- 요청: 가로모드를 아예 지원하지 않도록 화면 방향 고정.
+- 적용 범위:
+  - Android 네이티브: `MainActivity`를 portrait 고정.
+  - iOS 네이티브(iPhone/iPad): 지원 방향을 portrait 단일값으로 제한.
+  - Web(모바일/태블릿): landscape 진입 시 강제 차단 오버레이 표시 + 가능 시 `screen.orientation.lock('portrait')` 시도.
+- 변경 파일:
+  - `/Users/dj/Desktop/SlideMino/android/app/src/main/AndroidManifest.xml`
+    - `<activity ... android:screenOrientation="portrait">` 추가
+  - `/Users/dj/Desktop/SlideMino/ios/App/App/Info.plist`
+    - `UISupportedInterfaceOrientations`: `UIInterfaceOrientationPortrait`만 유지
+    - `UISupportedInterfaceOrientations~ipad`: `UIInterfaceOrientationPortrait`만 유지
+  - `/Users/dj/Desktop/SlideMino/App.tsx`
+    - 모바일/태블릿 웹에서 landscape 감지 시 전체 화면 차단 UI 추가
+    - 다국어 안내 메시지(ko/en/ja/zh) 추가
+    - `screen.orientation.lock('portrait')` 시도(브라우저 정책 실패 시 오버레이가 fallback)
+- 검증:
+  - `npm run build` 성공
+  - `npm run cap:sync` 성공
+  - DevTools 검증:
+    - 모바일+터치 landscape(932x430): 차단 메시지 표시 확인
+    - 모바일+터치 portrait(430x932): 차단 없음, 게임 UI 정상
+    - 데스크톱 landscape(1280x900, touch=false): 차단 없음
+  - 스크린샷: `/Users/dj/Desktop/SlideMino/screenshots/orientation-lock-landscape-mobile-20260210.png`

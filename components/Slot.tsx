@@ -10,10 +10,11 @@ export interface SlotProps {
   onRotate: (index: number) => void;
   index: number;
   disabled: boolean;
+  isPressed?: boolean;
   htmlId?: string; // For tutorial overlay targeting
 }
 
-export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, index, disabled, htmlId }) => {
+export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, index, disabled, isPressed = false, htmlId }) => {
   const { t } = useTranslation();
   const { resolveTileAppearance } = useBlockCustomization();
 
@@ -54,11 +55,13 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
         border border-white/50
         shadow-[0_4px_16px_rgba(0,0,0,0.06)]
         cursor-grab active:cursor-grabbing 
-        transition-shadow duration-200 ease-out
+        transition-all duration-150 ease-out
         group
         ${disabled
           ? 'opacity-30 pointer-events-none grayscale'
-          : 'hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] hover:bg-white/50'
+          : isPressed
+            ? 'bg-white/55 ring-2 ring-emerald-300/80 shadow-[0_8px_20px_rgba(16,185,129,0.2)] scale-[1.01]'
+            : 'hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] hover:bg-white/50 active:scale-[0.99]'
         }
       `}
       id={htmlId}
@@ -74,8 +77,9 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
         <button
           type="button"
           className="
-            absolute top-2 right-2 z-10 
-            p-1.5 rounded-full 
+            absolute left-2 bottom-2 z-10
+            w-7 h-7 rounded-full touch-manipulation
+            inline-flex items-center justify-center
             bg-white/80
             text-gray-600 
             border border-white/40
@@ -86,12 +90,21 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
           "
           data-rotate-button
           onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onPointerUp={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onClick={(e) => {
+            e.preventDefault();
             e.stopPropagation();
             onRotate(index);
           }}
           aria-label={t('common:aria.rotateBlock')}
         >
-          <RotateCw size={14} />
+          <RotateCw size={13} />
         </button>
       )}
 

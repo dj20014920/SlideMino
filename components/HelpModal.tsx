@@ -38,8 +38,8 @@ const content: Record<Language, LocalizedContent> = {
             },
             {
                 icon: <Zap size={20} />,
-                title: '⚡ 콤보 찬스',
-                content: '스와이프로 블록이 합쳐지면 "콤보 찬스"가 발동! 추가 스와이프를 하거나, 바로 새 블록을 놓을 수 있습니다. 전략적으로 활용하세요!'
+                title: '⚡ 연속 스와이프 규칙',
+                content: '스와이프에서 머지가 발생하면 같은 턴에서 계속 스와이프해야 합니다. 머지가 멈춘 순간에만 블록 배치 단계로 돌아갑니다.'
             },
             {
                 icon: <RotateCw size={20} />,
@@ -70,8 +70,8 @@ const content: Record<Language, LocalizedContent> = {
             },
             {
                 icon: <Zap size={20} />,
-                title: '⚡ Combo Chance',
-                content: 'When blocks merge from a swipe, you get a "Combo Chance"! You can swipe again OR place a new block immediately. Use it strategically!'
+                title: '⚡ Swipe Chain Rule',
+                content: 'If a swipe causes a merge, keep swiping in the same turn. You can place a block only after a swipe with no merge.'
             },
             {
                 icon: <RotateCw size={20} />,
@@ -102,8 +102,8 @@ const content: Record<Language, LocalizedContent> = {
             },
             {
                 icon: <Zap size={20} />,
-                title: '⚡ コンボチャンス',
-                content: 'スワイプでブロックが合体すると「コンボチャンス」発動！追加でスワイプするか、すぐに新しいブロックを置くことができます。戦略的に活用しましょう！'
+                title: '⚡ 連続スワイプ規則',
+                content: 'スワイプで合体が発生した場合、そのターンはスワイプを継続します。合体しないスワイプが出たときだけ配置フェーズに戻ります。'
             },
             {
                 icon: <RotateCw size={20} />,
@@ -134,8 +134,8 @@ const content: Record<Language, LocalizedContent> = {
             },
             {
                 icon: <Zap size={20} />,
-                title: '⚡ 连击机会',
-                content: '滑动合并方块后，获得"连击机会"！可以再次滑动，或立即放置新方块。请策略性地使用！'
+                title: '⚡ 连续滑动规则',
+                content: '如果一次滑动产生了合并，本回合需要继续滑动。只有出现“无合并滑动”时，才会回到放置方块阶段。'
             },
             {
                 icon: <RotateCw size={20} />,

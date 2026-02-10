@@ -22,6 +22,7 @@
   },
   "hints": {
     "rotate": "Rotate: tap empty space or button (R on desktop)",
+    "drop": "Release on the board to place",
     "drag": "Drag blocks to grid",
     "swipe": "Swipe until merges stop",
     "combo": "Swipe again OR Drag a block"

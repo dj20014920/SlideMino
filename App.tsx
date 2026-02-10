@@ -54,6 +54,7 @@ import { REWARD_UNDO_AMOUNT } from './constants';
 const EMPTY_TILE_VALUE_OVERRIDES: Record<string, number> = {};
 const EMPTY_MERGING_TILES: MergingTile[] = [];
 const DRAG_OVERLAY_SCALE = 1.04;
+const DRAG_START_THRESHOLD_PX = 8;
 
 // Undo 시스템: 직전 상태를 저장하기 위한 스냅샷 인터페이스
 interface GameSnapshot {
@@ -62,6 +63,18 @@ interface GameSnapshot {
   score: number;
   phase: Phase;
   canSkipSlide: boolean;
+}
+
+interface BoardMetrics {
+  rectLeft: number;
+  rectTop: number;
+  paddingLeft: number;
+  paddingTop: number;
+  innerWidth: number;
+  innerHeight: number;
+  cell: number;
+  pitch: number;
+  size: number;
 }
 
 const App: React.FC = () => {
@@ -149,7 +162,7 @@ const App: React.FC = () => {
   const [highScore, setHighScore] = useState(0);
   const [phase, setPhase] = useState<Phase>(Phase.PLACE);
   const [boardSize, setBoardSize] = useState<BoardSize>(8);
-  const [comboMessage, setComboMessage] = useState<string | null>(null);
+  const [, setComboMessage] = useState<string | null>(null);
 
   const boardScale = useMemo(() => {
     switch (boardSize) {
@@ -207,6 +220,7 @@ const App: React.FC = () => {
   // --- Dragging State ---
   const [draggingPiece, setDraggingPiece] = useState<Piece | null>(null);
   const [dragOriginIndex, setDragOriginIndex] = useState<number>(-1);
+  const [pressedSlotIndex, setPressedSlotIndex] = useState<number>(-1);
 
   // --- Refs ---
   const boardRef = useRef<HTMLDivElement>(null);
@@ -217,17 +231,7 @@ const App: React.FC = () => {
   const sessionIdRef = useRef<string>(crypto.randomUUID()); // 게임 세션 ID
   const [currentRank, setCurrentRank] = useState<number | null>(null); // 실시간 순위
 
-  const boardMetricsRef = useRef<{
-    rectLeft: number;
-    rectTop: number;
-    paddingLeft: number;
-    paddingTop: number;
-    innerWidth: number;
-    innerHeight: number;
-    cell: number;
-    pitch: number;
-    size: number;
-  } | null>(null);
+  const boardMetricsRef = useRef<BoardMetrics | null>(null);
   const hoverGridPosRef = useRef<{ x: number; y: number } | null>(null);
   const swipeStartRef = useRef<{ x: number, y: number } | null>(null); // 스와이프 시작 좌표
   const slideLockRef = useRef(false); // state 반영 전에도 즉시 입력 차단
@@ -236,6 +240,18 @@ const App: React.FC = () => {
   const unlockTimeoutRef = useRef<number | null>(null);
   const comboMessageTimeoutRef = useRef<number | null>(null);
   const dragPointerIdRef = useRef<number | null>(null);
+  const currentPointerPosRef = useRef<{ x: number, y: number } | null>(null);
+  const dragAnchorRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const pendingDragRef = useRef<{
+    pointerId: number;
+    piece: Piece;
+    index: number;
+    startX: number;
+    startY: number;
+    initCells: Piece['cells'];
+    metrics: BoardMetrics;
+    anchor: { x: number; y: number };
+  } | null>(null);
   const scoreRef = useRef<number>(score);
   const boardSizeRef = useRef<BoardSize>(boardSize);
   const playerNameRef = useRef<string>(playerName);
@@ -544,19 +560,125 @@ const App: React.FC = () => {
 
   // --- Helpers ---
 
+  const getPieceBounds = useCallback((cells: Piece['cells']) => {
+    const minX = Math.min(...cells.map((c) => c.x));
+    const maxX = Math.max(...cells.map((c) => c.x));
+    const minY = Math.min(...cells.map((c) => c.y));
+    const maxY = Math.max(...cells.map((c) => c.y));
+    return { minX, maxX, minY, maxY };
+  }, []);
+
+  const readBoardMetrics = useCallback((): BoardMetrics | null => {
+    if (!boardRef.current) return null;
+
+    const rect = boardRef.current.getBoundingClientRect();
+    const styles = window.getComputedStyle(boardRef.current);
+    const paddingLeft = parseFloat(styles.paddingLeft) || 0;
+    const paddingTop = parseFloat(styles.paddingTop) || 0;
+    const paddingRight = parseFloat(styles.paddingRight) || 0;
+    const paddingBottom = parseFloat(styles.paddingBottom) || 0;
+
+    const size = boardSize;
+    const innerWidth = rect.width - paddingLeft - paddingRight;
+    const innerHeight = rect.height - paddingTop - paddingBottom;
+    const totalGap = (size - 1) * BOARD_CELL_GAP_PX;
+    const cell = (innerWidth - totalGap) / size;
+    const pitch = cell + BOARD_CELL_GAP_PX;
+
+    return {
+      rectLeft: rect.left,
+      rectTop: rect.top,
+      paddingLeft,
+      paddingTop,
+      innerWidth,
+      innerHeight,
+      cell,
+      pitch,
+      size,
+    };
+  }, [boardSize]);
+
+  const getDragAnchorFromPointer = useCallback(
+    (slotEl: Element, pointerX: number, pointerY: number, cells: Piece['cells'], cellSize: number) => {
+      const slotRect = slotEl.getBoundingClientRect();
+      const localX = Math.max(0, Math.min(slotRect.width, pointerX - slotRect.left));
+      const localY = Math.max(0, Math.min(slotRect.height, pointerY - slotRect.top));
+      const normalizedX = slotRect.width > 0 ? localX / slotRect.width : 0.5;
+      const normalizedY = slotRect.height > 0 ? localY / slotRect.height : 0.5;
+
+      const { minX, maxX, minY, maxY } = getPieceBounds(cells);
+      const pieceWidthPx = (maxX - minX + 1) * cellSize;
+      const pieceHeightPx = (maxY - minY + 1) * cellSize;
+
+      return {
+        x: Math.max(0, Math.min(pieceWidthPx, normalizedX * pieceWidthPx)),
+        y: Math.max(0, Math.min(pieceHeightPx, normalizedY * pieceHeightPx)),
+      };
+    },
+    [getPieceBounds]
+  );
+
+  const applyDragOverlayTransform = useCallback((pointerX: number, pointerY: number) => {
+    if (!dragOverlayRef.current) return;
+    const { x: anchorX, y: anchorY } = dragAnchorRef.current;
+    dragOverlayRef.current.style.transform = `translate3d(${pointerX - anchorX}px, ${pointerY - anchorY}px, 0) scale(${DRAG_OVERLAY_SCALE})`;
+  }, []);
+
+  const beginDragFromPending = useCallback((pointerX: number, pointerY: number) => {
+    const pending = pendingDragRef.current;
+    if (!pending) return;
+
+    setPressedSlotIndex(-1);
+    boardMetricsRef.current = pending.metrics;
+    dragAnchorRef.current = pending.anchor;
+    dragPointerIdRef.current = pending.pointerId;
+    hoverGridPosRef.current = null;
+    boardHandleRef.current?.setHoverLocation(null);
+    currentPointerPosRef.current = { x: pointerX, y: pointerY };
+
+    setDraggingPiece({ ...pending.piece, cells: pending.initCells });
+    setDragOriginIndex(pending.index);
+    applyDragOverlayTransform(pointerX, pointerY);
+
+    pendingDragRef.current = null;
+  }, [applyDragOverlayTransform]);
+
   const rotateActivePiece = useCallback(() => {
     if (!draggingPiece) return;
 
     setDraggingPiece(prev => {
       if (!prev) return null;
+      const metrics = boardMetricsRef.current;
       const nextRot = (prev.rotation + 1) % 4;
+      const nextCells = getRotatedCells(prev.type, nextRot);
+
+      if (metrics) {
+        const prevBounds = getPieceBounds(prev.cells);
+        const prevWidth = (prevBounds.maxX - prevBounds.minX + 1) * metrics.cell;
+        const prevHeight = (prevBounds.maxY - prevBounds.minY + 1) * metrics.cell;
+        const ratioX = prevWidth > 0 ? dragAnchorRef.current.x / prevWidth : 0.5;
+        const ratioY = prevHeight > 0 ? dragAnchorRef.current.y / prevHeight : 0.5;
+
+        const nextBounds = getPieceBounds(nextCells);
+        const nextWidth = (nextBounds.maxX - nextBounds.minX + 1) * metrics.cell;
+        const nextHeight = (nextBounds.maxY - nextBounds.minY + 1) * metrics.cell;
+        dragAnchorRef.current = {
+          x: Math.max(0, Math.min(nextWidth, ratioX * nextWidth)),
+          y: Math.max(0, Math.min(nextHeight, ratioY * nextHeight)),
+        };
+
+        if (currentPointerPosRef.current) {
+          applyDragOverlayTransform(currentPointerPosRef.current.x, currentPointerPosRef.current.y);
+        }
+      }
+
       return {
         ...prev,
         rotation: nextRot,
-        cells: getRotatedCells(prev.type, nextRot)
+        cells: nextCells,
       };
     });
-  }, [draggingPiece]);
+  }, [draggingPiece, getPieceBounds, applyDragOverlayTransform]);
 
   // --- Event Handlers: Drag & Drop ---
 
@@ -586,6 +708,7 @@ const App: React.FC = () => {
 
   // Memoized callback to prevent Slot re-renders
   const handlePointerDown = useCallback((e: React.PointerEvent, piece: Piece, index: number) => {
+    if (draggingPiece || pendingDragRef.current) return;
     const isSlidePhaseButSkippable = phase === Phase.SLIDE && canSkipSlide;
 
     // Animation/Input Lock Check (ref 기반: state 반영 전에도 즉시 차단)
@@ -599,59 +722,88 @@ const App: React.FC = () => {
       swipeStartRef.current = null;
     }
 
-    // Cache board metrics on drag start only
-    if (boardRef.current) {
-      const rect = boardRef.current.getBoundingClientRect();
-      const styles = window.getComputedStyle(boardRef.current);
-      const paddingLeft = parseFloat(styles.paddingLeft) || 0;
-      const paddingTop = parseFloat(styles.paddingTop) || 0;
-      const paddingRight = parseFloat(styles.paddingRight) || 0;
-      const paddingBottom = parseFloat(styles.paddingBottom) || 0;
-
-      const size = boardSize;
-      const innerWidth = rect.width - paddingLeft - paddingRight;
-      const innerHeight = rect.height - paddingTop - paddingBottom;
-      const totalGap = (size - 1) * BOARD_CELL_GAP_PX;
-      const cell = (innerWidth - totalGap) / size;
-      const pitch = cell + BOARD_CELL_GAP_PX;
-
-      boardMetricsRef.current = {
-        rectLeft: rect.left,
-        rectTop: rect.top,
-        paddingLeft,
-        paddingTop,
-        innerWidth,
-        innerHeight,
-        cell,
-        pitch,
-        size,
-      };
-    }
+    const metrics = readBoardMetrics();
+    if (!metrics) return;
 
     const initCells = getRotatedCells(piece.type, piece.rotation);
-
     dragPointerIdRef.current = e.pointerId;
-    setDraggingPiece({ ...piece, cells: initCells });
-    setDragOriginIndex(index);
+    setPressedSlotIndex(index);
+    pendingDragRef.current = {
+      pointerId: e.pointerId,
+      piece,
+      index,
+      startX: e.clientX,
+      startY: e.clientY,
+      initCells,
+      metrics,
+      anchor: getDragAnchorFromPointer(e.currentTarget as Element, e.clientX, e.clientY, initCells, metrics.cell),
+    };
+
+    setDragOriginIndex(-1);
     hoverGridPosRef.current = null;
     boardHandleRef.current?.setHoverLocation(null);
-
-    // Direct DOM: set initial drag position
+    latestPointerRef.current = null;
     currentPointerPosRef.current = { x: e.clientX, y: e.clientY };
 
-    if (dragOverlayRef.current) {
-      dragOverlayRef.current.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0) scale(${DRAG_OVERLAY_SCALE})`;
-    }
-
-    (e.target as Element).setPointerCapture(e.pointerId);
-  }, [phase, canSkipSlide, boardSize]);
+    (e.currentTarget as Element).setPointerCapture(e.pointerId);
+  }, [phase, canSkipSlide, draggingPiece, readBoardMetrics, getDragAnchorFromPointer]);
 
   // RAF 기반으로 포인터 이벤트를 1프레임에 1번으로 합쳐서(코얼레싱) 렌더/연산 폭주를 방지
   const rafIdRef = useRef<number | null>(null);
   const latestPointerRef = useRef<{ x: number; y: number } | null>(null);
+  const getGridPosFromPointer = useCallback((clientX: number, clientY: number) => {
+    const metrics = boardMetricsRef.current;
+    if (!metrics) return null;
+
+    const relativeX = clientX - metrics.rectLeft - metrics.paddingLeft;
+    const relativeY = clientY - metrics.rectTop - metrics.paddingTop;
+    const isOutside =
+      relativeX < 0 || relativeY < 0 || relativeX >= metrics.innerWidth || relativeY >= metrics.innerHeight;
+    if (isOutside) return null;
+
+    const maxIndex = metrics.size - 1;
+    return {
+      x: Math.max(0, Math.min(maxIndex, Math.round((relativeX - metrics.cell / 2) / metrics.pitch))),
+      y: Math.max(0, Math.min(maxIndex, Math.round((relativeY - metrics.cell / 2) / metrics.pitch))),
+    };
+  }, []);
+
+  const resetDraggingState = useCallback(() => {
+    if (rafIdRef.current) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+    latestPointerRef.current = null;
+    currentPointerPosRef.current = null;
+    pendingDragRef.current = null;
+    dragAnchorRef.current = { x: 0, y: 0 };
+    setPressedSlotIndex(-1);
+    setDraggingPiece(null);
+    setDragOriginIndex(-1);
+    dragPointerIdRef.current = null;
+    boardMetricsRef.current = null;
+    hoverGridPosRef.current = null;
+    boardHandleRef.current?.setHoverLocation(null);
+  }, []);
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (!draggingPiece || !boardMetricsRef.current) return;
+    if (dragPointerIdRef.current !== null && e.pointerId !== dragPointerIdRef.current) return;
+
+    if (!draggingPiece) {
+      const pending = pendingDragRef.current;
+      if (!pending || e.pointerId !== pending.pointerId) return;
+
+      const deltaX = e.clientX - pending.startX;
+      const deltaY = e.clientY - pending.startY;
+      if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < DRAG_START_THRESHOLD_PX) {
+        return;
+      }
+
+      beginDragFromPending(e.clientX, e.clientY);
+      return;
+    }
+
+    if (!boardMetricsRef.current) return;
     latestPointerRef.current = { x: e.clientX, y: e.clientY };
     if (rafIdRef.current) return;
 
@@ -660,20 +812,13 @@ const App: React.FC = () => {
       const metrics = boardMetricsRef.current;
       rafIdRef.current = null;
       if (!pointer || !metrics) return;
+      currentPointerPosRef.current = pointer;
 
       // Direct DOM manipulation for drag overlay (bypass React render)
-      if (dragOverlayRef.current) {
-        dragOverlayRef.current.style.transform = `translate3d(${pointer.x}px, ${pointer.y}px, 0) scale(${DRAG_OVERLAY_SCALE})`;
-      }
+      applyDragOverlayTransform(pointer.x, pointer.y);
 
-      // Grid position calculation (cached rect)
-      const relativeX = pointer.x - metrics.rectLeft - metrics.paddingLeft;
-      const relativeY = pointer.y - metrics.rectTop - metrics.paddingTop;
-
-      // 보드 바깥이면 ghost를 숨기고, 불필요한 업데이트를 막음
-      const isOutside =
-        relativeX < 0 || relativeY < 0 || relativeX > metrics.innerWidth || relativeY > metrics.innerHeight;
-      if (isOutside) {
+      const next = getGridPosFromPointer(pointer.x, pointer.y);
+      if (!next) {
         if (hoverGridPosRef.current) {
           hoverGridPosRef.current = null;
           boardHandleRef.current?.setHoverLocation(null);
@@ -681,13 +826,9 @@ const App: React.FC = () => {
         return;
       }
 
-      const gridX = Math.round((relativeX - metrics.cell / 2) / metrics.pitch);
-      const gridY = Math.round((relativeY - metrics.cell / 2) / metrics.pitch);
-
       const prev = hoverGridPosRef.current;
-      if (prev && prev.x === gridX && prev.y === gridY) return;
+      if (prev && prev.x === next.x && prev.y === next.y) return;
 
-      const next = { x: gridX, y: gridY };
       hoverGridPosRef.current = next;
       boardHandleRef.current?.setHoverLocation(next);
     });
@@ -720,11 +861,30 @@ const App: React.FC = () => {
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
+    if (pendingDragRef.current) {
+      if (dragPointerIdRef.current !== null && e.pointerId !== dragPointerIdRef.current) return;
+      swipeStartRef.current = null;
+      resetDraggingState();
+      return;
+    }
+
+    // 임계치 통과 직후 setState 반영 전 pointerup이 먼저 들어오는 레이스 방지
+    if (!draggingPiece && dragPointerIdRef.current !== null && e.pointerId === dragPointerIdRef.current) {
+      swipeStartRef.current = null;
+      resetDraggingState();
+      return;
+    }
+
     // 1. 드래그 중인 조각이 있다면 -> 조각 놓기 처리
     if (draggingPiece) {
+      if (dragPointerIdRef.current !== null && e.pointerId !== dragPointerIdRef.current) return;
       // 드래그 종료 시 스와이프 시작 좌표가 남아있으면 다음 입력에서 오동작 가능
       swipeStartRef.current = null;
-      const hover = hoverGridPosRef.current;
+
+      const metricsAtRelease = boardMetricsRef.current;
+      const releaseHover = getGridPosFromPointer(e.clientX, e.clientY);
+      const hover = releaseHover ?? (metricsAtRelease ? null : hoverGridPosRef.current);
+
       if (hover && boardRef.current) {
         if (canPlacePiece(grid, draggingPiece, hover.x, hover.y)) {
           // Undo를 위해 현재 상태 저장 (배치 전)
@@ -756,16 +916,7 @@ const App: React.FC = () => {
         }
       }
 
-      setDraggingPiece(null);
-      setDragOriginIndex(-1);
-      dragPointerIdRef.current = null;
-      boardMetricsRef.current = null; // Reset cache
-      hoverGridPosRef.current = null;
-      boardHandleRef.current?.setHoverLocation(null);
-      if (rafIdRef.current) {
-        cancelAnimationFrame(rafIdRef.current);
-        rafIdRef.current = null;
-      }
+      resetDraggingState();
       return;
     }
 
@@ -786,6 +937,18 @@ const App: React.FC = () => {
       }
     }
     swipeStartRef.current = null;
+  };
+
+  const handlePointerCancel = (e: React.PointerEvent) => {
+    if (!draggingPiece && !pendingDragRef.current) {
+      if (dragPointerIdRef.current !== null && e.pointerId === dragPointerIdRef.current) {
+        resetDraggingState();
+      }
+      return;
+    }
+    if (dragPointerIdRef.current !== null && e.pointerId !== dragPointerIdRef.current) return;
+    swipeStartRef.current = null;
+    resetDraggingState();
   };
 
   // --- Event Handlers: Swipe / Slide ---
@@ -990,12 +1153,7 @@ const App: React.FC = () => {
 
   // --- Render Helpers ---
 
-  const currentPointerPosRef = useRef<{ x: number, y: number } | null>(null);
-
-  // --- Handlers 수정: PointerDown에서 좌표 저장 ---
-  // (이 부분은 handlePointerDown 내부 수정이 필요하지만, 여기서는 renderDraggingPiece를 중심으로 수정하고 
-  // handlePointerDown은 별도로 수정하지 않아도 동작하게끔 리렌더링 사이클 활용)
-  // 단, 아래 코드는 renderDraggingPiece 함수 자체를 대체함.
+  // 드래그 오버레이는 React 상태 갱신 대신 ref + transform으로 위치를 갱신해 지연을 줄인다.
 
   const renderDraggingPiece = () => {
     if (!draggingPiece) return null;
@@ -1003,15 +1161,8 @@ const App: React.FC = () => {
     const cells = draggingPiece.cells;
     const cellSize = boardMetricsRef.current?.cell ?? 32;
     const cellAppearance = resolveTileAppearance(draggingPiece.value);
-
-    const minX = Math.min(...cells.map(c => c.x));
-    const maxX = Math.max(...cells.map(c => c.x));
-    const minY = Math.min(...cells.map(c => c.y));
-    const maxY = Math.max(...cells.map(c => c.y));
-
-    // 중심점 오프셋 계산 (고정값)
-    const centerOffsetX = ((minX + maxX) / 2 + 0.5) * cellSize;
-    const centerOffsetY = ((minY + maxY) / 2 + 0.5) * cellSize;
+    const { minX, minY } = getPieceBounds(cells);
+    const normalizedCells = cells.map((c) => ({ x: c.x - minX, y: c.y - minY }));
 
     return (
       <div
@@ -1020,21 +1171,13 @@ const App: React.FC = () => {
           // 마운트 직후 초기 위치 설정 (깜빡임 방지)
           if (el && currentPointerPosRef.current) {
             const { x, y } = currentPointerPosRef.current;
-            el.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${DRAG_OVERLAY_SCALE})`;
+            applyDragOverlayTransform(x, y);
           }
         }}
         className="fixed top-0 left-0 pointer-events-none z-50 opacity-90 will-change-transform"
-        style={{
-          // 초기 위치를 마이너스로 보내서 깜빡임 방지하거나, 
-          // 위 ref callback에서 즉시 설정되므로 0,0에 두고 transform으로 이동
-          marginTop: `-${centerOffsetY}px`,
-          marginLeft: `-${centerOffsetX}px`,
-          // 기본적으로 숨겨두고 JS로 위치 잡히면 보이게 할 수도 있음.
-          // 여기서는 transform으로 제어.
-        }}
       >
         <div className="relative">
-          {cells.map((c, i) => (
+          {normalizedCells.map((c, i) => (
             <div
               key={i}
               className={`
@@ -1379,6 +1522,7 @@ const App: React.FC = () => {
 
   const isPlacePhase = phase === Phase.PLACE;
   const isSwipePhase = phase === Phase.SLIDE;
+  const isSwipeFocusMode = isSwipePhase && !draggingPiece;
 
   // 새 규칙에서는 슬라이드 단계 동안 슬롯(배치 입력)을 잠근다.
   const isSlotDisabled = isSwipePhase || isAnimating;
@@ -1392,6 +1536,7 @@ const App: React.FC = () => {
         onPointerDown={handleScreenPointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
       >
         {/* Header */}
         <header
@@ -1432,7 +1577,10 @@ const App: React.FC = () => {
               <p className="text-3xl font-bold text-gray-900 tabular-nums">{score}</p>
             </div>
           </div>
-          <div className="flex flex-col items-end gap-2">
+          <div className={`
+            flex flex-col items-end gap-2 transition-all duration-200
+            ${isSwipeFocusMode ? 'opacity-35 grayscale pointer-events-none select-none' : 'opacity-100'}
+          `}>
             {/* Phase Indicator - Glass Pill */}
             <div className={`
             px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2 
@@ -1510,24 +1658,32 @@ const App: React.FC = () => {
           style={{ paddingBottom: 'calc(16px + var(--app-safe-bottom))' }}
         >
 
-          <Board
-            ref={boardHandleRef}
-            htmlId="game-board"
-            grid={grid}
-            phase={phase}
-            activePiece={draggingPiece}
-            boardRef={boardRef}
-            mergingTiles={mergingTiles}
-            valueOverrides={tileValueOverrides}
-            boardScale={boardScale}
-          />
+          <div className={`
+            transition-all duration-200
+            ${isSwipeFocusMode ? 'scale-[1.01] drop-shadow-[0_22px_40px_rgba(15,23,42,0.18)]' : 'scale-100'}
+          `}>
+            <Board
+              ref={boardHandleRef}
+              htmlId="game-board"
+              grid={grid}
+              phase={phase}
+              activePiece={draggingPiece}
+              boardRef={boardRef}
+              mergingTiles={mergingTiles}
+              valueOverrides={tileValueOverrides}
+              boardScale={boardScale}
+            />
+          </div>
 
 
           {/* Inventory Slots */}
           <div className={`
           w-full grid grid-cols-3 gap-4 
           transition-opacity duration-300
-          ${isSlotDisabled ? 'opacity-40 grayscale' : 'opacity-100'}
+          ${isSlotDisabled
+              ? (isSwipeFocusMode ? 'opacity-15 blur-[1px] grayscale pointer-events-none' : 'opacity-40 grayscale')
+              : 'opacity-100'
+            }
         `}>
             {slots.map((p, i) => (
               <Slot
@@ -1537,68 +1693,34 @@ const App: React.FC = () => {
                 htmlId={i === 0 ? 'slot-0' : undefined}
                 onPointerDown={handlePointerDown}
                 onRotate={rotateSlotPiece}
+                isPressed={pressedSlotIndex === i}
                 disabled={isSlotDisabled}
               />
             ))}
           </div>
 
-          {/* Turn Guide */}
-          <div className="w-full rounded-2xl border border-white/60 bg-white/65 backdrop-blur-sm px-4 py-3 shadow-sm">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-                {t('game:status.turnGuide')}
-              </span>
-              <span className={`
-                inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold
-                ${isPlacePhase
-                  ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                  : 'bg-slate-100 text-slate-700 border border-slate-200'
-                }
-              `}>
-                {isPlacePhase ? t('game:status.placeBadge') : t('game:status.swipeBadge')}
-              </span>
-            </div>
-            <p className="mt-1.5 text-sm text-gray-700 leading-relaxed">
-              {isPlacePhase ? t('game:status.placeDescription') : t('game:status.swipeDescription')}
-            </p>
-          </div>
-
-          {/* Hints */}
-          <div className="text-gray-500 text-sm text-center font-medium">
-            {draggingPiece ? (
-              <div className="flex items-center justify-center gap-2 text-gray-600">
-                <button
-                  type="button"
-                  data-rotate-button
-                  onPointerDown={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    rotateActivePiece();
-                  }}
-                  className="
-                    inline-flex items-center gap-1.5
-                    px-3 py-1.5 rounded-full
-                    bg-white/80 border border-white/70
-                    text-gray-700 text-xs font-semibold
-                    shadow-sm
-                    hover:bg-white
-                    transition-colors
-                  "
-                  aria-label={t('common:aria.rotateBlock')}
-                >
-                  <RotateCw size={14} />
-                  <span>{t('common:aria.rotateBlock')}</span>
-                </button>
-                <span className="text-xs text-gray-500">{t('game:hints.rotate')}</span>
-              </div>
-            ) : (
-              isPlacePhase ? t('game:hints.drag') : t('game:hints.swipe')
-            )}
-          </div>
-
-          {comboMessage && (
-            <div className="w-full rounded-xl border border-slate-200/80 bg-slate-50/80 px-3 py-2 text-center text-xs font-medium text-slate-700">
-              {comboMessage}
+          {draggingPiece && (
+            <div className="w-full flex items-center justify-center">
+              <button
+                type="button"
+                data-rotate-button
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  rotateActivePiece();
+                }}
+                className="
+                  inline-flex items-center justify-center
+                  w-9 h-9 rounded-full
+                  bg-white/80 border border-white/70
+                  text-gray-700 shadow-sm
+                  hover:bg-white
+                  transition-colors
+                "
+                aria-label={t('common:aria.rotateBlock')}
+              >
+                <RotateCw size={16} />
+              </button>
             </div>
           )}
 
@@ -1608,7 +1730,11 @@ const App: React.FC = () => {
         <HelpModal isOpen={showHelpModal} onClose={() => setShowHelpModal(false)} />
 
         {/* Ad Banner for Game Screen */}
-        <div className="w-full shrink-0 z-10 bg-white/50 backdrop-blur-sm border-t border-white/20">
+        <div className={`
+          w-full shrink-0 z-10 bg-white/50 backdrop-blur-sm border-t border-white/20
+          transition-opacity duration-200
+          ${isSwipeFocusMode ? 'opacity-20 pointer-events-none' : 'opacity-100'}
+        `}>
           <AdBanner />
         </div>
 

@@ -1,6 +1,16 @@
 {
   "gameOver": {
     "title": "游戏结束",
+    "reviveTitle": "再来一次",
+    "reviveDescription": "观看广告后可回到游戏结束前的上一手继续。",
+    "reviveButton": "看广告继续",
+    "reviveLoading": "正在打开广告...",
+    "reviveReadyHint": "每局仅可使用一次。",
+    "revivePreparingHint": "广告准备中，请稍候。",
+    "reviveUnavailable": "没有可用的复活记录，暂时无法继续。",
+    "reviveError": "广告加载失败，请稍后重试。",
+    "reviveDailyLimitReached": "今日复活广告次数已用完。",
+    "reviveSuccess": "复活成功！已回到游戏结束前一手。",
     "registerRanking": "注册排名",
     "backToMenu": "返回菜单"
   },

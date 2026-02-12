@@ -228,3 +228,8 @@ export const REWARD_UNDO_AMOUNT = 3;
  * 하루 최대 광고 시청 횟수 (남용 방지)
  */
 export const MAX_DAILY_AD_VIEWS = 5;
+
+/**
+ * 하루 최대 부활 광고 시청 횟수 (게임오버 보상형 전면)
+ */
+export const MAX_DAILY_REVIVE_AD_VIEWS = 2;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Trophy, Send, Check, X, Medal } from 'lucide-react';
+import { Trophy, Send, Check, Medal, RotateCcw } from 'lucide-react';
 import { rankingService } from '../services/rankingService';
 import { PLAYER_NAME_MAX_LENGTH, normalizePlayerName, validatePlayerName } from '../utils/playerName';
 import AdBanner from './AdBanner';
@@ -12,10 +12,26 @@ interface GameOverModalProps {
     duration: number;
     moves: number;
     playerName?: string;
+    canOfferRevive: boolean;
+    isReviveAdReady: boolean;
+    isReviveInProgress: boolean;
+    onWatchReviveAd: () => void;
     onClose: () => void;
 }
 
-export const GameOverModal: React.FC<GameOverModalProps> = ({ sessionId, score, difficulty, duration, moves, playerName, onClose }) => {
+export const GameOverModal: React.FC<GameOverModalProps> = ({
+    sessionId,
+    score,
+    difficulty,
+    duration,
+    moves,
+    playerName,
+    canOfferRevive,
+    isReviveAdReady,
+    isReviveInProgress,
+    onWatchReviveAd,
+    onClose,
+}) => {
     const { t } = useTranslation();
     const [step, setStep] = useState<'INITIAL' | 'REGISTER' | 'SUBMITTED'>('INITIAL');
     const [name, setName] = useState('');
@@ -113,6 +129,51 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({ sessionId, score, 
 
                         {/* Actions */}
                         <div className="flex flex-col gap-3 w-full pt-2">
+                            {canOfferRevive && (
+                                <div className="
+                  rounded-2xl border border-amber-200
+                  bg-gradient-to-br from-amber-50 to-yellow-50
+                  p-4 text-left
+                ">
+                                    <p className="text-xs font-bold uppercase tracking-widest text-amber-600">
+                                        {t('modals:gameOver.reviveTitle')}
+                                    </p>
+                                    <p className="mt-1 text-sm text-gray-700">
+                                        {t('modals:gameOver.reviveDescription')}
+                                    </p>
+                                    <button
+                                        onClick={onWatchReviveAd}
+                                        disabled={!isReviveAdReady || isReviveInProgress}
+                                        className="
+                      mt-3 w-full py-3 rounded-xl
+                      bg-amber-500 text-white font-bold
+                      shadow-md shadow-amber-500/25
+                      hover:bg-amber-600 hover:-translate-y-0.5
+                      disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0
+                      active:scale-[0.98]
+                      transition-all duration-200
+                    "
+                                    >
+                                        {isReviveInProgress ? (
+                                            <span className="flex items-center justify-center gap-2">
+                                                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                {t('modals:gameOver.reviveLoading')}
+                                            </span>
+                                        ) : (
+                                            <span className="flex items-center justify-center gap-2">
+                                                <RotateCcw size={16} />
+                                                {t('modals:gameOver.reviveButton')}
+                                            </span>
+                                        )}
+                                    </button>
+                                    <p className="mt-2 text-xs text-gray-500">
+                                        {isReviveAdReady
+                                            ? t('modals:gameOver.reviveReadyHint')
+                                            : t('modals:gameOver.revivePreparingHint')}
+                                    </p>
+                                </div>
+                            )}
+
                             <button
                                 onClick={() => setStep('REGISTER')}
                                 className="

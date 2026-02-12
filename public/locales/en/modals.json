@@ -1,6 +1,16 @@
 {
   "gameOver": {
     "title": "Game Over",
+    "reviveTitle": "One More Chance",
+    "reviveDescription": "Watch an ad to revive from one move before game over.",
+    "reviveButton": "Watch Ad to Continue",
+    "reviveLoading": "Opening ad...",
+    "reviveReadyHint": "You can use this once per run.",
+    "revivePreparingHint": "Preparing the ad. Please wait a moment.",
+    "reviveUnavailable": "No valid revive snapshot found for this run.",
+    "reviveError": "Failed to show the ad. Please try again shortly.",
+    "reviveDailyLimitReached": "You've reached today's revive ad limit.",
+    "reviveSuccess": "Revived! You're back one move before game over.",
     "registerRanking": "Register Score",
     "backToMenu": "Back to Menu"
   },

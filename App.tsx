@@ -49,7 +49,8 @@ import Terms from './pages/Terms';
 import About from './pages/About';
 import Contact from './pages/Contact';
 import { rewardAdService } from './services/rewardAdService';
-import { isRewardAdSupported } from './services/adConfig';
+import { rewardInterstitialAdService } from './services/rewardInterstitialAdService';
+import { isRewardAdSupported, isRewardInterstitialAdSupported } from './services/adConfig';
 import { REWARD_UNDO_AMOUNT } from './constants';
 
 const EMPTY_TILE_VALUE_OVERRIDES: Record<string, number> = {};
@@ -64,6 +65,14 @@ interface GameSnapshot {
   phase: Phase;
   canSkipSlide: boolean;
 }
+
+const cloneGameSnapshot = (snapshot: GameSnapshot): GameSnapshot => ({
+  grid: snapshot.grid.map((row) => row.map((tile) => (tile ? { ...tile } : null))),
+  slots: snapshot.slots.map((piece) => (piece ? { ...piece, cells: [...piece.cells] } : null)),
+  score: snapshot.score,
+  phase: snapshot.phase,
+  canSkipSlide: snapshot.canSkipSlide,
+});
 
 interface BoardMetrics {
   rectLeft: number;
@@ -401,6 +410,9 @@ const App: React.FC = () => {
 
   // 🆕 Reward Ad State
   const [isAdReady, setIsAdReady] = useState(false);
+  const [isReviveAdReady, setIsReviveAdReady] = useState(false);
+  const [isReviveAdInProgress, setIsReviveAdInProgress] = useState(false);
+  const [hasUsedReviveThisRun, setHasUsedReviveThisRun] = useState(false);
 
   // Check tutorial status on load
   useEffect(() => {
@@ -441,6 +453,7 @@ const App: React.FC = () => {
   const comboMessageTimeoutRef = useRef<number | null>(null);
   const dragPointerIdRef = useRef<number | null>(null);
   const currentPointerPosRef = useRef<{ x: number, y: number } | null>(null);
+  const reviveSnapshotRef = useRef<GameSnapshot | null>(null);
   const scoreRef = useRef<number>(score);
   const boardSizeRef = useRef<BoardSize>(boardSize);
   const playerNameRef = useRef<string>(playerName);
@@ -533,6 +546,9 @@ const App: React.FC = () => {
       // 구버전 저장 데이터의 canSkipSlide=true 상태는 로드 시 정규화한다.
       setCanSkipSlide(false);
       setUndoRemaining(saved.undoRemaining);
+      setHasUsedReviveThisRun(Boolean(saved.hasUsedRevive));
+      setIsReviveAdInProgress(false);
+      reviveSnapshotRef.current = null;
       if (saved.playerName) setPlayerName(saved.playerName);
       if (saved.sessionId) sessionIdRef.current = saved.sessionId;
       if (typeof saved.moveCount === 'number') moveCountRef.current = saved.moveCount;
@@ -554,6 +570,7 @@ const App: React.FC = () => {
           boardSize,
           canSkipSlide,
           undoRemaining,
+          hasUsedRevive: hasUsedReviveThisRun,
           sessionId: sessionIdRef.current,
           moveCount: moveCountRef.current,
           startedAt: gameStartTimeRef.current,
@@ -566,7 +583,7 @@ const App: React.FC = () => {
       // 게임 오버 시에만 저장된 게임 삭제 (메뉴로 돌아갈 때는 유지)
       clearGameState();
     }
-  }, [gameState, grid, slots, score, phase, boardSize, canSkipSlide, undoRemaining, playerName]);
+  }, [gameState, grid, slots, score, phase, boardSize, canSkipSlide, undoRemaining, hasUsedReviveThisRun, playerName]);
 
   useEffect(() => {
     const shouldLockScroll = gameState !== GameState.MENU;
@@ -652,6 +669,10 @@ const App: React.FC = () => {
     // Undo 초기화
     setLastSnapshot(null);
     setUndoRemaining(3);
+    setHasUsedReviveThisRun(false);
+    setIsReviveAdInProgress(false);
+    setIsReviveAdReady(false);
+    reviveSnapshotRef.current = null;
 
     // Anti-cheat: Start Timer & Session ID
     gameStartTimeRef.current = Date.now();
@@ -749,6 +770,62 @@ const App: React.FC = () => {
     });
   }, [t, showComboMessage]);
 
+  const handleWatchReviveAd = useCallback(() => {
+    if (isReviveAdInProgress) return;
+
+    const reviveSnapshot = reviveSnapshotRef.current;
+    if (!reviveSnapshot) {
+      alert(t('modals:gameOver.reviveUnavailable'));
+      return;
+    }
+
+    setIsReviveAdInProgress(true);
+
+    rewardInterstitialAdService.showReviveAd({
+      onRewardEarned: () => {
+        const snapshot = reviveSnapshotRef.current;
+        if (!snapshot) {
+          setIsReviveAdInProgress(false);
+          alert(t('modals:gameOver.reviveUnavailable'));
+          return;
+        }
+
+        // 부활: 게임오버 직전 1수 전 스냅샷으로 복구
+        setGrid(snapshot.grid);
+        setSlots(snapshot.slots);
+        setScore(snapshot.score);
+        setPhase(snapshot.phase);
+        setCanSkipSlide(snapshot.canSkipSlide);
+
+        setMergingTiles(EMPTY_MERGING_TILES);
+        setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
+        slideLockRef.current = false;
+        setIsAnimating(false);
+        setLastSnapshot(null);
+
+        setGameState(GameState.PLAYING);
+        setHasUsedReviveThisRun(true);
+        setIsReviveAdInProgress(false);
+        reviveSnapshotRef.current = null;
+        showComboMessage(String(t('modals:gameOver.reviveSuccess')), 1800);
+      },
+      onAdClosed: () => {
+        setIsReviveAdInProgress(false);
+        setIsReviveAdReady(rewardInterstitialAdService.isAdReady());
+      },
+      onError: (error) => {
+        console.error('[App] 보상형 전면 광고 오류:', error);
+        setIsReviveAdInProgress(false);
+        setIsReviveAdReady(rewardInterstitialAdService.isAdReady());
+        alert(t('modals:gameOver.reviveError'));
+      },
+      onDailyLimitReached: () => {
+        setIsReviveAdInProgress(false);
+        alert(t('modals:gameOver.reviveDailyLimitReached'));
+      },
+    });
+  }, [isReviveAdInProgress, showComboMessage, t]);
+
   // 🆕 광고 미리 로드 (게임 진행 중이고 되돌리기가 0일 때)
   useEffect(() => {
     if (!isRewardAdSupported()) return;
@@ -775,6 +852,33 @@ const App: React.FC = () => {
       setIsAdReady(false);
     }
   }, [gameState, undoRemaining]);
+
+  // 게임오버 부활용 보상형 전면 광고 미리 로드
+  useEffect(() => {
+    if (!isRewardInterstitialAdSupported()) return;
+
+    if (gameState === GameState.PLAYING && !hasUsedReviveThisRun) {
+      rewardInterstitialAdService.preloadAd();
+      setIsReviveAdReady(rewardInterstitialAdService.isAdReady());
+
+      const checkInterval = setInterval(() => {
+        const ready = rewardInterstitialAdService.isAdReady();
+        setIsReviveAdReady(ready);
+        if (ready) {
+          clearInterval(checkInterval);
+        }
+      }, 500);
+
+      return () => clearInterval(checkInterval);
+    }
+
+    if (gameState === GameState.MENU) {
+      rewardInterstitialAdService.cleanup();
+      setIsReviveAdReady(false);
+      setIsReviveAdInProgress(false);
+      reviveSnapshotRef.current = null;
+    }
+  }, [gameState, hasUsedReviveThisRun]);
 
   // Cleanup timers on unmount
   useEffect(() => {
@@ -1242,11 +1346,16 @@ const App: React.FC = () => {
     if (gameState === GameState.PLAYING && phase === Phase.PLACE) {
       const isOver = checkGameOver(grid, slots);
       if (isOver) {
+        reviveSnapshotRef.current = lastSnapshot ? cloneGameSnapshot(lastSnapshot) : null;
+        setIsReviveAdReady(rewardInterstitialAdService.isAdReady());
+        if (isRewardInterstitialAdSupported() && !rewardInterstitialAdService.isAdReady()) {
+          rewardInterstitialAdService.preloadAd();
+        }
         setGameState(GameState.GAME_OVER);
         if (score > highScore) setHighScore(score);
       }
     }
-  }, [phase, grid, slots, gameState, score, highScore, isAnimating]);
+  }, [phase, grid, slots, gameState, score, highScore, isAnimating, lastSnapshot]);
 
   // --- 자동 점수 업데이트 (10초마다) ---
   useEffect(() => {
@@ -1948,6 +2057,10 @@ const App: React.FC = () => {
             duration={Math.floor((Date.now() - gameStartTimeRef.current) / 1000)}
             moves={moveCountRef.current}
             playerName={playerName}
+            canOfferRevive={isRewardInterstitialAdSupported() && !hasUsedReviveThisRun && Boolean(reviveSnapshotRef.current)}
+            isReviveAdReady={isReviveAdReady}
+            isReviveInProgress={isReviveAdInProgress}
+            onWatchReviveAd={handleWatchReviveAd}
             onClose={() => setGameState(GameState.MENU)}
           />
         )}

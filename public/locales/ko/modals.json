@@ -1,6 +1,16 @@
 {
   "gameOver": {
     "title": "게임 오버",
+    "reviveTitle": "한 번 더 도전",
+    "reviveDescription": "광고를 보면 직전 1수 전 상태로 부활합니다.",
+    "reviveButton": "광고 보고 이어하기",
+    "reviveLoading": "광고 여는 중...",
+    "reviveReadyHint": "이번 게임에서는 1회만 사용할 수 있습니다.",
+    "revivePreparingHint": "광고 준비 중입니다. 잠시만 기다려주세요.",
+    "reviveUnavailable": "부활 가능한 기록이 없어 이어하기를 사용할 수 없습니다.",
+    "reviveError": "광고를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.",
+    "reviveDailyLimitReached": "오늘의 부활 광고 횟수를 모두 사용했습니다.",
+    "reviveSuccess": "부활 성공! 직전 한 수 전으로 돌아왔습니다.",
     "registerRanking": "랭킹 등록하기",
     "backToMenu": "메뉴로 돌아가기"
   },

@@ -37,6 +37,11 @@ export const APPS_IN_TOSS_AD_IDS = {
     ? 'ait.v2.live.f077d286af8d4300' // 앱인토스 리워드 광고 (되돌리기 기회 3회)
     : 'ait-ad-test-rewarded-id', // 테스트용 ID
 
+  // 보상형 전면 광고 (게임오버 부활)
+  REWARD_INTERSTITIAL_REVIVE: import.meta.env.MODE === 'production'
+    ? '' // TODO: 앱인토스 보상형 전면 광고 승인 후 실제 ID로 교체
+    : 'ait-ad-test-rewarded-interstitial-id', // 테스트용 ID
+
   // 전면형 광고 (게임 오버 후 등)
   INTERSTITIAL_GAMEOVER: import.meta.env.MODE === 'production'
     ? 'YOUR_PRODUCTION_INTERSTITIAL_AD_ID' // TODO: 승인 후 실제 ID로 교체
@@ -69,6 +74,10 @@ export const ADMOB_AD_IDS = {
     REWARD: import.meta.env.MODE === 'production'
       ? 'ca-app-pub-5319827978116991/4879909972' // ✅ 사용자 제공 Android 리워드 광고 ID
       : 'ca-app-pub-3940256099942544/5224354917', // Google 공식 테스트 ID
+    // 게임오버 부활용 보상형 전면 광고
+    REWARD_INTERSTITIAL: import.meta.env.MODE === 'production'
+      ? 'ca-app-pub-5319827978116991/5753319580' // ✅ 사용자 제공 Android 보상형 전면 광고 ID
+      : 'ca-app-pub-3940256099942544/5354046379', // Google 공식 테스트 ID
     INTERSTITIAL: import.meta.env.MODE === 'production'
       ? 'ca-app-pub-XXXXXXXXXXXXXXXX/ZZZZZZZZZZ' // TODO: AdMob 승인 후 교체
       : 'ca-app-pub-3940256099942544/1033173712', // Google 공식 테스트 ID
@@ -84,6 +93,10 @@ export const ADMOB_AD_IDS = {
     REWARD: import.meta.env.MODE === 'production'
       ? 'ca-app-pub-5319827978116991/7585964362' // ✅ 사용자 제공 iOS 리워드 광고 ID
       : 'ca-app-pub-3940256099942544/1712485313', // Google 공식 테스트 ID
+    // ✅ 사용자 제공 iOS 보상형 전면 광고 ID (게임오버 부활)
+    REWARD_INTERSTITIAL: import.meta.env.MODE === 'production'
+      ? 'ca-app-pub-5319827978116991/1969153095'
+      : 'ca-app-pub-3940256099942544/6978759866', // Google 공식 테스트 ID
     INTERSTITIAL: import.meta.env.MODE === 'production'
       ? 'ca-app-pub-XXXXXXXXXXXXXXXX/ZZZZZZZZZZ' // TODO: AdMob 승인 후 교체
       : 'ca-app-pub-3940256099942544/4411468910', // Google 공식 테스트 ID
@@ -140,6 +153,14 @@ export function detectAdPlatform(): AdPlatform {
  */
 export const CURRENT_AD_PLATFORM = detectAdPlatform();
 
+const isConfiguredAdUnitId = (adId: string): boolean => {
+  const normalized = adId.trim();
+  if (!normalized) return false;
+  if (normalized.includes('YOUR_PRODUCTION_')) return false;
+  if (normalized.includes('XXXXXXXXXXXXXXXX')) return false;
+  return true;
+};
+
 // ==========================================
 // 📌 플랫폼별 광고 ID 가져오기
 // ==========================================
@@ -194,6 +215,26 @@ export function getInterstitialAdId(): string {
 }
 
 /**
+ * 보상형 전면 광고 ID 가져오기 (게임오버 부활 전용)
+ */
+export function getRewardInterstitialAdId(): string {
+  if (SCREENSHOT_MODE) return '';
+  switch (CURRENT_AD_PLATFORM) {
+    case 'apps-in-toss':
+      return APPS_IN_TOSS_AD_IDS.REWARD_INTERSTITIAL_REVIVE;
+
+    case 'admob-android':
+      return ADMOB_AD_IDS.ANDROID.REWARD_INTERSTITIAL;
+
+    case 'admob-ios':
+      return ADMOB_AD_IDS.IOS.REWARD_INTERSTITIAL;
+
+    default:
+      return '';
+  }
+}
+
+/**
  * 🆕 배너 광고 ID 가져오기 (플랫폼별 분기 - 토스 인앱 리워드와 동일한 패턴)
  */
 export function getBannerAdId(): string {
@@ -234,6 +275,21 @@ export function isRewardAdSupported(): boolean {
 }
 
 /**
+ * 보상형 전면 광고 지원 여부
+ */
+export function isRewardInterstitialAdSupported(): boolean {
+  if (SCREENSHOT_MODE) return false;
+
+  const isSupportedPlatform = CURRENT_AD_PLATFORM === 'apps-in-toss'
+    || CURRENT_AD_PLATFORM === 'admob-ios'
+    || CURRENT_AD_PLATFORM === 'admob-android';
+
+  if (!isSupportedPlatform) return false;
+
+  return isConfiguredAdUnitId(getRewardInterstitialAdId());
+}
+
+/**
  * 배너 광고 지원 여부
  */
 export function isBannerAdSupported(): boolean {
@@ -259,6 +315,8 @@ if (import.meta.env.DEV) {
   console.log('[AdConfig] 현재 플랫폼:', CURRENT_AD_PLATFORM);
   console.log('[AdConfig] 리워드 광고 ID:', getRewardAdId());
   console.log('[AdConfig] 리워드 광고 지원:', isRewardAdSupported());
+  console.log('[AdConfig] 보상형 전면 광고 ID:', getRewardInterstitialAdId());
+  console.log('[AdConfig] 보상형 전면 광고 지원:', isRewardInterstitialAdSupported());
   console.log('[AdConfig] 배너 광고 ID:', getBannerAdId());
   console.log('[AdConfig] 배너 광고 지원:', isBannerAdSupported());
 }

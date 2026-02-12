@@ -25,6 +25,7 @@ export interface SavedGameState {
     boardSize: BoardSize;
     canSkipSlide: boolean;
     undoRemaining: number;
+    hasUsedRevive?: boolean;
     sessionId?: string;
     moveCount?: number;
     startedAt?: number;
@@ -84,8 +85,9 @@ export function loadGameState(): SavedGameState | null {
         const moveCount = typeof parsed.moveCount === 'number' ? parsed.moveCount : undefined;
         const startedAt = typeof parsed.startedAt === 'number' ? parsed.startedAt : undefined;
         const playerName = typeof parsed.playerName === 'string' ? parsed.playerName : undefined;
+        const hasUsedRevive = typeof parsed.hasUsedRevive === 'boolean' ? parsed.hasUsedRevive : undefined;
 
-        return { ...parsed, sessionId, moveCount, startedAt, playerName };
+        return { ...parsed, sessionId, moveCount, startedAt, playerName, hasUsedRevive };
     } catch (e) {
         console.warn('[GameStorage] 게임 로드 실패:', e);
         return null;

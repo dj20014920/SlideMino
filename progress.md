@@ -218,6 +218,62 @@ Original prompt: 게임 진행 화면(iPhone 포함)에서 광고 배너가 메�
   - 오버레이 시각 강화: `drop-shadow`, `ring`, `opacity-100`.
   - 회전/초기 마운트/이동 시 동일한 포인터 추종 transform 경로 사용.
 - 빌드 검증:
+
+## 2026-02-13 추가 작업 로그 (게임오버 부활 보상형 전면 광고 iOS 연동)
+- 사용자 제공 AdMob iOS 보상형 전면 광고 ID 반영:
+  - `/Users/dj/Desktop/SlideMino/services/adConfig.ts`
+  - iOS `REWARD_INTERSTITIAL` 프로덕션 ID: `ca-app-pub-5319827978116991/1969153095`
+- 신규 서비스 추가:
+  - `/Users/dj/Desktop/SlideMino/services/rewardInterstitialAdService.ts`
+  - 기능: preload/show, AdMob/Apps-in-Toss 분기, 중복 보상 방지, 일일 한도(`MAX_DAILY_REVIVE_AD_VIEWS=2`)
+- 게임오버 부활 UX/로직 연동:
+  - `/Users/dj/Desktop/SlideMino/App.tsx`
+    - 게임오버 직전 스냅샷을 `reviveSnapshotRef`로 저장
+    - 광고 보상 수령 시 직전 1수 전 상태로 복구 (grid/slots/score/phase)
+    - 한 판 1회 제한(`hasUsedReviveThisRun`)
+  - `/Users/dj/Desktop/SlideMino/components/GameOverModal.tsx`
+    - “광고 보고 이어하기” 카드/버튼 추가
+- 저장 상태 보강:
+  - `/Users/dj/Desktop/SlideMino/services/gameStorage.ts`
+  - `hasUsedRevive` 저장/복원 추가(앱 재실행 후에도 한 판 1회 제한 유지)
+- 기존 리워드 서비스 안전 보강:
+  - `/Users/dj/Desktop/SlideMino/services/rewardAdService.ts`
+  - `cleanup()`에서 `AdMob.removeAllListeners()` 제거 (부활 광고 서비스 리스너 충돌 방지)
+- 다국어 문구 추가:
+  - `/Users/dj/Desktop/SlideMino/public/locales/{ko,en,ja,zh}/modals.json`
+  - revive 관련 title/description/button/error/success 문구 추가
+
+## 2026-02-13 검증 로그
+- 정적 검증:
+  - `npx tsc --noEmit` 성공
+  - `npm run build` 성공
+- 스킬 기반 Playwright 검증:
+  - 스킬 클라이언트 실행:
+    - `/Users/dj/.codex/skills/develop-web-game/scripts/web_game_playwright_client.js`
+  - 산출물:
+    - `/Users/dj/Desktop/SlideMino/screenshots/revive-flow/shot-0.png`
+    - `/Users/dj/Desktop/SlideMino/screenshots/revive-flow/errors-0.json`
+  - 관찰:
+    - 웹 환경에서는 `isRewardInterstitialAdSupported()`가 false이므로 부활 카드 미노출(정상)
+    - 기존 콘솔 warning 1건(`React.Fragment ... ref`) 관측, 이번 변경과 직접 연관 없음
+
+## TODO / 후속 제안
+- iOS 실기기 검증 필수:
+  - 게임오버 → 부활 광고 → 1수 복구 동작
+  - 스킵/실패/일일한도(2회) 메시지 확인
+- Android 보상형 전면 광고 ID 발급 후 `services/adConfig.ts`의 `ANDROID.REWARD_INTERSTITIAL` 채우기
+- Apps-in-Toss 보상형 전면 ID 발급 시 `APPS_IN_TOSS_AD_IDS.REWARD_INTERSTITIAL_REVIVE` 채우기
+
+## 2026-02-13 추가 보강 로그 (Android 보상형 전면 광고 ID 반영)
+- 사용자 제공 Android 보상형 전면 광고 ID 반영 완료:
+  - `/Users/dj/Desktop/SlideMino/services/adConfig.ts`
+  - `ADMOB_AD_IDS.ANDROID.REWARD_INTERSTITIAL = ca-app-pub-5319827978116991/5753319580`
+- Android App ID 점검:
+  - `/Users/dj/Desktop/SlideMino/android/app/src/main/AndroidManifest.xml`
+  - `ca-app-pub-5319827978116991~4475378070` 유지 확인
+- 검증:
+  - `npx tsc --noEmit` 성공
+  - `npm run build` 성공
   - `npm run build` 성공.
 - 비고:
   - 현재 Playwright MCP 세션은 로딩/광고/상호작용 레이어 영향으로 포인터 드래그 자동검증 신뢰도가 낮아, 실제 사용 시나리오(모바일 터치) 기준으로 추가 체감 확인 필요.

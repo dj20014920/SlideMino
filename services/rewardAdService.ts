@@ -583,12 +583,6 @@ class RewardAdService {
     this.isProcessingShow = false;
     this.sessionManager.clearSession();
 
-    // AdMob 리스너 제거 (타입 정의에 없지만 런타임에서는 동작)
-    if (CURRENT_AD_PLATFORM === 'admob-ios' || CURRENT_AD_PLATFORM === 'admob-android') {
-      // @ts-expect-error - removeAllListeners는 Capacitor 플러그인 표준 메서드이나 타입 정의 누락
-      AdMob.removeAllListeners?.();
-    }
-
     console.log('[RewardAdService] 리소스 정리');
   }
 }

@@ -1,6 +1,16 @@
 {
   "gameOver": {
     "title": "ゲームオーバー",
+    "reviveTitle": "もう一度チャレンジ",
+    "reviveDescription": "広告を視聴すると、ゲームオーバー直前の1手前に復帰します。",
+    "reviveButton": "広告を見て続ける",
+    "reviveLoading": "広告を開いています...",
+    "reviveReadyHint": "このゲーム中は1回だけ使えます。",
+    "revivePreparingHint": "広告を準備中です。しばらくお待ちください。",
+    "reviveUnavailable": "復帰できる記録が見つからないため続行できません。",
+    "reviveError": "広告を表示できませんでした。しばらくしてから再試行してください。",
+    "reviveDailyLimitReached": "本日の復帰広告の上限に達しました。",
+    "reviveSuccess": "復帰成功! ゲームオーバー直前の1手前に戻りました。",
     "registerRanking": "ランキング登録",
     "backToMenu": "メニューに戻る"
   },

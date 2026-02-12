@@ -116,7 +116,7 @@ This codebase intentionally **separates web and native app ad stacks**:
 Fully optimized for mobile devices using:
 - Touch gestures for dragging and swiping
 - Responsive design (works on phones/tablets)
-- PWA support for install-to-homescreen
+- Install-to-homescreen metadata via `manifest.json` (service worker/offline app shell not enabled)
 
 ## 🚀 Deployment
 

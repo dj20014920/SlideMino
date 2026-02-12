@@ -51,5 +51,17 @@
     "error": "広告を読み込めません。\nしばらくしてから再度お試しください。",
     "dailyLimitReached": "本日の広告視聴回数に達しました。\n明日また試してください。",
     "notSupported": "現在の環境では広告機能がサポートされていません。"
+  },
+  "tutorial": {
+    "swipeBack": "右にスワイプして戻る",
+    "tapToDismiss": "タップして閉じる",
+    "recommendTitle": "最初のプレイはここから！",
+    "recommendDesc": "最初のプレイは標準の5×5モードがおすすめです。",
+    "modeGuideTitle": "モード早見表",
+    "modeGuideBeginner": "初心者 7×7: 空きが多く、ミスを立て直しやすい。",
+    "modeGuideNormal": "ノーマル 5×5: バランス型。最初のプレイに最適。",
+    "modeGuideExpert": "エキスパート 4×4: 盤面が詰まりやすい高難度。",
+    "tapToDismissMode": "この吹き出しをタップすると閉じます。",
+    "close": "閉じる"
   }
 }

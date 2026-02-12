@@ -365,3 +365,48 @@ Original prompt: 게임 진행 화면(iPhone 포함)에서 광고 배너가 메�
   - `plutil -p ios/App/App/Info.plist`로 4방향 복원 확인
   - `npm run build` 성공
   - `npm run cap:sync` 성공
+
+## 2026-02-11 추가 작업 로그 (모바일 온보딩 말풍선 잘림 근본 수정)
+- 재현/원인 확정:
+  - `components/GameModeTutorial.tsx` 기존 구현이 타겟 버튼 우측(`left/right` 고정) 배치라 모바일에서 말풍선이 화면 밖으로 벗어남.
+  - Playwright 모바일 계측(320x568) 패치 전 수치: `bubble.left=290, right=546`로 `right overflow=true` 재현.
+- 구조 개선:
+  - `components/GameModeTutorial.tsx`를 위/아래 배치 전용 구조로 재작성.
+  - 뷰포트 클램프(가로 폭, 세로 위치), 실제 말풍선 높이 측정(ResizeObserver), 리사이즈/회전/스크롤 추적 추가.
+  - 모바일 환경에서 `position: fixed` 컨테이너의 실제 오프셋(top)까지 반영해 세로 잘림을 제거.
+  - 말풍선에 모드 차이(뉴비 7x7 / 일반 5x5 / 고수 4x4)와 첫 게임 5x5 추천 문구를 추가.
+  - 말풍선 탭 및 닫기 버튼으로 dismiss 가능하도록 개선(`tutorial_game_mode_seen_v1` 저장).
+- 뒤로가기 온보딩 보강:
+  - `components/BackNavigationTutorial.tsx`를 반응형으로 조정.
+  - 스와이프 거리 동적 계산, 하단 말풍선 safe-area 대응(bottom clamp), 소형 화면 텍스트/폭 클램프 적용.
+- 다국어 보강:
+  - `public/locales/{ko,en,ja,zh}/game.json`에 `tutorial.*` 키를 추가/확장.
+  - 신규 키: `recommend*`, `modeGuide*`, `tapToDismissMode`, `close`.
+- 검증:
+  - `npm run build` 성공.
+  - Playwright 모바일 검증 결과:
+    - 390x844: GameMode/BackNav 말풍선 `out=false`.
+    - 320x568: GameMode/BackNav 말풍선 `out=false`.
+    - 360x740: GameMode 말풍선 `out=false`.
+  - 스크린샷 확인:
+    - 기존 잘림(재현): `.../page-2026-02-11T04-29-18-258Z.png`
+    - 수정 후(320x568 메뉴): `.../page-2026-02-11T04-41-39-614Z.png`
+    - 수정 후(320x568 뒤로가기): `.../page-2026-02-11T04-42-25-325Z.png`
+
+## 2026-02-12 추가 작업 로그 (오프라인/온라인 동작 점검)
+- 범위: 웹/네이티브 공통 코드 전수 탐색 후 오프라인/온라인 동작 교차검증.
+- 정적 분석:
+  - 서비스워커 등록 코드 부재(`index.tsx`) 및 PWA 플러그인 부재(`vite.config.ts`) 확인.
+  - 랭킹/점수 동기화는 `services/rankingService.ts`에서 `navigator.onLine` + localStorage 큐/캐시로 처리됨.
+  - 게임 진행 상태는 `services/gameStorage.ts` localStorage 저장/복원으로 유지됨.
+- 실측 검증(프로덕션 빌드 + preview):
+  - 같은 세션에서 오프라인 전환 후 게임 플레이 지속 가능.
+  - 오프라인 랭킹 모달에서 오프라인 안내 문구 표시 확인.
+  - 오프라인 상태에서 새로고침 시 `chrome-error://chromewebdata` / `ERR_INTERNET_DISCONNECTED` 확인(웹 앱 셸 오프라인 부팅 불가).
+  - 오프라인 플레이 중 `slidemino_pending_scores_v1` 큐 적재 확인, 온라인 복귀 시 flush 동작 확인.
+- 문구 정합성 수정:
+  - `pages/About.tsx`: 오프라인 설명을 "웹 세션 유지 시 가능 / 새로고침·신규 접속 불가(서비스워커 없음) / 네이티브 설치 후 오프라인 가능"으로 보정.
+  - `README.md`: "PWA support" 문구를 manifest 기반 설치 메타데이터로 정확화.
+
+## 후속 권장
+- 사용자 혼선을 줄이기 위해 메뉴 또는 설정에 "오프라인 상태 배지 + 기능 제한(랭킹/광고)" 안내를 추가 검토.

@@ -25,9 +25,10 @@ import {
 import { Board, type BoardHandle } from './components/Board';
 import { Slot } from './components/Slot';
 import { BlockCustomizationModal } from './components/BlockCustomizationModal';
-import { Undo2, Home, RotateCw, Move, Palette, Lock, Trophy, HelpCircle } from 'lucide-react';
+import { Undo2, Home, RotateCw, Move, Palette, Lock, Trophy, HelpCircle, RotateCcw } from 'lucide-react';
 
 import { GameOverModal } from './components/GameOverModal';
+import { GameModeTutorial } from './components/GameModeTutorial';
 import { LeaderboardModal } from './components/LeaderboardModal';
 import { NameInputModal } from './components/NameInputModal';
 import { TutorialOverlay } from './components/TutorialOverlay';
@@ -338,9 +339,13 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (!shouldBlockLandscapeOnWeb) return;
-    if (typeof screen === 'undefined' || !screen.orientation?.lock) return;
+    if (typeof screen === 'undefined') return;
+    const orientationApi = screen.orientation as ScreenOrientation & {
+      lock?: (orientation: 'portrait') => Promise<void>;
+    };
+    if (!orientationApi.lock) return;
 
-    screen.orientation.lock('portrait').catch(() => {
+    orientationApi.lock('portrait').catch(() => {
       // 브라우저 정책(사용자 제스처/전체화면 요구)으로 실패할 수 있음.
       // 실패 시에는 가로모드 차단 오버레이로 UX를 보장한다.
     });
@@ -389,6 +394,7 @@ const App: React.FC = () => {
 
   // Tutorial State: 0=Off, 1=Drag, 2=Swipe
   const [tutorialStep, setTutorialStep] = useState<number>(0);
+  const [tutorialResetKey, setTutorialResetKey] = useState(0);
 
   // Help Modal
   const [showHelpModal, setShowHelpModal] = useState(false);
@@ -1459,7 +1465,11 @@ const App: React.FC = () => {
 
             {/* 일반 - 5×5 */}
             <button
-              onClick={() => tryStartGame(5)}
+              id="mode-btn-beginner"
+              onClick={() => {
+                tryStartGame(5);
+                localStorage.setItem('tutorial_game_mode_seen_v1', 'true');
+              }}
               className="
               relative group w-full py-4 px-6 rounded-2xl
               bg-gradient-to-br from-blue-600 to-blue-700
@@ -1589,6 +1599,45 @@ const App: React.FC = () => {
 
             {/* Language Switcher */}
             <LanguageSwitcher />
+
+            {/* Replay Tutorial Button */}
+            <button
+                onClick={() => {
+                  localStorage.removeItem('tutorial_back_nav_seen_v1');
+                  localStorage.removeItem('tutorial_game_mode_seen_v1');
+                  localStorage.removeItem('tutorial_completed'); // Reset game tutorial too
+                  setTutorialResetKey(prev => prev + 1);
+                  setTutorialStep(1); // Enable game Drag tutorial if they start game immediately
+                  
+                  // Show feedback toast or alert?
+                  // Simple alert for clarity or just button feedback.
+                  // Let's use window.alert for now or just visual feedback.
+                  // Or just let the UI react (GameModeTutorial will appear).
+                  const btn = document.getElementById('replay-tutorial-btn');
+                  if(btn) {
+                    btn.innerText = "✨ " + t('common:actions.resetDone', '리셋 완료!');
+                    setTimeout(() => {
+                        if(btn) btn.innerText = t('common:actions.replayTutorial', '튜토리얼 다시보기');
+                    }, 1500);
+                  }
+                }}
+                id="replay-tutorial-btn"
+                className="
+                  w-full py-3.5 px-6 rounded-2xl
+                  bg-white/30 backdrop-blur-sm
+                  border border-white/20
+                  text-gray-600 hover:text-gray-900
+                  hover:bg-white/50 hover:-translate-y-0.5
+                  active:translate-y-0 active:shadow-sm
+                  transition-all duration-200 ease-out
+                  shadow-sm
+                  text-sm font-semibold
+                  flex items-center justify-center gap-2
+                "
+              >
+              <RotateCcw size={14} />
+              {t('common:actions.replayTutorial', '튜토리얼 다시보기')}
+            </button>
           </div>
 
           {/* 푸터 네비게이션 - 앱인토스에서는 숨김 (불필요한 영역 제거) */}
@@ -1653,6 +1702,8 @@ const App: React.FC = () => {
             onClose={() => setIsNameInputOpen(false)}
             onSubmit={handleNameSubmit}
           />
+          
+          <GameModeTutorial key={tutorialResetKey} />
         </div>
       </>
     );

@@ -198,7 +198,7 @@ const About: React.FC = () => {
             <li><strong>Technology:</strong> Built with React, TypeScript, and Vite</li>
             <li><strong>Supported Browsers:</strong> Chrome, Firefox, Safari, Edge (latest versions)</li>
             <li><strong>Mobile Support:</strong> Fully responsive design for tablets and smartphones</li>
-            <li><strong>Offline Play:</strong> Game mechanics work offline after initial load</li>
+            <li><strong>Offline Play:</strong> Web: playable in the current loaded session; reload/new visit requires network (no service worker). Native app: core gameplay works offline after install.</li>
             <li><strong>Data Storage:</strong> Browser local storage (no server account needed for single-player)</li>
           </ul>
 
@@ -370,8 +370,9 @@ const About: React.FC = () => {
           <div className="faq-item">
             <h3>Q: Can I play offline?</h3>
             <p>
-              <strong>A:</strong> After the initial page load, the core game mechanics work offline. However, 
-              you'll need an internet connection to submit scores to leaderboards and view advertisements.
+              <strong>A:</strong> On the web, core gameplay continues offline only while the already-loaded session stays open. 
+              If you refresh or open the site from a new tab while offline, the app cannot boot because there is no service worker cache. 
+              In the native app build (iOS/Android), core gameplay works offline after installation. In both cases, leaderboard sync and ads require internet.
             </p>
           </div>
         </section>

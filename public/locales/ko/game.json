@@ -51,5 +51,17 @@
     "error": "광고를 불러올 수 없습니다.\n잠시 후 다시 시도해주세요.",
     "dailyLimitReached": "오늘의 광고 시청 횟수를 모두 사용했습니다.\n내일 다시 시도해주세요.",
     "notSupported": "현재 환경에서는 광고 기능이 지원되지 않습니다."
+  },
+  "tutorial": {
+    "swipeBack": "오른쪽으로 스와이프하여 뒤로가기",
+    "tapToDismiss": "터치하여 닫기",
+    "recommendTitle": "첫 게임은 여기서 시작하세요!",
+    "recommendDesc": "처음 플레이는 기본 5×5 모드를 추천합니다.",
+    "modeGuideTitle": "모드 한눈에 보기",
+    "modeGuideBeginner": "뉴비 7×7: 공간이 넓어 실수 복구가 쉽습니다.",
+    "modeGuideNormal": "일반 5×5: 표준 밸런스, 첫 게임 추천 모드입니다.",
+    "modeGuideExpert": "고수 4×4: 공간이 빨리 막히는 고난도 모드입니다.",
+    "tapToDismissMode": "말풍선을 터치하면 닫힙니다.",
+    "close": "닫기"
   }
 }

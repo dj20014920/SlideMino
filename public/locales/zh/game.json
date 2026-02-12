@@ -51,5 +51,17 @@
     "error": "无法加载广告。\n请稍后重试。",
     "dailyLimitReached": "今日广告观看次数已达上限。\n请明天再试。",
     "notSupported": "当前环境不支持广告功能。"
+  },
+  "tutorial": {
+    "swipeBack": "向右滑动返回",
+    "tapToDismiss": "点击关闭",
+    "recommendTitle": "第一局建议从这里开始！",
+    "recommendDesc": "首次游玩推荐使用默认的 5×5 模式。",
+    "modeGuideTitle": "模式速览",
+    "modeGuideBeginner": "新手 7×7：空间更大，失误后更容易恢复。",
+    "modeGuideNormal": "普通 5×5：平衡默认模式，最适合第一局。",
+    "modeGuideExpert": "专家 4×4：空间紧张，难度更高。",
+    "tapToDismissMode": "点击此气泡可关闭。",
+    "close": "关闭"
   }
 }

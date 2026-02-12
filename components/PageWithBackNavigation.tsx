@@ -2,6 +2,7 @@ import React, { useEffect, useRef, ComponentType } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { navigateTo } from '../utils/routing';
 import { isNativeApp } from '../utils/platform';
+import { BackNavigationTutorial } from './BackNavigationTutorial';
 
 /**
  * 뒤로가기 기능을 제공하는 고차 컴포넌트(HOC)
@@ -149,12 +150,8 @@ export function withBackNavigation<P extends object>(
         {/* 원래 페이지 컴포넌트 */}
         <WrappedComponent {...props} />
 
-        {/* 스와이프 힌트 (네이티브 앱에서만 표시, 첫 방문 시) */}
-        {isNativeApp() && (
-          <div className="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-full text-sm opacity-0 animate-fade-in-out pointer-events-none">
-            👉 오른쪽으로 스와이프하여 돌아가기
-          </div>
-        )}
+        {/* 뒤로가기 제스처 튜토리얼 (Ghost Hand) */}
+        <BackNavigationTutorial />
       </div>
     );
   };

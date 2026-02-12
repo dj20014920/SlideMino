@@ -1,4 +1,8 @@
 {
+  "actions": {
+    "replayTutorial": "튜토리얼 다시보기",
+    "resetDone": "리셋 완료!"
+  },
   "buttons": {
     "confirm": "확인",
     "cancel": "취소",

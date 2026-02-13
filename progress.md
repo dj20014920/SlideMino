@@ -676,3 +676,182 @@ Original prompt: 게임 진행 화면(iPhone 포함)에서 광고 배너가 메�
   - localStorage 상태:
     - `slidemino_game_state_v1` 존재
     - `{ gameState: 'PLAYING', score: 42, phase: 'PLACE', hasUsedRevive: true }`
+
+## 2026-02-13 추가 작업 로그 (드래그 중 상하 흔들림 UX 개선)
+- 사용자 요청: "블럭 미리보기에서 블럭을 잡아 그리드에 배치할 때 UI가 위아래로 움직이는 듯한 모션 제거".
+- 전역 분석 결론(UI/UX 분리):
+  - UI 원인(주): `App.tsx`에서 `draggingPiece`일 때만 하단 회전 버튼 행이 조건부 렌더되어 레이아웃이 변형될 수 있는 구조.
+  - UX 원인(보조): 슬롯/드래그 상태의 스케일 변환(`scale`)이 드래그 체감에서 "떠오르거나 출렁이는" 느낌을 강화.
+- 수정 내용(최소 변경):
+  - `/Users/dj/Desktop/SlideMino/App.tsx`
+    - `DRAG_OVERLAY_SCALE`을 `1.04 -> 1`로 조정(드래그 오버레이 확대 모션 제거).
+    - 회전 버튼 영역을 상시 `h-9` 컨테이너로 고정하고, 드래그 중에만 `opacity/pointer-events`로 표시 전환.
+      - 결과: 드래그 시작/종료 시 레이아웃 재배치(조건부 행 추가/삭제) 제거.
+  - `/Users/dj/Desktop/SlideMino/components/Slot.tsx`
+    - `isPressed`의 `scale-[1.01]` 제거.
+    - 기본 상태의 `active:scale-[0.99]` 제거.
+      - 결과: 슬롯 프리뷰 자체의 미세 상하 스케일 모션 제거.
+- 검증:
+  - DOM 계측(Chrome DevTools 자동화): 드래그 전/중 `mainHeight`, `mainBottom`, `boardTop` 변화량 모두 `0` 확인.
+  - 드래그 오버레이 인라인 transform 확인: `scale(1)` 적용 확인.
+  - 시각 캡처: `/Users/dj/Desktop/SlideMino/screenshots/drag-ui-stabilized-20260213.png`
+  - 스킬 클라이언트 실행: `node "$WEB_GAME_CLIENT" --url http://127.0.0.1:5176 --actions-file "$WEB_GAME_ACTIONS" --iterations 1 --pause-ms 200` 실행 완료.
+    - 산출물: `/Users/dj/Desktop/SlideMino/output/web-game/shot-0.png`, `/Users/dj/Desktop/SlideMino/output/web-game/errors-0.json`
+  - 빌드 검증: `npm run build` 성공.
+
+## 2026-02-13 추가 작업 로그 (스와이프 포커스 중 Undo 터치 불가 버그 수정)
+- 사용자 요청: 스와이프 포커스 모드에서 그리드만 터치되고 Undo 버튼이 눌리지 않는 문제 수정.
+- 근본 원인:
+  - `/Users/dj/Desktop/SlideMino/App.tsx` 헤더 우측 컨트롤 래퍼에
+    `isSwipeFocusMode`일 때 `pointer-events-none`이 적용되어,
+    Undo 버튼까지 이벤트가 차단됨.
+- 수정 내용(최소 변경):
+  - `/Users/dj/Desktop/SlideMino/App.tsx`
+    - 우측 컨트롤 래퍼에서 `pointer-events-none` 제거.
+    - 스와이프 포커스 제한은 요소 단위로 분리:
+      - 상태 Pill: `opacity-35 grayscale pointer-events-none`
+      - 도움말 버튼: `opacity-35 grayscale pointer-events-none`
+      - 보상광고 버튼: `opacity-35 grayscale pointer-events-none`
+    - Undo 버튼은 `pointer-events-auto`를 명시해 스와이프 모드에서도 터치 가능하게 유지.
+- 검증:
+  - `npm run build` 성공.
+  - 런타임 상태 주입(`phase='SLIDE'`) 후 DOM 계측:
+    - 우측 컨트롤 래퍼 `pointerEvents='auto'`
+    - 도움말 버튼 `pointerEvents='none'`
+    - Undo 버튼 `pointerEvents='auto'` 확인.
+
+## 2026-02-13 추가 재작업 로그 (스와이프 모드 Undo/슬롯 가시성 재검증 및 보강)
+- 사용자 피드백 반영: "슬롯 미리보기가 사라져 보이고, Undo가 포커스되지 않는다" 재검증.
+- 재현/분석:
+  - 스와이프 모드 슬롯 컨테이너가 `opacity-15 + blur`로 처리되어 저대비 배경에서 사실상 소실처럼 보임.
+  - Undo 포커스 자체와 별개로, 저장 복원 경로에서 `undoRemaining`은 남아 있는데 `lastSnapshot`이 없어 버튼이 disabled가 되는 불일치 가능성 확인.
+- 수정:
+  1) `/Users/dj/Desktop/SlideMino/App.tsx`
+     - 스와이프 모드 슬롯 비활성 스타일을 `opacity-100 pointer-events-none`으로 변경(가시성 유지, 입력만 차단).
+     - Undo 버튼에 `onPointerDown`에서 `stopPropagation()` 추가(루트 스와이프 핸들러와 포인터 경합 방지).
+  2) `/Users/dj/Desktop/SlideMino/services/gameStorage.ts`
+     - `lastSnapshot` 영속화 필드(`StoredUndoSnapshot`) 추가.
+     - 로드 시 snapshot 유효성 검사 추가.
+     - snapshot이 없는 저장 데이터는 `undoRemaining=0`으로 정규화(숫자는 남아 있는데 클릭 불가한 불일치 제거).
+  3) `/Users/dj/Desktop/SlideMino/App.tsx`
+     - 저장 복원 시 `lastSnapshot` 함께 복원.
+     - 자동 저장 시 `lastSnapshot` 함께 저장.
+- 검증:
+  - `npm run build` 성공.
+  - 런타임 상태 주입(`phase='SLIDE'`, `undoRemaining=2`, `lastSnapshot` 포함) 검증:
+    - Undo 버튼: `disabled=false`, `pointerEvents='auto'` 확인.
+    - Undo 클릭 후 실제 복원 동작 확인(`score 10 -> 8`, `phase SLIDE -> PLACE`, `undoRemaining 2 -> 1`).
+    - 슬롯 컨테이너: `opacity=1`, `filter=none`, `pointerEvents=none` 확인.
+  - 시각 캡처: `/Users/dj/Desktop/SlideMino/screenshots/swipe-mode-undo-fixed-20260213.png`
+
+## 2026-02-13 추가 작업 로그 (요청: 미리보기 배열 + Undo를 메인 그리드와 동일 적용)
+- 요청 반영: 스와이프 포커스에서 `메인 그리드`와 동일한 포커스 표현을 미리보기 슬롯/Undo에도 공통 적용.
+- 수정:
+  - `/Users/dj/Desktop/SlideMino/App.tsx`
+    - `swipeFocusSurfaceClass` 공통 클래스 도입:
+      - `scale-[1.01] drop-shadow-[0_22px_40px_rgba(15,23,42,0.18)]`
+    - 적용 대상:
+      - 메인 그리드 래퍼
+      - 미리보기 슬롯 래퍼
+      - Undo 버튼
+    - 슬롯 제어 분리:
+      - `isSlotPointerLocked = isSwipePhase || isAnimating` (입력 잠금)
+      - `isSlotDisabled = isAnimating` (시각 비활성)
+      - 즉, 스와이프 단계에서도 슬롯은 메인 그리드와 같은 포커스/가시성 유지, 입력만 잠금.
+- 검증:
+  - `npm run build` 성공.
+  - 런타임 상태 주입(`phase='SLIDE'`, `undoRemaining=2`, `lastSnapshot` 포함) 후 CSSOM 검증:
+    - 보드/슬롯/Undo 모두 동일 `transform(matrix 1.01)` + 동일 `drop-shadow` 확인.
+    - Undo `pointerEvents='auto'`, `disabled=false` 확인.
+    - Undo 클릭 시 복원 동작 확인(`score 10 -> 8`, `phase SLIDE -> PLACE`, `undoRemaining 2 -> 1`).
+  - 시각 캡처: `/Users/dj/Desktop/SlideMino/screenshots/swipe-focus-grid-slots-undo-same-20260213.png`
+
+## 2026-02-13 추가 작업 로그 (Undo 0회 표시 원인 점검 + 논리 수정)
+- 사용자 문제제기: "Undo가 기본 3회여야 하는데 0회로 보임".
+- 원인 확정:
+  - `/Users/dj/Desktop/SlideMino/App.tsx:592`
+    - `setUndoRemaining(restoredSnapshot ? saved.undoRemaining : 0)` 로직으로 인해,
+      snapshot이 없는 저장 상태(정상 케이스 포함)에서 Undo 잔여 횟수가 0으로 강제됨.
+  - `/Users/dj/Desktop/SlideMino/services/gameStorage.ts:109`
+    - `const undoRemaining = lastSnapshot ? parsed.undoRemaining : 0` 동일 문제.
+  - 설계 관점 결함:
+    - `undoRemaining`(잔여 예산)과 `lastSnapshot`(즉시 Undo 가능 여부)을 결합해버린 것이 근본 오류.
+- 수정:
+  - `undoRemaining`을 snapshot과 독립 상태로 복원하도록 변경.
+  - 구버전 저장 데이터 호환을 위해 `undoRemaining` 누락 시 기본값 `3` 사용.
+  - 이어하기 버튼 경로에서도 `lastSnapshot`을 함께 복원하도록 보강(초기 로드 경로와 일관화).
+- 검증:
+  1) 저장 데이터 `undoRemaining=3`, `lastSnapshot` 없음 -> 로드 후 `3` 유지 확인.
+  2) 레거시 저장 데이터(`undoRemaining` 없음) -> 로드 후 기본 `3` 확인.
+  3) 이어하기 경로(`lastSnapshot` 포함) -> Undo `2` 유지 + 버튼 활성 확인.
+  4) 빌드: `npm run build` 성공.
+
+## 2026-02-13 추가 작업 로그 (이어하기 상태 전수 복원 점검/개선)
+- 사용자 요청: 이어하기 시 Undo/현재 상태/슬라이드·배치 phase 등 전체 진행 상태를 저장-복원하는지 점검 및 개선.
+- 점검 결과(근본 원인):
+  - 복원 경로가 2개(앱 시작 자동복원, 메뉴의 이어하기 버튼)로 분산되어 있었고, 경로별로 복원 필드가 달라 상태 불일치 가능성이 있었음.
+  - 특히 이어하기 버튼 경로에서 `lastSnapshot`/세션 메타 복원 누락 가능성이 있었음.
+- 개선:
+  1) `/Users/dj/Desktop/SlideMino/App.tsx`
+     - `restoreSavedGame(saved)` 공통 복원 함수 추가.
+     - 자동복원(useEffect)과 이어하기 버튼 모두 해당 함수 사용으로 일원화.
+     - 복원 항목 통일:
+       - `gameState, grid, slots, score, phase, boardSize`
+       - `undoRemaining, lastSnapshot`
+       - `hasUsedReviveThisRun`
+       - `sessionIdRef, moveCountRef, gameStartTimeRef, playerName`
+       - 부활 광고 진행/준비 상태 초기화 및 `reviveSnapshotRef` 정리
+  2) `/Users/dj/Desktop/SlideMino/services/gameStorage.ts`
+     - `undoRemaining` 파싱을 `lastSnapshot` 존재 여부와 분리.
+     - 레거시 데이터(`undoRemaining` 누락) 기본값 `3`으로 복원.
+     - 범위 정규화(0~99 정수).
+- 검증:
+  - `npm run build` 성공.
+  - 자동복원 시나리오:
+    - `undoRemaining=3`, `lastSnapshot 없음` 저장 데이터 -> 로드 후 Undo `3` 확인.
+    - 레거시 저장 데이터(`undoRemaining` 없음) -> 로드 후 Undo `3` 확인.
+  - 이어하기 버튼 경로 시나리오:
+    - 저장값(`score=77`, `phase=PLACE`, `undo=2`, `lastSnapshot 존재`, `sessionId/moveCount/startedAt/playerName`) 설정 후 메뉴 -> 이어하기.
+    - 복원 결과: 점수 `77`, phase `PLACE`, Undo `2` 확인.
+    - 디바운스 저장 후 localStorage 재확인: `undoRemaining=2`, `lastSnapshot 존재`, `hasUsedRevive/sessionId/moveCount/startedAt/playerName` 유지 확인.
+  - 스킬 스크립트 실행:
+    - `node "$WEB_GAME_CLIENT" --url http://127.0.0.1:5173 --actions-file "$WEB_GAME_ACTIONS" --iterations 1 --pause-ms 200`
+    - 산출물: `/Users/dj/Desktop/SlideMino/output/web-game/shot-0.png`, `/Users/dj/Desktop/SlideMino/output/web-game/errors-0.json`
+
+## 2026-02-13 추가 작업 로그 (모드 알리미 상태 기반 포커스 집단 분리)
+- 사용자 요구 정리:
+  - 포커스 집단을 고정값이 아니라 모드 알리미(`phase`) 상태에 따라 전환.
+  - `SLIDE`에서는 `그리드 + Undo`만 강조하고, 블록 미리보기 슬롯은 비강조(보이되 포커스 제외).
+  - `PLACE`에서는 `그리드 + 슬롯`을 강조하고, Undo는 일반 상태로 유지.
+- 수정 파일:
+  - `/Users/dj/Desktop/SlideMino/App.tsx`
+- 구현 내용:
+  1) 포커스 상태 상수 분리
+     - `isPlaceFocusMode`, `isSwipeFocusMode`
+     - `boardFocusSurfaceClass`, `undoFocusSurfaceClass`, `slotFocusSurfaceClass`, `slotVisibilityClass`
+  2) 모드별 매핑 적용
+     - 보드: PLACE/SLIDE 모두 포커스 유지
+     - Undo: SLIDE에서만 포커스
+     - 슬롯: PLACE에서만 포커스, SLIDE에서는 `pointer-events-none + opacity-60 + grayscale(0.3) + saturate(0.75)`로 비강조
+  3) 기존 모호 로직 정리
+     - 슬롯/Undo/보드가 동일 포커스되던 상태를 phase 기준으로 명시 분리.
+- 빌드 검증:
+  - `npm run build` 성공.
+- 런타임 계측 검증(Chrome DevTools):
+  - SLIDE(`보드 스와이프`):
+    - 보드 `transform=matrix(1.01)` + drop-shadow
+    - Undo `transform=matrix(1.01)` + drop-shadow
+    - 슬롯 `transform=matrix(1)` / `pointerEvents=none` / `opacity=0.6`
+  - PLACE(`블록 배치`):
+    - 보드 `transform=matrix(1.01)` + drop-shadow
+    - 슬롯 `transform=matrix(1.01)` + drop-shadow / `pointerEvents=auto`
+    - Undo `transform=matrix(1)` / filter none
+- 시각 검증 스크린샷:
+  - `/Users/dj/Desktop/SlideMino/screenshots/focus-groups-swipe-mode-20260213.png`
+  - `/Users/dj/Desktop/SlideMino/screenshots/focus-groups-place-mode-20260213.png`
+- 스킬 루프 검증:
+  - `node "$WEB_GAME_CLIENT" --url http://127.0.0.1:5173 --actions-file "$WEB_GAME_ACTIONS" --iterations 1 --pause-ms 200` 실행 완료.
+  - 산출물 기본 경로: `/Users/dj/Desktop/SlideMino/output/web-game/`
+- 추가 미세조정(동일 작업 내): SLIDE 슬롯 비강조 강도를 `opacity-75/grayscale(0.15)` -> `opacity-60/grayscale(0.3)/saturate(0.75)`로 상향해 포커스 오인 가능성 완화.
+- 스크린샷 재캡처: 위 두 파일을 최신 값으로 overwrite.
+- 자동 루프 재검증: `web_game_playwright_client.js` 1회 재실행(최종 조정 반영 확인).

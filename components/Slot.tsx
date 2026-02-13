@@ -60,8 +60,8 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
         ${disabled
           ? 'opacity-30 pointer-events-none grayscale'
           : isPressed
-            ? 'bg-white/55 ring-2 ring-emerald-300/80 shadow-[0_8px_20px_rgba(16,185,129,0.2)] scale-[1.01]'
-            : 'hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] hover:bg-white/50 active:scale-[0.99]'
+            ? 'bg-white/55 ring-2 ring-emerald-300/80 shadow-[0_8px_20px_rgba(16,185,129,0.2)]'
+            : 'hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] hover:bg-white/50'
         }
       `}
       id={htmlId}

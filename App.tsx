@@ -38,7 +38,7 @@ import { HelpModal } from './components/HelpModal';
 import { LanguageSwitcher } from './components/LanguageSwitcher';
 import { BOARD_CELL_GAP_PX, SLIDE_UNLOCK_BUFFER_MS, getSlideAnimationDurationMs } from './constants';
 import { useBlockCustomization } from './context/BlockCustomizationContext';
-import { saveGameState, loadGameState, clearGameState, hasActiveGame } from './services/gameStorage';
+import { saveGameState, loadGameState, clearGameState, hasActiveGame, type SavedGameState } from './services/gameStorage';
 import { rankingService } from './services/rankingService';
 import { getCurrentRoute, onRouteChange, updatePageMeta, type Route } from './utils/routing';
 import { isNativeApp, isAppIntoS, isAndroidApp } from './utils/platform';
@@ -61,7 +61,7 @@ declare global {
 
 const EMPTY_TILE_VALUE_OVERRIDES: Record<string, number> = {};
 const EMPTY_MERGING_TILES: MergingTile[] = [];
-const DRAG_OVERLAY_SCALE = 1.04;
+const DRAG_OVERLAY_SCALE = 1;
 
 // Undo 시스템: 직전 상태를 저장하기 위한 스냅샷 인터페이스
 interface GameSnapshot {
@@ -573,30 +573,37 @@ const App: React.FC = () => {
     return unsubscribe;
   }, []);
 
+  const restoreSavedGame = useCallback((saved: SavedGameState) => {
+    setGameState(saved.gameState);
+    setGrid(saved.grid);
+    setSlots(saved.slots);
+    setScore(saved.score);
+    setPhase(saved.phase);
+    setBoardSize(saved.boardSize);
+    // 구버전 저장 데이터 정규화: 이어하기/자동복원 모두 동일한 규칙 적용.
+    setCanSkipSlide(false);
+    const restoredSnapshot = saved.lastSnapshot ? cloneGameSnapshot(saved.lastSnapshot) : null;
+    setLastSnapshot(restoredSnapshot);
+    setUndoRemaining(saved.undoRemaining);
+    setHasUsedReviveThisRun(Boolean(saved.hasUsedRevive));
+    setIsReviveAdInProgress(false);
+    setIsReviveAdReady(false);
+    reviveSnapshotRef.current = null;
+    setCurrentRank(null);
+    setPlayerName(saved.playerName ?? '');
+    sessionIdRef.current = saved.sessionId ?? crypto.randomUUID();
+    moveCountRef.current = typeof saved.moveCount === 'number' ? saved.moveCount : 0;
+    gameStartTimeRef.current = typeof saved.startedAt === 'number' ? saved.startedAt : Date.now();
+  }, []);
+
   // 앱 시작 시 저장된 게임 복원
   useEffect(() => {
     const saved = loadGameState();
     if (saved) {
       // 저장된 진행중 게임이 있으면 바로 게임 화면으로
-      setGameState(saved.gameState);
-      setGrid(saved.grid);
-      setSlots(saved.slots);
-      setScore(saved.score);
-      setPhase(saved.phase);
-      setBoardSize(saved.boardSize);
-      // 새 규칙: 머지가 발생한 슬라이드 턴에서는 블록 배치를 허용하지 않는다.
-      // 구버전 저장 데이터의 canSkipSlide=true 상태는 로드 시 정규화한다.
-      setCanSkipSlide(false);
-      setUndoRemaining(saved.undoRemaining);
-      setHasUsedReviveThisRun(Boolean(saved.hasUsedRevive));
-      setIsReviveAdInProgress(false);
-      reviveSnapshotRef.current = null;
-      if (saved.playerName) setPlayerName(saved.playerName);
-      if (saved.sessionId) sessionIdRef.current = saved.sessionId;
-      if (typeof saved.moveCount === 'number') moveCountRef.current = saved.moveCount;
-      if (typeof saved.startedAt === 'number') gameStartTimeRef.current = saved.startedAt;
+      restoreSavedGame(saved);
     }
-  }, []);
+  }, [restoreSavedGame]);
 
   // 게임 상태 자동 저장 (debounce로 최적화)
   useEffect(() => {
@@ -612,6 +619,7 @@ const App: React.FC = () => {
           boardSize,
           canSkipSlide,
           undoRemaining,
+          lastSnapshot,
           hasUsedRevive: hasUsedReviveThisRun,
           sessionId: sessionIdRef.current,
           moveCount: moveCountRef.current,
@@ -625,7 +633,7 @@ const App: React.FC = () => {
       // 게임 오버 시에만 저장된 게임 삭제 (메뉴로 돌아갈 때는 유지)
       clearGameState();
     }
-  }, [gameState, grid, slots, score, phase, boardSize, canSkipSlide, undoRemaining, hasUsedReviveThisRun, playerName]);
+  }, [gameState, grid, slots, score, phase, boardSize, canSkipSlide, undoRemaining, lastSnapshot, hasUsedReviveThisRun, playerName]);
 
   useEffect(() => {
     const shouldLockScroll = gameState !== GameState.MENU;
@@ -1792,15 +1800,7 @@ const App: React.FC = () => {
                 onClick={() => {
                   const saved = loadGameState();
                   if (saved) {
-                    setGameState(saved.gameState);
-                    setGrid(saved.grid);
-                    setSlots(saved.slots);
-                    setScore(saved.score);
-                    setPhase(saved.phase);
-                    setBoardSize(saved.boardSize);
-                    // 구버전 저장 데이터 정규화: 이어하기 시에도 배치 허용 플래그를 초기화
-                    setCanSkipSlide(false);
-                    setUndoRemaining(saved.undoRemaining);
+                    restoreSavedGame(saved);
                   }
                 }}
                 className="
@@ -2092,10 +2092,30 @@ const App: React.FC = () => {
 
   const isPlacePhase = phase === Phase.PLACE;
   const isSwipePhase = phase === Phase.SLIDE;
-  const isSwipeFocusMode = isSwipePhase && !draggingPiece;
+  const isPlaceFocusMode = isPlacePhase;
+  const isSwipeFocusMode = isSwipePhase;
+  const focusSurfaceClass = 'scale-[1.01] drop-shadow-[0_22px_40px_rgba(15,23,42,0.18)]';
+  const boardFocusSurfaceClass = (isPlaceFocusMode || isSwipeFocusMode)
+    ? focusSurfaceClass
+    : 'scale-100';
+  const undoFocusSurfaceClass = isSwipeFocusMode
+    ? focusSurfaceClass
+    : 'scale-100';
+  const slotFocusSurfaceClass = isPlaceFocusMode
+    ? focusSurfaceClass
+    : 'scale-100';
+  const slotVisibilityClass = isAnimating
+    ? 'opacity-40 grayscale'
+    : (isSwipeFocusMode ? 'opacity-60 grayscale-[0.3] saturate-75' : 'opacity-100');
+  const phaseIndicatorInteractivityClass = isPlacePhase
+    ? 'pointer-events-auto'
+    : 'pointer-events-none opacity-35 grayscale select-none';
 
-  // 새 규칙에서는 슬라이드 단계 동안 슬롯(배치 입력)을 잠근다.
-  const isSlotDisabled = isSwipePhase || isAnimating;
+  // 모드 알리미(phase) 상태 기반 포커스:
+  // - PLACE: 보드 + 슬롯 강조
+  // - SLIDE: 보드 + Undo 강조 (슬롯은 비강조)
+  const isSlotPointerLocked = isSwipePhase || isAnimating;
+  const isSlotDisabled = isAnimating;
 
   // ========== GAME SCREEN ==========
   return (
@@ -2149,19 +2169,20 @@ const App: React.FC = () => {
               <p className="text-3xl font-bold text-gray-900 tabular-nums">{score}</p>
             </div>
           </div>
-          <div className={`
-            flex flex-col items-end gap-2 transition-all duration-200
-            ${isSwipeFocusMode ? 'opacity-35 grayscale pointer-events-none select-none' : 'opacity-100'}
-          `}>
+          <div className="flex flex-col items-end gap-2 transition-all duration-200">
             {/* Phase Indicator - Glass Pill */}
             <div className={`
             px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2 
             transition-all duration-200 ease-out
+            ${phaseIndicatorInteractivityClass}
             ${isPlacePhase
                 ? 'bg-emerald-50/90 backdrop-blur-sm border border-emerald-200/90 text-emerald-700 shadow-sm'
                 : 'bg-slate-100/90 backdrop-blur-sm border border-slate-300/80 text-slate-700 shadow-sm'
               }
-          `}>
+          `}
+              aria-disabled={!isPlacePhase}
+              tabIndex={isPlacePhase ? 0 : -1}
+            >
               {isPlacePhase ? t('game:phases.place') : t('game:phases.swipe')}
               {isSwipePhase && <Move size={14} />}
             </div>
@@ -2172,11 +2193,12 @@ const App: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowHelpModal(true)}
-                className="
+                className={`
                   p-2 rounded-full text-gray-600
                   bg-white/70 hover:bg-white border border-white/50
                   shadow-sm hover:shadow-md transition-all duration-200 active:scale-95
-                "
+                  ${isSwipeFocusMode ? 'opacity-35 grayscale pointer-events-none select-none' : ''}
+                `}
                 aria-label={t('common:aria.help')}
               >
                 <HelpCircle size={18} />
@@ -2185,11 +2207,16 @@ const App: React.FC = () => {
               {/* Undo Button */}
               <button
                 type="button"
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                }}
                 onClick={executeUndo}
                 disabled={!lastSnapshot || undoRemaining <= 0 || isAnimating}
                 className={`
                 px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-2
                 border shadow-sm transition-all duration-200
+                ${undoFocusSurfaceClass}
+                pointer-events-auto
                 ${(!lastSnapshot || undoRemaining <= 0 || isAnimating)
                     ? 'bg-gray-100/50 text-gray-300 border-gray-200/50 cursor-not-allowed'
                     : 'bg-white/70 hover:bg-white text-gray-700 border-white/50 hover:shadow-md active:scale-95'
@@ -2212,6 +2239,7 @@ const App: React.FC = () => {
                     text-white border border-yellow-400/50
                     shadow-md hover:shadow-lg
                     active:scale-95 transition-all duration-200
+                    ${isSwipeFocusMode ? 'opacity-35 grayscale pointer-events-none select-none' : ''}
                     ${isAnimating ? 'opacity-50 cursor-not-allowed' : 'hover:from-yellow-600 hover:to-amber-600'}
                   `}
                   aria-label={t('game:rewardAd.watchButtonFull')}
@@ -2237,7 +2265,7 @@ const App: React.FC = () => {
 
           <div className={`
             transition-all duration-200
-            ${isSwipeFocusMode ? 'scale-[1.01] drop-shadow-[0_22px_40px_rgba(15,23,42,0.18)]' : 'scale-100'}
+            ${boardFocusSurfaceClass}
           `}>
             <Board
               ref={boardHandleRef}
@@ -2256,11 +2284,10 @@ const App: React.FC = () => {
           {/* Inventory Slots */}
           <div className={`
           w-full grid grid-cols-3 gap-4 
-          transition-opacity duration-300
-          ${isSlotDisabled
-              ? (isSwipeFocusMode ? 'opacity-15 blur-[1px] grayscale pointer-events-none' : 'opacity-40 grayscale')
-              : 'opacity-100'
-            }
+          transition-all duration-200
+          ${slotFocusSurfaceClass}
+          ${isSlotPointerLocked ? 'pointer-events-none' : ''}
+          ${slotVisibilityClass}
         `}>
             {slots.map((p, i) => (
               <Slot
@@ -2276,30 +2303,32 @@ const App: React.FC = () => {
             ))}
           </div>
 
-          {draggingPiece && (
-            <div className="w-full flex items-center justify-center">
-              <button
-                type="button"
-                data-rotate-button
-                onPointerDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  rotateActivePiece();
-                }}
-                className="
-                  inline-flex items-center justify-center
-                  w-9 h-9 rounded-full
-                  bg-white/80 border border-white/70
-                  text-gray-700 shadow-sm
-                  hover:bg-white
-                  transition-colors
-                "
-                aria-label={t('common:aria.rotateBlock')}
-              >
-                <RotateCw size={16} />
-              </button>
-            </div>
-          )}
+          <div className="w-full h-9 flex items-center justify-center">
+            <button
+              type="button"
+              data-rotate-button
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!draggingPiece) return;
+                rotateActivePiece();
+              }}
+              className={`
+                inline-flex items-center justify-center
+                w-9 h-9 rounded-full
+                bg-white/80 border border-white/70
+                text-gray-700 shadow-sm
+                hover:bg-white
+                transition-colors
+                ${draggingPiece ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
+              `}
+              aria-label={t('common:aria.rotateBlock')}
+              aria-hidden={!draggingPiece}
+              tabIndex={draggingPiece ? 0 : -1}
+            >
+              <RotateCw size={16} />
+            </button>
+          </div>
 
         </main>
 

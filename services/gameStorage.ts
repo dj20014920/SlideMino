@@ -12,6 +12,14 @@ import { Grid, Piece, Phase, BoardSize, GameState } from '../types';
 // 로컬 스토리지 키
 const GAME_STATE_STORAGE_KEY = 'slidemino_game_state_v1';
 
+export interface StoredUndoSnapshot {
+    grid: Grid;
+    slots: (Piece | null)[];
+    score: number;
+    phase: Phase;
+    canSkipSlide: boolean;
+}
+
 /**
  * 저장되는 게임 상태 인터페이스
  */
@@ -25,6 +33,7 @@ export interface SavedGameState {
     boardSize: BoardSize;
     canSkipSlide: boolean;
     undoRemaining: number;
+    lastSnapshot?: StoredUndoSnapshot | null;
     hasUsedRevive?: boolean;
     sessionId?: string;
     moveCount?: number;
@@ -86,8 +95,21 @@ export function loadGameState(): SavedGameState | null {
         const startedAt = typeof parsed.startedAt === 'number' ? parsed.startedAt : undefined;
         const playerName = typeof parsed.playerName === 'string' ? parsed.playerName : undefined;
         const hasUsedRevive = typeof parsed.hasUsedRevive === 'boolean' ? parsed.hasUsedRevive : undefined;
+        const snapshot = parsed.lastSnapshot;
+        const lastSnapshot =
+            snapshot &&
+            Array.isArray(snapshot.grid) &&
+            Array.isArray(snapshot.slots) &&
+            typeof snapshot.score === 'number' &&
+            typeof snapshot.phase === 'string' &&
+            typeof snapshot.canSkipSlide === 'boolean'
+                ? snapshot
+                : null;
+        const undoRemaining = typeof parsed.undoRemaining === 'number'
+            ? Math.max(0, Math.min(99, Math.floor(parsed.undoRemaining)))
+            : 3;
 
-        return { ...parsed, sessionId, moveCount, startedAt, playerName, hasUsedRevive };
+        return { ...parsed, sessionId, moveCount, startedAt, playerName, hasUsedRevive, lastSnapshot, undoRemaining };
     } catch (e) {
         console.warn('[GameStorage] 게임 로드 실패:', e);
         return null;

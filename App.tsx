@@ -39,7 +39,7 @@ import { LanguageSwitcher } from './components/LanguageSwitcher';
 import { BOARD_CELL_GAP_PX, SLIDE_UNLOCK_BUFFER_MS, getSlideAnimationDurationMs } from './constants';
 import { useBlockCustomization } from './context/BlockCustomizationContext';
 import { saveGameState, loadGameState, clearGameState, hasActiveGame, type SavedGameState } from './services/gameStorage';
-import { rankingService } from './services/rankingService';
+import { rankingService, type RankEntry, type LiveRankEstimate } from './services/rankingService';
 import { getCurrentRoute, onRouteChange, updatePageMeta, type Route } from './utils/routing';
 import { isNativeApp, isAppIntoS, isAndroidApp } from './utils/platform';
 import { normalizeLanguage } from './i18n/constants';
@@ -480,9 +480,10 @@ const App: React.FC = () => {
   const gameStartTimeRef = useRef<number>(Date.now()); // Anti-cheat timer
   const moveCountRef = useRef<number>(0); // Anti-cheat move counter
   const sessionIdRef = useRef<string>(crypto.randomUUID()); // 게임 세션 ID
-  const [currentRank, setCurrentRank] = useState<number | null>(null); // 실시간 순위
+  const [liveRankEstimate, setLiveRankEstimate] = useState<LiveRankEstimate | null>(null); // 게임 중 예상 순위
 
   const boardMetricsRef = useRef<BoardMetrics | null>(null);
+  const leaderboardSnapshotRef = useRef<RankEntry[]>([]);
   const hoverGridPosRef = useRef<{ x: number; y: number } | null>(null);
   const swipeStartRef = useRef<{ x: number, y: number } | null>(null); // 스와이프 시작 좌표
   const slideLockRef = useRef(false); // state 반영 전에도 즉시 입력 차단
@@ -495,9 +496,6 @@ const App: React.FC = () => {
   const reviveSnapshotRef = useRef<GameSnapshot | null>(null);
   const scoreRef = useRef<number>(score);
   const boardSizeRef = useRef<BoardSize>(boardSize);
-  const playerNameRef = useRef<string>(playerName);
-  const gameOverUpdateSentRef = useRef(false);
-  const lastScoreSubmittedRef = useRef<number>(-1);
   const simulatorAutoProbeRunRef = useRef(false);
   const simulatorAutoGameOverTriggeredRef = useRef(false);
   const simulatorAutoReviveTriggeredRef = useRef(false);
@@ -509,10 +507,6 @@ const App: React.FC = () => {
   useEffect(() => {
     boardSizeRef.current = boardSize;
   }, [boardSize]);
-
-  useEffect(() => {
-    playerNameRef.current = playerName;
-  }, [playerName]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -589,7 +583,8 @@ const App: React.FC = () => {
     setIsReviveAdInProgress(false);
     setIsReviveAdReady(false);
     reviveSnapshotRef.current = null;
-    setCurrentRank(null);
+    leaderboardSnapshotRef.current = [];
+    setLiveRankEstimate(null);
     setPlayerName(saved.playerName ?? '');
     sessionIdRef.current = saved.sessionId ?? crypto.randomUUID();
     moveCountRef.current = typeof saved.moveCount === 'number' ? saved.moveCount : 0;
@@ -728,8 +723,8 @@ const App: React.FC = () => {
     gameStartTimeRef.current = Date.now();
     moveCountRef.current = 0;
     sessionIdRef.current = crypto.randomUUID(); // 새 게임마다 고유 세션 ID 생성
-    gameOverUpdateSentRef.current = false;
-    setCurrentRank(null); // 순위 초기화
+    leaderboardSnapshotRef.current = [];
+    setLiveRankEstimate(null); // 순위 표시 초기화
 
     // 온보딩: 튜토리얼 미완료 시 활성화
     const tutorialCompleted = localStorage.getItem('tutorial_completed');
@@ -1536,44 +1531,6 @@ const App: React.FC = () => {
     }, lockMs);
   };
 
-
-  const performScoreUpdate = useCallback(async (source: 'interval' | 'gameover') => {
-    const sessionId = sessionIdRef.current;
-    if (!sessionId) return;
-
-    const duration = Math.floor((Date.now() - gameStartTimeRef.current) / 1000);
-    const difficultyStr = String(boardSizeRef.current);
-    const name = playerNameRef.current || rankingService.getSavedName() || 'Guest';
-    const latestScore = scoreRef.current;
-    if (source === 'interval' && lastScoreSubmittedRef.current === latestScore) {
-      return;
-    }
-
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[자동 업데이트:${source}] 점수 전송:`, { sessionId, name, score: latestScore });
-    }
-
-    const result = await rankingService.updateScore(
-      sessionId,
-      name,
-      latestScore,
-      difficultyStr,
-      duration,
-      moveCountRef.current
-    );
-
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[자동 업데이트:${source}] 응답:`, result);
-    }
-
-    if (result.success && result.rank !== undefined) {
-      lastScoreSubmittedRef.current = latestScore;
-      setCurrentRank(result.rank);
-    }
-  }, []);
-
-
-
   // --- Game Over Check ---
   useEffect(() => {
     // 애니메이션이 진행 중이면 게임 오버 체크 연기
@@ -1602,29 +1559,46 @@ const App: React.FC = () => {
     }
   }, [phase, grid, slots, gameState, score, highScore, isAnimating, lastSnapshot, finishSlideTurn]);
 
-  // --- 자동 점수 업데이트 (10초마다) ---
+  // --- 게임 중 예상 랭킹 업데이트 ---
   useEffect(() => {
     if (gameState !== GameState.PLAYING) {
+      leaderboardSnapshotRef.current = [];
+      setLiveRankEstimate(null);
       return;
     }
 
-    lastScoreSubmittedRef.current = -1;
-    // 즉시 첫 업데이트
-    performScoreUpdate('interval');
+    let cancelled = false;
+    const updateEstimate = async () => {
+      try {
+        const result = await rankingService.getLeaderboard();
+        if (cancelled) return;
+        leaderboardSnapshotRef.current = result.data;
+        setLiveRankEstimate(
+          rankingService.estimateLiveRank(scoreRef.current, String(boardSizeRef.current), result.data)
+        );
+      } catch (error) {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[랭킹 추정] 랭킹 조회 실패:', error);
+        }
+      }
+    };
 
-    // 10초마다 자동 업데이트
-    const intervalId = setInterval(() => performScoreUpdate('interval'), 10000);
+    void updateEstimate();
+    const intervalId = window.setInterval(updateEstimate, 15000);
 
-    return () => clearInterval(intervalId);
-  }, [gameState, performScoreUpdate]);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [gameState]);
 
-  // --- 게임 종료 시 즉시 1회 업데이트 ---
+  // 점수/난이도 변경 시 최신 랭킹 스냅샷으로 즉시 재계산
   useEffect(() => {
-    if (gameState !== GameState.GAME_OVER) return;
-    if (gameOverUpdateSentRef.current) return;
-    gameOverUpdateSentRef.current = true;
-    performScoreUpdate('gameover');
-  }, [gameState, performScoreUpdate]);
+    if (gameState !== GameState.PLAYING) return;
+    setLiveRankEstimate(
+      rankingService.estimateLiveRank(score, String(boardSize), leaderboardSnapshotRef.current)
+    );
+  }, [gameState, score, boardSize]);
 
 
   // --- Render Helpers ---
@@ -2160,13 +2134,20 @@ const App: React.FC = () => {
             <div className="space-y-0.5">
               <h2 className="text-sm font-medium text-gray-400 uppercase tracking-wider">
                 {t('common:labels.score')}
-                {currentRank !== null && gameState === GameState.PLAYING && (
+                {liveRankEstimate !== null && gameState === GameState.PLAYING && (
                   <span className="ml-2 text-xs font-semibold text-blue-600">
-                    #{currentRank}
+                    {String(t('game:liveRank.estimatedRank', { rank: liveRankEstimate.rank } as any))}
                   </span>
                 )}
               </h2>
               <p className="text-3xl font-bold text-gray-900 tabular-nums">{score}</p>
+              {liveRankEstimate !== null && gameState === GameState.PLAYING && (
+                <p className="text-xs font-semibold text-blue-500">
+                  {liveRankEstimate.pointsToNext > 0
+                    ? String(t('game:liveRank.pointsToNext', { points: liveRankEstimate.pointsToNext } as any))
+                    : t('game:liveRank.topRank')}
+                </p>
+              )}
             </div>
           </div>
           <div className="flex flex-col items-end gap-2 transition-all duration-200">

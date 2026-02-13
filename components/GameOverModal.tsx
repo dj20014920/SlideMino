@@ -219,6 +219,10 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                             </p>
                         </div>
 
+                        <div className="w-full p-3 rounded-xl border border-sky-200 bg-sky-50 text-xs text-sky-800 leading-relaxed">
+                            {t('modals:nameInput.privacyNotice')}
+                        </div>
+
                         <div className="w-full space-y-4">
                             <div className="space-y-1.5">
                                 <label htmlFor="playerName" className="text-xs font-bold text-gray-500 uppercase ml-1">

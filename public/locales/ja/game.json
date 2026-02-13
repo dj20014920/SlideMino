@@ -36,6 +36,11 @@
     "mergeContinueMessage": "合体成功! このターンはスワイプ継続",
     "noMergePlaceMessage": "合体なし。今ブロックを配置できます"
   },
+  "liveRank": {
+    "estimatedRank": "予想 #{{rank}}",
+    "pointsToNext": "次の順位まで {{points}} 点",
+    "topRank": "現在トップ順位です"
+  },
   "actions": {
     "undo": "元に戻す",
     "customization": "ブロックカスタマイズ",

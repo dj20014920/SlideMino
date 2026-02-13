@@ -1,5 +1,6 @@
 export const PLAYER_NAME_MAX_LENGTH = 20;
-export const PLAYER_NAME_PATTERN = /^[a-zA-Z0-9가-힣\s._-]+$/;
+// 한글 완성형 + 자모(초성/중성) 입력을 모두 허용한다.
+export const PLAYER_NAME_PATTERN = /^[a-zA-Z0-9가-힣ㄱ-ㅎㅏ-ㅣ\s._-]+$/;
 
 export type PlayerNameError = 'required' | 'tooLong' | 'invalidChars';
 

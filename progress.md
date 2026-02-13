@@ -855,3 +855,109 @@ Original prompt: 게임 진행 화면(iPhone 포함)에서 광고 배너가 메�
 - 추가 미세조정(동일 작업 내): SLIDE 슬롯 비강조 강도를 `opacity-75/grayscale(0.15)` -> `opacity-60/grayscale(0.3)/saturate(0.75)`로 상향해 포커스 오인 가능성 완화.
 - 스크린샷 재캡처: 위 두 파일을 최신 값으로 overwrite.
 - 자동 루프 재검증: `web_game_playwright_client.js` 1회 재실행(최종 조정 반영 확인).
+
+## 2026-02-13 추가 작업 로그 (랭킹 등록 타이밍/초성/개인정보 안내/게임중 예상순위)
+- 사용자 요청:
+  - 초성(예: `ㅎ`) 입력 허용
+  - 랭킹 이름 입력 시 개인정보 주의 안내
+  - 점수 서버 등록 시점을 게임오버의 `랭킹 등록하기` 플로우로 제한
+  - 게임 중 우상단에 예상 순위/다음 순위까지 점수 표시
+- 아키텍처 분석 결론:
+  - 기존 `App.tsx`에 10초 주기 + 게임오버 즉시 `rankingService.updateScore()` 호출이 있어, 사용자가 등록 버튼을 누르기 전에 서버 반영될 수 있었음.
+  - 이름 검증은 클라이언트(`utils/playerName.ts`)와 서버(`functions/utils/validation.ts`)가 각각 동일한 제한 패턴을 갖고 있었고, 둘 다 초성/중성 자모가 제외되어 있었음.
+- 수정 내용:
+  1) `/Users/dj/Desktop/SlideMino/App.tsx`
+     - `performScoreUpdate` 및 자동 전송 effect(주기 전송/게임오버 전송) 제거.
+     - 게임 중에는 `rankingService.getLeaderboard()` 결과로만 예상 순위를 계산하도록 변경.
+     - 새 상태 `liveRankEstimate`를 헤더에 렌더링:
+       - `예상 #N`
+       - `다음 순위까지 X점` 또는 `현재 1위권`
+  2) `/Users/dj/Desktop/SlideMino/services/rankingService.ts`
+     - `estimateLiveRank(score, difficulty, leaderboard)` 추가(동일 난이도 필터링 + rank/pointsToNext 계산).
+  3) `/Users/dj/Desktop/SlideMino/utils/playerName.ts`
+     - 이름 패턴에 자모 범위 추가: `ㄱ-ㅎ`, `ㅏ-ㅣ`.
+  4) `/Users/dj/Desktop/SlideMino/functions/utils/validation.ts`
+     - 서버 이름 검증 패턴도 동일하게 자모 범위 추가(클라이언트/서버 일관성 유지).
+  5) `/Users/dj/Desktop/SlideMino/components/NameInputModal.tsx`
+     - 닉네임 입력 전 개인정보 주의 문구 박스 추가.
+  6) `/Users/dj/Desktop/SlideMino/components/GameOverModal.tsx`
+     - 랭킹 등록 입력 영역에 동일한 개인정보 주의 문구 추가.
+  7) 다국어 키 추가:
+     - `/Users/dj/Desktop/SlideMino/public/locales/{ko,en,ja,zh}/modals.json`
+       - `nameInput.privacyNotice`
+     - `/Users/dj/Desktop/SlideMino/public/locales/{ko,en,ja,zh}/game.json`
+       - `liveRank.estimatedRank`, `liveRank.pointsToNext`, `liveRank.topRank`
+- 검증:
+  - `npm run build` 성공.
+  - 스킬 스크립트 실행:
+    - `node "$WEB_GAME_CLIENT" --url http://127.0.0.1:5174 --actions-file "$WEB_GAME_ACTIONS" --iterations 2 --pause-ms 250`
+    - 산출물: `/Users/dj/Desktop/SlideMino/output/web-game/shot-0.png`, `/Users/dj/Desktop/SlideMino/output/web-game/errors-0.json`
+  - Playwright 실검증:
+    - `7x7 게임 시작` 이름 모달에서 `ㅎ` 입력 후 시작 성공(초성 허용 확인).
+    - 헤더에 `점수 예상 #4` + `다음 순위까지 101점` 노출 확인(캐시 랭킹 데이터 기준).
+    - 네트워크 요청 점검 시 게임 중 `/api/submit` 호출 없음 확인(자동 등록 제거 확인).
+
+## 2026-02-13 추가 작업 로그 (Wrangler 기반 랭킹 등록 오류 원인 분석/엔드포인트 검증)
+- 증상:
+  - 사용자 보고: 랭킹 등록 시 반복 오류 발생.
+- 점검 범위:
+  - Cloudflare 배포 API 직접 호출(`/api/rankings`, `/api/submit`)
+  - `wrangler` 인증/배포 상태 점검
+  - 로컬 코드(`functions/utils/validation.ts`)와 프로덕션 응답 비교
+- 원인 결론:
+  1) 프로덕션 함수가 최신 검증 로직(초성 허용)으로 반영되지 않은 상태였음.
+     - 증거: `https://slidemino.emozleep.space/api/submit`에 `name="ㅎ"` POST 시 `400 {"error":"Name contains invalid characters"}`.
+     - 동일 시점 `name="testuser"`/`name="가"`는 `201` 성공 → 일반 입력은 동작, 초성만 실패.
+  2) 배포 파이프라인 측면에서 `npm run build:cf`가 타입 오류로 중단될 수 있는 상태였음.
+     - `App.tsx`의 i18n `t()` 호출 2곳에서 TS 오류 재현.
+- 조치:
+  1) `App.tsx` i18n 타입 오류 2건 최소 수정
+     - `String(t(..., {...} as any))` 형태로 컴파일 오류 제거.
+  2) `npm run build:cf` 재실행 성공 확인.
+  3) `wrangler` 배포 수행:
+     - Preview 배포: `https://ad609be2.slidemino.pages.dev`
+     - `--branch main` 배포 수행 후 프로덕션 재검증.
+- 최종 검증:
+  - 프로덕션 `POST https://slidemino.emozleep.space/api/submit` + `name="ㅎ"` → `201 {"success":true,"rank":2}`
+  - 프로덕션 `GET https://slidemino.emozleep.space/api/rankings` 응답에 초성 이름 반영 확인.
+
+## 2026-02-13 추가 작업 로그 (사용자 요청 후속: 엔드포인트/CORS/브라우저 컨텍스트 전수 재검증)
+- 사용자 요청:
+  - "그거까지 모두 진행" 요청에 따라 서버 엔드포인트를 HTTP 레벨 + 실제 브라우저 컨텍스트로 재검증.
+- 수행 내용:
+  1) CORS Preflight 점검
+     - `OPTIONS https://slidemino.emozleep.space/api/submit`
+     - 결과: `204`, `Access-Control-Allow-Methods: POST, OPTIONS`, `Access-Control-Allow-Headers: Content-Type` 확인.
+  2) 프로덕션 API 직접 호출(두 Origin)
+     - Origin `https://slidemino.emozleep.space` + `name="ㅎ"` POST → `201 success`
+     - Origin `https://www.slidemino.emozleep.space` + `name="ㅎ"` POST → `201 success`
+  3) 랭킹 조회 반영 확인
+     - `GET https://slidemino.emozleep.space/api/rankings`에서 초성 닉네임 레코드 반영 확인.
+  4) 브라우저 컨텍스트 검증(Playwright)
+     - 실제 페이지 `https://slidemino.emozleep.space` 로드 후 `fetch('/api/submit')` 실행.
+     - 결과: `status=201`, body=`{"success":true,"rank":2}`
+     - 이어 `fetch('/api/rankings')` 결과 상위 목록에 방금 등록한 초성 닉네임 반영 확인.
+  5) 빌드 재검증
+     - `npm run build` 성공.
+- 결론:
+  - 현재 프로덕션 환경에서 랭킹 등록 엔드포인트(`/api/submit`)와 조회(`/api/rankings`)는 정상 동작.
+  - 초성 닉네임(`ㅎ`) 제출, CORS, 브라우저 경유 호출까지 모두 정상.
+
+## 2026-02-13 추가 작업 로그 (Wrangler 배포 + 갤럭시/아이폰 준비)
+- 사용자 요청:
+  - Wrangler로 사이트 배포, 빌드 완료, Android/iOS 준비.
+- 수행:
+  1) Cloudflare 배포용 빌드
+     - `npm run build:cf` 성공.
+  2) Wrangler Pages 배포
+     - `npx wrangler pages deploy dist --project-name slidemino --branch main --commit-dirty=true`
+     - 배포 완료 URL: `https://43787550.slidemino.pages.dev`
+  3) 프로덕션 엔드포인트 사후 검증
+     - `GET https://slidemino.emozleep.space/api/rankings` → `200`
+     - `POST https://slidemino.emozleep.space/api/submit` (`name="ㅎ"`) → `201 {"success":true,...}`
+  4) 모바일 준비(갤럭시/아이폰)
+     - `npm run cap:sync` 성공.
+     - Android 자산 복사 + 플러그인 갱신 완료.
+     - iOS 자산 복사 + 플러그인 갱신 완료.
+- 상태:
+  - 웹 배포/랭킹 API/모바일 동기화 모두 정상 완료.

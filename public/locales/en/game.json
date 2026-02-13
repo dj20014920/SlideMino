@@ -36,6 +36,11 @@
     "mergeContinueMessage": "Merge! Keep swiping this turn.",
     "noMergePlaceMessage": "No merge. You can place a block now."
   },
+  "liveRank": {
+    "estimatedRank": "Est. #{{rank}}",
+    "pointsToNext": "{{points}} pts to next rank",
+    "topRank": "Top rank reached"
+  },
   "actions": {
     "undo": "Undo",
     "customization": "Block Customization",

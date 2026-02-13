@@ -61,8 +61,8 @@ export function validateName(name: unknown): { valid: boolean; sanitized?: strin
     return { valid: false, error: 'Name too long (max 20 characters)' };
   }
 
-  // 알파벳, 숫자, 한글, 공백, 일부 특수문자만 허용
-  const validPattern = /^[a-zA-Z0-9가-힣\s._-]+$/;
+  // 알파벳, 숫자, 한글(완성형+자모), 공백, 일부 특수문자만 허용
+  const validPattern = /^[a-zA-Z0-9가-힣ㄱ-ㅎㅏ-ㅣ\s._-]+$/;
   if (!validPattern.test(trimmed)) {
     return { valid: false, error: 'Name contains invalid characters' };
   }

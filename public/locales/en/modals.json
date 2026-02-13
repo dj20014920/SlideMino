@@ -35,7 +35,8 @@
       "required": "Please enter a name.",
       "tooLong": "Name must be 20 characters or less.",
       "invalidChars": "Special characters are not allowed."
-    }
+    },
+    "privacyNotice": "This name is shown on the leaderboard. Do not enter personal information such as your real name, phone number, or email."
   },
   "rankingRegister": {
     "title": "Register Score",

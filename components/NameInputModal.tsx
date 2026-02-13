@@ -78,6 +78,10 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({ open, difficulty
                         </div>
                     )}
 
+                    <div className="mb-4 p-3 bg-sky-50 border border-sky-200 rounded-xl text-xs text-sky-800 leading-relaxed">
+                        {t('modals:nameInput.privacyNotice')}
+                    </div>
+
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
                             <label className="block text-sm font-semibold text-gray-600 mb-2">

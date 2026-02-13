@@ -36,6 +36,11 @@
     "mergeContinueMessage": "머지 성공! 이번 턴은 계속 스와이프",
     "noMergePlaceMessage": "머지 없음. 이제 블록을 배치하세요"
   },
+  "liveRank": {
+    "estimatedRank": "예상 #{{rank}}",
+    "pointsToNext": "다음 순위까지 {{points}}점",
+    "topRank": "현재 1위권"
+  },
   "actions": {
     "undo": "되돌리기",
     "customization": "블럭 커스터마이징",

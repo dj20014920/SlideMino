@@ -21,6 +21,11 @@ export interface LeaderboardResponse {
     fromCache: boolean;
 }
 
+export interface LiveRankEstimate {
+    rank: number;
+    pointsToNext: number;
+}
+
 interface PendingScore {
     sessionId: string;
     name: string;
@@ -196,9 +201,36 @@ const buildPayload = (
     };
 };
 
+const estimateLiveRank = (score: number, difficulty: string, leaderboard: RankEntry[]): LiveRankEstimate | null => {
+    if (leaderboard.length === 0) return null;
+
+    const normalizedDifficulty = normalizeDifficultyForApi(difficulty);
+    const sameDifficultyScores = leaderboard
+        .filter((entry) => normalizeDifficultyForApi(entry.difficulty) === normalizedDifficulty)
+        .map((entry) => entry.score)
+        .sort((a, b) => b - a);
+
+    if (sameDifficultyScores.length === 0) {
+        return {
+            rank: 1,
+            pointsToNext: 0,
+        };
+    }
+
+    const higherScores = sameDifficultyScores.filter((entryScore) => entryScore > score);
+    const rank = higherScores.length + 1;
+    const nextHigherScore = higherScores.length > 0 ? higherScores[higherScores.length - 1] : null;
+
+    return {
+        rank,
+        pointsToNext: nextHigherScore === null ? 0 : Math.max(0, nextHigherScore - score + 1),
+    };
+};
+
 export const rankingService = {
     initSync,
     flushPendingScores,
+    estimateLiveRank,
     /**
      * Get the saved player name from LocalStorage
      */

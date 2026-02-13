@@ -36,6 +36,11 @@
     "mergeContinueMessage": "已合并！本回合继续滑动",
     "noMergePlaceMessage": "未合并。现在可以放置方块"
   },
+  "liveRank": {
+    "estimatedRank": "预计 #{{rank}}",
+    "pointsToNext": "距离下一名还差 {{points}} 分",
+    "topRank": "当前已是第一名"
+  },
   "actions": {
     "undo": "撤销",
     "customization": "方块自定义",

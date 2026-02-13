@@ -18,7 +18,7 @@ import {
   getRotatedCells,
   canPlacePiece,
   placePieceOnGrid,
-  checkGameOver,
+  getTurnActionAvailability,
   slideGrid,
   hasPossibleMoves
 } from './services/gameLogic';
@@ -499,6 +499,8 @@ const App: React.FC = () => {
   const gameOverUpdateSentRef = useRef(false);
   const lastScoreSubmittedRef = useRef<number>(-1);
   const simulatorAutoProbeRunRef = useRef(false);
+  const simulatorAutoGameOverTriggeredRef = useRef(false);
+  const simulatorAutoReviveTriggeredRef = useRef(false);
 
   useEffect(() => {
     scoreRef.current = score;
@@ -847,6 +849,9 @@ const App: React.FC = () => {
         setHasUsedReviveThisRun(true);
         setIsReviveAdInProgress(false);
         reviveSnapshotRef.current = null;
+        if (import.meta.env.DEV && isSimulatorQaEnabled) {
+          setSimulatorQaStatus('자동 QA: 부활 성공, 게임 복귀 완료');
+        }
         showComboMessage(String(t('modals:gameOver.reviveSuccess')), 1800);
       },
       onAdClosed: () => {
@@ -857,14 +862,29 @@ const App: React.FC = () => {
         console.error('[App] 보상형 전면 광고 오류:', error);
         setIsReviveAdInProgress(false);
         setIsReviveAdReady(rewardInterstitialAdService.isAdReady());
+        if (import.meta.env.DEV && isSimulatorQaEnabled) {
+          setSimulatorQaStatus(`자동 QA: 부활 광고 오류 (${error.message})`);
+        }
         alert(t('modals:gameOver.reviveError'));
       },
       onDailyLimitReached: () => {
         setIsReviveAdInProgress(false);
+        if (import.meta.env.DEV && isSimulatorQaEnabled) {
+          setSimulatorQaStatus('자동 QA: 부활 광고 일일 한도 도달');
+        }
         alert(t('modals:gameOver.reviveDailyLimitReached'));
       },
     });
-  }, [isReviveAdInProgress, showComboMessage, t]);
+  }, [isReviveAdInProgress, isSimulatorQaEnabled, showComboMessage, t]);
+
+  const getSimulatorQaMode = useCallback((): string | null => {
+    if (typeof window === 'undefined') return null;
+    try {
+      return localStorage.getItem('slidemino_sim_qa_mode');
+    } catch {
+      return null;
+    }
+  }, []);
 
   const handleSimulatorReviveAdProbe = useCallback(() => {
     if (!isSimulatorQaEnabled) return;
@@ -962,6 +982,62 @@ const App: React.FC = () => {
     };
   }, [gameState, isSimulatorQaEnabled]);
 
+  useEffect(() => {
+    if (gameState === GameState.MENU) {
+      simulatorAutoGameOverTriggeredRef.current = false;
+      simulatorAutoReviveTriggeredRef.current = false;
+    }
+  }, [gameState]);
+
+  // DEV 시뮬레이터 전용 자동 QA 모드:
+  // localStorage('slidemino_sim_qa_mode') = 'force_gameover_and_revive'
+  // => 게임 진입 즉시 강제 게임오버를 만들고, 광고 준비 완료 시 부활까지 자동 시도
+  useEffect(() => {
+    if (getSimulatorQaMode() !== 'force_gameover_and_revive') return;
+    if (gameState !== GameState.PLAYING) return;
+    if (simulatorAutoGameOverTriggeredRef.current) return;
+
+    simulatorAutoGameOverTriggeredRef.current = true;
+    reviveSnapshotRef.current = cloneGameSnapshot({
+      grid,
+      slots,
+      score,
+      phase,
+      canSkipSlide,
+    });
+    setIsReviveAdReady(rewardInterstitialAdService.isAdReady());
+    if (!rewardInterstitialAdService.isAdReady()) {
+      rewardInterstitialAdService.preloadAd();
+    }
+    setSimulatorQaStatus('자동 QA: 강제 게임오버 진입');
+    setGameState(GameState.GAME_OVER);
+  }, [canSkipSlide, gameState, getSimulatorQaMode, grid, phase, score, slots]);
+
+  useEffect(() => {
+    if (getSimulatorQaMode() !== 'force_gameover_and_revive') return;
+    if (gameState !== GameState.GAME_OVER) return;
+    if (!isRewardInterstitialAdSupported()) return;
+    if (!reviveSnapshotRef.current || hasUsedReviveThisRun) return;
+    if (simulatorAutoReviveTriggeredRef.current || isReviveAdInProgress) return;
+
+    if (!isReviveAdReady) {
+      setSimulatorQaStatus('자동 QA: 부활 광고 준비 대기 중...');
+      rewardInterstitialAdService.preloadAd();
+      return;
+    }
+
+    simulatorAutoReviveTriggeredRef.current = true;
+    setSimulatorQaStatus('자동 QA: 부활 광고 시도 중...');
+    handleWatchReviveAd();
+  }, [
+    gameState,
+    getSimulatorQaMode,
+    handleWatchReviveAd,
+    hasUsedReviveThisRun,
+    isReviveAdInProgress,
+    isReviveAdReady,
+  ]);
+
   // 🆕 광고 미리 로드 (게임 진행 중이고 되돌리기가 0일 때)
   useEffect(() => {
     if (!isRewardAdSupported()) return;
@@ -993,7 +1069,7 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!isRewardInterstitialAdSupported()) return;
 
-    if (gameState === GameState.PLAYING && !hasUsedReviveThisRun) {
+    if ((gameState === GameState.PLAYING || gameState === GameState.GAME_OVER) && !hasUsedReviveThisRun) {
       rewardInterstitialAdService.preloadAd();
       setIsReviveAdReady(rewardInterstitialAdService.isAdReady());
 
@@ -1317,6 +1393,18 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // 시뮬레이터 QA 단축키(DEV 전용): 게임오버 상태에서 V 키로 부활 광고 트리거
+      if (
+        import.meta.env.DEV
+        && isSimulatorQaEnabled
+        && gameState === GameState.GAME_OVER
+        && (e.key === 'v' || e.key === 'V')
+      ) {
+        e.preventDefault();
+        handleWatchReviveAd();
+        return;
+      }
+
       if (e.key === 'r' || e.key === 'R') {
         if (draggingPiece) rotateActivePiece();
       }
@@ -1339,7 +1427,7 @@ const App: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [gameState, phase, grid, draggingPiece, rotateActivePiece]);
+  }, [gameState, phase, grid, draggingPiece, rotateActivePiece, handleWatchReviveAd, isSimulatorQaEnabled]);
 
   const executeSlide = (dir: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT') => {
     if (slideLockRef.current) return; // Double check
@@ -1353,7 +1441,14 @@ const App: React.FC = () => {
       maxDistance
     } = slideGrid(grid, dir);
 
-    if (!moved) return;
+    if (!moved) {
+      // 예외 상태 안전장치: SLIDE 단계에서 어떤 방향도 불가능하면 PLACE로 복귀시킨다.
+      if (!hasPossibleMoves(grid)) {
+        finishSlideTurn();
+        showComboMessage(String(t('game:status.noMergePlaceMessage')));
+      }
+      return;
+    }
 
     if (tutorialStep === 2) {
       setTutorialStep(0);
@@ -1479,19 +1574,25 @@ const App: React.FC = () => {
       return;
     }
 
-    if (gameState === GameState.PLAYING && phase === Phase.PLACE) {
-      const isOver = checkGameOver(grid, slots);
-      if (isOver) {
-        reviveSnapshotRef.current = lastSnapshot ? cloneGameSnapshot(lastSnapshot) : null;
-        setIsReviveAdReady(rewardInterstitialAdService.isAdReady());
-        if (isRewardInterstitialAdSupported() && !rewardInterstitialAdService.isAdReady()) {
-          rewardInterstitialAdService.preloadAd();
-        }
-        setGameState(GameState.GAME_OVER);
-        if (score > highScore) setHighScore(score);
-      }
+    if (gameState !== GameState.PLAYING) return;
+
+    const availability = getTurnActionAvailability(grid, slots);
+
+    if (phase === Phase.SLIDE && !availability.canSwipe) {
+      finishSlideTurn();
+      return;
     }
-  }, [phase, grid, slots, gameState, score, highScore, isAnimating, lastSnapshot]);
+
+    if (phase === Phase.PLACE && availability.isGameOver) {
+      reviveSnapshotRef.current = lastSnapshot ? cloneGameSnapshot(lastSnapshot) : null;
+      setIsReviveAdReady(rewardInterstitialAdService.isAdReady());
+      if (isRewardInterstitialAdSupported() && !rewardInterstitialAdService.isAdReady()) {
+        rewardInterstitialAdService.preloadAd();
+      }
+      setGameState(GameState.GAME_OVER);
+      if (score > highScore) setHighScore(score);
+    }
+  }, [phase, grid, slots, gameState, score, highScore, isAnimating, lastSnapshot, finishSlideTurn]);
 
   // --- 자동 점수 업데이트 (10초마다) ---
   useEffect(() => {

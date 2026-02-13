@@ -295,14 +295,13 @@ export const hasPossibleMoves = (grid: Grid): boolean => {
 
 // --- Game Over Logic ---
 
-export const checkGameOver = (grid: Grid, slots: (Piece | null)[]): boolean => {
-  // Game over if we are in PLACE phase and NO piece in slots can be placed anywhere
-  // We check all rotations for all available pieces
+const hasPlaceableSlotMove = (grid: Grid, slots: (Piece | null)[]): boolean => {
+  // PLACE 단계에서 슬롯 조각 중 하나라도 보드에 둘 수 있으면 생존
   const size = grid.length;
 
-  // If all slots are empty (rare edge case in middle of turn), not game over
+  // 슬롯이 비어있는 중간 상태(희귀)는 게임오버로 보지 않는다.
   const availablePieces = slots.filter((s): s is Piece => s !== null);
-  if (availablePieces.length === 0) return false;
+  if (availablePieces.length === 0) return true;
 
   for (const piece of availablePieces) {
     // Check all 4 rotations
@@ -314,12 +313,36 @@ export const checkGameOver = (grid: Grid, slots: (Piece | null)[]): boolean => {
       for (let y = 0; y < size; y++) {
         for (let x = 0; x < size; x++) {
           if (canPlacePiece(grid, tempPiece, x, y)) {
-            return false; // Found a valid move
+            return true; // Found a valid placement
           }
         }
       }
     }
   }
 
-  return true;
+  return false;
+};
+
+export interface TurnActionAvailability {
+  canSwipe: boolean;
+  canPlace: boolean;
+  isGameOver: boolean;
+}
+
+export const checkGameOver = (grid: Grid, slots: (Piece | null)[]): boolean => {
+  return !hasPlaceableSlotMove(grid, slots);
+};
+
+export const getTurnActionAvailability = (
+  grid: Grid,
+  slots: (Piece | null)[]
+): TurnActionAvailability => {
+  const canPlace = hasPlaceableSlotMove(grid, slots);
+  const canSwipe = hasPossibleMoves(grid);
+
+  return {
+    canSwipe,
+    canPlace,
+    isGameOver: !canPlace,
+  };
 };

@@ -554,3 +554,125 @@ Original prompt: 게임 진행 화면(iPhone 포함)에서 광고 배너가 메�
 
 - 참고:
   - 현재 시뮬레이터 입력 자동화(cliclick)가 간헐적으로 버튼 클릭을 반영하지 않아, `튜토리얼 다시보기` 버튼 실클릭 대신 동일 로직(localStorage tutorial key 삭제)으로 재노출 검증을 수행.
+
+## 2026-02-13 추가 작업 로그 (게임오버 판정 로직 전수 분석 + 개선)
+- 사용자 요청: "현재 게임오버 판정이 무엇인지(미리보기 전부 배치 불가 vs 스와이프 불가) 명확화 + 유사 게임 조사 기반 개선".
+- 전역 탐색:
+  - 핵심 경로:
+    - `/Users/dj/Desktop/SlideMino/services/gameLogic.ts`
+    - `/Users/dj/Desktop/SlideMino/App.tsx`
+  - 보조 확인:
+    - `/Users/dj/Desktop/SlideMino/components/Board.tsx`
+    - `/Users/dj/Desktop/SlideMino/components/Slot.tsx`
+    - `/Users/dj/Desktop/SlideMino/services/gameStorage.ts`
+    - `/Users/dj/Desktop/SlideMino/components/GameOverModal.tsx`
+    - `/Users/dj/Desktop/SlideMino/public/locales/*/game.json`
+- 기존 로직 결론:
+  - `App.tsx`의 Game Over effect는 `phase === PLACE`일 때만 판정.
+  - 실제 판정 함수 `checkGameOver(grid, slots)`는 슬롯(3개)의 모든 회전/좌표를 탐색해 배치 가능 수가 0이면 게임오버.
+  - 따라서 기존 기준은 이미 "미리보기 블록 전부 배치 불가"이며, "스와이프 불가"는 직접 게임오버 기준이 아님.
+- 개선 조치:
+  - `/Users/dj/Desktop/SlideMino/services/gameLogic.ts`
+    - `hasPlaceableSlotMove(grid, slots)` 내부 공용화.
+    - `getTurnActionAvailability(grid, slots)` 신규 추가:
+      - `canPlace`, `canSwipe`, `isGameOver`를 한 번에 계산.
+    - `checkGameOver`는 내부적으로 `!hasPlaceableSlotMove(...)`를 사용하도록 단순화.
+  - `/Users/dj/Desktop/SlideMino/App.tsx`
+    - Game Over effect에서 `getTurnActionAvailability` 사용.
+    - `phase===SLIDE`인데 `canSwipe=false`인 비정상/데드락 상태면 `finishSlideTurn()`로 PLACE 복귀하도록 안전장치 추가.
+    - `executeSlide()`의 `!moved` 분기에서도 동일 안전복귀 처리.
+- 시장조사/유사게임 교차검증(핵심 근거):
+  - 2048 오픈소스(`movesAvailable()` 기준으로 over 처리): 이동 불가 시 종료.
+  - 1010!/Block Blast류: "남은 블록을 놓을 수 없는 순간" 종료.
+  - Triple Town: 보드가 가득 차 더 진행 불가 시 종료.
+  - Tetris(top-out): 스폰/유지 불가 시 종료.
+  - 결론: 현재 프로젝트 장르(슬롯 배치 중심 퍼즐)에서는 "배치 가능성"을 게임오버 기준으로 두는 것이 시장 표준과 정합.
+
+## 2026-02-13 검증 로그 (게임오버 로직)
+- 정적 검증:
+  - `npx tsc --noEmit` 성공
+  - `npm run build` 성공
+- 스킬 클라이언트 실행 확인:
+  - `node "$WEB_GAME_CLIENT" ...` 실행 및 `web_game_client_status=0` 확인
+- Playwright 상태 주입 검증:
+  1) `phase='PLACE'` + 풀보드 + 슬롯 전부 배치 불가:
+     - 결과: `gameOverVisible=1`, `placePhaseVisible=1`, `swipePhaseVisible=0`
+  2) `phase='SLIDE'` + 동일 데드락:
+     - 결과: 자동 PLACE 복귀 후 `gameOverVisible=1` 확인
+
+## TODO / 후속 제안
+- 실제 기기(iOS/Android)에서 매우 긴 플레이 세션 후 저장/복원 경계에서
+  - `phase`/`canSwipe`/`isGameOver` 전이가 일관적인지 1회 회귀검증 권장.
+
+## 2026-02-13 추가 작업 로그 (iOS 시뮬레이터 게임오버/부활 E2E 재검증 + 근본 수정)
+- 사용자 요청: iPhone 에뮬레이터에서 게임오버 판정과 광고 시청 후 부활 로직이 실제로 작동하는지 전 시나리오 재검증.
+- 재현 결과(수정 전):
+  - 강제 게임오버 모드(`slidemino_sim_qa_mode=force_gameover_and_revive`)에서 GameOver 진입은 재현되나,
+  - 부활 버튼이 장시간 `광고 준비 중`으로 고정되는 케이스 존재.
+- 근본 원인:
+  - `/Users/dj/Desktop/SlideMino/App.tsx`의 보상형 전면 광고 readiness 폴링이 `PLAYING`에서만 동작.
+  - `GAME_OVER` 진입 후 `isReviveAdReady` 갱신 루프가 끊겨, 광고가 나중에 로드돼도 버튼 상태가 갱신되지 않을 수 있음.
+- 수정 내용:
+  1) `/Users/dj/Desktop/SlideMino/App.tsx`
+     - 보상형 전면 광고 preload/readiness polling effect를 `PLAYING` + `GAME_OVER` 모두에서 동작하도록 확장.
+  2) `/Users/dj/Desktop/SlideMino/services/admob.ts`
+     - iOS virtual device(시뮬레이터)에서 테스트 광고 QA 시 `canRequestAds`가 동의 상태에 의해 막히지 않도록 우회(`isVirtual ? true : normalizeCanRequestAds(...)`).
+     - 실제 기기에는 영향 없음.
+
+- 빌드/배포 검증:
+  - `npx tsc --noEmit` 성공
+  - `npm run build` 성공
+  - `npm run cap:sync` 성공
+  - `npx cap run ios --target 8D4A6A07-024E-4FF5-8505-AB707DC5F48E` 성공
+
+- iOS 시뮬레이터 E2E 결과(UDID: 8D4A6A07-024E-4FF5-8505-AB707DC5F48E):
+  - 자동 주입 상태: `gameState=PLAYING(score=42)` + `slidemino_sim_qa_mode=force_gameover_and_revive`
+  - 타임라인:
+    - t8: GameOver 화면 + 부활 카드 노출
+      - `/Users/dj/Desktop/SlideMino/screenshots/ios-e2e/revive-recheck2-t8.png`
+    - t15~: AdMob Test mode 광고 노출 중,
+      localStorage 검증에서 `slidemino_game_state_v1.hasUsedRevive=true`,
+      `slidemino_daily_revive_ad_data.count=1` 확인
+      - 증거 보고서: `/Users/dj/Desktop/SlideMino/output/ios-e2e-revive-recheck2.json`
+  - 부활 후 지속성 확인:
+    - QA 강제모드 키 제거 후 앱 재실행 시 PLAYING 화면으로 복귀 유지
+      - `/Users/dj/Desktop/SlideMino/screenshots/ios-e2e/revive-recheck3-after-qa-off.png`
+      - 저장 상태: `gameState=PLAYING`, `score=42`, `phase=PLACE`, `hasUsedRevive=true`
+
+- 결론:
+  - iOS 시뮬레이터 기준으로
+    1) 게임오버 판정 진입,
+    2) 광고 보상 수령 이벤트,
+    3) 직전 상태 부활 복구,
+    4) 일일 부활 카운트 반영,
+    5) 재실행 후 복구 상태 유지
+  - 전 흐름이 재현/검증됨.
+
+## 2026-02-13 추가 작업 로그 (iOS 시뮬레이터 회귀 4종 + 부활 지속성 최종 확인)
+- 게임오버 판정 4종 시나리오를 iOS 시뮬레이터에서 재실행:
+  - 보고서: `/Users/dj/Desktop/SlideMino/output/ios-e2e-gameover-regression-20260213.json`
+  - 결과: `allPass=true`
+    - A `PLACE + 배치불가` -> 게임오버 (`state cleared`)
+      - `/Users/dj/Desktop/SlideMino/screenshots/ios-e2e/reg-A-place-unplaceable.png`
+    - B `PLACE + 배치가능` -> 플레이 유지 (`state exists`)
+      - `/Users/dj/Desktop/SlideMino/screenshots/ios-e2e/reg-B-place-placeable.png`
+    - C `SLIDE + 데드락` -> PLACE 복귀 후 게임오버 (`state cleared`)
+      - `/Users/dj/Desktop/SlideMino/screenshots/ios-e2e/reg-C-slide-deadlock.png`
+    - D `SLIDE + 이동가능` -> 플레이 유지 (`state exists`)
+      - `/Users/dj/Desktop/SlideMino/screenshots/ios-e2e/reg-D-slide-movable.png`
+
+- 부활 광고 실동작 증거 보강:
+  - AdMob Test mode 실제 전면 광고 노출 확인
+    - `/Users/dj/Desktop/SlideMino/screenshots/ios-e2e/revive-recheck2-t8.png`
+    - `/Users/dj/Desktop/SlideMino/screenshots/ios-e2e/revive-recheck2-t15.png`
+    - `/Users/dj/Desktop/SlideMino/screenshots/ios-e2e/revive-recheck2-t25.png`
+  - 저장값 확인:
+    - `/Users/dj/Desktop/SlideMino/output/ios-e2e-revive-recheck2.json`
+    - `hasUsedRevive=true`, `dailyReviveData.count=1` 반영 확인.
+
+- 부활 후 지속성(앱 재실행) 최종 확인:
+  - QA 강제모드 키 제거 후 재실행 시 PLAYING 화면 복귀 유지
+    - `/Users/dj/Desktop/SlideMino/screenshots/ios-e2e/revive-recheck3-after-qa-off.png`
+  - localStorage 상태:
+    - `slidemino_game_state_v1` 존재
+    - `{ gameState: 'PLAYING', score: 42, phase: 'PLACE', hasUsedRevive: true }`

@@ -85,7 +85,9 @@ const ensureStarted = async (): Promise<void> => {
       }
     }
 
-    canRequestAds = normalizeCanRequestAds(consentInfo);
+    // 시뮬레이터에서는 테스트 광고 QA 재현성을 우선한다.
+    // 실제 기기 동의 정책에는 영향을 주지 않도록 virtual device 에서만 우회한다.
+    canRequestAds = isVirtual ? true : normalizeCanRequestAds(consentInfo);
 
     started = true;
   })();

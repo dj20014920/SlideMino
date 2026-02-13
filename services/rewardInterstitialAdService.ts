@@ -14,6 +14,7 @@ import {
   RewardInterstitialAdPluginEvents,
 } from '@capacitor-community/admob';
 import {
+  ADMOB_TEST_AD_IDS,
   CURRENT_AD_PLATFORM,
   getRewardInterstitialAdId,
   isRewardInterstitialAdSupported,
@@ -244,9 +245,14 @@ class RewardInterstitialAdService {
 
     const isVirtual = await isVirtualDevice();
     const shouldUseTestAds = import.meta.env.MODE !== 'production' || isVirtual;
+    const adId = shouldUseTestAds
+      ? (CURRENT_AD_PLATFORM === 'admob-ios'
+        ? ADMOB_TEST_AD_IDS.IOS.REWARD_INTERSTITIAL
+        : ADMOB_TEST_AD_IDS.ANDROID.REWARD_INTERSTITIAL)
+      : this.adUnitId;
 
     const options: RewardInterstitialAdOptions = {
-      adId: this.adUnitId,
+      adId,
       isTesting: shouldUseTestAds,
     };
 

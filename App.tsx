@@ -43,7 +43,7 @@ import { rankingService } from './services/rankingService';
 import { getCurrentRoute, onRouteChange, updatePageMeta, type Route } from './utils/routing';
 import { isNativeApp, isAppIntoS, isAndroidApp } from './utils/platform';
 import { normalizeLanguage } from './i18n/constants';
-import { openNativePrivacyOptionsForm } from './services/admob';
+import { openNativePrivacyOptionsForm, isVirtualDevice } from './services/admob';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import Terms from './pages/Terms';
 import About from './pages/About';
@@ -52,6 +52,12 @@ import { rewardAdService } from './services/rewardAdService';
 import { rewardInterstitialAdService } from './services/rewardInterstitialAdService';
 import { isRewardAdSupported, isRewardInterstitialAdSupported } from './services/adConfig';
 import { REWARD_UNDO_AMOUNT } from './constants';
+
+declare global {
+  interface Window {
+    __slideMinoSimQaTapReviveAd?: () => void;
+  }
+}
 
 const EMPTY_TILE_VALUE_OVERRIDES: Record<string, number> = {};
 const EMPTY_MERGING_TILES: MergingTile[] = [];
@@ -413,6 +419,9 @@ const App: React.FC = () => {
   const [isReviveAdReady, setIsReviveAdReady] = useState(false);
   const [isReviveAdInProgress, setIsReviveAdInProgress] = useState(false);
   const [hasUsedReviveThisRun, setHasUsedReviveThisRun] = useState(false);
+  const [isSimulatorQaEnabled, setIsSimulatorQaEnabled] = useState(false);
+  const [showSimulatorQaPanel, setShowSimulatorQaPanel] = useState(false);
+  const [simulatorQaStatus, setSimulatorQaStatus] = useState<string | null>(null);
 
   // Check tutorial status on load
   useEffect(() => {
@@ -420,6 +429,36 @@ const App: React.FC = () => {
     if (!tutorialCompleted) {
       setTutorialStep(1); // Start with Drag tutorial
     }
+  }, []);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    if (!isNativeApp()) return;
+
+    let isCancelled = false;
+    isVirtualDevice()
+      .then((isVirtual) => {
+        if (!isCancelled) {
+          setIsSimulatorQaEnabled(isVirtual);
+          if (isVirtual) {
+            setShowSimulatorQaPanel(true);
+            try {
+              localStorage.setItem('slidemino_skip_att_for_qa', '1');
+            } catch {
+              // ignore
+            }
+          }
+        }
+      })
+      .catch(() => {
+        if (!isCancelled) {
+          setIsSimulatorQaEnabled(false);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
   }, []);
 
 
@@ -459,6 +498,7 @@ const App: React.FC = () => {
   const playerNameRef = useRef<string>(playerName);
   const gameOverUpdateSentRef = useRef(false);
   const lastScoreSubmittedRef = useRef<number>(-1);
+  const simulatorAutoProbeRunRef = useRef(false);
 
   useEffect(() => {
     scoreRef.current = score;
@@ -825,6 +865,102 @@ const App: React.FC = () => {
       },
     });
   }, [isReviveAdInProgress, showComboMessage, t]);
+
+  const handleSimulatorReviveAdProbe = useCallback(() => {
+    if (!isSimulatorQaEnabled) return;
+
+    if (!isRewardInterstitialAdSupported()) {
+      setSimulatorQaStatus('현재 환경에서는 보상형 전면 광고를 지원하지 않습니다.');
+      return;
+    }
+
+    if (!rewardInterstitialAdService.isAdReady()) {
+      rewardInterstitialAdService.preloadAd();
+      setSimulatorQaStatus('광고 준비 중... 1~3초 뒤 다시 눌러주세요.');
+
+      window.setTimeout(() => {
+        if (rewardInterstitialAdService.isAdReady()) {
+          setSimulatorQaStatus('광고 준비 완료. 버튼을 다시 눌러 표시를 테스트하세요.');
+        }
+      }, 1200);
+      return;
+    }
+
+    setSimulatorQaStatus('광고 표시 요청 중...');
+    rewardInterstitialAdService.showReviveAd({
+      onRewardEarned: () => {
+        setSimulatorQaStatus('보상 이벤트 수신 완료 (userEarnedReward)');
+      },
+      onAdClosed: () => {
+        setSimulatorQaStatus('광고 닫힘 이벤트 수신 완료 (dismissed)');
+      },
+      onError: (error) => {
+        console.error('[SimulatorQA] 보상형 전면 광고 테스트 실패:', error);
+        setSimulatorQaStatus(`광고 테스트 오류: ${error.message}`);
+      },
+      onDailyLimitReached: () => {
+        setSimulatorQaStatus('일일 부활 광고 한도에 도달했습니다.');
+      },
+    });
+  }, [isSimulatorQaEnabled]);
+
+  useEffect(() => {
+    if (!isSimulatorQaEnabled) return;
+
+    window.__slideMinoSimQaTapReviveAd = () => {
+      handleSimulatorReviveAdProbe();
+    };
+
+    return () => {
+      delete window.__slideMinoSimQaTapReviveAd;
+    };
+  }, [handleSimulatorReviveAdProbe, isSimulatorQaEnabled]);
+
+  useEffect(() => {
+    if (!isSimulatorQaEnabled) return;
+    if (gameState !== GameState.MENU) return;
+    if (simulatorAutoProbeRunRef.current) return;
+
+    simulatorAutoProbeRunRef.current = true;
+    setShowSimulatorQaPanel(true);
+    setSimulatorQaStatus('자동 QA: 보상형 전면 광고 로드 시작...');
+    rewardInterstitialAdService.preloadAd();
+
+    let checks = 0;
+    const maxChecks = 12;
+    const intervalId = window.setInterval(() => {
+      checks += 1;
+      if (rewardInterstitialAdService.isAdReady()) {
+        window.clearInterval(intervalId);
+        setSimulatorQaStatus('자동 QA: 로드 완료, 광고 표시 요청 중...');
+        rewardInterstitialAdService.showReviveAd({
+          onRewardEarned: () => {
+            setSimulatorQaStatus('자동 QA 성공: 보상 콜백 수신');
+          },
+          onAdClosed: () => {
+            setSimulatorQaStatus('자동 QA 완료: 광고 닫힘 콜백 수신');
+          },
+          onError: (error) => {
+            console.error('[SimulatorQA] 자동 프로브 오류:', error);
+            setSimulatorQaStatus(`자동 QA 오류: ${error.message}`);
+          },
+          onDailyLimitReached: () => {
+            setSimulatorQaStatus('자동 QA: 일일 한도 도달');
+          },
+        });
+        return;
+      }
+
+      if (checks >= maxChecks) {
+        window.clearInterval(intervalId);
+        setSimulatorQaStatus('자동 QA: 광고 준비 대기 중 (추가 탭으로 수동 재시도 가능)');
+      }
+    }, 500);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [gameState, isSimulatorQaEnabled]);
 
   // 🆕 광고 미리 로드 (게임 진행 중이고 되돌리기가 0일 때)
   useEffect(() => {
@@ -1489,6 +1625,9 @@ const App: React.FC = () => {
 
   // ========== MENU SCREEN ==========
   if (gameState === GameState.MENU) {
+    const shouldSuppressGameModeTutorial =
+      isNameInputOpen || isCustomizationOpen || isLeaderboardOpen;
+
     return (
       <>
         <CookieConsent />
@@ -1510,6 +1649,35 @@ const App: React.FC = () => {
               ))}
             </p>
           </div>
+
+          {isSimulatorQaEnabled && (
+            <div className="w-full max-w-xs rounded-2xl border border-amber-200/80 bg-amber-50/90 p-3 text-left shadow-sm">
+              <button
+                type="button"
+                id="sim-qa-toggle-btn"
+                onClick={() => setShowSimulatorQaPanel((prev) => !prev)}
+                className="w-full rounded-xl border border-amber-300/70 bg-amber-100/80 px-3 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-100 transition-colors"
+              >
+                {showSimulatorQaPanel ? '시뮬레이터 QA 닫기' : '시뮬레이터 QA 열기'}
+              </button>
+
+              {showSimulatorQaPanel && (
+                <div className="mt-2 space-y-2">
+                  <button
+                    type="button"
+                    id="sim-qa-revive-ad-btn"
+                    onClick={handleSimulatorReviveAdProbe}
+                    className="w-full rounded-xl bg-amber-600 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-700 transition-colors"
+                  >
+                    보상형 전면 광고(부활) 테스트
+                  </button>
+                  <p className="text-xs text-amber-900/90 leading-relaxed">
+                    {simulatorQaStatus ?? '시뮬레이터 전용 도구입니다. 실제 사용자에게는 보이지 않습니다.'}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* 난이도 선택 버튼들 */}
           <div className="flex flex-col gap-4 w-full max-w-xs animate-slide-up">
@@ -1812,7 +1980,10 @@ const App: React.FC = () => {
             onSubmit={handleNameSubmit}
           />
           
-          <GameModeTutorial key={tutorialResetKey} />
+          <GameModeTutorial
+            key={tutorialResetKey}
+            suppressed={shouldSuppressGameModeTutorial}
+          />
         </div>
       </>
     );

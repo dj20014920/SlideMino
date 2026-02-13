@@ -466,3 +466,91 @@ Original prompt: 게임 진행 화면(iPhone 포함)에서 광고 배너가 메�
 
 ## 후속 권장
 - 사용자 혼선을 줄이기 위해 메뉴 또는 설정에 "오프라인 상태 배지 + 기능 제한(랭킹/광고)" 안내를 추가 검토.
+
+## 2026-02-13 추가 작업 로그 (iOS 시뮬레이터 검증 보강 + 튜토리얼 겹침 수정)
+- 사용자 요청: iPhone 에뮬레이터 기준으로 보상형 전면 광고(부활) 동작 재검증.
+- 확인된 문제 1 (UX): 메인 메뉴에서 `GameModeTutorial` 버블이 난이도 선택 후 뜨는 닉네임 입력 모달과 겹침.
+  - 조치:
+    - `/Users/dj/Desktop/SlideMino/components/GameModeTutorial.tsx`
+      - `suppressed?: boolean` prop 추가.
+      - `suppressed=true`일 때 오버레이 렌더 중단.
+    - `/Users/dj/Desktop/SlideMino/App.tsx`
+      - `isNameInputOpen || isCustomizationOpen || isLeaderboardOpen`일 때 `GameModeTutorial` suppress 적용.
+  - 결과: iOS 시뮬레이터에서 이름 입력 모달 단독 노출 확인(튜토리얼 겹침 제거).
+
+- 확인된 문제 2 (iOS 시뮬레이터 검증 난이도): 터치 자동화(cliclick)가 하단 영역/모달 영역에서 불안정해 재현성이 낮음.
+  - 보강 조치(DEV + 시뮬레이터 한정 QA 도구):
+    - `/Users/dj/Desktop/SlideMino/App.tsx`
+      - `isVirtualDevice()` 기반으로 시뮬레이터 여부 감지.
+      - 메뉴 화면에 **시뮬레이터 전용 QA 패널** 추가 (`sim-qa-toggle-btn`, `sim-qa-revive-ad-btn`).
+      - 상태 텍스트(`simulatorQaStatus`)로 `preload/show/reward/closed/error` 흐름 표시.
+      - 자동 프로브 1회(`simulatorAutoProbeRunRef`) 도입: 메뉴 진입 시 preload 후 ready면 show 시도.
+      - 안전장치: QA 패널 및 자동 프로브는 `import.meta.env.DEV`에서만 동작.
+
+- 확인된 문제 3 (시뮬레이터 ATT 팝업): 광고 초기화 시 ATT 팝업이 자동으로 뜨며 광고 검증 플로우를 가림.
+  - 조치:
+    - `/Users/dj/Desktop/SlideMino/services/admob.ts`
+      - `shouldSkipAttPromptForSimulatorQa()` 추가.
+      - iOS + Simulator userAgent인 경우 ATT 요청(`requestTrackingAuthorization`) 스킵.
+      - 개발환경에서 `localStorage('slidemino_skip_att_for_qa')` 오버라이드도 허용.
+    - `/Users/dj/Desktop/SlideMino/App.tsx`
+      - 시뮬레이터 QA 활성 시 `slidemino_skip_att_for_qa=1` 기록.
+
+- iOS 시뮬레이터 실검증 실행:
+  - `npm run build` ✅
+  - `npm run cap:sync` ✅
+  - `npx cap run ios --target 8D4A6A07-024E-4FF5-8505-AB707DC5F48E` ✅
+  - 스크린샷 산출물:
+    - `/Users/dj/Desktop/SlideMino/screenshots/ios-post-patch-menu.png` (튜토리얼 기본 노출)
+    - `/Users/dj/Desktop/SlideMino/screenshots/ios-name-modal-after-tap.png` (모달 단독, 튜토리얼 겹침 해소)
+    - `/Users/dj/Desktop/SlideMino/screenshots/ios-qa-top-visible.png` (시뮬레이터 QA 패널 노출)
+    - `/Users/dj/Desktop/SlideMino/screenshots/ios-qa-auto-probe-result.png` (자동 프로브 중 ATT 팝업 관측)
+    - `/Users/dj/Desktop/SlideMino/screenshots/ios-qa-final-check.png` (재검증 시 ATT 팝업 재관측)
+
+- 현재 상태/잔여 이슈:
+  - 코드상 부활 광고 통합 자체(`rewardInterstitialAdService` + GameOverModal 버튼 + restore snapshot)는 유지/정상.
+  - iOS 시뮬레이터에서 ATT 팝업이 여전히 나타나는 케이스가 있어, 자동 광고 프로브 결과 텍스트까지의 완전 캡처는 추가 1회 확인 필요.
+  - 다만 튜토리얼-모달 겹침 문제는 재현/해결 완료.
+
+- 다음 에이전트 TODO:
+  - Xcode Console(디바이스 로그)로 `RewardInterstitialAdPluginEvents.Loaded/Showed/Rewarded/Dismissed` 이벤트를 직접 캡처해 QA 패널 상태 텍스트와 교차검증.
+  - 시뮬레이터 ATT 우회가 런타임마다 일관되게 먹도록(native side flag 주입 등) 필요 시 추가 보강.
+- 추가 재검증(같은 날짜, iOS 시뮬레이터 재부팅 후):
+  - 시뮬레이터를 shutdown/boot 후 재실행하면 ATT 팝업 없이 QA 패널 상태가 `자동 QA: 광고 준비 대기 중`으로 유지됨.
+  - 즉, ATT 블로킹은 완화됐으나 테스트 광고 `loaded -> showed` 콜백까지는 네트워크/애드서버 응답 타이밍으로 아직 캡처되지 않음.
+  - 관측 로그: `com.google.GoogleMobileAds` 초기화 및 SKAdNetwork 누락 경고(50 identifiers missing) 확인.
+
+## 2026-02-13 추가 작업 로그 (온보딩 재노출 버그 수정)
+- 이슈: 메뉴 온보딩(`GameModeTutorial`)을 닫아도 2~3회 다시 뜨는 현상.
+- 원인: `GameModeTutorial` 내부 `setTimeout(250/700/1200)` + `resize/scroll` 콜백이 닫힘 이후에도 `setIsVisible(true)`를 재호출.
+- 수정:
+  - `/Users/dj/Desktop/SlideMino/components/GameModeTutorial.tsx`
+  - `dismissedRef` 추가로 세션 내 즉시 재노출 차단.
+  - `hasSeenTutorial()` 가드 추가(localStorage + dismissedRef 동시 확인).
+  - `checkTarget()` 시작 시 가드로 조기 return(`setIsVisible(false)`, `setTargetRect(null)`).
+  - `handleDismiss()`에서 `dismissedRef`/state 먼저 닫고 localStorage 저장(try/catch).
+- 기대 결과: 사용자가 닫기를 누르면 해당 세션에서 다시 뜨지 않고, `튜토리얼 다시보기` 버튼으로 storage를 지웠을 때만 다시 노출.
+
+## 2026-02-13 추가 작업 로그 (온보딩 1회 노출 보강 + iOS 에뮬레이터 검증)
+- 사용자 요청: "온보딩이 닫아도 여러 번 뜨는 문제" 해결 + 에뮬레이터 실검증.
+- 수정 내용:
+  - `/Users/dj/Desktop/SlideMino/components/GameModeTutorial.tsx`
+    - `dismissedRef` + `hasSeenTutorial()` 가드 추가.
+    - 타이머/resize/scroll 콜백(`checkTarget`)에서 닫힘/저장 상태면 즉시 `setIsVisible(false)`로 차단.
+    - `handleDismiss()`에서 state 즉시 닫고 storage 저장(try/catch).
+  - `/Users/dj/Desktop/SlideMino/components/BackNavigationTutorial.tsx`
+    - 동일 패턴(`dismissedRef`, `hasSeenTutorial`) 적용.
+    - 닫힘 이후 타이머 콜백 재실행으로 재노출되는 케이스 차단.
+  - `/Users/dj/Desktop/SlideMino/App.tsx`
+    - 이전 디버그용 시뮬레이터 QA 자동 광고 프로브가 production 검증을 가리는 문제 방지 위해 `isVirtualDevice` 초기화 effect를 `import.meta.env.DEV` 가드로 제한.
+
+- iOS 시뮬레이터 검증(iPhone 13 Pro Max, UDID: 8D4A6A07-024E-4FF5-8505-AB707DC5F48E):
+  1) 최초 실행: 온보딩 노출 확인
+     - `/Users/dj/Desktop/SlideMino/screenshots/tutorial-once-01-first-launch.png`
+  2) 온보딩 닫힘 후 앱 재실행: 온보딩 미노출 확인(1회 노출 유지)
+     - `/Users/dj/Desktop/SlideMino/screenshots/tutorial-once-03-still-hidden.png`
+  3) 다시보기 동작과 동일한 storage reset 후 앱 재실행: 온보딩 재노출 확인
+     - `/Users/dj/Desktop/SlideMino/screenshots/tutorial-once-04-after-replay.png`
+
+- 참고:
+  - 현재 시뮬레이터 입력 자동화(cliclick)가 간헐적으로 버튼 클릭을 반영하지 않아, `튜토리얼 다시보기` 버튼 실클릭 대신 동일 로직(localStorage tutorial key 삭제)으로 재노출 검증을 수행.

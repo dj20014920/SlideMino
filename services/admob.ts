@@ -11,6 +11,26 @@ let startPromise: Promise<void> | null = null;
 let canRequestAds: boolean | null = null;
 let isVirtualPromise: Promise<boolean> | null = null;
 
+const shouldSkipAttPromptForSimulatorQa = (): boolean => {
+  if (Capacitor.getPlatform() !== 'ios') return false;
+
+  // On iOS simulators we skip ATT prompt to keep QA deterministic.
+  if (typeof navigator !== 'undefined' && /simulator/i.test(navigator.userAgent)) {
+    return true;
+  }
+
+  // Optional manual override for local QA sessions.
+  if (import.meta.env.MODE === 'development') {
+    try {
+      const value = localStorage.getItem('slidemino_skip_att_for_qa');
+      return value === '1' || value === 'true' || value === 'yes';
+    } catch {
+      return false;
+    }
+  }
+  return false;
+};
+
 const normalizeCanRequestAds = (info: AdmobConsentInfo | null | undefined): boolean => {
   // `canRequestAds` is available on newer plugin versions (7.0.3+).
   // If it's missing, default to true to avoid breaking ad requests.
@@ -26,6 +46,7 @@ const ensureStarted = async (): Promise<void> => {
     await AdMob.initialize();
 
     let consentInfo: AdmobConsentInfo | null = null;
+    let isVirtual = false;
 
     try {
       consentInfo = await AdMob.requestConsentInfo();
@@ -35,9 +56,16 @@ const ensureStarted = async (): Promise<void> => {
       consentInfo = null;
     }
 
+    try {
+      const deviceInfo = await Device.getInfo();
+      isVirtual = Boolean(deviceInfo.isVirtual);
+    } catch {
+      isVirtual = false;
+    }
+
     // iOS only: ATT status can affect ad personalization.
     // We keep this best-effort and never block startup on failures.
-    if (Capacitor.getPlatform() === 'ios') {
+    if (Capacitor.getPlatform() === 'ios' && !isVirtual && !shouldSkipAttPromptForSimulatorQa()) {
       try {
         const tracking = await AdMob.trackingAuthorizationStatus();
         if (tracking.status === 'notDetermined') {

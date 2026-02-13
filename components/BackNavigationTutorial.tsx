@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Hand, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -11,13 +11,28 @@ export const BackNavigationTutorial: React.FC = () => {
   const [viewportWidth, setViewportWidth] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth : 390
   );
+  const dismissedRef = useRef(false);
+
+  const hasSeenTutorial = (): boolean => {
+    if (dismissedRef.current) return true;
+    try {
+      return Boolean(localStorage.getItem(STORAGE_KEY));
+    } catch {
+      return dismissedRef.current;
+    }
+  };
 
   useEffect(() => {
-    const hasSeen = localStorage.getItem(STORAGE_KEY);
-    if (!hasSeen) {
-      const timer = setTimeout(() => setIsVisible(true), 500);
-      return () => clearTimeout(timer);
-    }
+    if (hasSeenTutorial()) return;
+
+    const timer = setTimeout(() => {
+      if (hasSeenTutorial()) {
+        setIsVisible(false);
+        return;
+      }
+      setIsVisible(true);
+    }, 500);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -31,8 +46,13 @@ export const BackNavigationTutorial: React.FC = () => {
   }, []);
 
   const handleDismiss = () => {
+    dismissedRef.current = true;
     setIsVisible(false);
-    localStorage.setItem(STORAGE_KEY, 'true');
+    try {
+      localStorage.setItem(STORAGE_KEY, 'true');
+    } catch {
+      // Ignore storage failure in-session.
+    }
   };
 
   const swipeDistance = Math.max(96, Math.min(150, Math.floor(viewportWidth * 0.45)));

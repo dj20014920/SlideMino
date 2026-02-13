@@ -15,7 +15,11 @@ const clamp = (value: number, min: number, max: number): number => {
   return Math.min(Math.max(value, min), max);
 };
 
-export const GameModeTutorial: React.FC = () => {
+interface GameModeTutorialProps {
+  suppressed?: boolean;
+}
+
+export const GameModeTutorial: React.FC<GameModeTutorialProps> = ({ suppressed = false }) => {
   const { t } = useTranslation();
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [isVisible, setIsVisible] = useState(false);
@@ -27,14 +31,29 @@ export const GameModeTutorial: React.FC = () => {
   }));
   const bubbleRef = useRef<HTMLDivElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
+  const dismissedRef = useRef(false);
+
+  const hasSeenTutorial = (): boolean => {
+    if (dismissedRef.current) return true;
+    try {
+      return Boolean(localStorage.getItem(STORAGE_KEY));
+    } catch {
+      return dismissedRef.current;
+    }
+  };
 
   useEffect(() => {
-    const hasSeen = localStorage.getItem(STORAGE_KEY);
-    if (hasSeen) return;
+    if (hasSeenTutorial()) return;
 
     let rafId: number | null = null;
 
     const checkTarget = () => {
+      if (hasSeenTutorial()) {
+        setTargetRect(null);
+        setIsVisible(false);
+        return;
+      }
+
       const el = document.getElementById('mode-btn-beginner');
       const nextViewport = {
         width: window.innerWidth,
@@ -125,8 +144,14 @@ export const GameModeTutorial: React.FC = () => {
   }, [isVisible]);
 
   const handleDismiss = () => {
+    dismissedRef.current = true;
+    setTargetRect(null);
     setIsVisible(false);
-    localStorage.setItem(STORAGE_KEY, 'true');
+    try {
+      localStorage.setItem(STORAGE_KEY, 'true');
+    } catch {
+      // Ignore storage failure in-session.
+    }
   };
 
   const layout = useMemo(() => {
@@ -196,7 +221,7 @@ export const GameModeTutorial: React.FC = () => {
     };
   }, [bubbleHeight, overlayOffset.left, overlayOffset.top, targetRect, viewport.height, viewport.width]);
 
-  if (!isVisible || !targetRect || !layout) return null;
+  if (suppressed || !isVisible || !targetRect || !layout) return null;
 
   return (
     <AnimatePresence>

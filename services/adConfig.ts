@@ -107,6 +107,25 @@ export const ADMOB_AD_IDS = {
   },
 } as const;
 
+/**
+ * Google 공식 테스트 광고 ID (모드/환경과 무관한 고정값)
+ * - 시뮬레이터/에뮬레이터 검증 시 강제 사용
+ */
+export const ADMOB_TEST_AD_IDS = {
+  ANDROID: {
+    REWARD: 'ca-app-pub-3940256099942544/5224354917',
+    REWARD_INTERSTITIAL: 'ca-app-pub-3940256099942544/5354046379',
+    INTERSTITIAL: 'ca-app-pub-3940256099942544/1033173712',
+    BANNER: 'ca-app-pub-3940256099942544/6300978111',
+  },
+  IOS: {
+    REWARD: 'ca-app-pub-3940256099942544/1712485313',
+    REWARD_INTERSTITIAL: 'ca-app-pub-3940256099942544/6978759866',
+    INTERSTITIAL: 'ca-app-pub-3940256099942544/4411468910',
+    BANNER: 'ca-app-pub-3940256099942544/2934735716',
+  },
+} as const;
+
 // ==========================================
 // 📌 플랫폼 감지 및 환경 타입
 // ==========================================

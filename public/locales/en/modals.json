@@ -47,7 +47,25 @@
     "failureMessage": "We couldn't submit your score. Check your connection or nickname and try again.",
     "success": "Registered!",
     "successMessage": "Your score has been successfully added to the leaderboard.",
-    "queuedMessage": "You are offline. Your score will be submitted automatically when you reconnect."
+    "queuedMessage": "You are offline. Your score will be submitted automatically when you reconnect.",
+    "alreadySubmittedMessage": "This run is already on the leaderboard. Each run can be submitted only once. Start the next run and beat your best!"
+  },
+  "activeGameExit": {
+    "homeTitle": "Leave This Run?",
+    "homeDescription": "Before going back to the menu, you can register your current score.",
+    "newGameTitle": "Register Before New Run",
+    "newGameDescription": "If you want to keep this run's score, register it before starting a new game.",
+    "scoreLabel": "Current Score",
+    "registerButton": "Register Then Continue",
+    "homeProceed": "Go Menu Without Register",
+    "newGameProceed": "Start New Game Without Register",
+    "cancelHome": "Keep Playing",
+    "cancelNewGame": "Cancel",
+    "registerTitle": "Register Current Run Score",
+    "registerDescription": "You can record your current score even before game over.\nAfter registration, you'll move to the next step.",
+    "submittedMessage": "Score registration has been completed.",
+    "confirmHome": "Go To Menu",
+    "confirmNewGame": "Start New Game"
   },
   "tutorial": {
     "drag": "Drag block to board!",

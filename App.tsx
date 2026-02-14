@@ -31,6 +31,7 @@ import { GameOverModal } from './components/GameOverModal';
 import { GameModeTutorial } from './components/GameModeTutorial';
 import { LeaderboardModal } from './components/LeaderboardModal';
 import { NameInputModal } from './components/NameInputModal';
+import { ActiveGameExitModal, type ActiveGameExitContext } from './components/ActiveGameExitModal';
 import { TutorialOverlay } from './components/TutorialOverlay';
 import AdBanner from './components/AdBanner';
 import { CookieConsent } from './components/CookieConsent';
@@ -52,6 +53,7 @@ import { rewardAdService } from './services/rewardAdService';
 import { rewardInterstitialAdService } from './services/rewardInterstitialAdService';
 import { isRewardAdSupported, isRewardInterstitialAdSupported } from './services/adConfig';
 import { REWARD_UNDO_AMOUNT } from './constants';
+import { normalizePlayerName, validatePlayerName } from './utils/playerName';
 
 declare global {
   interface Window {
@@ -72,6 +74,15 @@ interface GameSnapshot {
   canSkipSlide: boolean;
 }
 
+interface ActiveGameRankingSnapshot {
+  sessionId: string;
+  score: number;
+  difficulty: string;
+  duration: number;
+  moves: number;
+  playerName: string;
+}
+
 const cloneGameSnapshot = (snapshot: GameSnapshot): GameSnapshot => ({
   grid: snapshot.grid.map((row) => row.map((tile) => (tile ? { ...tile } : null))),
   slots: snapshot.slots.map((piece) => (piece ? { ...piece, cells: [...piece.cells] } : null)),
@@ -79,6 +90,21 @@ const cloneGameSnapshot = (snapshot: GameSnapshot): GameSnapshot => ({
   phase: snapshot.phase,
   canSkipSlide: snapshot.canSkipSlide,
 });
+
+const getReusablePlayerName = (candidate: string | null | undefined): string | null => {
+  const normalized = normalizePlayerName(candidate ?? '');
+  const errorKey = validatePlayerName(normalized);
+  return errorKey ? null : normalized;
+};
+
+const loadInitialPlayerName = (): string => {
+  if (typeof window === 'undefined') return '';
+  try {
+    return getReusablePlayerName(rankingService.getSavedName()) ?? '';
+  } catch {
+    return '';
+  }
+};
 
 interface BoardMetrics {
   rectLeft: number;
@@ -394,8 +420,11 @@ const App: React.FC = () => {
   // Name Input State
   const [isNameInputOpen, setIsNameInputOpen] = useState(false);
   const [pendingDifficulty, setPendingDifficulty] = useState<number | null>(null);
-  const [playerName, setPlayerName] = useState<string>('');
+  const [playerName, setPlayerName] = useState<string>(loadInitialPlayerName);
   const [showActiveGameWarning, setShowActiveGameWarning] = useState(false);
+  const [isActiveGameExitModalOpen, setIsActiveGameExitModalOpen] = useState(false);
+  const [activeGameExitContext, setActiveGameExitContext] = useState<ActiveGameExitContext>('HOME');
+  const [activeGameRankingSnapshot, setActiveGameRankingSnapshot] = useState<ActiveGameRankingSnapshot | null>(null);
 
   // 슬라이드 단계에서의 배치 허용 플래그(현재 룰에서는 항상 false를 유지)
   const [canSkipSlide, setCanSkipSlide] = useState(false);
@@ -585,50 +614,84 @@ const App: React.FC = () => {
     reviveSnapshotRef.current = null;
     leaderboardSnapshotRef.current = [];
     setLiveRankEstimate(null);
-    setPlayerName(saved.playerName ?? '');
+    setPlayerName(
+      getReusablePlayerName(saved.playerName) ??
+      getReusablePlayerName(rankingService.getSavedName()) ??
+      ''
+    );
     sessionIdRef.current = saved.sessionId ?? crypto.randomUUID();
     moveCountRef.current = typeof saved.moveCount === 'number' ? saved.moveCount : 0;
-    gameStartTimeRef.current = typeof saved.startedAt === 'number' ? saved.startedAt : Date.now();
+    gameStartTimeRef.current = typeof saved.startedAt === 'number' ? saved.startedAt : saved.savedAt;
   }, []);
 
   // 앱 시작 시 저장된 게임 복원
   useEffect(() => {
     const saved = loadGameState();
     if (saved) {
-      // 저장된 진행중 게임이 있으면 바로 게임 화면으로
+      // 저장된 복구 상태(진행중/게임오버)가 있으면 즉시 복원
       restoreSavedGame(saved);
     }
   }, [restoreSavedGame]);
 
-  // 게임 상태 자동 저장 (debounce로 최적화)
+  const persistRecoverableGameState = useCallback(() => {
+    if (gameState !== GameState.PLAYING && gameState !== GameState.GAME_OVER) return;
+
+    saveGameState({
+      gameState,
+      grid,
+      slots,
+      score,
+      phase,
+      boardSize,
+      canSkipSlide,
+      undoRemaining,
+      lastSnapshot,
+      hasUsedRevive: hasUsedReviveThisRun,
+      sessionId: sessionIdRef.current,
+      moveCount: moveCountRef.current,
+      startedAt: gameStartTimeRef.current,
+      playerName,
+    });
+  }, [gameState, grid, slots, score, phase, boardSize, canSkipSlide, undoRemaining, lastSnapshot, hasUsedReviveThisRun, playerName]);
+
+  // 게임 상태 자동 저장 (debounce + 종료 직전 플러시)
   useEffect(() => {
     if (gameState === GameState.PLAYING) {
       // 500ms debounce로 과도한 localStorage 저장 방지
       const saveTimer = setTimeout(() => {
-        saveGameState({
-          gameState,
-          grid,
-          slots,
-          score,
-          phase,
-          boardSize,
-          canSkipSlide,
-          undoRemaining,
-          lastSnapshot,
-          hasUsedRevive: hasUsedReviveThisRun,
-          sessionId: sessionIdRef.current,
-          moveCount: moveCountRef.current,
-          startedAt: gameStartTimeRef.current,
-          playerName,
-        });
+        persistRecoverableGameState();
       }, 500);
 
       return () => clearTimeout(saveTimer);
-    } else if (gameState === GameState.GAME_OVER) {
-      // 게임 오버 시에만 저장된 게임 삭제 (메뉴로 돌아갈 때는 유지)
-      clearGameState();
     }
-  }, [gameState, grid, slots, score, phase, boardSize, canSkipSlide, undoRemaining, lastSnapshot, hasUsedReviveThisRun, playerName]);
+
+    if (gameState === GameState.GAME_OVER) {
+      // 게임오버 즉시 저장: 앱 종료/업데이트 후에도 랭킹 등록을 이어갈 수 있어야 한다.
+      persistRecoverableGameState();
+    }
+  }, [gameState, persistRecoverableGameState]);
+
+  useEffect(() => {
+    const flushRecoverableState = () => {
+      persistRecoverableGameState();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        flushRecoverableState();
+      }
+    };
+
+    window.addEventListener('pagehide', flushRecoverableState);
+    window.addEventListener('beforeunload', flushRecoverableState);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('pagehide', flushRecoverableState);
+      window.removeEventListener('beforeunload', flushRecoverableState);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [persistRecoverableGameState]);
 
   useEffect(() => {
     const shouldLockScroll = gameState !== GameState.MENU;
@@ -657,23 +720,154 @@ const App: React.FC = () => {
     }
   }, []);
 
+  const buildActiveGameRankingSnapshot = useCallback((): ActiveGameRankingSnapshot | null => {
+    const now = Date.now();
+
+    if (gameState === GameState.PLAYING || gameState === GameState.GAME_OVER) {
+      const elapsedSeconds = Math.max(1, Math.floor((now - gameStartTimeRef.current) / 1000));
+      return {
+        sessionId: sessionIdRef.current,
+        score,
+        difficulty: `${boardSize}x${boardSize}`,
+        duration: elapsedSeconds,
+        moves: moveCountRef.current,
+        playerName,
+      };
+    }
+
+    const saved = loadGameState();
+    if (!saved) return null;
+    const startedAt = typeof saved.startedAt === 'number' ? saved.startedAt : saved.savedAt;
+    const elapsedSeconds = Math.max(1, Math.floor((now - startedAt) / 1000));
+
+    return {
+      sessionId: saved.sessionId ?? sessionIdRef.current,
+      score: saved.score,
+      difficulty: `${saved.boardSize}x${saved.boardSize}`,
+      duration: elapsedSeconds,
+      moves: typeof saved.moveCount === 'number' ? saved.moveCount : 0,
+      playerName: saved.playerName ?? playerName,
+    };
+  }, [gameState, score, boardSize, playerName]);
+
+  const resolveReusablePlayerName = useCallback((): string | null => {
+    return getReusablePlayerName(playerName) ?? getReusablePlayerName(rankingService.getSavedName());
+  }, [playerName]);
+
+  const startGameWithReusableNameOrPrompt = useCallback((size: BoardSize) => {
+    const reusableName = resolveReusablePlayerName();
+    if (reusableName) {
+      setPlayerName(reusableName);
+      rankingService.saveName(reusableName);
+      startGame(size);
+      setPendingDifficulty(null);
+      setIsNameInputOpen(false);
+      setShowActiveGameWarning(false);
+      return;
+    }
+
+    setShowActiveGameWarning(false);
+    setPendingDifficulty(size);
+    setIsNameInputOpen(true);
+  }, [resolveReusablePlayerName, startGame]);
+
+  const openActiveGameExitModal = useCallback((context: ActiveGameExitContext, nextDifficulty?: BoardSize) => {
+    const snapshot = buildActiveGameRankingSnapshot();
+    if (!snapshot) {
+      if (context === 'HOME') {
+        goToMenu();
+        return;
+      }
+      if (typeof nextDifficulty === 'number') {
+        startGameWithReusableNameOrPrompt(nextDifficulty as BoardSize);
+      }
+      return;
+    }
+
+    if (typeof nextDifficulty === 'number') {
+      setPendingDifficulty(nextDifficulty);
+    }
+    setActiveGameExitContext(context);
+    setActiveGameRankingSnapshot(snapshot);
+    setIsActiveGameExitModalOpen(true);
+  }, [buildActiveGameRankingSnapshot, goToMenu, startGameWithReusableNameOrPrompt]);
+
+  const handleGameOverClose = useCallback(() => {
+    // 게임오버 결과 확인을 마치고 메뉴로 돌아갈 때 복구 상태를 정리한다.
+    clearGameState();
+    setGameState(GameState.MENU);
+  }, []);
+
+  const handleHomeButtonClick = useCallback(() => {
+    if (gameState === GameState.PLAYING) {
+      openActiveGameExitModal('HOME');
+      return;
+    }
+    goToMenu();
+  }, [gameState, goToMenu, openActiveGameExitModal]);
+
+  const handleActiveGameExitCancel = useCallback(() => {
+    if (activeGameExitContext === 'NEW_GAME') {
+      setPendingDifficulty(null);
+    }
+    setIsActiveGameExitModalOpen(false);
+    setActiveGameRankingSnapshot(null);
+  }, [activeGameExitContext]);
+
+  const handleActiveGameExitProceedWithoutRegister = useCallback(() => {
+    const context = activeGameExitContext;
+    setIsActiveGameExitModalOpen(false);
+    setActiveGameRankingSnapshot(null);
+
+    if (context === 'HOME') {
+      goToMenu();
+      return;
+    }
+
+    if (typeof pendingDifficulty === 'number') {
+      startGameWithReusableNameOrPrompt(pendingDifficulty as BoardSize);
+      return;
+    }
+
+    setShowActiveGameWarning(false);
+    setIsNameInputOpen(true);
+  }, [activeGameExitContext, goToMenu, pendingDifficulty, startGameWithReusableNameOrPrompt]);
+
+  const handleActiveGameExitRegisteredAndProceed = useCallback(() => {
+    const context = activeGameExitContext;
+    setIsActiveGameExitModalOpen(false);
+    setActiveGameRankingSnapshot(null);
+    clearGameState();
+
+    if (context === 'HOME') {
+      goToMenu();
+      return;
+    }
+
+    if (typeof pendingDifficulty === 'number') {
+      startGameWithReusableNameOrPrompt(pendingDifficulty as BoardSize);
+      return;
+    }
+
+    setShowActiveGameWarning(false);
+    setIsNameInputOpen(true);
+  }, [activeGameExitContext, goToMenu, pendingDifficulty, startGameWithReusableNameOrPrompt]);
+
   // 난이도 선택 시 진행중 게임 경고 -> 이름 입력 모달
   const tryStartGame = useCallback((size: BoardSize) => {
     const active = hasActiveGame() && (gameState === GameState.MENU || boardSize !== size);
-    setShowActiveGameWarning(active);
+    if (active) {
+      openActiveGameExitModal('NEW_GAME', size);
+      return;
+    }
 
-    // Open Name Input Modal directly (no window.confirm)
-    setPendingDifficulty(size);
-    setIsNameInputOpen(true);
-  }, [gameState, boardSize]);
+    startGameWithReusableNameOrPrompt(size);
+  }, [gameState, boardSize, openActiveGameExitModal, startGameWithReusableNameOrPrompt]);
 
   const handleNameSubmit = (name: string) => {
     if (pendingDifficulty) {
-      // If we warned about active game, clear it now
-      if (showActiveGameWarning) {
-        clearGameState();
-      }
       setPlayerName(name);
+      rankingService.saveName(name);
       startGame(pendingDifficulty as BoardSize);
       setIsNameInputOpen(false);
       setPendingDifficulty(null);
@@ -681,7 +875,10 @@ const App: React.FC = () => {
     }
   };
 
-  const startGame = (size: BoardSize) => {
+  function startGame(size: BoardSize) {
+    // 새 게임 시작 시 이전 게임 복구 데이터는 폐기한다.
+    clearGameState();
+
     if (mergeClearTimeoutRef.current) {
       window.clearTimeout(mergeClearTimeoutRef.current);
       mergeClearTimeoutRef.current = null;
@@ -733,7 +930,7 @@ const App: React.FC = () => {
     } else {
       setTutorialStep(0);
     }
-  };
+  }
 
   // --- Undo 시스템 ---
 
@@ -1709,7 +1906,7 @@ const App: React.FC = () => {
   // ========== MENU SCREEN ==========
   if (gameState === GameState.MENU) {
     const shouldSuppressGameModeTutorial =
-      isNameInputOpen || isCustomizationOpen || isLeaderboardOpen;
+      isNameInputOpen || isCustomizationOpen || isLeaderboardOpen || isActiveGameExitModalOpen;
 
     return (
       <>
@@ -2050,10 +2247,27 @@ const App: React.FC = () => {
           <NameInputModal
             open={isNameInputOpen}
             difficulty={pendingDifficulty}
+            initialName={playerName || rankingService.getSavedName()}
             hasActiveGame={showActiveGameWarning}
             onClose={() => setIsNameInputOpen(false)}
             onSubmit={handleNameSubmit}
           />
+
+          {activeGameRankingSnapshot && (
+            <ActiveGameExitModal
+              open={isActiveGameExitModalOpen}
+              context={activeGameExitContext}
+              score={activeGameRankingSnapshot.score}
+              difficulty={activeGameRankingSnapshot.difficulty}
+              duration={activeGameRankingSnapshot.duration}
+              moves={activeGameRankingSnapshot.moves}
+              sessionId={activeGameRankingSnapshot.sessionId}
+              playerName={activeGameRankingSnapshot.playerName}
+              onCancel={handleActiveGameExitCancel}
+              onProceedWithoutRegister={handleActiveGameExitProceedWithoutRegister}
+              onRegisteredAndProceed={handleActiveGameExitRegisteredAndProceed}
+            />
+          )}
           
           <GameModeTutorial
             key={tutorialResetKey}
@@ -2117,7 +2331,7 @@ const App: React.FC = () => {
             {/* Home Button */}
             <button
               type="button"
-              onClick={goToMenu}
+              onClick={handleHomeButtonClick}
               disabled={isAnimating}
               className={`
               p-2.5 rounded-full flex items-center justify-center
@@ -2343,7 +2557,23 @@ const App: React.FC = () => {
             isReviveAdReady={isReviveAdReady}
             isReviveInProgress={isReviveAdInProgress}
             onWatchReviveAd={handleWatchReviveAd}
-            onClose={() => setGameState(GameState.MENU)}
+            onClose={handleGameOverClose}
+          />
+        )}
+
+        {activeGameRankingSnapshot && (
+          <ActiveGameExitModal
+            open={isActiveGameExitModalOpen}
+            context={activeGameExitContext}
+            score={activeGameRankingSnapshot.score}
+            difficulty={activeGameRankingSnapshot.difficulty}
+            duration={activeGameRankingSnapshot.duration}
+            moves={activeGameRankingSnapshot.moves}
+            sessionId={activeGameRankingSnapshot.sessionId}
+            playerName={activeGameRankingSnapshot.playerName}
+            onCancel={handleActiveGameExitCancel}
+            onProceedWithoutRegister={handleActiveGameExitProceedWithoutRegister}
+            onRegisteredAndProceed={handleActiveGameExitRegisteredAndProceed}
           />
         )}
       </div>

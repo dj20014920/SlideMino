@@ -7,12 +7,13 @@ import { isAndroidApp } from '../utils/platform';
 interface NameInputModalProps {
     open: boolean;
     difficulty: number | null;
+    initialName?: string;
     hasActiveGame?: boolean;
     onClose: () => void;
     onSubmit: (name: string) => void;
 }
 
-export const NameInputModal: React.FC<NameInputModalProps> = ({ open, difficulty, hasActiveGame, onClose, onSubmit }) => {
+export const NameInputModal: React.FC<NameInputModalProps> = ({ open, difficulty, initialName, hasActiveGame, onClose, onSubmit }) => {
     const { t } = useTranslation();
     const [name, setName] = useState('');
     const [error, setError] = useState<string | null>(null);
@@ -20,10 +21,10 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({ open, difficulty
 
     useEffect(() => {
         if (open) {
-            setName('');
+            setName(initialName ?? '');
             setError(null);
         }
-    }, [open]);
+    }, [open, initialName]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();

@@ -47,7 +47,25 @@
     "failureMessage": "スコアの登録に失敗しました。通信状態や名前を確認して再試行してください。",
     "success": "登録されました！",
     "successMessage": "ランキングにスコアが正常に反映されました。",
-    "queuedMessage": "オフラインのため、再接続後にスコアが自動的に送信されます。"
+    "queuedMessage": "オフラインのため、再接続後にスコアが自動的に送信されます。",
+    "alreadySubmittedMessage": "このプレイはすでにランキング登録済みです。1プレイにつき登録は1回のみです。次のプレイで自己ベスト更新に挑戦しましょう！"
+  },
+  "activeGameExit": {
+    "homeTitle": "このプレイを終了しますか？",
+    "homeDescription": "メニューに戻る前に、現在のスコアをランキング登録できます。",
+    "newGameTitle": "新しいゲーム開始前に登録",
+    "newGameDescription": "今のスコアを残したい場合は、新しいゲーム開始前にランキング登録してください。",
+    "scoreLabel": "現在のスコア",
+    "registerButton": "登録して進む",
+    "homeProceed": "登録せずメニューへ",
+    "newGameProceed": "登録せず新しいゲーム開始",
+    "cancelHome": "プレイを続ける",
+    "cancelNewGame": "キャンセル",
+    "registerTitle": "進行中スコアのランキング登録",
+    "registerDescription": "ゲームオーバー前でも現在のスコアを記録できます。\n登録後に次のステップへ進みます。",
+    "submittedMessage": "ランキング登録処理が完了しました。",
+    "confirmHome": "メニューへ移動",
+    "confirmNewGame": "新しいゲーム開始"
   },
   "tutorial": {
     "drag": "ブロックをボードにドラッグ！",

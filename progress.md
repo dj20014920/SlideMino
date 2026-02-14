@@ -961,3 +961,154 @@ Original prompt: 게임 진행 화면(iPhone 포함)에서 광고 배너가 메�
      - iOS 자산 복사 + 플러그인 갱신 완료.
 - 상태:
   - 웹 배포/랭킹 API/모바일 동기화 모두 정상 완료.
+
+## 2026-02-14 추가 작업 로그 (업데이트/강종 시 랭킹 연속성 보강)
+- 사용자 문제의식:
+  - 게임 도중 앱을 나가거나 앱 업데이트가 일어나면 진행 중 게임의 랭킹 연속성이 깨질 가능성 점검 요청.
+- 근본 원인 분석:
+  1) 기존 구조에서 `GAME_OVER` 진입 즉시 `clearGameState()`를 호출해, 사용자가 랭킹 등록 전에 앱이 종료/업데이트되면 점수 복구 자체가 불가능했음.
+  2) 저장이 `PLAYING` 상태 500ms debounce 중심이라, 백그라운드 전환/강종 직전 입력이 누락될 수 있었음.
+  3) `startedAt`가 없는 구버전 저장 데이터는 복원 시 `Date.now()`로 대체되어, 빠른 종료 시 안티치트(duration) 오탐 가능성이 있었음.
+  4) 저장 데이터 손상 시 단일 키 의존이라 복구 여지가 제한적이었음.
+- 조치:
+  1) `services/gameStorage.ts`
+     - 백업 키 추가: `slidemino_game_state_backup_v1`.
+     - 저장 시 주 키 + 백업 키 동시 기록.
+     - 로드 시 주 키 실패 시 백업 키 fallback 및 주 키 자동 복원.
+     - 로드 허용 상태를 `PLAYING`뿐 아니라 `GAME_OVER`까지 확장.
+     - `hasActiveGame()`를 `PLAYING` 상태만 true로 조정(이어하기 버튼 의미 보존).
+     - 구버전 데이터 `startedAt` 누락 시 `savedAt`으로 보정.
+     - 주 키 JSON 손상 시 백업 복구가 동작하도록 파서 예외 처리 보강.
+  2) `App.tsx`
+     - `GAME_OVER`에서 즉시 삭제하던 로직 제거, 대신 즉시 저장.
+     - `persistRecoverableGameState` 공통 저장 루틴 도입.
+     - `pagehide`, `beforeunload`, `visibilitychange(hidden)`에서 즉시 flush 저장 추가.
+     - 게임오버 모달 닫기(onClose) 시에만 `clearGameState()` 후 메뉴 이동.
+     - 새 게임 시작 시 이전 복구 데이터 정리.
+     - `startedAt` 복원 fallback을 `saved.savedAt`으로 변경.
+- 검증:
+  1) 빌드:
+     - `npm run build` 성공.
+     - `npm run build:cf` 성공.
+  2) 스킬 루프:
+     - `node "$WEB_GAME_CLIENT" --url http://127.0.0.1:5175 --actions-file "$WEB_GAME_ACTIONS" --iterations 2 --pause-ms 250` 실행.
+     - 최신 산출물: `/Users/dj/Desktop/SlideMino/output/web-game/shot-0.png`, `/Users/dj/Desktop/SlideMino/output/web-game/errors-0.json`.
+  3) Playwright 시나리오:
+     - `GAME_OVER` 저장 상태를 주입 후 새로고침 → 게임오버 모달(점수 777, 랭킹 등록 버튼) 자동 복원 확인.
+     - `메뉴로 돌아가기` 클릭 후 새로고침 → 복구 데이터 삭제되어 메뉴 진입 확인.
+     - 주 키를 손상 JSON으로 만들고 백업 키만 정상 데이터로 둔 상태에서 새로고침 → 백업 복구로 플레이 상태(score 321) 정상 복원 및 주 키 재생성 확인.
+
+## 2026-02-14 추가 작업 로그 (버튼 기반 랭킹 등록 경로 단순화 정리)
+- 사용자 피드백 반영:
+  - 랭킹 등록 트리거는 게임오버 화면의 `랭킹 등록하기` 버튼만 사용하도록 알고리즘 단순화 필요성 재확인.
+- 점검 결과:
+  - 실제 제출 경로는 `GameOverModal.handleSubmit -> rankingService.submitScore` 한 경로만 사용됨.
+  - `App.tsx` 등 런타임 경로에서 `updateScore` 호출은 이미 없음.
+- 정리 작업:
+  - `services/rankingService.ts`에서 미사용 자동업데이트 전용 로직 제거:
+    - `shouldRetry` 제거
+    - `updateScore` 메서드 제거
+  - 결과적으로 코드 구조상도 “버튼 클릭 시 제출”만 남도록 단순화.
+- 재검증:
+  - `npm run build` 성공
+  - `npm run build:cf` 성공
+  - `node "$WEB_GAME_CLIENT" --url http://127.0.0.1:5180 --actions-file "$WEB_GAME_ACTIONS" --iterations 1 --pause-ms 250` 실행 완료
+  - 산출물: `/Users/dj/Desktop/SlideMino/output/web-game/shot-0.png`, `/Users/dj/Desktop/SlideMino/output/web-game/errors-0.json`
+
+## 2026-02-14 추가 작업 로그 (홈/새게임 진입 시 진행중 점수 랭킹 등록 UX 추가)
+- 사용자 요청:
+  - 게임오버 외에도 `홈 버튼` 또는 `새 게임 시작` 시점에서 최근 진행 점수를 랭킹 등록할 수 있는 UI/UX 추가.
+  - 게임 화면과 톤이 일관된 모달 스타일 유지.
+- 구현:
+  1) 신규 컴포넌트 추가
+     - `/Users/dj/Desktop/SlideMino/components/ActiveGameExitModal.tsx`
+     - 기능:
+       - CHOICE 단계: 현재 점수/난이도/소요시간/이동수 표시 + `랭킹 등록 후 진행` / `등록 없이 진행` / `취소`
+       - REGISTER 단계: 이름 입력 + 개인정보 안내 + 랭킹 제출
+       - SUBMITTED 단계: 등록 완료(또는 오프라인 큐) 후 다음 동작 진행
+  2) App 플로우 연결
+     - `/Users/dj/Desktop/SlideMino/App.tsx`
+       - 홈 버튼 클릭 시(`PLAYING`) `goToMenu` 직행 대신 ActiveGameExitModal 오픈.
+       - 메뉴에서 진행중 게임이 있는 상태에서 난이도 버튼 클릭 시 NameInputModal 직행 대신 ActiveGameExitModal 오픈.
+       - `등록 없이 메뉴`, `등록 없이 새 게임`, `랭킹 등록 후 진행` 분기 처리 추가.
+       - `activeGameRankingSnapshot`(sessionId/score/difficulty/duration/moves/playerName) 계산 로직 추가.
+  3) 다국어 문구 추가
+     - `/Users/dj/Desktop/SlideMino/public/locales/{ko,en,ja,zh}/modals.json`
+     - `activeGameExit.*` 키 추가.
+- 검증:
+  - `npm run build` 성공.
+  - Playwright 수동 시나리오:
+    1) PLAYING에서 홈 버튼 클릭 -> `진행 중인 게임을 종료할까요?` 모달 노출 확인.
+    2) 모달에서 `등록 없이 메뉴로` -> 메뉴 복귀 + `게임 이어하기` 버튼 유지 확인.
+    3) 메뉴에서 진행중 게임 존재 상태로 난이도 클릭 -> `새 게임 시작 전 랭킹 등록` 모달 노출 확인.
+    4) `등록 없이 새 게임` -> NameInputModal 진입 확인.
+    5) `랭킹 등록 후 진행` -> 등록 폼 단계 진입 확인.
+  - 스킬 스크립트:
+    - `node "$WEB_GAME_CLIENT" --url http://127.0.0.1:5181 --actions-file "$WEB_GAME_ACTIONS" --iterations 1 --pause-ms 250` 실행 완료.
+    - 산출물: `/Users/dj/Desktop/SlideMino/output/web-game/shot-0.png`, `/Users/dj/Desktop/SlideMino/output/web-game/errors-0.json`
+
+## 2026-02-14 추가 작업 로그 (한 판당 랭킹 1회 등록 강제 + 중복 안내 UX)
+- 사용자 요청:
+  - 동일한 판(session)에 대한 랭킹 중복 등록 방지.
+  - 중복 시 에러 대신 “한 게임당 1회만 가능” 안내 + 다음 플레이 유도.
+- 서버/클라이언트 점검 결과:
+  - 서버는 `session_id UNIQUE` + `409 SESSION_ALREADY_SUBMITTED` 응답 경로까지 구현되어 있었고,
+  - 클라이언트(`GameOverModal`, `ActiveGameExitModal`)도 `alreadySubmitted` 분기를 처리하도록 반영되어 있었음.
+  - 누락 지점은 다국어 메시지 키(`modals.rankingRegister.alreadySubmittedMessage`) 미정의.
+- 조치:
+  - `/Users/dj/Desktop/SlideMino/public/locales/ko/modals.json`
+  - `/Users/dj/Desktop/SlideMino/public/locales/en/modals.json`
+  - `/Users/dj/Desktop/SlideMino/public/locales/ja/modals.json`
+  - `/Users/dj/Desktop/SlideMino/public/locales/zh/modals.json`
+  - 위 4개 파일에 `rankingRegister.alreadySubmittedMessage` 추가.
+  - 문구 방향: “한 판당 1회 등록”을 명확히 고지하고 다음 판 도전을 유도하는 톤으로 통일.
+- 검증:
+  - `npm run build` 성공.
+  - `npm run build:cf` 성공.
+  - 스킬 스크립트 실행:
+    - `node "$WEB_GAME_CLIENT" --url http://127.0.0.1:5173 --actions-file "$WEB_GAME_ACTIONS" --iterations 1 --pause-ms 250`
+    - 산출물 확인: `/Users/dj/Desktop/SlideMino/output/web-game/shot-0.png`, `/Users/dj/Desktop/SlideMino/output/web-game/errors-0.json`
+  - 비고:
+    - `errors-0.json`의 `React.Fragment` prop warning은 기존 관측 경고로, 이번 중복 등록/문구 변경과 직접 연관 없음.
+
+## 2026-02-14 추가 작업 로그 (아이디 입력 2중 노출 제거: 1회 입력 흐름 통합)
+- 사용자 요청:
+  - 난이도 선택 시 이름 입력 + 게임오버 랭킹 등록 시 이름 입력이 중복으로 보여 UX가 번거로운 문제 개선.
+  - 전수조사 후 이름 입력이 한 번만 필요하도록 통합.
+- 전수조사 범위:
+  - `/Users/dj/Desktop/SlideMino/App.tsx`
+  - `/Users/dj/Desktop/SlideMino/components/NameInputModal.tsx`
+  - `/Users/dj/Desktop/SlideMino/components/GameOverModal.tsx`
+  - `/Users/dj/Desktop/SlideMino/components/ActiveGameExitModal.tsx`
+  - `/Users/dj/Desktop/SlideMino/services/rankingService.ts`
+- 원인 정리:
+  1) 난이도 선택 시 `NameInputModal`이 항상 열려 이름을 매번 요구.
+  2) 게임오버/진행중 종료 모달에서 랭킹 등록 시에도 다시 입력폼 단계로 진입.
+- 조치:
+  1) 재사용 가능한 이름 판별 공통화
+     - `App.tsx`에 `getReusablePlayerName`, `loadInitialPlayerName` 추가.
+     - 앱 초기 playerName을 저장된 유효 닉네임으로 로드.
+  2) 새 게임 시작 시 입력 모달 조건화
+     - `startGameWithReusableNameOrPrompt` 도입:
+       - 유효 닉네임이 있으면 즉시 게임 시작(입력 모달 생략)
+       - 없을 때만 `NameInputModal` 오픈.
+     - `tryStartGame`, ActiveGameExit의 NEW_GAME 분기에 동일 로직 적용.
+  3) 랭킹 등록 시 재입력 제거
+     - `GameOverModal` / `ActiveGameExitModal`에서 저장된 유효 닉네임이 있으면
+       - `랭킹 등록` 버튼 클릭 즉시 제출(입력폼 단계 생략).
+       - 실패 시에도 입력폼으로 강제 전환하지 않고 현재 단계에서 오류 문구 노출.
+     - 닉네임이 비어있거나 유효하지 않을 때만 기존 입력폼 단계로 진입.
+  4) 이름 입력 모달 개선
+     - `NameInputModal`에 `initialName` 추가, 재오픈 시 기존 닉네임 프리필.
+     - `handleNameSubmit` 시 `rankingService.saveName(name)` 저장해 이후 재사용 안정화.
+- 검증:
+  1) 빌드
+     - `npm run build` 성공.
+     - `npm run build:cf` 성공.
+  2) 브라우저 시나리오(Playwright)
+     - 저장된 닉네임(`slidemino_player_name=테스터`) 존재 시:
+       - 메뉴에서 난이도 클릭 -> `NameInputModal` 없이 즉시 플레이 화면 진입 확인.
+     - 저장된 닉네임이 없는 신규 상태 시:
+       - 메뉴에서 난이도 클릭 -> `NameInputModal` 노출 확인(최초 1회 입력 경로).
+     - GAME_OVER + 닉네임 존재 상태에서:
+       - `랭킹 등록하기` 클릭 -> 입력폼 단계 없이 곧바로 제출 완료 상태(`등록되었습니다!`) 진입 확인(fetch mock 기반).

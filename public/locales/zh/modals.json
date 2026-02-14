@@ -47,7 +47,25 @@
     "failureMessage": "无法提交分数，请检查网络或昵称后重试。",
     "success": "注册成功！",
     "successMessage": "您的分数已成功添加到排行榜。",
-    "queuedMessage": "当前离线，恢复连接后会自动提交你的分数。"
+    "queuedMessage": "当前离线，恢复连接后会自动提交你的分数。",
+    "alreadySubmittedMessage": "本局已完成排行榜登记。每局仅可登记一次。开始下一局，挑战你的最佳成绩吧！"
+  },
+  "activeGameExit": {
+    "homeTitle": "要结束当前对局吗？",
+    "homeDescription": "返回菜单前，您可以先把当前分数登记到排行榜。",
+    "newGameTitle": "开始新游戏前先登记",
+    "newGameDescription": "如果要保留当前对局分数，请在开始新游戏前先进行排行榜登记。",
+    "scoreLabel": "当前分数",
+    "registerButton": "登记后继续",
+    "homeProceed": "不登记，返回菜单",
+    "newGameProceed": "不登记，直接新开一局",
+    "cancelHome": "继续游戏",
+    "cancelNewGame": "取消",
+    "registerTitle": "登记当前对局分数",
+    "registerDescription": "即使尚未游戏结束，也可以记录当前分数。\n登记完成后将进入下一步。",
+    "submittedMessage": "排行榜登记处理已完成。",
+    "confirmHome": "前往菜单",
+    "confirmNewGame": "开始新游戏"
   },
   "tutorial": {
     "drag": "将方块拖到棋盘！",

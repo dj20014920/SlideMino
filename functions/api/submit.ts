@@ -88,8 +88,21 @@ function errorResponse(
   );
 }
 
-// 중복 제출 방지는 Rate Limiting으로 대체
-// DB 쿼리 제거로 성능 최적화
+function alreadySubmittedResponse(headers: Record<string, string>): Response {
+  return new Response(
+    JSON.stringify({
+      error: 'This game has already been submitted.',
+      code: 'SESSION_ALREADY_SUBMITTED',
+    }),
+    {
+      status: 409,
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+}
 
 /**
  * OPTIONS 요청 처리 (CORS Preflight)
@@ -186,20 +199,22 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     await resetRankingsIfNewMonth(env);
 
-    // ========== 데이터베이스 UPSERT (Layer 4) ==========
+    // ========== 데이터베이스 저장 (한 세션 1회 등록) ==========
     try {
       const now = Date.now();
 
-      // UPSERT: 세션 ID가 이미 존재하면 업데이트, 없으면 삽입
+      // 한 세션당 1회 등록만 허용
+      const existing = await env.DB.prepare(
+        `SELECT id FROM rankings WHERE session_id = ? LIMIT 1`
+      ).bind(sessionId).first<{ id: number }>();
+
+      if (existing) {
+        return alreadySubmittedResponse(corsHeaders);
+      }
+
       await env.DB.prepare(
         `INSERT INTO rankings (session_id, name, score, difficulty, duration, moves, timestamp, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(session_id) DO UPDATE SET
-           name = excluded.name,
-           score = excluded.score,
-           duration = excluded.duration,
-           moves = excluded.moves,
-           updated_at = excluded.updated_at`
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
       ).bind(
         sessionId,
         sanitizedName,
@@ -236,6 +251,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
 
     } catch (dbError) {
+      const dbErrorText = String(dbError ?? '');
+      // 동시 요청 경쟁 상태에서도 세션당 1회 규칙을 유지한다.
+      if (dbErrorText.includes('UNIQUE') && dbErrorText.includes('session_id')) {
+        return alreadySubmittedResponse(corsHeaders);
+      }
+
       // DB 에러는 로그만 하고 일반적인 메시지 반환
       console.error('Database error:', dbError);
       return errorResponse('Failed to save score', 500, corsHeaders, dbError);

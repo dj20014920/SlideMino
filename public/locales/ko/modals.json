@@ -47,7 +47,25 @@
     "failureMessage": "등록에 실패했습니다. 네트워크 상태와 이름을 확인한 뒤 다시 시도해주세요.",
     "success": "등록되었습니다!",
     "successMessage": "랭킹에 점수가 성공적으로 반영되었습니다.",
-    "queuedMessage": "오프라인 상태입니다. 연결되면 자동으로 랭킹에 등록됩니다."
+    "queuedMessage": "오프라인 상태입니다. 연결되면 자동으로 랭킹에 등록됩니다.",
+    "alreadySubmittedMessage": "이 게임은 이미 랭킹에 등록되었습니다. 한 게임당 1회만 등록할 수 있어요. 다음 판에서 최고 기록에 도전해보세요!"
+  },
+  "activeGameExit": {
+    "homeTitle": "진행 중인 게임을 종료할까요?",
+    "homeDescription": "메뉴로 나가기 전에 현재 점수를 랭킹에 먼저 등록할 수 있습니다.",
+    "newGameTitle": "새 게임 시작 전 랭킹 등록",
+    "newGameDescription": "기존 진행 점수를 보존하려면 새 게임을 시작하기 전에 랭킹 등록을 진행하세요.",
+    "scoreLabel": "현재 점수",
+    "registerButton": "랭킹 등록 후 진행",
+    "homeProceed": "등록 없이 메뉴로",
+    "newGameProceed": "등록 없이 새 게임",
+    "cancelHome": "계속 플레이",
+    "cancelNewGame": "취소",
+    "registerTitle": "진행 중 점수 랭킹 등록",
+    "registerDescription": "게임오버 전이라도 현재 점수를 기록할 수 있습니다.\n등록 처리 후 다음 단계로 이동합니다.",
+    "submittedMessage": "랭킹 등록 처리가 완료되었습니다.",
+    "confirmHome": "메뉴로 이동",
+    "confirmNewGame": "새 게임 시작"
   },
   "tutorial": {
     "drag": "블록을 보드로 드래그!",

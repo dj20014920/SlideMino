@@ -13,6 +13,7 @@ export interface SubmitScoreResponse {
     rank?: number;
     queued?: boolean;
     offline?: boolean;
+    alreadySubmitted?: boolean;
 }
 
 export interface LeaderboardResponse {
@@ -111,11 +112,6 @@ const saveLeaderboardCache = (data: RankEntry[]): void => {
     localStorage.setItem(STORAGE_KEY_LEADERBOARD_CACHE, JSON.stringify(payload));
 };
 
-const shouldRetry = (status?: number): boolean => {
-    if (status === 0 || status === undefined) return true;
-    return status >= 500;
-};
-
 const shouldQueue = (status?: number): boolean => {
     if (status === 0 || status === undefined) return true;
     return status === 429 || status >= 500;
@@ -123,7 +119,7 @@ const shouldQueue = (status?: number): boolean => {
 
 const postScore = async (
     payload: Omit<PendingScore, 'updatedAt'>
-): Promise<{ success: boolean; rank?: number; status?: number }> => {
+): Promise<{ success: boolean; rank?: number; status?: number; code?: string }> => {
     try {
         const response = await fetch(getApiUrl('/api/submit'), {
             method: 'POST',
@@ -134,7 +130,16 @@ const postScore = async (
         });
 
         if (!response.ok) {
-            return { success: false, status: response.status };
+            let code: string | undefined;
+            try {
+                const errorBody = await response.json() as { code?: unknown };
+                if (typeof errorBody?.code === 'string') {
+                    code = errorBody.code;
+                }
+            } catch {
+                // ignore non-json error body
+            }
+            return { success: false, status: response.status, code };
         }
 
         const data = await response.json();
@@ -270,42 +275,8 @@ export const rankingService = {
             return { success: true, rank: result.rank };
         }
 
-        if (shouldQueue(result.status)) {
-            enqueueScore(payload);
-            return { success: false, queued: true, offline: !isOnline() };
-        }
-
-        return { success: false };
-    },
-
-    /**
-     * Update score during gameplay (자동 업데이트용)
-     */
-    updateScore: async (
-        sessionId: string,
-        name: string,
-        score: number,
-        difficulty: string,
-        duration: number,
-        moves: number,
-        retryCount = 0 // 재시도 횟수 추적
-    ): Promise<SubmitScoreResponse> => {
-        const payload = buildPayload(sessionId, name, score, difficulty, duration, moves);
-
-        if (!isOnline()) {
-            enqueueScore(payload);
-            return { success: false, queued: true, offline: true };
-        }
-
-        const result = await postScore(payload);
-        if (result.success) {
-            return { success: true, rank: result.rank };
-        }
-
-        if (shouldRetry(result.status) && retryCount < 2) {
-            const delay = Math.pow(2, retryCount) * 1000;
-            await new Promise(resolve => setTimeout(resolve, delay));
-            return rankingService.updateScore(sessionId, name, score, difficulty, duration, moves, retryCount + 1);
+        if (result.status === 409 || result.code === 'SESSION_ALREADY_SUBMITTED') {
+            return { success: false, alreadySubmitted: true };
         }
 
         if (shouldQueue(result.status)) {

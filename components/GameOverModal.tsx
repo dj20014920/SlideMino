@@ -56,19 +56,12 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         }
     }, [step]);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        const trimmedName = normalizePlayerName(name);
-        const errorKey = validatePlayerName(trimmedName);
-        if (errorKey) {
-            setNameError(t(`modals:nameInput.errors.${errorKey}`));
-            return;
-        }
-
+    const submitScoreWithName = async (trimmedName: string) => {
         setIsSubmitting(true);
         setNameError(null);
         setSubmitError(null);
         setSubmitInfo(null);
+
         // Submit score with anti-cheat metadata and session ID
         const result = await rankingService.submitScore(
             sessionId,
@@ -80,12 +73,39 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         );
         setIsSubmitting(false);
         if (result.success) {
+            setSubmitInfo(null);
             setStep('SUBMITTED');
         } else if (result.queued) {
             setSubmitInfo(t('modals:rankingRegister.queuedMessage'));
+            setStep('SUBMITTED');
+        } else if (result.alreadySubmitted) {
+            setSubmitInfo(t('modals:rankingRegister.alreadySubmittedMessage'));
+            setStep('SUBMITTED');
         } else {
             setSubmitError(t('modals:rankingRegister.failureMessage'));
         }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const trimmedName = normalizePlayerName(name);
+        const errorKey = validatePlayerName(trimmedName);
+        if (errorKey) {
+            setNameError(t(`modals:nameInput.errors.${errorKey}`));
+            return;
+        }
+
+        await submitScoreWithName(trimmedName);
+    };
+
+    const handleRegisterClick = () => {
+        const defaultName = normalizePlayerName(name || playerName || rankingService.getSavedName());
+        const errorKey = validatePlayerName(defaultName);
+        if (errorKey) {
+            setStep('REGISTER');
+            return;
+        }
+        void submitScoreWithName(defaultName);
     };
 
     return (
@@ -175,20 +195,24 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                             )}
 
                             <button
-                                onClick={() => setStep('REGISTER')}
+                                onClick={handleRegisterClick}
+                                disabled={isSubmitting}
                                 className="
                   group relative w-full py-4 rounded-2xl
                   bg-gradient-to-br from-indigo-500 to-purple-600
                   text-white font-bold text-lg
                   shadow-lg shadow-indigo-500/25
                   hover:shadow-xl hover:shadow-indigo-500/40 hover:-translate-y-0.5
+                  disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0
                   active:translate-y-0 active:scale-[0.98]
                   transition-all duration-200
                 "
                             >
                                 <span className="flex items-center justify-center gap-2">
                                     <Medal size={20} className="text-indigo-100" />
-                                    {t('modals:gameOver.registerRanking')}
+                                    {isSubmitting
+                                        ? t('modals:rankingRegister.submitting')
+                                        : t('modals:gameOver.registerRanking')}
                                 </span>
                             </button>
 
@@ -207,6 +231,12 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                                 {t('modals:gameOver.backToMenu')}
                             </button>
                         </div>
+
+                        {submitError && (
+                            <div className="w-full text-center text-sm text-red-500">
+                                {submitError}
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -325,7 +355,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                         <div className="text-center space-y-2">
                             <h3 className="text-2xl font-bold text-gray-900">{t('modals:rankingRegister.success')}</h3>
                             <p className="text-gray-500">
-                                {t('modals:rankingRegister.successMessage')}
+                                {submitInfo ?? t('modals:rankingRegister.successMessage')}
                             </p>
                         </div>
 

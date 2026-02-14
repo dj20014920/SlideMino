@@ -1,1 +1,84 @@
-{}
+{
+  "title": "블록 슬라이드 (Block Slide)",
+  "tagline": "테트리스처럼 블록을 배치하고.\n2048처럼 숫자를 합치세요.",
+  "difficulties": {
+    "expert": "🔥 고수",
+    "normal": "일반",
+    "beginner": "뉴비",
+    "easy": "왕초보",
+    "infinite": "무한모드",
+    "continue": "▶ 게임 이어하기"
+  },
+  "boardSizes": {
+    "4x4": "4×4",
+    "5x5": "5×5",
+    "7x7": "7×7",
+    "8x8": "8×8",
+    "10x10": "10×10"
+  },
+  "phases": {
+    "place": "블록 배치",
+    "swipe": "보드 스와이프"
+  },
+  "hints": {
+    "rotate": "회전: 빈 공간 탭/회전 버튼, PC는 R",
+    "drop": "보드 위에서 손을 떼면 배치",
+    "drag": "블록을 보드에 드래그",
+    "swipe": "머지가 멈출 때까지 스와이프",
+    "combo": "다시 스와이프 또는 블록 놓기"
+  },
+  "status": {
+    "turnGuide": "턴 안내",
+    "placeBadge": "지금 배치 가능",
+    "swipeBadge": "지금 스와이프",
+    "placeDescription": "머지가 멈췄습니다. 블록을 배치해 다음 턴을 시작하세요.",
+    "swipeDescription": "머지가 발생하는 동안은 계속 스와이프하세요. 머지가 없으면 배치 단계로 전환됩니다.",
+    "mergeContinueMessage": "머지 성공! 이번 턴은 계속 스와이프",
+    "noMergePlaceMessage": "머지 없음. 이제 블록을 배치하세요"
+  },
+  "liveRank": {
+    "estimatedRank": "예상 #{{rank}}",
+    "pointsToNext": "다음 순위까지 {{points}}점",
+    "topRank": "현재 1위권"
+  },
+  "actions": {
+    "undo": "되돌리기",
+    "customization": "블럭 커스터마이징",
+    "leaderboard": "랭킹 보기",
+    "locked": "잠김",
+    "customize": "꾸미기"
+  },
+  "rewardAd": {
+    "watchButton": "충전",
+    "watchButtonFull": "광고 시청",
+    "rewardEarned": "+{{amount}} 되돌리기 충전 완료!",
+    "loading": "광고 준비 중...",
+    "error": "광고를 불러올 수 없습니다.\n잠시 후 다시 시도해주세요.",
+    "dailyLimitReached": "오늘의 광고 시청 횟수를 모두 사용했습니다.\n내일 다시 시도해주세요.",
+    "notSupported": "현재 환경에서는 광고 기능이 지원되지 않습니다."
+  },
+  "blockRefresh": {
+    "refreshButton": "블록 새로고침",
+    "limitExceeded": "새로고침 횟수를 모두 사용했습니다.",
+    "ad": {
+      "watchButton": "광고보고 1회 추가",
+      "loading": "광고 준비 중...",
+      "rewardEarned": "새로고침 +{{amount}}회 충전 완료!",
+      "error": "광고를 불러올 수 없습니다.\n잠시 후 다시 시도해주세요.",
+      "dailyLimitReached": "오늘의 광고 시청 횟수를 모두 사용했습니다.\n내일 다시 시도해주세요.",
+      "notSupported": "현재 환경에서는 광고 기능이 지원되지 않습니다."
+    }
+  },
+  "tutorial": {
+    "swipeBack": "오른쪽으로 스와이프하여 뒤로가기",
+    "tapToDismiss": "터치하여 닫기",
+    "recommendTitle": "첫 게임은 여기서 시작하세요!",
+    "recommendDesc": "처음 플레이는 기본 5×5 모드를 추천합니다.",
+    "modeGuideTitle": "모드 한눈에 보기",
+    "modeGuideBeginner": "뉴비 7×7: 공간이 넓어 실수 복구가 쉽습니다.",
+    "modeGuideNormal": "일반 5×5: 표준 밸런스, 첫 게임 추천 모드입니다.",
+    "modeGuideExpert": "고수 4×4: 공간이 빨리 막히는 고난도 모드입니다.",
+    "tapToDismissMode": "말풍선을 터치하면 닫힙니다.",
+    "close": "닫기"
+  }
+}

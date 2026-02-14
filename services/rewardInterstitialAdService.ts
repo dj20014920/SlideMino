@@ -1,5 +1,5 @@
 /**
- * 게임오버 부활용 보상형 전면 광고 서비스
+ * 보상형 전면 광고 서비스
  * - 플랫폼별 분기 (Apps-in-Toss / AdMob iOS/Android)
  * - 일일 한도 관리
  * - 중복 보상 방지
@@ -22,42 +22,53 @@ import {
 import { ensureAdMobReady, isVirtualDevice } from './admob';
 import { MAX_DAILY_REVIVE_AD_VIEWS } from '../constants';
 
-export interface ReviveAdCallbacks {
+export interface RewardInterstitialAdCallbacks {
   onRewardEarned: () => void;
   onAdClosed: () => void;
   onError: (error: Error) => void;
   onDailyLimitReached?: () => void;
 }
 
+export interface RewardInterstitialAdServiceOptions {
+  adUnitId: string;
+  isSupported: () => boolean;
+  maxDailyViews: number;
+  dailyStorageKey: string;
+  logTag: string;
+}
+
 type AdLoadStatus = 'not_loaded' | 'loading' | 'loaded' | 'failed';
 type AdShowStatus = 'idle' | 'showing' | 'rewarded' | 'closed';
 
-interface DailyReviveAdData {
-  date: string; // YYYY-MM-DD
+interface DailyAdData {
+  date: string;
   count: number;
 }
 
-class DailyReviveAdLimiter {
-  private readonly STORAGE_KEY = 'slidemino_daily_revive_ad_data';
+class DailyRewardInterstitialAdLimiter {
+  constructor(
+    private readonly storageKey: string,
+    private readonly maxDailyViews: number
+  ) {}
 
   private getTodayString(): string {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   }
 
-  private createFreshData(): DailyReviveAdData {
+  private createFreshData(): DailyAdData {
     return {
       date: this.getTodayString(),
       count: 0,
     };
   }
 
-  private getData(): DailyReviveAdData {
+  private getData(): DailyAdData {
     try {
-      const stored = localStorage.getItem(this.STORAGE_KEY);
+      const stored = localStorage.getItem(this.storageKey);
       if (!stored) return this.createFreshData();
 
-      const data: DailyReviveAdData = JSON.parse(stored);
+      const data: DailyAdData = JSON.parse(stored);
       if (data.date !== this.getTodayString()) {
         return this.createFreshData();
       }
@@ -68,9 +79,9 @@ class DailyReviveAdLimiter {
     }
   }
 
-  private saveData(data: DailyReviveAdData): void {
+  private saveData(data: DailyAdData): void {
     try {
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
+      localStorage.setItem(this.storageKey, JSON.stringify(data));
     } catch {
       // localStorage 저장 실패는 게임 진행을 막지 않는다.
     }
@@ -78,17 +89,17 @@ class DailyReviveAdLimiter {
 
   public canWatchAd(): boolean {
     const data = this.getData();
-    return data.count < MAX_DAILY_REVIVE_AD_VIEWS;
+    return data.count < this.maxDailyViews;
   }
 
   public getRemainingCount(): number {
     const data = this.getData();
-    return Math.max(0, MAX_DAILY_REVIVE_AD_VIEWS - data.count);
+    return Math.max(0, this.maxDailyViews - data.count);
   }
 
   public recordWatch(): boolean {
     const data = this.getData();
-    if (data.count >= MAX_DAILY_REVIVE_AD_VIEWS) {
+    if (data.count >= this.maxDailyViews) {
       return false;
     }
 
@@ -98,97 +109,146 @@ class DailyReviveAdLimiter {
   }
 }
 
-class RewardInterstitialAdService {
-  private adUnitId: string = '';
+export class RewardInterstitialAdService {
+  private static hasSharedAdMobListeners = false;
+  private static activeService: RewardInterstitialAdService | null = null;
+  private static services = new Set<RewardInterstitialAdService>();
+
+  private adUnitId: string;
+  private readonly isSupported: () => boolean;
+  private readonly logTag: string;
   private loadStatus: AdLoadStatus = 'not_loaded';
   private showStatus: AdShowStatus = 'idle';
   private isProcessingShow = false;
   private cleanupLoadFn: (() => void) | null = null;
-  private admobCallbacks: ReviveAdCallbacks | null = null;
-  private hasAdMobListeners = false;
+  private admobCallbacks: RewardInterstitialAdCallbacks | null = null;
   private rewardIssuedForCurrentShow = false;
-  private dailyLimiter = new DailyReviveAdLimiter();
+  private dailyLimiter: DailyRewardInterstitialAdLimiter;
 
-  constructor() {
-    this.adUnitId = getRewardInterstitialAdId();
+  constructor(options: RewardInterstitialAdServiceOptions) {
+    this.adUnitId = options.adUnitId;
+    this.isSupported = options.isSupported;
+    this.logTag = options.logTag;
+    this.dailyLimiter = new DailyRewardInterstitialAdLimiter(options.dailyStorageKey, options.maxDailyViews);
+    RewardInterstitialAdService.services.add(this);
 
     if (CURRENT_AD_PLATFORM === 'admob-ios' || CURRENT_AD_PLATFORM === 'admob-android') {
-      this.setupAdMobListeners();
+      RewardInterstitialAdService.setupSharedAdMobListeners();
     }
 
     if (import.meta.env.DEV) {
-      console.log('[RewardInterstitialAdService] 초기화');
-      console.log('[RewardInterstitialAdService] 플랫폼:', CURRENT_AD_PLATFORM);
-      console.log('[RewardInterstitialAdService] 광고 ID:', this.adUnitId);
-      console.log('[RewardInterstitialAdService] 지원 여부:', isRewardInterstitialAdSupported());
+      console.log(`[${this.logTag}] 초기화`);
+      console.log(`[${this.logTag}] 플랫폼:`, CURRENT_AD_PLATFORM);
+      console.log(`[${this.logTag}] 광고 ID:`, this.adUnitId);
+      console.log(`[${this.logTag}] 지원 여부:`, this.isSupported());
     }
   }
 
-  private setupAdMobListeners(): void {
-    if (this.hasAdMobListeners) return;
-    this.hasAdMobListeners = true;
+  private static setupSharedAdMobListeners(): void {
+    if (RewardInterstitialAdService.hasSharedAdMobListeners) return;
+    RewardInterstitialAdService.hasSharedAdMobListeners = true;
 
     AdMob.addListener(RewardInterstitialAdPluginEvents.Loaded, (info: AdLoadInfo) => {
-      this.loadStatus = 'loaded';
-      console.log('[RewardInterstitialAdService] AdMob 보상형 전면 광고 로드 완료:', info);
+      RewardInterstitialAdService.activeService?.handleLoaded(info);
     });
 
     AdMob.addListener(RewardInterstitialAdPluginEvents.FailedToLoad, (error) => {
-      this.loadStatus = 'failed';
-      console.error('[RewardInterstitialAdService] AdMob 보상형 전면 광고 로드 실패:', error);
-
-      setTimeout(() => {
-        if (this.loadStatus === 'failed') {
-          this.preloadAd();
-        }
-      }, 5000);
+      RewardInterstitialAdService.activeService?.handleFailedToLoad(error);
     });
 
     AdMob.addListener(RewardInterstitialAdPluginEvents.Showed, () => {
-      this.showStatus = 'showing';
+      RewardInterstitialAdService.activeService?.handleShowed();
     });
 
     AdMob.addListener(RewardInterstitialAdPluginEvents.FailedToShow, (error) => {
-      this.showStatus = 'idle';
-      this.loadStatus = 'failed';
-      this.isProcessingShow = false;
-      this.rewardIssuedForCurrentShow = false;
-
-      if (this.admobCallbacks) {
-        this.admobCallbacks.onError(new Error('보상형 전면 광고 표시 실패'));
-        this.admobCallbacks = null;
-      }
-
-      console.error('[RewardInterstitialAdService] AdMob 보상형 전면 광고 표시 실패:', error);
+      RewardInterstitialAdService.activeService?.handleFailedToShow(error);
     });
 
     AdMob.addListener(RewardInterstitialAdPluginEvents.Rewarded, (reward: AdMobRewardInterstitialItem) => {
-      if (!this.admobCallbacks) return;
-      this.handleRewardEarned(this.admobCallbacks, reward);
+      RewardInterstitialAdService.activeService?.handleRewarded(reward);
     });
 
     AdMob.addListener(RewardInterstitialAdPluginEvents.Dismissed, () => {
-      this.showStatus = 'closed';
-      this.isProcessingShow = false;
-      this.rewardIssuedForCurrentShow = false;
-
-      if (this.admobCallbacks) {
-        this.admobCallbacks.onAdClosed();
-        this.admobCallbacks = null;
-      }
-
-      setTimeout(() => this.preloadAd(), 100);
+      RewardInterstitialAdService.activeService?.handleDismissed();
     });
   }
 
+  private activateForAdMobEvents(): void {
+    RewardInterstitialAdService.activeService = this;
+    RewardInterstitialAdService.services.forEach((service) => {
+      if (service === this) return;
+      service.invalidatePreparedAdState();
+    });
+  }
+
+  private invalidatePreparedAdState(): void {
+    this.loadStatus = 'not_loaded';
+    this.showStatus = 'idle';
+    this.isProcessingShow = false;
+    this.admobCallbacks = null;
+    this.rewardIssuedForCurrentShow = false;
+  }
+
+  private handleLoaded(info: AdLoadInfo): void {
+    this.loadStatus = 'loaded';
+    console.log(`[${this.logTag}] AdMob 보상형 전면 광고 로드 완료:`, info);
+  }
+
+  private handleFailedToLoad(error: unknown): void {
+    this.loadStatus = 'failed';
+    console.error(`[${this.logTag}] AdMob 보상형 전면 광고 로드 실패:`, error);
+
+    setTimeout(() => {
+      if (this.loadStatus === 'failed') {
+        this.preloadAd();
+      }
+    }, 5000);
+  }
+
+  private handleShowed(): void {
+    this.showStatus = 'showing';
+  }
+
+  private handleFailedToShow(error: unknown): void {
+    this.showStatus = 'idle';
+    this.loadStatus = 'failed';
+    this.isProcessingShow = false;
+    this.rewardIssuedForCurrentShow = false;
+
+    if (this.admobCallbacks) {
+      this.admobCallbacks.onError(new Error('보상형 전면 광고 표시 실패'));
+      this.admobCallbacks = null;
+    }
+
+    console.error(`[${this.logTag}] AdMob 보상형 전면 광고 표시 실패:`, error);
+  }
+
+  private handleRewarded(reward: AdMobRewardInterstitialItem): void {
+    if (!this.admobCallbacks) return;
+    this.handleRewardEarned(this.admobCallbacks, reward);
+  }
+
+  private handleDismissed(): void {
+    this.showStatus = 'closed';
+    this.isProcessingShow = false;
+    this.rewardIssuedForCurrentShow = false;
+
+    if (this.admobCallbacks) {
+      this.admobCallbacks.onAdClosed();
+      this.admobCallbacks = null;
+    }
+
+    setTimeout(() => this.preloadAd(), 100);
+  }
+
   private checkSupport(): boolean {
-    if (!isRewardInterstitialAdSupported()) {
-      console.warn('[RewardInterstitialAdService] 플랫폼 미지원:', CURRENT_AD_PLATFORM);
+    if (!this.isSupported()) {
+      console.warn(`[${this.logTag}] 플랫폼 미지원:`, CURRENT_AD_PLATFORM);
       return false;
     }
 
     if (!this.adUnitId) {
-      console.warn('[RewardInterstitialAdService] 광고 ID 미설정');
+      console.warn(`[${this.logTag}] 광고 ID 미설정`);
       return false;
     }
 
@@ -205,7 +265,7 @@ class RewardInterstitialAdService {
     }
 
     if (CURRENT_AD_PLATFORM === 'admob-ios' || CURRENT_AD_PLATFORM === 'admob-android') {
-      this.loadAdMobAd();
+      void this.loadAdMobAd();
     }
   }
 
@@ -229,12 +289,13 @@ class RewardInterstitialAdService {
         this.loadStatus = 'failed';
         this.cleanupLoadFn?.();
         this.cleanupLoadFn = null;
-        console.error('[RewardInterstitialAdService] 앱인토스 보상형 전면 광고 로드 실패:', error);
+        console.error(`[${this.logTag}] 앱인토스 보상형 전면 광고 로드 실패:`, error);
       },
     });
   }
 
   private async loadAdMobAd(): Promise<void> {
+    this.activateForAdMobEvents();
     this.loadStatus = 'loading';
 
     const canRequest = await ensureAdMobReady();
@@ -260,11 +321,11 @@ class RewardInterstitialAdService {
       await AdMob.prepareRewardInterstitialAd(options);
     } catch (error) {
       this.loadStatus = 'failed';
-      console.error('[RewardInterstitialAdService] AdMob 보상형 전면 광고 로드 실패:', error);
+      console.error(`[${this.logTag}] AdMob 보상형 전면 광고 로드 실패:`, error);
     }
   }
 
-  public showReviveAd(callbacks: ReviveAdCallbacks): void {
+  public showRewardAd(callbacks: RewardInterstitialAdCallbacks): void {
     if (!this.checkSupport()) {
       callbacks.onError(new Error('현재 환경에서는 보상형 전면 광고를 사용할 수 없습니다.'));
       return;
@@ -296,7 +357,7 @@ class RewardInterstitialAdService {
     }
 
     if (CURRENT_AD_PLATFORM === 'admob-ios' || CURRENT_AD_PLATFORM === 'admob-android') {
-      this.showAdMobAd(callbacks);
+      void this.showAdMobAd(callbacks);
       return;
     }
 
@@ -304,7 +365,12 @@ class RewardInterstitialAdService {
     callbacks.onError(new Error('광고 플랫폼을 확인할 수 없습니다.'));
   }
 
-  private showAppsInTossAd(callbacks: ReviveAdCallbacks): void {
+  // 하위 호환: 기존 호출부 유지
+  public showReviveAd(callbacks: RewardInterstitialAdCallbacks): void {
+    this.showRewardAd(callbacks);
+  }
+
+  private showAppsInTossAd(callbacks: RewardInterstitialAdCallbacks): void {
     if (!GoogleAdMob.showAppsInTossAdMob.isSupported()) {
       this.isProcessingShow = false;
       callbacks.onError(new Error('GoogleAdMob 미지원'));
@@ -352,7 +418,8 @@ class RewardInterstitialAdService {
     });
   }
 
-  private async showAdMobAd(callbacks: ReviveAdCallbacks): Promise<void> {
+  private async showAdMobAd(callbacks: RewardInterstitialAdCallbacks): Promise<void> {
+    this.activateForAdMobEvents();
     this.admobCallbacks = callbacks;
     this.showStatus = 'showing';
 
@@ -369,7 +436,7 @@ class RewardInterstitialAdService {
     }
   }
 
-  private handleRewardEarned(callbacks: ReviveAdCallbacks, reward: unknown): void {
+  private handleRewardEarned(callbacks: RewardInterstitialAdCallbacks, reward: unknown): void {
     if (this.rewardIssuedForCurrentShow) return;
 
     if (!this.dailyLimiter.recordWatch()) {
@@ -380,7 +447,7 @@ class RewardInterstitialAdService {
 
     this.rewardIssuedForCurrentShow = true;
     this.showStatus = 'rewarded';
-    console.log('[RewardInterstitialAdService] 보상 지급 완료:', reward);
+    console.log(`[${this.logTag}] 보상 지급 완료:`, reward);
     callbacks.onRewardEarned();
   }
 
@@ -400,7 +467,16 @@ class RewardInterstitialAdService {
     this.isProcessingShow = false;
     this.admobCallbacks = null;
     this.rewardIssuedForCurrentShow = false;
+    if (RewardInterstitialAdService.activeService === this) {
+      RewardInterstitialAdService.activeService = null;
+    }
   }
 }
 
-export const rewardInterstitialAdService = new RewardInterstitialAdService();
+export const rewardInterstitialAdService = new RewardInterstitialAdService({
+  adUnitId: getRewardInterstitialAdId(),
+  isSupported: isRewardInterstitialAdSupported,
+  maxDailyViews: MAX_DAILY_REVIVE_AD_VIEWS,
+  dailyStorageKey: 'slidemino_daily_revive_ad_data',
+  logTag: 'RewardInterstitialAdService',
+});

@@ -12,7 +12,7 @@ import { GoogleAdMob } from '@apps-in-toss/web-framework';
 import { AdMob, RewardAdOptions, RewardAdPluginEvents, AdMobRewardItem, AdLoadInfo } from '@capacitor-community/admob';
 import { getRewardAdId, isRewardAdSupported, CURRENT_AD_PLATFORM } from './adConfig';
 import { ensureAdMobReady, isVirtualDevice } from './admob';
-import { MAX_DAILY_AD_VIEWS } from '../constants';
+import { MAX_DAILY_AD_VIEWS, REWARD_UNDO_AMOUNT } from '../constants';
 
 // ==========================================
 // 📌 타입 정의
@@ -243,6 +243,7 @@ class RewardAdService {
   // ==========================================
 
   private admobCallbacks: RewardAdCallbacks | null = null;
+  private readonly rewardAmount = REWARD_UNDO_AMOUNT;
 
   private setupAdMobListeners(): void {
     // 광고 로드 성공
@@ -289,8 +290,7 @@ class RewardAdService {
       this.showStatus = 'rewarded';
 
       if (this.admobCallbacks) {
-        const amount = reward.amount || 3;
-        this.handleRewardEarned(amount, this.admobCallbacks);
+        this.handleRewardEarned(this.admobCallbacks);
       }
     });
 
@@ -466,7 +466,7 @@ class RewardAdService {
 
           case 'userEarnedReward':
             // 🎯 핵심: 보상 획득 (중복 방지)
-            this.handleRewardEarned(event.data.unitAmount || 3, callbacks);
+            this.handleRewardEarned(callbacks);
             break;
 
           case 'clicked':
@@ -525,7 +525,7 @@ class RewardAdService {
   /**
    * 보상 지급 처리 (중복 방지)
    */
-  private handleRewardEarned(amount: number, callbacks: RewardAdCallbacks): void {
+  private handleRewardEarned(callbacks: RewardAdCallbacks): void {
     // 세션 확인 및 멱등성 보장
     if (!this.currentSessionId) {
       console.error('[RewardAdService] 세션 ID 없음');
@@ -547,8 +547,8 @@ class RewardAdService {
 
     // 보상 지급
     this.showStatus = 'rewarded';
-    console.log(`[RewardAdService] 보상 지급: ${amount}회`);
-    callbacks.onRewardEarned(amount);
+    console.log(`[RewardAdService] 보상 지급: ${this.rewardAmount}회`);
+    callbacks.onRewardEarned(this.rewardAmount);
   }
 
   // ==========================================

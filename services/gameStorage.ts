@@ -8,6 +8,7 @@
  */
 
 import { Grid, Piece, Phase, BoardSize, GameState } from '../types';
+import { INITIAL_BLOCK_REFRESH_AMOUNT, INITIAL_UNDO_AMOUNT } from '../constants';
 
 // 로컬 스토리지 키
 const GAME_STATE_STORAGE_KEY = 'slidemino_game_state_v1';
@@ -35,6 +36,8 @@ export interface SavedGameState {
     boardSize: BoardSize;
     canSkipSlide: boolean;
     undoRemaining: number;
+    blockRefreshRemaining?: number;
+    showBlockRefreshAdButton?: boolean;
     lastSnapshot?: StoredUndoSnapshot | null;
     hasUsedRevive?: boolean;
     isReviveSelectionMode?: boolean;
@@ -103,7 +106,13 @@ const parseSavedGameState = (raw: string | null): SavedGameState | null => {
             : null;
     const undoRemaining = typeof parsed.undoRemaining === 'number'
         ? Math.max(0, Math.min(99, Math.floor(parsed.undoRemaining)))
-        : 3;
+        : INITIAL_UNDO_AMOUNT;
+    const blockRefreshRemaining = typeof parsed.blockRefreshRemaining === 'number'
+        ? Math.max(0, Math.min(99, Math.floor(parsed.blockRefreshRemaining)))
+        : INITIAL_BLOCK_REFRESH_AMOUNT;
+    const showBlockRefreshAdButton = typeof parsed.showBlockRefreshAdButton === 'boolean'
+        ? parsed.showBlockRefreshAdButton
+        : false;
 
     return {
         ...parsed,
@@ -118,6 +127,8 @@ const parseSavedGameState = (raw: string | null): SavedGameState | null => {
         revivePendingTileId,
         lastSnapshot,
         undoRemaining,
+        blockRefreshRemaining,
+        showBlockRefreshAdButton,
     };
 };
 

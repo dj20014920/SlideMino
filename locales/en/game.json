@@ -1,1 +1,84 @@
-{}
+{
+  "title": "블록 슬라이드 (Block Slide)",
+  "tagline": "Place blocks like Tetris.\nMerge numbers like 2048.",
+  "difficulties": {
+    "expert": "🔥 Expert",
+    "normal": "Normal",
+    "beginner": "Beginner",
+    "easy": "Easy",
+    "infinite": "Infinite",
+    "continue": "▶ Continue Game"
+  },
+  "boardSizes": {
+    "4x4": "4×4",
+    "5x5": "5×5",
+    "7x7": "7×7",
+    "8x8": "8×8",
+    "10x10": "10×10"
+  },
+  "phases": {
+    "place": "PLACE BLOCK",
+    "swipe": "SWIPE BOARD"
+  },
+  "hints": {
+    "rotate": "Rotate: tap empty space or button (R on desktop)",
+    "drop": "Release on the board to place",
+    "drag": "Drag blocks to grid",
+    "swipe": "Swipe until merges stop",
+    "combo": "Swipe again OR Drag a block"
+  },
+  "status": {
+    "turnGuide": "Turn Guide",
+    "placeBadge": "Place Now",
+    "swipeBadge": "Swipe Now",
+    "placeDescription": "Merges stopped. Place a block to start the next turn.",
+    "swipeDescription": "Keep swiping while merges occur. If no merge happens, you can place a block.",
+    "mergeContinueMessage": "Merge! Keep swiping this turn.",
+    "noMergePlaceMessage": "No merge. You can place a block now."
+  },
+  "liveRank": {
+    "estimatedRank": "Est. #{{rank}}",
+    "pointsToNext": "{{points}} pts to next rank",
+    "topRank": "Top rank reached"
+  },
+  "actions": {
+    "undo": "Undo",
+    "customization": "Block Customization",
+    "leaderboard": "Leaderboard",
+    "locked": "Locked",
+    "customize": "Customize"
+  },
+  "rewardAd": {
+    "watchButton": "Refill",
+    "watchButtonFull": "Watch Ad",
+    "rewardEarned": "+{{amount}} Undo refilled!",
+    "loading": "Loading ad...",
+    "error": "Failed to load ad.\nPlease try again later.",
+    "dailyLimitReached": "You've reached today's ad limit.\nPlease try again tomorrow.",
+    "notSupported": "Ads are not supported in this environment."
+  },
+  "blockRefresh": {
+    "refreshButton": "Refresh Blocks",
+    "limitExceeded": "You've used all refresh chances.",
+    "ad": {
+      "watchButton": "[Watch ad for +1]",
+      "loading": "Loading ad...",
+      "rewardEarned": "Block refresh +{{amount}} granted!",
+      "error": "Failed to load ad.\nPlease try again later.",
+      "dailyLimitReached": "You've reached today's ad limit.\nPlease try again tomorrow.",
+      "notSupported": "Ads are not supported in this environment."
+    }
+  },
+  "tutorial": {
+    "swipeBack": "Swipe right to go back",
+    "tapToDismiss": "Tap to close",
+    "recommendTitle": "Start Here!",
+    "recommendDesc": "For your first run, we recommend the default 5×5 mode.",
+    "modeGuideTitle": "Quick Mode Guide",
+    "modeGuideBeginner": "Beginner 7×7: more room and easier recovery from mistakes.",
+    "modeGuideNormal": "Normal 5×5: balanced default mode, best for first games.",
+    "modeGuideExpert": "Expert 4×4: tight space and high-pressure difficulty.",
+    "tapToDismissMode": "Tap this bubble to dismiss.",
+    "close": "Close"
+  }
+}

@@ -7,18 +7,20 @@ export const createEmptyGrid = (size: number): Grid => {
   return Array.from({ length: size }, () => Array(size).fill(null));
 };
 
+const createPiece = (type: ShapeType, rotation: number): Piece => ({
+  id: Math.random().toString(36).substr(2, 9),
+  type,
+  rotation,
+  cells: getRotatedCells(type, rotation),
+  value: 1,
+});
+
 export const generateRandomPiece = (): Piece => {
   const shapes = Object.values(ShapeType);
   const type = shapes[Math.floor(Math.random() * shapes.length)];
   const rotation = Math.floor(Math.random() * 4);
 
-  return {
-    id: Math.random().toString(36).substr(2, 9),
-    type,
-    rotation,
-    cells: getRotatedCells(type, rotation),
-    value: 1, // Default value for MVP
-  };
+  return createPiece(type, rotation);
 };
 
 export const getRotatedCells = (type: ShapeType, rotation: number): Coordinate[] => {
@@ -31,6 +33,62 @@ export const getRotatedCells = (type: ShapeType, rotation: number): Coordinate[]
     cells = cells.map(({ x, y }) => ({ x: -y, y: x }));
   }
   return cells;
+};
+
+const getPieceShapeSignatureFromCells = (cells: Coordinate[]): string => {
+  const minX = Math.min(...cells.map((cell) => cell.x));
+  const minY = Math.min(...cells.map((cell) => cell.y));
+
+  return cells
+    .map((cell) => `${cell.x - minX},${cell.y - minY}`)
+    .sort()
+    .join('|');
+};
+
+interface PieceVariant {
+  signature: string;
+  type: ShapeType;
+  rotation: number;
+}
+
+const UNIQUE_PIECE_VARIANTS: PieceVariant[] = (() => {
+  const bySignature = new Map<string, PieceVariant>();
+
+  for (const type of Object.values(ShapeType)) {
+    for (let rotation = 0; rotation < 4; rotation += 1) {
+      const signature = getPieceShapeSignatureFromCells(getRotatedCells(type, rotation));
+      if (bySignature.has(signature)) continue;
+      bySignature.set(signature, { signature, type, rotation });
+    }
+  }
+
+  return Array.from(bySignature.values());
+})();
+
+const shuffleArray = <T,>(items: T[]): T[] => {
+  for (let i = items.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [items[i], items[j]] = [items[j], items[i]];
+  }
+  return items;
+};
+
+export const generateRefreshedSlotPieces = (
+  previousSlots: (Piece | null)[],
+  slotCount = 3
+): Piece[] => {
+  const previousSignatures = new Set(
+    previousSlots
+      .filter((piece): piece is Piece => piece !== null)
+      .map((piece) => getPieceShapeSignatureFromCells(piece.cells))
+  );
+
+  const candidateVariants = shuffleArray(
+    UNIQUE_PIECE_VARIANTS.filter((variant) => !previousSignatures.has(variant.signature))
+  );
+
+  const selectedVariants = candidateVariants.slice(0, Math.max(0, slotCount));
+  return selectedVariants.map((variant) => createPiece(variant.type, variant.rotation));
 };
 
 // --- Placement Logic ---

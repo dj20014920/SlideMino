@@ -57,6 +57,18 @@
     "dailyLimitReached": "오늘의 광고 시청 횟수를 모두 사용했습니다.\n내일 다시 시도해주세요.",
     "notSupported": "현재 환경에서는 광고 기능이 지원되지 않습니다."
   },
+  "blockRefresh": {
+    "refreshButton": "블록 새로고침",
+    "limitExceeded": "새로고침 횟수를 모두 사용했습니다.",
+    "ad": {
+      "watchButton": "광고보고 1회 추가",
+      "loading": "광고 준비 중...",
+      "rewardEarned": "새로고침 +{{amount}}회 충전 완료!",
+      "error": "광고를 불러올 수 없습니다.\n잠시 후 다시 시도해주세요.",
+      "dailyLimitReached": "오늘의 광고 시청 횟수를 모두 사용했습니다.\n내일 다시 시도해주세요.",
+      "notSupported": "현재 환경에서는 광고 기능이 지원되지 않습니다."
+    }
+  },
   "tutorial": {
     "swipeBack": "오른쪽으로 스와이프하여 뒤로가기",
     "tapToDismiss": "터치하여 닫기",

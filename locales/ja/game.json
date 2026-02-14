@@ -1,1 +1,84 @@
-{}
+{
+  "title": "블록 슬라이드 (Block Slide)",
+  "tagline": "テトリスのようにブロックを配置。\n2048のように数字を合体。",
+  "difficulties": {
+    "expert": "🔥 エキスパート",
+    "normal": "ノーマル",
+    "beginner": "初心者",
+    "easy": "イージー",
+    "infinite": "無限モード",
+    "continue": "▶ ゲームを続ける"
+  },
+  "boardSizes": {
+    "4x4": "4×4",
+    "5x5": "5×5",
+    "7x7": "7×7",
+    "8x8": "8×8",
+    "10x10": "10×10"
+  },
+  "phases": {
+    "place": "ブロック配置",
+    "swipe": "ボードをスワイプ"
+  },
+  "hints": {
+    "rotate": "回転: 空白タップ/回転ボタン、PCはR",
+    "drop": "ボード上で離すと配置",
+    "drag": "ブロックをグリッドにドラッグ",
+    "swipe": "合体が止まるまでスワイプ",
+    "combo": "再度スワイプ または ブロックをドラッグ"
+  },
+  "status": {
+    "turnGuide": "ターンガイド",
+    "placeBadge": "配置可能",
+    "swipeBadge": "スワイプ中",
+    "placeDescription": "合体が止まりました。次のターンのためにブロックを配置してください。",
+    "swipeDescription": "合体が続く間はスワイプしてください。合体しなければ配置フェーズに移ります。",
+    "mergeContinueMessage": "合体成功! このターンはスワイプ継続",
+    "noMergePlaceMessage": "合体なし。今ブロックを配置できます"
+  },
+  "liveRank": {
+    "estimatedRank": "予想 #{{rank}}",
+    "pointsToNext": "次の順位まで {{points}} 点",
+    "topRank": "現在トップ順位です"
+  },
+  "actions": {
+    "undo": "元に戻す",
+    "customization": "ブロックカスタマイズ",
+    "leaderboard": "ランキング",
+    "locked": "ロック中",
+    "customize": "カスタマイズ"
+  },
+  "rewardAd": {
+    "watchButton": "チャージ",
+    "watchButtonFull": "広告視聴",
+    "rewardEarned": "+{{amount}} やり直し回数チャージ完了!",
+    "loading": "広告準備中...",
+    "error": "広告を読み込めません。\nしばらくしてから再度お試しください。",
+    "dailyLimitReached": "本日の広告視聴回数に達しました。\n明日また試してください。",
+    "notSupported": "現在の環境では広告機能がサポートされていません。"
+  },
+  "blockRefresh": {
+    "refreshButton": "ブロック更新",
+    "limitExceeded": "更新回数をすべて使い切りました。",
+    "ad": {
+      "watchButton": "[広告を見て+1回]",
+      "loading": "広告準備中...",
+      "rewardEarned": "更新回数 +{{amount}} 追加完了!",
+      "error": "広告を読み込めません。\nしばらくしてから再度お試しください。",
+      "dailyLimitReached": "本日の広告視聴回数に達しました。\n明日また試してください。",
+      "notSupported": "現在の環境では広告機能がサポートされていません。"
+    }
+  },
+  "tutorial": {
+    "swipeBack": "右にスワイプして戻る",
+    "tapToDismiss": "タップして閉じる",
+    "recommendTitle": "最初のプレイはここから！",
+    "recommendDesc": "最初のプレイは標準の5×5モードがおすすめです。",
+    "modeGuideTitle": "モード早見表",
+    "modeGuideBeginner": "初心者 7×7: 空きが多く、ミスを立て直しやすい。",
+    "modeGuideNormal": "ノーマル 5×5: バランス型。最初のプレイに最適。",
+    "modeGuideExpert": "エキスパート 4×4: 盤面が詰まりやすい高難度。",
+    "tapToDismissMode": "この吹き出しをタップすると閉じます。",
+    "close": "閉じる"
+  }
+}

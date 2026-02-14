@@ -78,6 +78,10 @@ export const ADMOB_AD_IDS = {
     REWARD_INTERSTITIAL: import.meta.env.MODE === 'production'
       ? 'ca-app-pub-5319827978116991/5753319580' // ✅ 사용자 제공 Android 보상형 전면 광고 ID
       : 'ca-app-pub-3940256099942544/5354046379', // Google 공식 테스트 ID
+    // 블록 새로고침용 보상형 전면 광고
+    REWARD_INTERSTITIAL_BLOCK_REFRESH: import.meta.env.MODE === 'production'
+      ? 'ca-app-pub-XXXXXXXXXXXXXXXX/ZZZZZZZZZZ' // TODO: Android 새로고침 광고 ID 승인 후 교체
+      : 'ca-app-pub-3940256099942544/5354046379', // Google 공식 테스트 ID
     INTERSTITIAL: import.meta.env.MODE === 'production'
       ? 'ca-app-pub-XXXXXXXXXXXXXXXX/ZZZZZZZZZZ' // TODO: AdMob 승인 후 교체
       : 'ca-app-pub-3940256099942544/1033173712', // Google 공식 테스트 ID
@@ -96,6 +100,10 @@ export const ADMOB_AD_IDS = {
     // ✅ 사용자 제공 iOS 보상형 전면 광고 ID (게임오버 부활)
     REWARD_INTERSTITIAL: import.meta.env.MODE === 'production'
       ? 'ca-app-pub-5319827978116991/1969153095'
+      : 'ca-app-pub-3940256099942544/6978759866', // Google 공식 테스트 ID
+    // ✅ 사용자 제공 iOS 보상형 전면 광고 ID (블록 새로고침)
+    REWARD_INTERSTITIAL_BLOCK_REFRESH: import.meta.env.MODE === 'production'
+      ? 'ca-app-pub-5319827978116991/5545204513'
       : 'ca-app-pub-3940256099942544/6978759866', // Google 공식 테스트 ID
     INTERSTITIAL: import.meta.env.MODE === 'production'
       ? 'ca-app-pub-XXXXXXXXXXXXXXXX/ZZZZZZZZZZ' // TODO: AdMob 승인 후 교체
@@ -254,6 +262,23 @@ export function getRewardInterstitialAdId(): string {
 }
 
 /**
+ * 블록 새로고침 보상형 전면 광고 ID 가져오기
+ */
+export function getBlockRefreshRewardInterstitialAdId(): string {
+  if (SCREENSHOT_MODE) return '';
+  switch (CURRENT_AD_PLATFORM) {
+    case 'admob-android':
+      return ADMOB_AD_IDS.ANDROID.REWARD_INTERSTITIAL_BLOCK_REFRESH;
+
+    case 'admob-ios':
+      return ADMOB_AD_IDS.IOS.REWARD_INTERSTITIAL_BLOCK_REFRESH;
+
+    default:
+      return '';
+  }
+}
+
+/**
  * 🆕 배너 광고 ID 가져오기 (플랫폼별 분기 - 토스 인앱 리워드와 동일한 패턴)
  */
 export function getBannerAdId(): string {
@@ -309,6 +334,20 @@ export function isRewardInterstitialAdSupported(): boolean {
 }
 
 /**
+ * 블록 새로고침 보상형 전면 광고 지원 여부
+ */
+export function isBlockRefreshRewardInterstitialAdSupported(): boolean {
+  if (SCREENSHOT_MODE) return false;
+
+  const isSupportedPlatform = CURRENT_AD_PLATFORM === 'admob-ios'
+    || CURRENT_AD_PLATFORM === 'admob-android';
+
+  if (!isSupportedPlatform) return false;
+
+  return isConfiguredAdUnitId(getBlockRefreshRewardInterstitialAdId());
+}
+
+/**
  * 배너 광고 지원 여부
  */
 export function isBannerAdSupported(): boolean {
@@ -336,6 +375,8 @@ if (import.meta.env.DEV) {
   console.log('[AdConfig] 리워드 광고 지원:', isRewardAdSupported());
   console.log('[AdConfig] 보상형 전면 광고 ID:', getRewardInterstitialAdId());
   console.log('[AdConfig] 보상형 전면 광고 지원:', isRewardInterstitialAdSupported());
+  console.log('[AdConfig] 새로고침 보상형 전면 광고 ID:', getBlockRefreshRewardInterstitialAdId());
+  console.log('[AdConfig] 새로고침 보상형 전면 광고 지원:', isBlockRefreshRewardInterstitialAdSupported());
   console.log('[AdConfig] 배너 광고 ID:', getBannerAdId());
   console.log('[AdConfig] 배너 광고 지원:', isBannerAdSupported());
 }

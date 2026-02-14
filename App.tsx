@@ -15,6 +15,7 @@ import {
 import {
   createEmptyGrid,
   generateRandomPiece,
+  generateRefreshedSlotPieces,
   getRotatedCells,
   canPlacePiece,
   placePieceOnGrid,
@@ -37,7 +38,15 @@ import AdBanner from './components/AdBanner';
 import { CookieConsent } from './components/CookieConsent';
 import { HelpModal } from './components/HelpModal';
 import { LanguageSwitcher } from './components/LanguageSwitcher';
-import { BOARD_CELL_GAP_PX, SLIDE_UNLOCK_BUFFER_MS, getSlideAnimationDurationMs } from './constants';
+import {
+  BOARD_CELL_GAP_PX,
+  SLIDE_UNLOCK_BUFFER_MS,
+  getSlideAnimationDurationMs,
+  INITIAL_BLOCK_REFRESH_AMOUNT,
+  INITIAL_UNDO_AMOUNT,
+  REWARD_BLOCK_REFRESH_AMOUNT,
+  REWARD_UNDO_AMOUNT,
+} from './constants';
 import { useBlockCustomization } from './context/BlockCustomizationContext';
 import { saveGameState, loadGameState, clearGameState, hasActiveGame, type SavedGameState } from './services/gameStorage';
 import { rankingService, type RankEntry, type LiveRankEstimate } from './services/rankingService';
@@ -51,8 +60,12 @@ import About from './pages/About';
 import Contact from './pages/Contact';
 import { rewardAdService } from './services/rewardAdService';
 import { rewardInterstitialAdService } from './services/rewardInterstitialAdService';
-import { isRewardAdSupported, isRewardInterstitialAdSupported } from './services/adConfig';
-import { REWARD_UNDO_AMOUNT } from './constants';
+import { blockRefreshRewardInterstitialAdService } from './services/blockRefreshRewardInterstitialAdService';
+import {
+  isBlockRefreshRewardInterstitialAdSupported,
+  isRewardAdSupported,
+  isRewardInterstitialAdSupported,
+} from './services/adConfig';
 import { normalizePlayerName, validatePlayerName } from './utils/playerName';
 
 declare global {
@@ -446,7 +459,11 @@ const App: React.FC = () => {
 
   // Undo 시스템: 직전 스냅샷과 남은 사용 횟수
   const [lastSnapshot, setLastSnapshot] = useState<GameSnapshot | null>(null);
-  const [undoRemaining, setUndoRemaining] = useState(3);
+  const [undoRemaining, setUndoRemaining] = useState(INITIAL_UNDO_AMOUNT);
+  const [blockRefreshRemaining, setBlockRefreshRemaining] = useState(INITIAL_BLOCK_REFRESH_AMOUNT);
+  const [showBlockRefreshAdButton, setShowBlockRefreshAdButton] = useState(false);
+  const [isBlockRefreshAdInProgress, setIsBlockRefreshAdInProgress] = useState(false);
+  const [blockRefreshNotice, setBlockRefreshNotice] = useState<string | null>(null);
 
   // Merging tiles for animation (tiles being absorbed)
   const [mergingTiles, setMergingTiles] = useState<MergingTile[]>(EMPTY_MERGING_TILES);
@@ -541,6 +558,7 @@ const App: React.FC = () => {
   const mergeFinalizeTimeoutRef = useRef<number | null>(null);
   const unlockTimeoutRef = useRef<number | null>(null);
   const comboMessageTimeoutRef = useRef<number | null>(null);
+  const blockRefreshNoticeTimeoutRef = useRef<number | null>(null);
   const reviveDestroyEffectTimeoutsRef = useRef<number[]>([]);
   const dragPointerIdRef = useRef<number | null>(null);
   const currentPointerPosRef = useRef<{ x: number, y: number } | null>(null);
@@ -629,6 +647,8 @@ const App: React.FC = () => {
     const restoredSnapshot = saved.lastSnapshot ? cloneGameSnapshot(saved.lastSnapshot) : null;
     setLastSnapshot(restoredSnapshot);
     setUndoRemaining(saved.undoRemaining);
+    setBlockRefreshRemaining(saved.blockRefreshRemaining ?? INITIAL_BLOCK_REFRESH_AMOUNT);
+    setShowBlockRefreshAdButton(Boolean(saved.showBlockRefreshAdButton));
     setHasUsedReviveThisRun(Boolean(saved.hasUsedRevive));
     setIsReviveSelectionMode(Boolean(saved.isReviveSelectionMode));
     setReviveBreakRemaining(saved.reviveBreakRemaining ?? 0);
@@ -636,6 +656,7 @@ const App: React.FC = () => {
     setReviveDestroyEffects([]);
     setIsReviveAdInProgress(false);
     setIsReviveAdReady(false);
+    setIsBlockRefreshAdInProgress(false);
     leaderboardSnapshotRef.current = [];
     setLiveRankEstimate(null);
     setPlayerName(
@@ -669,6 +690,8 @@ const App: React.FC = () => {
       boardSize,
       canSkipSlide,
       undoRemaining,
+      blockRefreshRemaining,
+      showBlockRefreshAdButton,
       lastSnapshot,
       hasUsedRevive: hasUsedReviveThisRun,
       isReviveSelectionMode,
@@ -688,6 +711,8 @@ const App: React.FC = () => {
     boardSize,
     canSkipSlide,
     undoRemaining,
+    blockRefreshRemaining,
+    showBlockRefreshAdButton,
     lastSnapshot,
     hasUsedReviveThisRun,
     isReviveSelectionMode,
@@ -960,7 +985,9 @@ const App: React.FC = () => {
     setCanSkipSlide(false);
     // Undo 초기화
     setLastSnapshot(null);
-    setUndoRemaining(3);
+    setUndoRemaining(INITIAL_UNDO_AMOUNT);
+    setBlockRefreshRemaining(INITIAL_BLOCK_REFRESH_AMOUNT);
+    setShowBlockRefreshAdButton(false);
     setHasUsedReviveThisRun(false);
     setIsReviveSelectionMode(false);
     setReviveBreakRemaining(0);
@@ -968,6 +995,7 @@ const App: React.FC = () => {
     setReviveDestroyEffects([]);
     setIsReviveAdInProgress(false);
     setIsReviveAdReady(false);
+    setIsBlockRefreshAdInProgress(false);
 
     // Anti-cheat: Start Timer & Session ID
     gameStartTimeRef.current = Date.now();
@@ -1010,6 +1038,18 @@ const App: React.FC = () => {
     }, durationMs);
   }, []);
 
+  const showBlockRefreshNotice = useCallback((message: string, durationMs = 1600) => {
+    setBlockRefreshNotice(message);
+    if (blockRefreshNoticeTimeoutRef.current) {
+      window.clearTimeout(blockRefreshNoticeTimeoutRef.current);
+      blockRefreshNoticeTimeoutRef.current = null;
+    }
+    blockRefreshNoticeTimeoutRef.current = window.setTimeout(() => {
+      setBlockRefreshNotice(null);
+      blockRefreshNoticeTimeoutRef.current = null;
+    }, durationMs);
+  }, []);
+
   // Undo 실행: 직전 스냅샷으로 복원
   const executeUndo = useCallback(() => {
     if (!lastSnapshot || undoRemaining <= 0 || isAnimating) return;
@@ -1038,9 +1078,9 @@ const App: React.FC = () => {
   // 🆕 리워드 광고 시청 핸들러
   const handleWatchRewardAd = useCallback(() => {
     rewardAdService.showRewardAd({
-      onRewardEarned: (amount) => {
+      onRewardEarned: () => {
         // 🎯 보상 지급: 되돌리기 횟수 충전
-        const actualAmount = amount || REWARD_UNDO_AMOUNT;
+        const actualAmount = REWARD_UNDO_AMOUNT;
         setUndoRemaining(prev => Math.min(prev + actualAmount, 99)); // 최대 99회 제한
 
         // 사용자에게 알림 (다국어)
@@ -1064,6 +1104,57 @@ const App: React.FC = () => {
       },
     });
   }, [t, showComboMessage]);
+
+  const handleRefreshPreviewBlocks = useCallback(() => {
+    if (isAnimating || isReviveSelectionMode || draggingPiece) return;
+
+    if (blockRefreshRemaining <= 0) {
+      showBlockRefreshNotice(String(t('game:blockRefresh.limitExceeded')));
+      setShowBlockRefreshAdButton(true);
+      return;
+    }
+
+    setSlots((prevSlots) => generateRefreshedSlotPieces(prevSlots, prevSlots.length));
+    setBlockRefreshRemaining((prev) => Math.max(0, prev - 1));
+  }, [
+    blockRefreshRemaining,
+    draggingPiece,
+    isAnimating,
+    isReviveSelectionMode,
+    showBlockRefreshNotice,
+    t,
+  ]);
+
+  const handleWatchBlockRefreshAd = useCallback(() => {
+    if (!isBlockRefreshRewardInterstitialAdSupported()) {
+      showBlockRefreshNotice(String(t('game:blockRefresh.ad.notSupported')));
+      return;
+    }
+
+    if (isBlockRefreshAdInProgress) return;
+    setIsBlockRefreshAdInProgress(true);
+
+    blockRefreshRewardInterstitialAdService.showRewardAd({
+      onRewardEarned: () => {
+        setBlockRefreshRemaining((prev) => Math.min(prev + REWARD_BLOCK_REFRESH_AMOUNT, 99));
+        setShowBlockRefreshAdButton(false);
+        setIsBlockRefreshAdInProgress(false);
+        showComboMessage(String(t('game:blockRefresh.ad.rewardEarned', { amount: REWARD_BLOCK_REFRESH_AMOUNT } as any)), 2000);
+      },
+      onAdClosed: () => {
+        setIsBlockRefreshAdInProgress(false);
+      },
+      onError: (error) => {
+        console.error('[App] 블록 새로고침 보상형 전면 광고 오류:', error);
+        setIsBlockRefreshAdInProgress(false);
+        showBlockRefreshNotice(String(t('game:blockRefresh.ad.error')));
+      },
+      onDailyLimitReached: () => {
+        setIsBlockRefreshAdInProgress(false);
+        showBlockRefreshNotice(String(t('game:blockRefresh.ad.dailyLimitReached')));
+      },
+    });
+  }, [isBlockRefreshAdInProgress, showBlockRefreshNotice, showComboMessage, t]);
 
   const handleWatchReviveAd = useCallback(() => {
     if (isReviveAdInProgress) return;
@@ -1434,6 +1525,27 @@ const App: React.FC = () => {
     }
   }, [gameState, undoRemaining]);
 
+  useEffect(() => {
+    if (blockRefreshRemaining > 0 && showBlockRefreshAdButton) {
+      setShowBlockRefreshAdButton(false);
+    }
+  }, [blockRefreshRemaining, showBlockRefreshAdButton]);
+
+  // 블록 새로고침 보상형 전면 광고 미리 로드
+  useEffect(() => {
+    if (!isBlockRefreshRewardInterstitialAdSupported()) return;
+
+    if (gameState === GameState.PLAYING && showBlockRefreshAdButton) {
+      blockRefreshRewardInterstitialAdService.preloadAd();
+      return;
+    }
+
+    if (gameState === GameState.MENU) {
+      blockRefreshRewardInterstitialAdService.cleanup();
+      setIsBlockRefreshAdInProgress(false);
+    }
+  }, [gameState, showBlockRefreshAdButton]);
+
   // 게임오버 부활용 보상형 전면 광고 미리 로드
   useEffect(() => {
     if (!isRewardInterstitialAdSupported()) return;
@@ -1471,6 +1583,7 @@ const App: React.FC = () => {
       if (mergeFinalizeTimeoutRef.current) window.clearTimeout(mergeFinalizeTimeoutRef.current);
       if (unlockTimeoutRef.current) window.clearTimeout(unlockTimeoutRef.current);
       if (comboMessageTimeoutRef.current) window.clearTimeout(comboMessageTimeoutRef.current);
+      if (blockRefreshNoticeTimeoutRef.current) window.clearTimeout(blockRefreshNoticeTimeoutRef.current);
       reviveDestroyEffectTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
       reviveDestroyEffectTimeoutsRef.current = [];
     };
@@ -2525,6 +2638,8 @@ const App: React.FC = () => {
   // - SLIDE: 보드 + Undo 강조 (슬롯은 비강조)
   const isSlotPointerLocked = isSwipePhase || isAnimating || isReviveSelectionMode;
   const isSlotDisabled = isAnimating || isReviveSelectionMode;
+  const shouldShowBlockRefreshAdCta = showBlockRefreshAdButton && blockRefreshRemaining <= 0;
+  const isBlockRefreshButtonDisabled = isAnimating || isReviveSelectionMode || Boolean(draggingPiece);
 
   // ========== GAME SCREEN ==========
   return (
@@ -2735,7 +2850,56 @@ const App: React.FC = () => {
             ))}
           </div>
 
-          <div className="w-full h-9 flex items-center justify-center">
+          <div className="w-full min-h-10 flex items-center justify-center relative">
+            {blockRefreshNotice && (
+              <div
+                role="status"
+                aria-live="polite"
+                className="pointer-events-none absolute -top-11 left-1/2 z-20 w-max max-w-[92%] -translate-x-1/2 rounded-full bg-gray-900/90 px-3 py-1.5 text-center text-[11px] font-medium text-white shadow-lg backdrop-blur-sm whitespace-pre-line"
+              >
+                {blockRefreshNotice}
+              </div>
+            )}
+            {shouldShowBlockRefreshAdCta ? (
+              <button
+                type="button"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onClick={handleWatchBlockRefreshAd}
+                disabled={isBlockRefreshButtonDisabled || isBlockRefreshAdInProgress}
+                className={`
+                  inline-flex items-center justify-center px-4 py-2 rounded-full text-xs font-semibold
+                  border transition-all duration-200
+                  ${(isBlockRefreshButtonDisabled || isBlockRefreshAdInProgress)
+                    ? 'bg-gray-100/60 text-gray-400 border-gray-200/80 cursor-not-allowed'
+                    : 'bg-gray-200/85 text-gray-700 border-gray-300/85 shadow-sm hover:bg-gray-300/90 hover:shadow-md'}
+                `}
+              >
+                <span>{t('game:blockRefresh.ad.watchButton')}</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onClick={handleRefreshPreviewBlocks}
+                disabled={isBlockRefreshButtonDisabled}
+                className={`
+                  inline-flex items-center justify-center px-4 py-2 rounded-full text-xs font-semibold
+                  border transition-all duration-200
+                  ${isBlockRefreshButtonDisabled
+                    ? 'bg-gray-100/60 text-gray-400 border-gray-200/80 cursor-not-allowed'
+                    : 'bg-white/80 text-gray-700 border-white/70 shadow-sm hover:bg-white hover:shadow-md'}
+                `}
+              >
+                <span>{t('game:blockRefresh.refreshButton')}</span>
+              </button>
+            )}
+
             <button
               type="button"
               data-rotate-button
@@ -2746,7 +2910,7 @@ const App: React.FC = () => {
                 rotateActivePiece();
               }}
               className={`
-                inline-flex items-center justify-center
+                absolute right-0 inline-flex items-center justify-center
                 w-9 h-9 rounded-full
                 bg-white/80 border border-white/70
                 text-gray-700 shadow-sm

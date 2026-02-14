@@ -57,6 +57,18 @@
     "dailyLimitReached": "今日广告观看次数已达上限。\n请明天再试。",
     "notSupported": "当前环境不支持广告功能。"
   },
+  "blockRefresh": {
+    "refreshButton": "刷新方块",
+    "limitExceeded": "刷新次数已全部用完。",
+    "ad": {
+      "watchButton": "[看广告 +1 次]",
+      "loading": "广告准备中...",
+      "rewardEarned": "刷新次数 +{{amount}} 已到账!",
+      "error": "无法加载广告。\n请稍后重试。",
+      "dailyLimitReached": "今日广告观看次数已达上限。\n请明天再试。",
+      "notSupported": "当前环境不支持广告功能。"
+    }
+  },
   "tutorial": {
     "swipeBack": "向右滑动返回",
     "tapToDismiss": "点击关闭",

@@ -1261,3 +1261,100 @@ Original prompt: 게임 진행 화면(iPhone 포함)에서 광고 배너가 메�
   - 산출물:
     - `/Users/dj/Desktop/SlideMino/android/app/build/outputs/apk/google/debug/app-google-debug.apk`
     - `/Users/dj/Desktop/SlideMino/android/app/build/outputs/apk/appintos/debug/app-appintos-debug.apk`
+
+## 2026-02-15 추가 작업 로그 (미리보기 블록 새로고침 + 세션 제한/광고)
+- 요청 반영 범위:
+  - 미리보기 3개 하단에 `블록 새로고침` 버튼 추가.
+  - 기본 새로고침 횟수: 게임(세션)당 1회.
+  - 1회 사용 후 재클릭 시 alert(`새로고침 횟수를 모두 사용했습니다.`) 노출 + 버튼을 `[광고보고 1회 추가]` CTA로 전환.
+  - 광고 시청 보상으로 새로고침 +1회 지급.
+  - 되돌리기 기본 횟수 3회 -> 1회로 조정.
+
+### 아키텍처/코드 변경
+- `/Users/dj/Desktop/SlideMino/services/gameLogic.ts`
+  - `generateRefreshedSlotPieces(previousSlots, slotCount)` 추가.
+  - 기존 슬롯 3개의 시그니처와 겹치지 않는 조합만 선택하도록 로직화(새 슬롯 내부 중복도 방지).
+- `/Users/dj/Desktop/SlideMino/App.tsx`
+  - 상태 추가: `blockRefreshRemaining`, `showBlockRefreshAdButton`, `isBlockRefreshAdInProgress`.
+  - 새로고침 핸들러 추가: 잔여 횟수 차감/소진 알림/광고 CTA 전환.
+  - 슬롯 하단 UI 추가: 기본 `블록 새로고침` 버튼 + 소진 후 광고 CTA 버튼.
+  - 저장/복원 연동: 새 필드 영속화.
+  - 되돌리기 기본 횟수 `INITIAL_UNDO_AMOUNT(1)` 적용.
+- `/Users/dj/Desktop/SlideMino/services/gameStorage.ts`
+  - 저장 스키마 확장: `blockRefreshRemaining`, `showBlockRefreshAdButton`.
+  - 기본값: `INITIAL_UNDO_AMOUNT(1)`, `INITIAL_BLOCK_REFRESH_AMOUNT(1)`.
+- `/Users/dj/Desktop/SlideMino/services/adConfig.ts`
+  - iOS 새로고침 보상형 전면 광고 ID 반영: `ca-app-pub-5319827978116991/5545204513`.
+  - `getBlockRefreshRewardInterstitialAdId`, `isBlockRefreshRewardInterstitialAdSupported` 추가.
+- `/Users/dj/Desktop/SlideMino/services/rewardInterstitialAdService.ts`
+  - 재사용 가능한 옵션 기반 구조로 일반화.
+  - 기존 부활 API(`showReviveAd`) 하위 호환 유지 + 공용 `showRewardAd` 제공.
+  - 다중 인스턴스 간 AdMob 준비 상태 충돌 방지용 invalidation 로직 추가.
+- `/Users/dj/Desktop/SlideMino/services/blockRefreshRewardInterstitialAdService.ts`
+  - 새로고침 전용 보상형 전면 광고 서비스 인스턴스 추가.
+- `/Users/dj/Desktop/SlideMino/constants.ts`
+  - `INITIAL_UNDO_AMOUNT=1`, `INITIAL_BLOCK_REFRESH_AMOUNT=1`, `REWARD_BLOCK_REFRESH_AMOUNT=1` 추가.
+  - `REWARD_UNDO_AMOUNT` 1로 조정.
+- `/Users/dj/Desktop/SlideMino/services/rewardAdService.ts`
+  - 하드코드 보상량(3) 제거, `REWARD_UNDO_AMOUNT` 사용.
+- `/Users/dj/Desktop/SlideMino/components/HelpModal.tsx`
+  - 되돌리기 설명 문구를 1회 정책으로 갱신(ko/en/ja/zh).
+- `/Users/dj/Desktop/SlideMino/public/locales/{ko,en,ja,zh}/game.json`
+  - `blockRefresh.*` 다국어 키 추가.
+
+### 검증
+- 빌드/동기화:
+  - `npm run build` 성공.
+  - `npm run cap:sync` 성공.
+- 웹 로직 자동 검증(Playwright 직접 스크립트):
+  - 결과(JSON):
+    - `before`/`after` 슬롯 시그니처 비교에서 `overlap=[]` 확인(기존 3개와 중복 없음).
+    - 1회 사용 후 카운트 `0` 확인.
+    - 재클릭 시 alert 메시지 확인(`You've used all refresh chances.`).
+    - 재클릭 후 광고 CTA 버튼 노출 확인(`adButtonVisible=true`).
+  - 스크린샷: `/Users/dj/Desktop/SlideMino/screenshots/block-refresh-check-20260215.png`
+- iOS 시뮬레이터 검증:
+  - `xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -destination 'id=B846B7A4-84E4-4F93-835F-FB7075E3814C' build` 성공.
+  - `xcrun simctl install ...` + `xcrun simctl launch ... com.slidemino.app` 성공.
+  - 시뮬레이터 캡처: `/Users/dj/Desktop/SlideMino/screenshots/ios-sim-block-refresh-check-20260215.png`
+
+## 2026-02-15 추가 작업 로그 (블록 새로고침 UX 미세조정)
+- 요청사항:
+  - iOS 네이티브 `alert`(OK 버튼 필요) 대신 잠시 표시 후 자동으로 사라지는 비차단형 안내로 변경.
+  - `[광고보고 1회 추가]` 버튼 색감을 기존 `블록 새로고침` 버튼 톤과 유사하게 유지하되 더 어두운 계열로 조정.
+  - 블록 새로고침 영역 버튼 텍스트만 남기고, 앞 아이콘/뒤 횟수 배지를 제거.
+- 핵심 수정(`/Users/dj/Desktop/SlideMino/App.tsx`):
+  - `blockRefreshNotice` 상태 + 타이머 ref 추가.
+  - `showBlockRefreshNotice()` 헬퍼 추가(자동 소멸 토스트).
+  - `handleRefreshPreviewBlocks()`의 소진 메시지를 `alert(...)` → `showBlockRefreshNotice(...)`로 교체.
+  - 블록 새로고침 광고 경로의 `notSupported/error/dailyLimit`도 동일 비차단형 안내로 통일.
+  - 블록 새로고침 UI에 `role="status"` 토스트 렌더링 추가.
+  - 두 버튼(기본/광고 CTA)에서 아이콘/카운트 배지 제거, 텍스트-only로 정리.
+  - 광고 CTA 버튼 스타일을 기존 버튼 계열보다 한 톤 어둡게 조정(`bg-gray-200/85`, `border-gray-300/85`, hover `bg-gray-300/90`).
+
+## 2026-02-15 검증 로그
+- `npm run build` 성공.
+- 스킬 클라이언트 실행:
+  - `node ~/.codex/skills/develop-web-game/scripts/web_game_playwright_client.js --url http://127.0.0.1:4175 ...` 실행 완료.
+  - 산출물: `/Users/dj/Desktop/SlideMino/output/web-game/20260215-block-refresh-ui-tweak/shot-0.png`
+  - 참고: 해당 클라이언트는 DOM 다중 클릭 시나리오 제약(캔버스 기준 액션)으로 메뉴 화면 캡처 위주 검증.
+
+## 2026-02-15 iOS 시뮬레이터 재검증 로그 (사용자 재요청)
+- 검증 환경:
+  - Device: `iPhone 17 Pro (iOS 26.2)`
+  - UDID: `B846B7A4-84E4-4F93-835F-FB7075E3814C`
+- 절차:
+  1) `npm run cap:sync` 수행(웹 자산/플러그인 동기화)
+  2) `xcodebuild ... -configuration Debug -destination id=B846... build` 성공
+  3) 시뮬레이터 앱 재설치/실행
+  4) `Simulator + cliclick` 좌표 자동화로 게임 진입 후 블록 새로고침 연속 클릭 시나리오 실행
+- 핵심 확인 결과:
+  - 기존 네이티브 blocking alert(OK 버튼 필요) 미노출.
+  - 소진 시 비차단형 토스트(`새로고침 횟수를 모두 사용했습니다.`) 표시 확인.
+  - 동일 시점에 `[광고보고 1회 추가]` 버튼으로 전환 확인.
+  - 광고 CTA 버튼은 아이콘/횟수 배지 없이 텍스트만 표시됨 확인.
+  - 광고 CTA 버튼 색감은 기본 새로고침 버튼 계열보다 한 톤 어두운 회색 계열로 확인.
+- 산출물:
+  - 시작 화면: `/Users/dj/Desktop/SlideMino/screenshots/ios-sim-reverify-initial-20260215.png`
+  - 게임 진입 확인: `/Users/dj/Desktop/SlideMino/screenshots/ios-sim-reverify-after-start-3-20260215.png`
+  - 핵심(토스트+CTA 전환): `/Users/dj/Desktop/SlideMino/screenshots/ios-sim-reverify-refresh-multi-click-20260215.png`

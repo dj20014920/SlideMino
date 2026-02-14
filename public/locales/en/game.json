@@ -57,6 +57,18 @@
     "dailyLimitReached": "You've reached today's ad limit.\nPlease try again tomorrow.",
     "notSupported": "Ads are not supported in this environment."
   },
+  "blockRefresh": {
+    "refreshButton": "Refresh Blocks",
+    "limitExceeded": "You've used all refresh chances.",
+    "ad": {
+      "watchButton": "[Watch ad for +1]",
+      "loading": "Loading ad...",
+      "rewardEarned": "Block refresh +{{amount}} granted!",
+      "error": "Failed to load ad.\nPlease try again later.",
+      "dailyLimitReached": "You've reached today's ad limit.\nPlease try again tomorrow.",
+      "notSupported": "Ads are not supported in this environment."
+    }
+  },
   "tutorial": {
     "swipeBack": "Swipe right to go back",
     "tapToDismiss": "Tap to close",

@@ -222,7 +222,22 @@ export const getTileColor = (val: number): string => {
  * 리워드 광고 시청 시 지급할 되돌리기 횟수
  * - 앱인토스 콘솔의 "보상 수량"과 일치해야 함
  */
-export const REWARD_UNDO_AMOUNT = 3;
+export const REWARD_UNDO_AMOUNT = 1;
+
+/**
+ * 게임 시작 시 기본으로 제공되는 되돌리기 횟수
+ */
+export const INITIAL_UNDO_AMOUNT = 1;
+
+/**
+ * 게임 시작 시 기본으로 제공되는 블록 새로고침 횟수
+ */
+export const INITIAL_BLOCK_REFRESH_AMOUNT = 1;
+
+/**
+ * 보상형 전면 광고 시청 시 지급할 블록 새로고침 횟수
+ */
+export const REWARD_BLOCK_REFRESH_AMOUNT = 1;
 
 /**
  * 하루 최대 광고 시청 횟수 (남용 방지)
@@ -233,3 +248,8 @@ export const MAX_DAILY_AD_VIEWS = 5;
  * 하루 최대 부활 광고 시청 횟수 (게임오버 보상형 전면)
  */
 export const MAX_DAILY_REVIVE_AD_VIEWS = 2;
+
+/**
+ * 하루 최대 블록 새로고침 보상형 전면 광고 시청 횟수
+ */
+export const MAX_DAILY_BLOCK_REFRESH_AD_VIEWS = 5;

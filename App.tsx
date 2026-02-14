@@ -532,6 +532,8 @@ const App: React.FC = () => {
 
   const boardMetricsRef = useRef<BoardMetrics | null>(null);
   const leaderboardSnapshotRef = useRef<RankEntry[]>([]);
+  const liveRankFailureCountRef = useRef(0);
+  const liveRankRetryAfterRef = useRef(0);
   const hoverGridPosRef = useRef<{ x: number; y: number } | null>(null);
   const swipeStartRef = useRef<{ x: number, y: number } | null>(null); // 스와이프 시작 좌표
   const slideLockRef = useRef(false); // state 반영 전에도 즉시 입력 차단
@@ -1957,21 +1959,32 @@ const App: React.FC = () => {
   useEffect(() => {
     if (gameState !== GameState.PLAYING) {
       leaderboardSnapshotRef.current = [];
+      liveRankFailureCountRef.current = 0;
+      liveRankRetryAfterRef.current = 0;
       setLiveRankEstimate(null);
       return;
     }
 
     let cancelled = false;
     const updateEstimate = async () => {
+      if (Date.now() < liveRankRetryAfterRef.current) return;
+
       try {
         const result = await rankingService.getLeaderboard();
         if (cancelled) return;
         leaderboardSnapshotRef.current = result.data;
+        liveRankFailureCountRef.current = 0;
+        liveRankRetryAfterRef.current = 0;
         setLiveRankEstimate(
           rankingService.estimateLiveRank(scoreRef.current, String(boardSizeRef.current), result.data)
         );
       } catch (error) {
-        if (process.env.NODE_ENV === 'development') {
+        liveRankFailureCountRef.current += 1;
+        const cappedFailures = Math.min(liveRankFailureCountRef.current, 6);
+        const backoffMs = Math.min(120_000, 5_000 * (2 ** (cappedFailures - 1)));
+        liveRankRetryAfterRef.current = Date.now() + backoffMs;
+
+        if (import.meta.env.DEV && liveRankFailureCountRef.current === 1) {
           console.warn('[랭킹 추정] 랭킹 조회 실패:', error);
         }
       }

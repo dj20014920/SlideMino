@@ -46,6 +46,9 @@ interface LeaderboardCache {
 const STORAGE_KEY_NAME = 'slidemino_player_name';
 const STORAGE_KEY_QUEUE = 'slidemino_pending_scores_v1';
 const STORAGE_KEY_LEADERBOARD_CACHE = 'slidemino_leaderboard_cache_v1';
+const LEADERBOARD_ERROR_LOG_COOLDOWN_MS = 60_000;
+
+let lastLeaderboardErrorLogAt = 0;
 
 const getApiUrl = (path: string): string => {
     // In native (Capacitor) builds the app is served from a local origin
@@ -66,10 +69,34 @@ const isOnline = (): boolean => {
     return navigator.onLine;
 };
 
-const loadQueue = (): Record<string, PendingScore> => {
-    if (typeof localStorage === 'undefined') return {};
+const safeReadLocalStorage = (key: string): string | null => {
+    if (typeof localStorage === 'undefined') return null;
     try {
-        const raw = localStorage.getItem(STORAGE_KEY_QUEUE);
+        return localStorage.getItem(key);
+    } catch {
+        return null;
+    }
+};
+
+const safeWriteLocalStorage = (key: string, value: string): void => {
+    if (typeof localStorage === 'undefined') return;
+    try {
+        localStorage.setItem(key, value);
+    } catch {
+        // localStorage 저장 실패는 기능 동작을 막지 않는다.
+    }
+};
+
+const logLeaderboardFetchFailure = (error: unknown): void => {
+    const now = Date.now();
+    if (now - lastLeaderboardErrorLogAt < LEADERBOARD_ERROR_LOG_COOLDOWN_MS) return;
+    lastLeaderboardErrorLogAt = now;
+    console.error('Failed to fetch leaderboard:', error);
+};
+
+const loadQueue = (): Record<string, PendingScore> => {
+    try {
+        const raw = safeReadLocalStorage(STORAGE_KEY_QUEUE);
         if (!raw) return {};
         const parsed = JSON.parse(raw);
         if (parsed && typeof parsed === 'object') return parsed;
@@ -80,8 +107,7 @@ const loadQueue = (): Record<string, PendingScore> => {
 };
 
 const saveQueue = (queue: Record<string, PendingScore>): void => {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem(STORAGE_KEY_QUEUE, JSON.stringify(queue));
+    safeWriteLocalStorage(STORAGE_KEY_QUEUE, JSON.stringify(queue));
 };
 
 const enqueueScore = (payload: Omit<PendingScore, 'updatedAt'>): void => {
@@ -94,9 +120,8 @@ const enqueueScore = (payload: Omit<PendingScore, 'updatedAt'>): void => {
 };
 
 const loadLeaderboardCache = (): LeaderboardCache | null => {
-    if (typeof localStorage === 'undefined') return null;
     try {
-        const raw = localStorage.getItem(STORAGE_KEY_LEADERBOARD_CACHE);
+        const raw = safeReadLocalStorage(STORAGE_KEY_LEADERBOARD_CACHE);
         if (!raw) return null;
         const parsed = JSON.parse(raw) as LeaderboardCache;
         if (!parsed || !Array.isArray(parsed.data)) return null;
@@ -107,9 +132,8 @@ const loadLeaderboardCache = (): LeaderboardCache | null => {
 };
 
 const saveLeaderboardCache = (data: RankEntry[]): void => {
-    if (typeof localStorage === 'undefined') return;
     const payload: LeaderboardCache = { data, updatedAt: Date.now() };
-    localStorage.setItem(STORAGE_KEY_LEADERBOARD_CACHE, JSON.stringify(payload));
+    safeWriteLocalStorage(STORAGE_KEY_LEADERBOARD_CACHE, JSON.stringify(payload));
 };
 
 const shouldQueue = (status?: number): boolean => {
@@ -240,14 +264,14 @@ export const rankingService = {
      * Get the saved player name from LocalStorage
      */
     getSavedName: (): string => {
-        return localStorage.getItem(STORAGE_KEY_NAME) || '';
+        return safeReadLocalStorage(STORAGE_KEY_NAME) || '';
     },
 
     /**
      * Save player name to LocalStorage for persistence
      */
     saveName: (name: string) => {
-        localStorage.setItem(STORAGE_KEY_NAME, name);
+        safeWriteLocalStorage(STORAGE_KEY_NAME, name);
     },
 
     /**
@@ -308,7 +332,7 @@ export const rankingService = {
             saveLeaderboardCache(data as RankEntry[]);
             return { data: data as RankEntry[], offline: false, fromCache: false };
         } catch (error) {
-            console.error('Failed to fetch leaderboard:', error);
+            logLeaderboardFetchFailure(error);
             if (cached) {
                 return { data: cached.data, offline: false, fromCache: true };
             }

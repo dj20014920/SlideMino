@@ -170,16 +170,23 @@ const TilesLayer = React.memo<{
               absolute rounded-xl flex items-center justify-center 
               font-semibold overflow-hidden text-center
               ${appearance.className}
-              ${canSelectTiles ? 'cursor-pointer ring-2 ring-transparent hover:ring-amber-200/70 active:brightness-95' : ''}
+              ${canSelectTiles ? 'cursor-pointer ring-2 ring-transparent hover:ring-amber-200/70 focus-visible:ring-amber-300 focus-visible:outline-none active:brightness-95' : ''}
               ${isPendingTarget ? 'ring-amber-300 shadow-[0_0_0_3px_rgba(251,191,36,0.32)]' : ''}
             `}
             role={canSelectTiles ? 'button' : undefined}
+            aria-label={canSelectTiles ? `${displayValue} 블럭 파괴 선택` : undefined}
             tabIndex={canSelectTiles ? 0 : -1}
             onPointerDown={canSelectTiles ? (e) => {
               e.preventDefault();
               e.stopPropagation();
             } : undefined}
             onClick={canSelectTiles ? (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onReviveTileTap?.(tile.id);
+            } : undefined}
+            onKeyDown={canSelectTiles ? (e) => {
+              if (e.key !== 'Enter' && e.key !== ' ') return;
               e.preventDefault();
               e.stopPropagation();
               onReviveTileTap?.(tile.id);

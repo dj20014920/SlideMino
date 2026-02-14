@@ -1175,3 +1175,45 @@ Original prompt: 게임 진행 화면(iPhone 포함)에서 광고 배너가 메�
 - 에뮬레이터 캡처:
   - `/Users/dj/Desktop/SlideMino/output/emulator/reverify-revive-emulator-20260214.png`
   - `/Users/dj/Desktop/SlideMino/output/emulator/reverify-revive-emulator-after-final-run-20260214.png`
+
+## 2026-02-14 추가 작업 로그 (페르소나 기반 심층 감사 및 리스크 보강)
+- 감사 관점:
+  - 보안/법적: 악성 Origin 우회 가능성, 외부 정책 링크 보안
+  - UX/안정성: 랭킹 API 실패 시 반복 경고/폴링 소음, storage 접근 예외
+  - 접근성: revive 선택 타일 키보드 조작
+  - 콘솔 품질: `React.Fragment` ref 경고
+- 수정 사항:
+  1) CORS 원점 검증 강화
+     - `/Users/dj/Desktop/SlideMino/functions/api/submit.ts`
+     - `/Users/dj/Desktop/SlideMino/functions/api/rankings.ts`
+     - `origin.startsWith(...)` 제거, `URL` 파싱 기반의 정확한 origin 검사로 변경.
+     - localhost/127.0.0.1 개발 호스트만 예외 허용.
+  2) 법적/보안 문구 링크 강화
+     - `/Users/dj/Desktop/SlideMino/pages/PrivacyPolicy.tsx`
+     - `aboutads` 링크를 `http` -> `https`로 교체.
+  3) 랭킹 서비스 복원력 강화
+     - `/Users/dj/Desktop/SlideMino/services/rankingService.ts`
+     - localStorage read/write 안전 래퍼 추가(`safeReadLocalStorage`, `safeWriteLocalStorage`).
+     - 큐/캐시/닉네임 저장에서 storage 예외가 앱 동작을 깨지 않도록 보강.
+     - 랭킹 fetch 실패 로그는 60초 쿨다운으로 제한(`logLeaderboardFetchFailure`).
+  4) 게임 중 랭킹 추정 폴링 백오프
+     - `/Users/dj/Desktop/SlideMino/App.tsx`
+     - 연속 실패 시 5s→10s→20s... 최대 120s 백오프 적용.
+     - 개발 경고 로그는 세션 최초 실패 1회만 출력.
+  5) 접근성 개선 (revive 선택)
+     - `/Users/dj/Desktop/SlideMino/components/Board.tsx`
+     - 선택 타일에 `aria-label`, `focus-visible` 스타일, `Enter/Space` 키 처리 추가.
+  6) 로딩 화면 경고 제거
+     - `/Users/dj/Desktop/SlideMino/components/LoadingScreen.tsx`
+     - `AnimatePresence` 내부 Fragment를 `motion.div(key=block-pair)`로 교체하여 `React.Fragment ref` 경고 제거.
+- 검증:
+  - `npm run build` 성공.
+  - `npm run build:cf` 성공.
+  - `npm run cap:sync` 성공.
+  - `npx cap run ios --target 8D4A6A07-024E-4FF5-8505-AB707DC5F48E` 성공.
+  - Playwright:
+    - revive 선택 모드에서 키보드 `Enter/Space`로 선택/확정 파괴 동작 확인.
+    - `React.Fragment` 관련 콘솔 에러 미재현 확인.
+  - 산출물:
+    - `/Users/dj/Desktop/SlideMino/output/playwright/audit-revive-keyboard-enter-20260214.png`
+    - `/Users/dj/Desktop/SlideMino/output/emulator/audit-persona-emulator-20260214.png`

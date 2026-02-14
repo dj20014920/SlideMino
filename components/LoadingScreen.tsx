@@ -36,7 +36,13 @@ export const LoadingScreen: React.FC = () => {
                 <div className="relative h-24 w-48 flex items-center justify-center mb-8">
                     <AnimatePresence mode="popLayout">
                         {phase < 2 ? (
-                            <>
+                            <motion.div
+                                key="block-pair"
+                                className="absolute inset-0"
+                                initial={{ opacity: 1 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                            >
                                 {/* Left Block (4) */}
                                 <motion.div
                                     key="block-left"
@@ -74,7 +80,7 @@ export const LoadingScreen: React.FC = () => {
                                 >
                                     4
                                 </motion.div>
-                            </>
+                            </motion.div>
                         ) : (
                             /* Merged Block (8) */
                             <motion.div

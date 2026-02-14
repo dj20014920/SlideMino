@@ -17,7 +17,7 @@ interface Env {
 function getCorsHeaders(request: Request): Record<string, string> {
   const origin = request.headers.get('Origin') || '';
 
-  const allowedOrigins = [
+  const allowedOrigins = new Set([
     'https://slidemino.emozleep.space',
     'https://www.slidemino.emozleep.space',
     // Capacitor/Ionic native app origins (WebView)
@@ -26,13 +26,19 @@ function getCorsHeaders(request: Request): Record<string, string> {
     // Some WebView stacks may report as http(s) localhost
     'http://localhost',
     'https://localhost',
-  ];
+  ]);
 
-  if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
-    allowedOrigins.push(origin);
+  let isAllowed = false;
+  if (origin) {
+    try {
+      const parsed = new URL(origin);
+      const isLocalDevHost = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+      const normalizedOrigin = `${parsed.protocol}//${parsed.host}`;
+      isAllowed = isLocalDevHost || allowedOrigins.has(normalizedOrigin);
+    } catch {
+      isAllowed = false;
+    }
   }
-
-  const isAllowed = allowedOrigins.some(allowed => origin === allowed || origin.startsWith(allowed));
 
   return {
     'Access-Control-Allow-Origin': isAllowed ? origin : 'https://slidemino.emozleep.space',

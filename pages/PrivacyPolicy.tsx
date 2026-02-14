@@ -64,7 +64,7 @@ const PrivacyPolicy: React.FC = () => {
           <ul>
             <li>Google's use of advertising cookies enables it and its partners to serve ads based on your visits to this site and/or other sites on the Internet.</li>
             <li>You may opt out of personalized advertising by visiting <a href="https://www.google.com/settings/ads" target="_blank" rel="noopener noreferrer">Google Ads Settings</a>.</li>
-            <li>You can also visit <a href="http://www.aboutads.info/choices/" target="_blank" rel="noopener noreferrer">aboutads.info</a> to opt out of third-party vendors' use of cookies for personalized advertising.</li>
+            <li>You can also visit <a href="https://www.aboutads.info/choices/" target="_blank" rel="noopener noreferrer">aboutads.info</a> to opt out of third-party vendors' use of cookies for personalized advertising.</li>
           </ul>
 
           <h3>3.2 AdSense / AdMob Partner Information</h3>

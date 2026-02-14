@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <!-- app_name is defined in build.gradle productFlavors (google: SlideMino, appintos: 슬라이드미노) -->
-    <string name="title_activity_main">SlideMino</string>
+    <!-- app_name is defined in build.gradle productFlavors (google: 블록 슬라이드 (Block Slide), appintos: 블록 슬라이드 (Block Slide)) -->
+    <string name="title_activity_main">블록 슬라이드 (Block Slide)</string>
     <string name="package_name">com.slidemino.app</string>
     <string name="custom_url_scheme">com.slidemino.app</string>
 </resources>

@@ -113,7 +113,7 @@ export const LoadingScreen: React.FC = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
                 >
-                    SlideMino
+                    블록 슬라이드 (Block Slide)
                 </motion.h1>
 
                 {/* Subtitle / Loading Text with Pulse */}

@@ -10,22 +10,22 @@ const About: React.FC = () => {
   return (
     <div className="policy-page about-page">
       <header className="policy-header">
-        <h1>About SlideMino</h1>
+        <h1>About 블록 슬라이드 (Block Slide)</h1>
         <p className="tagline">The Perfect Blend of 2048 and Tetris</p>
       </header>
 
       <div className="policy-content">
         <section className="intro-section">
-          <h2>What is SlideMino?</h2>
+          <h2>What is 블록 슬라이드 (Block Slide)?</h2>
           <p>
-            SlideMino is an innovative browser-based puzzle game that brilliantly combines the addictive 
+            블록 슬라이드 (Block Slide) is an innovative browser-based puzzle game that brilliantly combines the addictive 
             number-merging mechanics of 2048 with the strategic block placement of Tetris. Created for 
-            puzzle enthusiasts who love a challenge, SlideMino offers a unique gameplay experience that 
+            puzzle enthusiasts who love a challenge, 블록 슬라이드 (Block Slide) offers a unique gameplay experience that 
             tests your spatial reasoning, strategic planning, and quick thinking.
           </p>
           <p>
             Whether you're looking for a quick brain teaser during your coffee break or an engaging puzzle 
-            to master over time, SlideMino provides endless entertainment with its elegant glass-morphism 
+            to master over time, 블록 슬라이드 (Block Slide) provides endless entertainment with its elegant glass-morphism 
             design and smooth animations. Best of all, it's completely free to play and works seamlessly 
             on any modern web browser!
           </p>
@@ -93,7 +93,7 @@ const About: React.FC = () => {
               <h3>Global Leaderboards</h3>
               <p>
                 Compete with players worldwide! Submit your high scores to our online leaderboard and see how 
-                you rank against the best SlideMino players. Can you reach the top 10?
+                you rank against the best 블록 슬라이드 (Block Slide) players. Can you reach the top 10?
               </p>
             </div>
 
@@ -295,9 +295,9 @@ const About: React.FC = () => {
           <h2>Frequently Asked Questions (FAQ)</h2>
           
           <div className="faq-item">
-            <h3>Q: Is SlideMino free to play?</h3>
+            <h3>Q: Is 블록 슬라이드 (Block Slide) free to play?</h3>
             <p>
-              <strong>A:</strong> Yes! SlideMino is completely free to play with no hidden costs, subscriptions, 
+              <strong>A:</strong> Yes! 블록 슬라이드 (Block Slide) is completely free to play with no hidden costs, subscriptions, 
               or paywalls. We support the game through non-intrusive advertisements.
             </p>
           </div>
@@ -313,7 +313,7 @@ const About: React.FC = () => {
           <div className="faq-item">
             <h3>Q: Can I play on mobile devices?</h3>
             <p>
-              <strong>A:</strong> Absolutely! SlideMino features a fully responsive design that works beautifully 
+              <strong>A:</strong> Absolutely! 블록 슬라이드 (Block Slide) features a fully responsive design that works beautifully 
               on smartphones and tablets. Simply visit the website in your mobile browser.
             </p>
           </div>
@@ -380,7 +380,7 @@ const About: React.FC = () => {
         <section className="about-developer">
           <h2>About the Developer</h2>
           <p>
-            SlideMino was created with passion by an independent game developer who loves puzzle games and 
+            블록 슬라이드 (Block Slide) was created with passion by an independent game developer who loves puzzle games and 
             clean, elegant design. The goal was to create a game that's easy to learn but impossible to master, 
             providing entertainment for players of all skill levels.
           </p>
@@ -389,7 +389,7 @@ const About: React.FC = () => {
             optimizations, and refinements are regularly added to enhance the gaming experience.
           </p>
           <p>
-            Thank you for playing SlideMino! We hope you enjoy the game as much as we enjoyed creating it. 
+            Thank you for playing 블록 슬라이드 (Block Slide)! We hope you enjoy the game as much as we enjoyed creating it. 
             Happy sliding! 🎮✨
           </p>
         </section>
@@ -397,7 +397,7 @@ const About: React.FC = () => {
         <section className="get-started">
           <h2>Ready to Play?</h2>
           <p>
-            Now that you know all about SlideMino, it's time to put your skills to the test! 
+            Now that you know all about 블록 슬라이드 (Block Slide), it's time to put your skills to the test! 
             Click the button below to start your puzzle journey.
           </p>
           <a href="#/" className="cta-button">

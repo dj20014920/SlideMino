@@ -166,19 +166,19 @@ const DEFAULT_LAYOUT_CHROME_HEIGHTS: LayoutChromeHeights = {
 const ORIENTATION_LOCK_MESSAGES: Record<string, OrientationLockMessage> = {
   ko: {
     title: '세로 모드로 전환해 주세요',
-    body: 'SlideMino는 가로 모드를 지원하지 않습니다.',
+    body: '블록 슬라이드 (Block Slide)는 가로 모드를 지원하지 않습니다.',
   },
   en: {
     title: 'Please rotate to portrait mode',
-    body: 'SlideMino does not support landscape mode.',
+    body: '블록 슬라이드 (Block Slide) does not support landscape mode.',
   },
   ja: {
     title: '縦向きにしてください',
-    body: 'SlideMino は横向きモードに対応していません。',
+    body: '블록 슬라이드 (Block Slide) は横向きモードに対応していません。',
   },
   zh: {
     title: '请切换为竖屏',
-    body: 'SlideMino 不支持横屏模式。',
+    body: '블록 슬라이드 (Block Slide) 不支持横屏模式。',
   },
 };
 

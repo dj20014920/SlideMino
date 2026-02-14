@@ -18,7 +18,7 @@ const PrivacyPolicy: React.FC = () => {
         <section>
           <h2>1. Introduction</h2>
           <p>
-            Welcome to SlideMino. We are committed to protecting your privacy and ensuring transparency 
+            Welcome to 블록 슬라이드 (Block Slide). We are committed to protecting your privacy and ensuring transparency 
             about how we collect, use, and protect your information. This Privacy Policy explains our 
             practices regarding data collection and usage.
           </p>
@@ -50,7 +50,7 @@ const PrivacyPolicy: React.FC = () => {
         <section>
           <h2>3. Advertising (Google AdSense / Google AdMob)</h2>
           <p>
-            SlideMino displays advertisements to support the free service. On the web version we use Google AdSense, and on the
+            블록 슬라이드 (Block Slide) displays advertisements to support the free service. On the web version we use Google AdSense, and on the
             native mobile app version (iOS/Android) we may use Google AdMob.
           </p>
           <p>
@@ -130,7 +130,7 @@ const PrivacyPolicy: React.FC = () => {
         <section>
           <h2>8. Children's Privacy</h2>
           <p>
-            SlideMino is intended for general audiences and does not knowingly collect personal information 
+            블록 슬라이드 (Block Slide) is intended for general audiences and does not knowingly collect personal information 
             from children under 13 years of age. If we discover that we have collected information from a 
             child under 13, we will promptly delete it. Parents who believe their child has provided information 
             to us should contact us immediately.
@@ -140,7 +140,7 @@ const PrivacyPolicy: React.FC = () => {
         <section>
           <h2>9. International Users</h2>
           <p>
-            SlideMino is hosted on Cloudflare's global network. Your information may be transferred to and 
+            블록 슬라이드 (Block Slide) is hosted on Cloudflare's global network. Your information may be transferred to and 
             processed in countries other than your own. We ensure appropriate safeguards are in place to 
             protect your data in accordance with this Privacy Policy.
           </p>
@@ -151,7 +151,7 @@ const PrivacyPolicy: React.FC = () => {
           <p>
             We may update this Privacy Policy from time to time. We will notify you of significant changes 
             by posting the new policy on this page with an updated "Last Updated" date. Your continued use 
-            of SlideMino after changes constitutes acceptance of the updated policy.
+            of 블록 슬라이드 (Block Slide) after changes constitutes acceptance of the updated policy.
           </p>
         </section>
 
@@ -171,7 +171,7 @@ const PrivacyPolicy: React.FC = () => {
         <section>
           <h2>12. Third-Party Links</h2>
           <p>
-            SlideMino may contain links to third-party websites or services. We are not responsible for the 
+            블록 슬라이드 (Block Slide) may contain links to third-party websites or services. We are not responsible for the 
             privacy practices of these external sites. We encourage you to review their privacy policies 
             before providing any personal information.
           </p>

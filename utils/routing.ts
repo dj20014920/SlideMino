@@ -38,24 +38,24 @@ export const onRouteChange = (callback: (route: Route) => void): (() => void) =>
 export const updatePageMeta = (route: Route): void => {
   const metaData: Record<Route, { title: string; description: string }> = {
     '/': {
-      title: 'SlideMino - 2048 meets Tetris Logic Puzzle',
-      description: 'Play SlideMino for free! The ultimate brain-training puzzle game combining 2048 merging mechanics with Tetris-style block placement.'
+      title: '블록 슬라이드 (Block Slide) - 2048 meets Tetris Logic Puzzle',
+      description: 'Play 블록 슬라이드 (Block Slide) for free! The ultimate brain-training puzzle game combining 2048 merging mechanics with Tetris-style block placement.'
     },
     '/privacy': {
-      title: 'Privacy Policy - SlideMino',
-      description: 'Learn how SlideMino collects, uses, and protects your personal information. Transparent privacy practices and data security.'
+      title: 'Privacy Policy - 블록 슬라이드 (Block Slide)',
+      description: 'Learn how 블록 슬라이드 (Block Slide) collects, uses, and protects your personal information. Transparent privacy practices and data security.'
     },
     '/terms': {
-      title: 'Terms of Service - SlideMino',
-      description: 'Read the terms and conditions for using SlideMino. User rights, responsibilities, and legal information.'
+      title: 'Terms of Service - 블록 슬라이드 (Block Slide)',
+      description: 'Read the terms and conditions for using 블록 슬라이드 (Block Slide). User rights, responsibilities, and legal information.'
     },
     '/about': {
-      title: 'About SlideMino - Game Guide & Features',
-      description: 'Discover how to play SlideMino, game features, strategies, and FAQs. Complete guide to mastering this addictive puzzle game.'
+      title: 'About 블록 슬라이드 (Block Slide) - Game Guide & Features',
+      description: 'Discover how to play 블록 슬라이드 (Block Slide), game features, strategies, and FAQs. Complete guide to mastering this addictive puzzle game.'
     },
     '/contact': {
-      title: 'Contact Us - SlideMino Support',
-      description: 'Get in touch with the SlideMino team. Report bugs, share feedback, or ask questions. We\'re here to help!'
+      title: 'Contact Us - 블록 슬라이드 (Block Slide) Support',
+      description: 'Get in touch with the 블록 슬라이드 (Block Slide) team. Report bugs, share feedback, or ask questions. We\'re here to help!'
     }
   };
 

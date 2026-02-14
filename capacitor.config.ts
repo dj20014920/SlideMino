@@ -8,9 +8,9 @@ const getAppName = (): string => {
   // 빌드 타임에 환경변수 체크 (Capacitor CLI는 Node.js 환경)
   const store = process.env.VITE_APP_STORE;
   if (store === 'appintos') {
-    return '슬라이드미노';
+    return '블록 슬라이드 (Block Slide)';
   }
-  return 'SlideMino';
+  return '블록 슬라이드 (Block Slide)';
 };
 
 const config: CapacitorConfig = {

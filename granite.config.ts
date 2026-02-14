@@ -5,7 +5,7 @@ export default defineConfig({
   // @ts-expect-error - appType is used by the runtime but missing from current types.
   appType: 'game',
   brand: {
-    displayName: '슬라이드미노',
+    displayName: '블록 슬라이드 (Block Slide)',
     primaryColor: '#B59D5B',
     icon: 'https://slidemino.private-apps.tossmini.com/brand-icon.png',
   },

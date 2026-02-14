@@ -1,5 +1,5 @@
 {
-  "title": "SlideMino",
+  "title": "블록 슬라이드 (Block Slide)",
   "tagline": "テトリスのようにブロックを配置。\n2048のように数字を合体。",
   "difficulties": {
     "expert": "🔥 エキスパート",

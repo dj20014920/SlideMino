@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>SlideMino</string>
+        <string>블록 슬라이드 (Block Slide)</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -31,13 +31,13 @@
 	<string>ca-app-pub-5319827978116991~7661419396</string>
 	<!-- iOS App Tracking Transparency (ATT) prompt description -->
 	<key>NSUserTrackingUsageDescription</key>
-	<string>Your data may be used to deliver more relevant ads and help keep SlideMino free to play.</string>
+	<string>Your data may be used to deliver more relevant ads and help keep 블록 슬라이드 (Block Slide) free to play.</string>
 	<!-- Camera access for block customization photo capture -->
 	<key>NSCameraUsageDescription</key>
-	<string>SlideMino needs camera access to take photos for customizing block appearances.</string>
+	<string>블록 슬라이드 (Block Slide) needs camera access to take photos for customizing block appearances.</string>
 	<!-- Photo Library access for block customization image selection -->
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>SlideMino needs photo library access to select images for customizing block appearances.</string>
+	<string>블록 슬라이드 (Block Slide) needs photo library access to select images for customizing block appearances.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

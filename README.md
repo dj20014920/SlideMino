@@ -1,4 +1,4 @@
-# SlideMino - 2048 meets Tetris Puzzle Game
+# 블록 슬라이드 (Block Slide) - 2048 meets Tetris Puzzle Game
 
 A modern, addictive browser-based puzzle game that combines 2048's merging mechanics with Tetris-style block placement. Built with React, TypeScript, and Vite.
 
@@ -37,7 +37,7 @@ A modern, addictive browser-based puzzle game that combines 2048's merging mecha
 ## 📁 Project Structure
 
 ```
-SlideMino/
+블록 슬라이드 (Block Slide)/
 ├── components/          # React components (Board, Slot, Modals)
 ├── pages/              # Static pages (Privacy, Terms, About, Contact)
 ├── services/           # Game logic, storage, ranking

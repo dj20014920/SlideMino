@@ -18,12 +18,12 @@ const Terms: React.FC = () => {
         <section>
           <h2>1. Acceptance of Terms</h2>
           <p>
-            Welcome to SlideMino! By accessing or using our game at slidemino.emozleep.space
+            Welcome to 블록 슬라이드 (Block Slide)! By accessing or using our game at slidemino.emozleep.space
             (the "Service"), you agree to be bound by these Terms of Service ("Terms"). If you do not
             agree to these Terms, please do not use the Service.
           </p>
           <p>
-            These Terms constitute a legally binding agreement between you and SlideMino ("we," "us," or "our"). 
+            These Terms constitute a legally binding agreement between you and 블록 슬라이드 (Block Slide) ("we," "us," or "our"). 
             We reserve the right to modify these Terms at any time. Your continued use of the Service after 
             changes constitutes acceptance of the modified Terms.
           </p>
@@ -32,7 +32,7 @@ const Terms: React.FC = () => {
         <section>
           <h2>2. Description of Service</h2>
           <p>
-            SlideMino is a free-to-play browser-based puzzle game that combines elements of 2048 and Tetris. 
+            블록 슬라이드 (Block Slide) is a free-to-play browser-based puzzle game that combines elements of 2048 and Tetris. 
             The Service includes:
           </p>
           <ul>
@@ -86,7 +86,7 @@ const Terms: React.FC = () => {
           <h3>5.1 Our Rights</h3>
           <p>
             All content, features, and functionality of the Service, including but not limited to game design, 
-            code, graphics, user interface, audio, and text, are owned by SlideMino and protected by international 
+            code, graphics, user interface, audio, and text, are owned by 블록 슬라이드 (Block Slide) and protected by international 
             copyright, trademark, and other intellectual property laws.
           </p>
 
@@ -195,7 +195,7 @@ const Terms: React.FC = () => {
         <section>
           <h2>10. Indemnification</h2>
           <p>
-            You agree to indemnify, defend, and hold harmless SlideMino and its affiliates, officers, directors, 
+            You agree to indemnify, defend, and hold harmless 블록 슬라이드 (Block Slide) and its affiliates, officers, directors, 
             employees, and partners from and against any claims, liabilities, damages, losses, and expenses, 
             including reasonable legal fees, arising out of or in any way connected with:
           </p>
@@ -278,7 +278,7 @@ const Terms: React.FC = () => {
           <h3>14.1 Entire Agreement</h3>
           <p>
             These Terms, together with our Privacy Policy, constitute the entire agreement between you and 
-            SlideMino regarding the Service and supersede all prior agreements and understandings.
+            블록 슬라이드 (Block Slide) regarding the Service and supersede all prior agreements and understandings.
           </p>
 
           <h3>14.2 Severability</h3>

@@ -17,7 +17,7 @@ const Contact: React.FC = () => {
         <section className="intro-section">
           <h2>Get in Touch</h2>
           <p>
-            Have a question, found a bug, or want to share feedback about SlideMino? We're here to help! 
+            Have a question, found a bug, or want to share feedback about 블록 슬라이드 (Block Slide)? We're here to help! 
             Whether you have technical issues, feature suggestions, or just want to say hello, feel free 
             to reach out using any of the methods below.
           </p>
@@ -59,7 +59,7 @@ const Contact: React.FC = () => {
                   We value your input! Share your ideas for new features, report bugs you've encountered, 
                   or let us know what you love about the game.
                 </p>
-                <a href="mailto:studio@emozleep.space?subject=SlideMino Feedback" className="action-link">
+                <a href="mailto:studio@emozleep.space?subject=블록 슬라이드 (Block Slide) Feedback" className="action-link">
                   <Send size={18} />
                   <span>Send Feedback</span>
                 </a>
@@ -74,7 +74,7 @@ const Contact: React.FC = () => {
               <p>Connect with the developer and stay updated on the latest changes and features.</p>
               <div className="contact-details">
                 <p>
-                  Follow the development of SlideMino and contribute to its growth. Check out our 
+                  Follow the development of 블록 슬라이드 (Block Slide) and contribute to its growth. Check out our 
                   development updates and technical documentation.
                 </p>
                 <p className="dev-note">Developer contact available via email inquiries.</p>
@@ -137,7 +137,7 @@ const Contact: React.FC = () => {
 
             <a href="#/terms" className="quick-link-card">
               <h3>📜 Terms of Service</h3>
-              <p>Rules, guidelines, and legal information about using SlideMino</p>
+              <p>Rules, guidelines, and legal information about using 블록 슬라이드 (Block Slide)</p>
             </a>
           </div>
         </section>
@@ -219,7 +219,7 @@ const Contact: React.FC = () => {
         <section className="stay-updated">
           <h2>Stay Updated</h2>
           <p>
-            Want to know about new features, updates, and improvements to SlideMino? 
+            Want to know about new features, updates, and improvements to 블록 슬라이드 (Block Slide)? 
             Send us an email at <a href="mailto:studio@emozleep.space">studio@emozleep.space</a> expressing 
             interest in updates, and we'll keep you in the loop!
           </p>
@@ -238,12 +238,12 @@ const Contact: React.FC = () => {
           <h2>Thank You!</h2>
           <p>
             Thank you for taking the time to reach out. Your feedback, questions, and suggestions 
-            are incredibly valuable in making SlideMino better for everyone. We read every message 
+            are incredibly valuable in making 블록 슬라이드 (Block Slide) better for everyone. We read every message 
             and take your input seriously.
           </p>
           <p>
             Whether you're reporting a bug, sharing an idea, or just saying hi, we appreciate you 
-            being part of the SlideMino community! 🎮💙
+            being part of the 블록 슬라이드 (Block Slide) community! 🎮💙
           </p>
         </section>
 

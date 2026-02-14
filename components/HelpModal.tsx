@@ -24,7 +24,7 @@ interface LocalizedContent {
 const content: Record<Language, LocalizedContent> = {
     ko: {
         title: '게임 설명',
-        subtitle: 'SlideMino 플레이 방법',
+        subtitle: '블록 슬라이드 (Block Slide) 플레이 방법',
         sections: [
             {
                 icon: <Smartphone size={20} />,
@@ -56,7 +56,7 @@ const content: Record<Language, LocalizedContent> = {
     },
     en: {
         title: 'How to Play',
-        subtitle: 'SlideMino Game Guide',
+        subtitle: '블록 슬라이드 (Block Slide) Game Guide',
         sections: [
             {
                 icon: <Smartphone size={20} />,
@@ -88,7 +88,7 @@ const content: Record<Language, LocalizedContent> = {
     },
     ja: {
         title: '遊び方',
-        subtitle: 'SlideMino ゲームガイド',
+        subtitle: '블록 슬라이드 (Block Slide) ゲームガイド',
         sections: [
             {
                 icon: <Smartphone size={20} />,
@@ -120,7 +120,7 @@ const content: Record<Language, LocalizedContent> = {
     },
     zh: {
         title: '游戏说明',
-        subtitle: 'SlideMino 玩法指南',
+        subtitle: '블록 슬라이드 (Block Slide) 玩法指南',
         sections: [
             {
                 icon: <Smartphone size={20} />,

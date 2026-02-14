@@ -1,4 +1,4 @@
 {
-  "name": "SlideMino",
+  "name": "블록 슬라이드 (Block Slide)",
   "description": "A strategic puzzle game combining 1010! placement mechanics with 2048 sliding logic. Place blocks, then slide to merge numbers."
 }

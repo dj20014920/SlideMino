@@ -22,12 +22,12 @@ android {
     productFlavors {
         google {
             dimension "store"
-            resValue "string", "app_name", "SlideMino"
+            resValue "string", "app_name", "블록 슬라이드 (Block Slide)"
             buildConfigField "String", "APP_STORE", '"google"'
         }
         appintos {
             dimension "store"
-            resValue "string", "app_name", "슬라이드미노"
+            resValue "string", "app_name", "블록 슬라이드 (Block Slide)"
             buildConfigField "String", "APP_STORE", '"appintos"'
         }
     }

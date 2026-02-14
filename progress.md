@@ -1217,3 +1217,47 @@ Original prompt: 게임 진행 화면(iPhone 포함)에서 광고 배너가 메�
   - 산출물:
     - `/Users/dj/Desktop/SlideMino/output/playwright/audit-revive-keyboard-enter-20260214.png`
     - `/Users/dj/Desktop/SlideMino/output/emulator/audit-persona-emulator-20260214.png`
+
+## 2026-02-14 추가 작업 로그 (브랜드명 통일)
+- 요청: 사용자 노출 이름을 `블록 슬라이드 (Block Slide)`로 통일.
+- 적용 범위:
+  - 웹 메타/SEO: `index.html`, `utils/routing.ts`, `public/manifest.json`, `metadata.json`
+  - 앱 UI/페이지 텍스트: `App.tsx`, `components/HelpModal.tsx`, `components/LoadingScreen.tsx`, `pages/{About,Contact,PrivacyPolicy,Terms}.tsx`
+  - 다국어 리소스: `public/locales/{ko,en,ja,zh}/{game,pages,modals,common}.json`
+  - 네이티브 표시명: `ios/App/App/Info.plist`, `android/app/build.gradle`, `android/app/src/main/res/values/strings.xml`, `capacitor.config.ts`, `granite.config.ts`
+- 비적용(의도): 번들 ID/패키지명/도메인/localStorage 키(`slidemino*`)는 서비스 연속성 보장을 위해 유지.
+- 검증:
+  - `rg -n "SlideMino|슬라이드미노"` (progress.md 제외) 결과 0건.
+  - `npm run build` 성공.
+
+## 2026-02-14 추가 작업 로그 (브랜딩 심층 검증 + Capacitor 빌드)
+- 목적: `블록 슬라이드 (Block Slide)` 브랜딩 통일 후 실제 웹/시뮬레이터 노출 및 네이티브 빌드 검증.
+
+### 웹 심층 검증
+- 로컬 서버: `npm run dev -- --host 127.0.0.1 --port 4173` (실사용 포트 `4175`)
+- 스킬 스크립트 검증:
+  - `node $WEB_GAME_CLIENT --url http://127.0.0.1:4175 --actions-file $WEB_GAME_ACTIONS --iterations 4 --pause-ms 350 --screenshot-dir output/web-game`
+  - 산출물: `/Users/dj/Desktop/SlideMino/output/web-game/shot-{0..3}.png`
+- DevTools 기반 플로우 검증:
+  - 메인 진입 → 쿠키 수락 → 튜토리얼 닫기 → 5x5 선택 → 닉네임 입력 → 게임 시작까지 확인.
+  - 정적 페이지(`#/about`, `#/privacy`, `#/terms`, `#/contact`)에서 `document.body.innerText` 기준 `SlideMino/슬라이드미노` 미검출, `블록 슬라이드 (Block Slide)` 검출 확인.
+  - 대표 캡처:
+    - `/Users/dj/Desktop/SlideMino/output/playwright/web-branding-gameplay-20260214.png`
+    - `/Users/dj/Desktop/SlideMino/output/playwright/web-branding-contact-20260214.png`
+- 콘솔/네트워크:
+  - DevTools 콘솔 메시지 없음.
+  - 네트워크 상 앱 리소스/라우트는 정상 로드.
+  - AdSense 테스트 슬롯 관련 400 응답 2건 관측(`YOUR_AD_SLOT_ID`), 기존 테스트 구성 이슈로 브랜딩 변경과 무관.
+
+### Capacitor/네이티브 빌드 검증
+- `npm run cap:sync` 성공 (web→android/ios 동기화 완료)
+- iOS 시뮬레이터 배포:
+  - `npx cap run ios --target 8D4A6A07-024E-4FF5-8505-AB707DC5F48E` 성공
+  - 앱 실행 캡처: `/Users/dj/Desktop/SlideMino/output/emulator/ios-branding-app-20260214.png`
+  - 홈 화면(앱 아이콘 라벨) 캡처: `/Users/dj/Desktop/SlideMino/output/emulator/ios-branding-home-20260214.png`
+    - 라벨이 `블록슬라이드(Blo...)`로 표시(화면 폭에 따른 iOS 라벨 truncation)
+- Android 빌드:
+  - `/Users/dj/Desktop/SlideMino/android`에서 `./gradlew assembleDebug` 성공
+  - 산출물:
+    - `/Users/dj/Desktop/SlideMino/android/app/build/outputs/apk/google/debug/app-google-debug.apk`
+    - `/Users/dj/Desktop/SlideMino/android/app/build/outputs/apk/appintos/debug/app-appintos-debug.apk`

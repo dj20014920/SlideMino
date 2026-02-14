@@ -37,6 +37,9 @@ export interface SavedGameState {
     undoRemaining: number;
     lastSnapshot?: StoredUndoSnapshot | null;
     hasUsedRevive?: boolean;
+    isReviveSelectionMode?: boolean;
+    reviveBreakRemaining?: number;
+    revivePendingTileId?: string | null;
     sessionId?: string;
     moveCount?: number;
     startedAt?: number;
@@ -78,6 +81,16 @@ const parseSavedGameState = (raw: string | null): SavedGameState | null => {
     const startedAt = typeof parsed.startedAt === 'number' ? parsed.startedAt : savedAt;
     const playerName = typeof parsed.playerName === 'string' ? parsed.playerName : undefined;
     const hasUsedRevive = typeof parsed.hasUsedRevive === 'boolean' ? parsed.hasUsedRevive : undefined;
+    const isReviveSelectionMode = typeof parsed.isReviveSelectionMode === 'boolean'
+        ? parsed.isReviveSelectionMode
+        : false;
+    const reviveBreakRemaining = typeof parsed.reviveBreakRemaining === 'number'
+        ? Math.max(0, Math.min(99, Math.floor(parsed.reviveBreakRemaining)))
+        : 0;
+    const revivePendingTileId =
+        parsed.revivePendingTileId === null || typeof parsed.revivePendingTileId === 'string'
+            ? parsed.revivePendingTileId
+            : null;
     const snapshot = parsed.lastSnapshot;
     const lastSnapshot =
         snapshot &&
@@ -100,6 +113,9 @@ const parseSavedGameState = (raw: string | null): SavedGameState | null => {
         startedAt,
         playerName,
         hasUsedRevive,
+        isReviveSelectionMode,
+        reviveBreakRemaining,
+        revivePendingTileId,
         lastSnapshot,
         undoRemaining,
     };

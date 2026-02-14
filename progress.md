@@ -1112,3 +1112,66 @@ Original prompt: 게임 진행 화면(iPhone 포함)에서 광고 배너가 메�
        - 메뉴에서 난이도 클릭 -> `NameInputModal` 노출 확인(최초 1회 입력 경로).
      - GAME_OVER + 닉네임 존재 상태에서:
        - `랭킹 등록하기` 클릭 -> 입력폼 단계 없이 곧바로 제출 완료 상태(`등록되었습니다!`) 진입 확인(fetch mock 기반).
+
+## 2026-02-14 추가 작업 로그 (보상형 광고 부활 로직: 최근 1회 복구 -> 모드별 선택 파괴)
+- 사용자 요청:
+  - 게임오버 후 보상형 광고 부활 시 “직전 1수 복구”를 제거하고, 모드별로 선택 파괴 개수를 부여.
+  - 개수 규칙: `가로칸-1` 기준(4x4=3, 5x5=4, 7x7=6, 8x8=7, 10x10=9).
+  - 오터치 방지를 위해 1회 선택 + 동일 타일 2회 탭 확정 파괴.
+- 구현 반영:
+  - `/Users/dj/Desktop/SlideMino/App.tsx`
+    - `REVIVE_DESTROY_COUNT_BY_BOARD_SIZE` 도입.
+    - `isReviveSelectionMode`, `reviveBreakRemaining`, `revivePendingTileId`, `reviveDestroyEffects` 상태 추가.
+    - 보상형 광고 성공 시 선택 파괴 모드 진입으로 전환.
+    - 선택/확정 파괴 처리(`handleReviveTileTap`) 및 모드 종료 조건(잔여 0 또는 대상 없음) 구현.
+    - 슬롯/스와이프/도움말/Undo 등 입력 경합 방지(선택 모드 중 비활성 처리).
+  - `/Users/dj/Desktop/SlideMino/components/Board.tsx`
+    - 타일 클릭 가능한 선택 레이어/하이라이트 추가.
+    - 파괴 시 페이드/축소 애니메이션(`ReviveDestroyLayer`) 추가.
+  - `/Users/dj/Desktop/SlideMino/components/GameOverModal.tsx`
+    - revive 설명/힌트에 모드별 파괴 개수 바인딩.
+  - `/Users/dj/Desktop/SlideMino/services/gameStorage.ts`
+    - 선택 파괴 관련 상태 저장/복원 필드 추가.
+  - `/Users/dj/Desktop/SlideMino/public/locales/{ko,en,ja,zh}/modals.json`
+    - 선택 파괴 안내/상태/완료 문구 키 추가 및 기존 revive 문구 개편.
+- 추가 보정:
+  - `npx tsc --noEmit`에서 i18n 타입 오류 3건 확인 후 `String(t(...))`로 JSX 타입 정합성 수정.
+- 검증:
+  - `npm run build` 성공.
+  - `npx tsc --noEmit` 성공.
+  - `npm run cap:sync` 성공.
+  - `npx cap run ios --target 8D4A6A07-024E-4FF5-8505-AB707DC5F48E` 성공.
+  - iOS 시뮬레이터 캡처:
+    - `/Users/dj/Desktop/SlideMino/output/emulator/revive-selection-emulator-final-20260214.png`
+  - Playwright 검증(더블탭 선택 파괴):
+    - 1차 탭 후 확인 문구 전환, 2차 탭 후 타일 제거/잔여 감소 확인.
+    - 잔여 0 도달 시 선택 모드 종료 및 `phase=PLACE` 복귀 확인(localStorage).
+    - 산출물:
+      - `/Users/dj/Desktop/SlideMino/output/playwright/revive-selection-before-1st-tap-20260214.png`
+      - `/Users/dj/Desktop/SlideMino/output/playwright/revive-selection-after-1st-tap-20260214.png`
+    - `/Users/dj/Desktop/SlideMino/output/playwright/revive-selection-after-2nd-tap-20260214.png`
+    - `/Users/dj/Desktop/SlideMino/output/playwright/revive-selection-complete-20260214.png`
+
+## 2026-02-14 재검증 로그 (초기 요청사항 완전 반영 여부 재확인)
+- 코드 정합성 점검:
+  - `REVIVE_DESTROY_COUNT_BY_BOARD_SIZE`가 `4->3, 5->4, 7->6, 8->7, 10->9`로 설정됨 확인.
+  - 구 부활 방식(직전 1수 스냅샷 복구) 관련 키워드(`reviveSnapshotRef`, "직전 1수" 등) 코드/문구에서 제거됨 확인.
+  - 선택 파괴 안내문구/확인문구/완료문구 및 다국어 키 존재 확인.
+  - 선택 파괴 상태 저장/복원 필드(`isReviveSelectionMode`, `reviveBreakRemaining`, `revivePendingTileId`) 확인.
+- 실행 검증:
+  - `npm run build` 성공.
+  - `npx tsc --noEmit` 성공.
+  - `npm run cap:sync` 성공.
+  - `npx cap run ios --target 8D4A6A07-024E-4FF5-8505-AB707DC5F48E` 성공.
+- Playwright 재검증(순차 클릭):
+  - QA 훅으로 선택 파괴 모드 진입(`남은 파괴: 3개`) 확인.
+  - 동일 타일 1차 탭 시 확인문구로 전환, 2차 탭 시 실제 파괴 및 `3->2`, `2->1`, `1->0` 감소 확인.
+  - 0 도달 시 선택모드 종료 및 `phase=PLACE` 복귀, 저장값 `isReviveSelectionMode=false`, `reviveBreakRemaining=0` 확인.
+  - 산출물:
+    - `/Users/dj/Desktop/SlideMino/output/playwright/reverify-revive-before-1st-tap-20260214.png`
+    - `/Users/dj/Desktop/SlideMino/output/playwright/reverify-revive-after-1st-tap-20260214.png`
+    - `/Users/dj/Desktop/SlideMino/output/playwright/reverify-revive-after-2nd-tap-20260214.png`
+    - `/Users/dj/Desktop/SlideMino/output/playwright/reverify-revive-complete-20260214.png`
+- 에뮬레이터 캡처:
+  - `/Users/dj/Desktop/SlideMino/output/emulator/reverify-revive-emulator-20260214.png`
+  - `/Users/dj/Desktop/SlideMino/output/emulator/reverify-revive-emulator-after-final-run-20260214.png`

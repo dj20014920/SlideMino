@@ -22,7 +22,7 @@ import {
   slideGrid,
   hasPossibleMoves
 } from './services/gameLogic';
-import { Board, type BoardHandle } from './components/Board';
+import { Board, type BoardHandle, type ReviveDestroyEffect } from './components/Board';
 import { Slot } from './components/Slot';
 import { BlockCustomizationModal } from './components/BlockCustomizationModal';
 import { Undo2, Home, RotateCw, Move, Palette, Lock, Trophy, HelpCircle, RotateCcw } from 'lucide-react';
@@ -58,6 +58,7 @@ import { normalizePlayerName, validatePlayerName } from './utils/playerName';
 declare global {
   interface Window {
     __slideMinoSimQaTapReviveAd?: () => void;
+    __slideMinoSimQaEnterReviveSelection?: (count?: number) => void;
   }
 }
 
@@ -73,6 +74,14 @@ interface GameSnapshot {
   phase: Phase;
   canSkipSlide: boolean;
 }
+
+const REVIVE_DESTROY_COUNT_BY_BOARD_SIZE: Record<BoardSize, number> = {
+  4: 3,
+  5: 4,
+  7: 6,
+  8: 7,
+  10: 9,
+};
 
 interface ActiveGameRankingSnapshot {
   sessionId: string;
@@ -90,6 +99,12 @@ const cloneGameSnapshot = (snapshot: GameSnapshot): GameSnapshot => ({
   phase: snapshot.phase,
   canSkipSlide: snapshot.canSkipSlide,
 });
+
+const countOccupiedTiles = (targetGrid: Grid): number =>
+  targetGrid.reduce((sum, row) => {
+    const filled = row.reduce((rowCount, tile) => rowCount + (tile ? 1 : 0), 0);
+    return sum + filled;
+  }, 0);
 
 const getReusablePlayerName = (candidate: string | null | undefined): string | null => {
   const normalized = normalizePlayerName(candidate ?? '');
@@ -448,6 +463,10 @@ const App: React.FC = () => {
   const [isReviveAdReady, setIsReviveAdReady] = useState(false);
   const [isReviveAdInProgress, setIsReviveAdInProgress] = useState(false);
   const [hasUsedReviveThisRun, setHasUsedReviveThisRun] = useState(false);
+  const [isReviveSelectionMode, setIsReviveSelectionMode] = useState(false);
+  const [reviveBreakRemaining, setReviveBreakRemaining] = useState(0);
+  const [revivePendingTileId, setRevivePendingTileId] = useState<string | null>(null);
+  const [reviveDestroyEffects, setReviveDestroyEffects] = useState<ReviveDestroyEffect[]>([]);
   const [isSimulatorQaEnabled, setIsSimulatorQaEnabled] = useState(false);
   const [showSimulatorQaPanel, setShowSimulatorQaPanel] = useState(false);
   const [simulatorQaStatus, setSimulatorQaStatus] = useState<string | null>(null);
@@ -520,9 +539,9 @@ const App: React.FC = () => {
   const mergeFinalizeTimeoutRef = useRef<number | null>(null);
   const unlockTimeoutRef = useRef<number | null>(null);
   const comboMessageTimeoutRef = useRef<number | null>(null);
+  const reviveDestroyEffectTimeoutsRef = useRef<number[]>([]);
   const dragPointerIdRef = useRef<number | null>(null);
   const currentPointerPosRef = useRef<{ x: number, y: number } | null>(null);
-  const reviveSnapshotRef = useRef<GameSnapshot | null>(null);
   const scoreRef = useRef<number>(score);
   const boardSizeRef = useRef<BoardSize>(boardSize);
   const simulatorAutoProbeRunRef = useRef(false);
@@ -609,9 +628,12 @@ const App: React.FC = () => {
     setLastSnapshot(restoredSnapshot);
     setUndoRemaining(saved.undoRemaining);
     setHasUsedReviveThisRun(Boolean(saved.hasUsedRevive));
+    setIsReviveSelectionMode(Boolean(saved.isReviveSelectionMode));
+    setReviveBreakRemaining(saved.reviveBreakRemaining ?? 0);
+    setRevivePendingTileId(saved.revivePendingTileId ?? null);
+    setReviveDestroyEffects([]);
     setIsReviveAdInProgress(false);
     setIsReviveAdReady(false);
-    reviveSnapshotRef.current = null;
     leaderboardSnapshotRef.current = [];
     setLiveRankEstimate(null);
     setPlayerName(
@@ -647,12 +669,30 @@ const App: React.FC = () => {
       undoRemaining,
       lastSnapshot,
       hasUsedRevive: hasUsedReviveThisRun,
+      isReviveSelectionMode,
+      reviveBreakRemaining,
+      revivePendingTileId,
       sessionId: sessionIdRef.current,
       moveCount: moveCountRef.current,
       startedAt: gameStartTimeRef.current,
       playerName,
     });
-  }, [gameState, grid, slots, score, phase, boardSize, canSkipSlide, undoRemaining, lastSnapshot, hasUsedReviveThisRun, playerName]);
+  }, [
+    gameState,
+    grid,
+    slots,
+    score,
+    phase,
+    boardSize,
+    canSkipSlide,
+    undoRemaining,
+    lastSnapshot,
+    hasUsedReviveThisRun,
+    isReviveSelectionMode,
+    reviveBreakRemaining,
+    revivePendingTileId,
+    playerName,
+  ]);
 
   // 게임 상태 자동 저장 (debounce + 종료 직전 플러시)
   useEffect(() => {
@@ -795,6 +835,12 @@ const App: React.FC = () => {
   const handleGameOverClose = useCallback(() => {
     // 게임오버 결과 확인을 마치고 메뉴로 돌아갈 때 복구 상태를 정리한다.
     clearGameState();
+    reviveDestroyEffectTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
+    reviveDestroyEffectTimeoutsRef.current = [];
+    setIsReviveSelectionMode(false);
+    setReviveBreakRemaining(0);
+    setRevivePendingTileId(null);
+    setReviveDestroyEffects([]);
     setGameState(GameState.MENU);
   }, []);
 
@@ -895,6 +941,8 @@ const App: React.FC = () => {
       window.clearTimeout(comboMessageTimeoutRef.current);
       comboMessageTimeoutRef.current = null;
     }
+    reviveDestroyEffectTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
+    reviveDestroyEffectTimeoutsRef.current = [];
 
     setBoardSize(size);
     setGrid(createEmptyGrid(size));
@@ -912,9 +960,12 @@ const App: React.FC = () => {
     setLastSnapshot(null);
     setUndoRemaining(3);
     setHasUsedReviveThisRun(false);
+    setIsReviveSelectionMode(false);
+    setReviveBreakRemaining(0);
+    setRevivePendingTileId(null);
+    setReviveDestroyEffects([]);
     setIsReviveAdInProgress(false);
     setIsReviveAdReady(false);
-    reviveSnapshotRef.current = null;
 
     // Anti-cheat: Start Timer & Session ID
     gameStartTimeRef.current = Date.now();
@@ -1014,9 +1065,7 @@ const App: React.FC = () => {
 
   const handleWatchReviveAd = useCallback(() => {
     if (isReviveAdInProgress) return;
-
-    const reviveSnapshot = reviveSnapshotRef.current;
-    if (!reviveSnapshot) {
+    if (countOccupiedTiles(grid) <= 0) {
       alert(t('modals:gameOver.reviveUnavailable'));
       return;
     }
@@ -1025,34 +1074,27 @@ const App: React.FC = () => {
 
     rewardInterstitialAdService.showReviveAd({
       onRewardEarned: () => {
-        const snapshot = reviveSnapshotRef.current;
-        if (!snapshot) {
-          setIsReviveAdInProgress(false);
-          alert(t('modals:gameOver.reviveUnavailable'));
-          return;
-        }
-
-        // 부활: 게임오버 직전 1수 전 스냅샷으로 복구
-        setGrid(snapshot.grid);
-        setSlots(snapshot.slots);
-        setScore(snapshot.score);
-        setPhase(snapshot.phase);
-        setCanSkipSlide(snapshot.canSkipSlide);
+        const destroyCount = REVIVE_DESTROY_COUNT_BY_BOARD_SIZE[boardSize];
 
         setMergingTiles(EMPTY_MERGING_TILES);
         setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
         slideLockRef.current = false;
         setIsAnimating(false);
         setLastSnapshot(null);
+        setPhase(Phase.PLACE);
+        setCanSkipSlide(false);
+        setReviveDestroyEffects([]);
+        setRevivePendingTileId(null);
+        setReviveBreakRemaining(destroyCount);
+        setIsReviveSelectionMode(true);
 
         setGameState(GameState.PLAYING);
         setHasUsedReviveThisRun(true);
         setIsReviveAdInProgress(false);
-        reviveSnapshotRef.current = null;
         if (import.meta.env.DEV && isSimulatorQaEnabled) {
-          setSimulatorQaStatus('자동 QA: 부활 성공, 게임 복귀 완료');
+          setSimulatorQaStatus('자동 QA: 부활 성공, 선택 파괴 모드 진입 완료');
         }
-        showComboMessage(String(t('modals:gameOver.reviveSuccess')), 1800);
+        showComboMessage(String(t('modals:gameOver.reviveSuccess', { count: destroyCount } as any)), 1800);
       },
       onAdClosed: () => {
         setIsReviveAdInProgress(false);
@@ -1075,7 +1117,139 @@ const App: React.FC = () => {
         alert(t('modals:gameOver.reviveDailyLimitReached'));
       },
     });
-  }, [isReviveAdInProgress, isSimulatorQaEnabled, showComboMessage, t]);
+  }, [boardSize, grid, isReviveAdInProgress, isSimulatorQaEnabled, showComboMessage, t]);
+
+  const handleReviveTileTap = useCallback((tileId: string) => {
+    if (!isReviveSelectionMode || gameState !== GameState.PLAYING) return;
+    if (isAnimating || slideLockRef.current) return;
+    if (reviveBreakRemaining <= 0) return;
+
+    if (revivePendingTileId !== tileId) {
+      setRevivePendingTileId(tileId);
+      return;
+    }
+
+    let targetX = -1;
+    let targetY = -1;
+    let targetValue = 0;
+    for (let y = 0; y < grid.length; y += 1) {
+      const row = grid[y];
+      for (let x = 0; x < row.length; x += 1) {
+        const tile = row[x];
+        if (!tile || tile.id !== tileId) continue;
+        targetX = x;
+        targetY = y;
+        targetValue = tile.value;
+        break;
+      }
+      if (targetX >= 0) break;
+    }
+
+    setRevivePendingTileId(null);
+    if (targetX < 0 || targetY < 0) return;
+
+    setGrid((prevGrid) =>
+      prevGrid.map((row, y) =>
+        row.map((tile, x) => (x === targetX && y === targetY ? null : tile))
+      )
+    );
+
+    const effect: ReviveDestroyEffect = {
+      id: `${tileId}-${Date.now()}`,
+      x: targetX,
+      y: targetY,
+      value: targetValue,
+    };
+    setReviveBreakRemaining((prev) => Math.max(prev - 1, 0));
+    setReviveDestroyEffects((prev) => [...prev, effect]);
+
+    const timeoutId = window.setTimeout(() => {
+      setReviveDestroyEffects((prev) => prev.filter((item) => item.id !== effect.id));
+      reviveDestroyEffectTimeoutsRef.current = reviveDestroyEffectTimeoutsRef.current.filter((id) => id !== timeoutId);
+    }, 240);
+    reviveDestroyEffectTimeoutsRef.current.push(timeoutId);
+  }, [gameState, grid, isAnimating, isReviveSelectionMode, reviveBreakRemaining, revivePendingTileId]);
+
+  const handleSimulatorQaEnterReviveSelection = useCallback((requestedCount?: number) => {
+    if (!import.meta.env.DEV) return;
+
+    const baseCount = REVIVE_DESTROY_COUNT_BY_BOARD_SIZE[boardSizeRef.current];
+    const count = typeof requestedCount === 'number' && Number.isFinite(requestedCount)
+      ? Math.max(1, Math.floor(requestedCount))
+      : baseCount;
+
+    slideLockRef.current = false;
+    setIsAnimating(false);
+    setLastSnapshot(null);
+    setPhase(Phase.PLACE);
+    setCanSkipSlide(false);
+    setReviveDestroyEffects([]);
+    setRevivePendingTileId(null);
+    setReviveBreakRemaining(count);
+    setIsReviveSelectionMode(true);
+    setGameState(GameState.PLAYING);
+    setHasUsedReviveThisRun(true);
+    setIsReviveAdInProgress(false);
+    setGrid((prevGrid) => {
+      if (countOccupiedTiles(prevGrid) > 0) return prevGrid;
+
+      const size = boardSizeRef.current;
+      const seededGrid = createEmptyGrid(size);
+      const center = Math.floor(size / 2);
+      const offsets: Array<[number, number]> = [
+        [0, 0],
+        [-1, 0],
+        [1, 0],
+        [0, -1],
+        [0, 1],
+      ];
+      const values = [2, 4, 8, 16, 32];
+      const stamp = Date.now();
+
+      offsets.forEach(([offsetX, offsetY], idx) => {
+        const x = Math.max(0, Math.min(size - 1, center + offsetX));
+        const y = Math.max(0, Math.min(size - 1, center + offsetY));
+        if (seededGrid[y][x]) return;
+        seededGrid[y][x] = {
+          id: `qa-revive-${stamp}-${idx}`,
+          value: values[idx] ?? 2,
+        };
+      });
+
+      return seededGrid;
+    });
+
+    showComboMessage(String(t('modals:gameOver.reviveSuccess', { count } as any)), 1400);
+  }, [showComboMessage, t]);
+
+  useEffect(() => {
+    if (!isReviveSelectionMode) return;
+    const occupied = countOccupiedTiles(grid);
+    if (reviveBreakRemaining > 0 && occupied > 0) return;
+
+    const exhaustedByCount = reviveBreakRemaining <= 0;
+    setIsReviveSelectionMode(false);
+    setRevivePendingTileId(null);
+    setReviveBreakRemaining(0);
+
+    if (exhaustedByCount) {
+      showComboMessage(String(t('modals:gameOver.reviveSelectionComplete')), 1600);
+      return;
+    }
+    showComboMessage(String(t('modals:gameOver.reviveNoTargets')), 1600);
+  }, [grid, isReviveSelectionMode, reviveBreakRemaining, showComboMessage, t]);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+
+    window.__slideMinoSimQaEnterReviveSelection = (count?: number) => {
+      handleSimulatorQaEnterReviveSelection(count);
+    };
+
+    return () => {
+      delete window.__slideMinoSimQaEnterReviveSelection;
+    };
+  }, [handleSimulatorQaEnterReviveSelection]);
 
   const getSimulatorQaMode = useCallback((): string | null => {
     if (typeof window === 'undefined') return null;
@@ -1198,26 +1372,19 @@ const App: React.FC = () => {
     if (simulatorAutoGameOverTriggeredRef.current) return;
 
     simulatorAutoGameOverTriggeredRef.current = true;
-    reviveSnapshotRef.current = cloneGameSnapshot({
-      grid,
-      slots,
-      score,
-      phase,
-      canSkipSlide,
-    });
     setIsReviveAdReady(rewardInterstitialAdService.isAdReady());
     if (!rewardInterstitialAdService.isAdReady()) {
       rewardInterstitialAdService.preloadAd();
     }
     setSimulatorQaStatus('자동 QA: 강제 게임오버 진입');
     setGameState(GameState.GAME_OVER);
-  }, [canSkipSlide, gameState, getSimulatorQaMode, grid, phase, score, slots]);
+  }, [gameState, getSimulatorQaMode]);
 
   useEffect(() => {
     if (getSimulatorQaMode() !== 'force_gameover_and_revive') return;
     if (gameState !== GameState.GAME_OVER) return;
     if (!isRewardInterstitialAdSupported()) return;
-    if (!reviveSnapshotRef.current || hasUsedReviveThisRun) return;
+    if (hasUsedReviveThisRun) return;
     if (simulatorAutoReviveTriggeredRef.current || isReviveAdInProgress) return;
 
     if (!isReviveAdReady) {
@@ -1288,7 +1455,10 @@ const App: React.FC = () => {
       rewardInterstitialAdService.cleanup();
       setIsReviveAdReady(false);
       setIsReviveAdInProgress(false);
-      reviveSnapshotRef.current = null;
+      setIsReviveSelectionMode(false);
+      setReviveBreakRemaining(0);
+      setRevivePendingTileId(null);
+      setReviveDestroyEffects([]);
     }
   }, [gameState, hasUsedReviveThisRun]);
 
@@ -1299,6 +1469,8 @@ const App: React.FC = () => {
       if (mergeFinalizeTimeoutRef.current) window.clearTimeout(mergeFinalizeTimeoutRef.current);
       if (unlockTimeoutRef.current) window.clearTimeout(unlockTimeoutRef.current);
       if (comboMessageTimeoutRef.current) window.clearTimeout(comboMessageTimeoutRef.current);
+      reviveDestroyEffectTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
+      reviveDestroyEffectTimeoutsRef.current = [];
     };
   }, []);
 
@@ -1391,6 +1563,7 @@ const App: React.FC = () => {
   // Memoized callback to prevent Slot re-renders
   const handlePointerDown = useCallback((e: React.PointerEvent, piece: Piece, index: number) => {
     if (draggingPiece) return;
+    if (isReviveSelectionMode) return;
     const isSlidePhaseButSkippable = phase === Phase.SLIDE && canSkipSlide;
 
     // Animation/Input Lock Check (ref 기반: state 반영 전에도 즉시 차단)
@@ -1420,7 +1593,7 @@ const App: React.FC = () => {
     applyDragOverlayTransform(e.clientX, e.clientY);
 
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
-  }, [phase, canSkipSlide, draggingPiece, readBoardMetrics, applyDragOverlayTransform]);
+  }, [phase, canSkipSlide, draggingPiece, isReviveSelectionMode, readBoardMetrics, applyDragOverlayTransform]);
 
   // RAF 기반으로 포인터 이벤트를 1프레임에 1번으로 합쳐서(코얼레싱) 렌더/연산 폭주를 방지
   const rafIdRef = useRef<number | null>(null);
@@ -1491,6 +1664,7 @@ const App: React.FC = () => {
   const handleSwipeStart = (e: React.PointerEvent) => {
     // 슬라이드는 보드 영역에서만 시작하지 않고 전체 화면 허용
     // 단, 버튼 등 상호작용 요소 위에서는 스와이프 시작 방지
+    if (isReviveSelectionMode) return;
     if (phase !== Phase.SLIDE) return;
     if (slideLockRef.current) return;
 
@@ -1501,6 +1675,8 @@ const App: React.FC = () => {
   };
 
   const handleScreenPointerDown = (e: React.PointerEvent) => {
+    if (isReviveSelectionMode) return;
+
     if (draggingPiece) {
       const target = e.target as HTMLElement;
       if (target.closest('[data-rotate-button], [data-slot], button, input, select, textarea, [role="button"]')) {
@@ -1558,6 +1734,11 @@ const App: React.FC = () => {
     }
 
     // 2. 드래그 중이 아니고, 슬라이드 단계라면 -> 스와이프 처리
+    if (isReviveSelectionMode) {
+      swipeStartRef.current = null;
+      return;
+    }
+
     if (phase === Phase.SLIDE && swipeStartRef.current) {
       const dx = e.clientX - swipeStartRef.current.x;
       const dy = e.clientY - swipeStartRef.current.y;
@@ -1609,6 +1790,13 @@ const App: React.FC = () => {
         if (draggingPiece) rotateActivePiece();
       }
 
+      if (isReviveSelectionMode) {
+        if (e.key === 'Escape') {
+          setRevivePendingTileId(null);
+        }
+        return;
+      }
+
       if (gameState === GameState.PLAYING && phase === Phase.SLIDE) {
         // Animation/Input Lock Check (ref 기반: state 반영 전에도 즉시 차단)
         if (slideLockRef.current) return;
@@ -1627,7 +1815,16 @@ const App: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [gameState, phase, grid, draggingPiece, rotateActivePiece, handleWatchReviveAd, isSimulatorQaEnabled]);
+  }, [
+    gameState,
+    phase,
+    grid,
+    draggingPiece,
+    rotateActivePiece,
+    handleWatchReviveAd,
+    isSimulatorQaEnabled,
+    isReviveSelectionMode,
+  ]);
 
   const executeSlide = (dir: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT') => {
     if (slideLockRef.current) return; // Double check
@@ -1737,6 +1934,7 @@ const App: React.FC = () => {
     }
 
     if (gameState !== GameState.PLAYING) return;
+    if (isReviveSelectionMode) return;
 
     const availability = getTurnActionAvailability(grid, slots);
 
@@ -1746,7 +1944,6 @@ const App: React.FC = () => {
     }
 
     if (phase === Phase.PLACE && availability.isGameOver) {
-      reviveSnapshotRef.current = lastSnapshot ? cloneGameSnapshot(lastSnapshot) : null;
       setIsReviveAdReady(rewardInterstitialAdService.isAdReady());
       if (isRewardInterstitialAdSupported() && !rewardInterstitialAdService.isAdReady()) {
         rewardInterstitialAdService.preloadAd();
@@ -1754,7 +1951,7 @@ const App: React.FC = () => {
       setGameState(GameState.GAME_OVER);
       if (score > highScore) setHighScore(score);
     }
-  }, [phase, grid, slots, gameState, score, highScore, isAnimating, lastSnapshot, finishSlideTurn]);
+  }, [phase, grid, slots, gameState, score, highScore, isAnimating, finishSlideTurn, isReviveSelectionMode]);
 
   // --- 게임 중 예상 랭킹 업데이트 ---
   useEffect(() => {
@@ -2278,6 +2475,17 @@ const App: React.FC = () => {
     );
   }
 
+  const reviveDestroyCount = REVIVE_DESTROY_COUNT_BY_BOARD_SIZE[boardSize];
+  const occupiedTileCount = countOccupiedTiles(grid);
+  const canOfferRevive =
+    isRewardInterstitialAdSupported() &&
+    !hasUsedReviveThisRun &&
+    occupiedTileCount > 0 &&
+    !isReviveSelectionMode;
+  const reviveSelectionHintKey = revivePendingTileId
+    ? 'modals:gameOver.reviveSelectionConfirmHint'
+    : 'modals:gameOver.reviveSelectionHint';
+
   const isPlacePhase = phase === Phase.PLACE;
   const isSwipePhase = phase === Phase.SLIDE;
   const isPlaceFocusMode = isPlacePhase;
@@ -2295,15 +2503,15 @@ const App: React.FC = () => {
   const slotVisibilityClass = isAnimating
     ? 'opacity-40 grayscale'
     : (isSwipeFocusMode ? 'opacity-60 grayscale-[0.3] saturate-75' : 'opacity-100');
-  const phaseIndicatorInteractivityClass = isPlacePhase
+  const phaseIndicatorInteractivityClass = isPlacePhase && !isReviveSelectionMode
     ? 'pointer-events-auto'
     : 'pointer-events-none opacity-35 grayscale select-none';
 
   // 모드 알리미(phase) 상태 기반 포커스:
   // - PLACE: 보드 + 슬롯 강조
   // - SLIDE: 보드 + Undo 강조 (슬롯은 비강조)
-  const isSlotPointerLocked = isSwipePhase || isAnimating;
-  const isSlotDisabled = isAnimating;
+  const isSlotPointerLocked = isSwipePhase || isAnimating || isReviveSelectionMode;
+  const isSlotDisabled = isAnimating || isReviveSelectionMode;
 
   // ========== GAME SCREEN ==========
   return (
@@ -2388,11 +2596,12 @@ const App: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowHelpModal(true)}
+                disabled={isReviveSelectionMode}
                 className={`
                   p-2 rounded-full text-gray-600
                   bg-white/70 hover:bg-white border border-white/50
                   shadow-sm hover:shadow-md transition-all duration-200 active:scale-95
-                  ${isSwipeFocusMode ? 'opacity-35 grayscale pointer-events-none select-none' : ''}
+                  ${(isSwipeFocusMode || isReviveSelectionMode) ? 'opacity-35 grayscale pointer-events-none select-none' : ''}
                 `}
                 aria-label={t('common:aria.help')}
               >
@@ -2406,13 +2615,13 @@ const App: React.FC = () => {
                   e.stopPropagation();
                 }}
                 onClick={executeUndo}
-                disabled={!lastSnapshot || undoRemaining <= 0 || isAnimating}
+                disabled={!lastSnapshot || undoRemaining <= 0 || isAnimating || isReviveSelectionMode}
                 className={`
                 px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-2
                 border shadow-sm transition-all duration-200
                 ${undoFocusSurfaceClass}
                 pointer-events-auto
-                ${(!lastSnapshot || undoRemaining <= 0 || isAnimating)
+                ${(!lastSnapshot || undoRemaining <= 0 || isAnimating || isReviveSelectionMode)
                     ? 'bg-gray-100/50 text-gray-300 border-gray-200/50 cursor-not-allowed'
                     : 'bg-white/70 hover:bg-white text-gray-700 border-white/50 hover:shadow-md active:scale-95'
                   }
@@ -2427,7 +2636,7 @@ const App: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleWatchRewardAd}
-                  disabled={isAnimating}
+                  disabled={isAnimating || isReviveSelectionMode}
                   className={`
                     px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5
                     bg-gradient-to-r from-yellow-500 to-amber-500
@@ -2435,7 +2644,7 @@ const App: React.FC = () => {
                     shadow-md hover:shadow-lg
                     active:scale-95 transition-all duration-200
                     ${isSwipeFocusMode ? 'opacity-35 grayscale pointer-events-none select-none' : ''}
-                    ${isAnimating ? 'opacity-50 cursor-not-allowed' : 'hover:from-yellow-600 hover:to-amber-600'}
+                    ${(isAnimating || isReviveSelectionMode) ? 'opacity-50 cursor-not-allowed' : 'hover:from-yellow-600 hover:to-amber-600'}
                   `}
                   aria-label={t('game:rewardAd.watchButtonFull')}
                 >
@@ -2458,6 +2667,17 @@ const App: React.FC = () => {
           }}
         >
 
+          {isReviveSelectionMode && (
+            <div className="w-full rounded-2xl border border-amber-200/80 bg-amber-50/90 px-4 py-3 text-[12px] text-amber-900 shadow-sm">
+              <p className="font-semibold">
+                {String(t('modals:gameOver.reviveSelectionStatus', { remaining: reviveBreakRemaining } as any))}
+              </p>
+              <p className="mt-1 text-[11px] text-amber-800/80">
+                {String(t(reviveSelectionHintKey))}
+              </p>
+            </div>
+          )}
+
           <div className={`
             transition-all duration-200
             ${boardFocusSurfaceClass}
@@ -2472,6 +2692,10 @@ const App: React.FC = () => {
               mergingTiles={mergingTiles}
               valueOverrides={tileValueOverrides}
               boardScale={boardScale}
+              reviveSelectionEnabled={isReviveSelectionMode}
+              revivePendingTileId={revivePendingTileId}
+              onReviveTileTap={handleReviveTileTap}
+              reviveDestroyEffects={reviveDestroyEffects}
             />
           </div>
 
@@ -2553,7 +2777,8 @@ const App: React.FC = () => {
             duration={Math.floor((Date.now() - gameStartTimeRef.current) / 1000)}
             moves={moveCountRef.current}
             playerName={playerName}
-            canOfferRevive={isRewardInterstitialAdSupported() && !hasUsedReviveThisRun && Boolean(reviveSnapshotRef.current)}
+            canOfferRevive={canOfferRevive}
+            reviveDestroyCount={reviveDestroyCount}
             isReviveAdReady={isReviveAdReady}
             isReviveInProgress={isReviveAdInProgress}
             onWatchReviveAd={handleWatchReviveAd}

@@ -13,6 +13,7 @@ interface GameOverModalProps {
     moves: number;
     playerName?: string;
     canOfferRevive: boolean;
+    reviveDestroyCount: number;
     isReviveAdReady: boolean;
     isReviveInProgress: boolean;
     onWatchReviveAd: () => void;
@@ -27,6 +28,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
     moves,
     playerName,
     canOfferRevive,
+    reviveDestroyCount,
     isReviveAdReady,
     isReviveInProgress,
     onWatchReviveAd,
@@ -159,7 +161,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                                         {t('modals:gameOver.reviveTitle')}
                                     </p>
                                     <p className="mt-1 text-sm text-gray-700">
-                                        {t('modals:gameOver.reviveDescription')}
+                                        {String(t('modals:gameOver.reviveDescription', { count: reviveDestroyCount } as any))}
                                     </p>
                                     <button
                                         onClick={onWatchReviveAd}
@@ -188,8 +190,8 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                                     </button>
                                     <p className="mt-2 text-xs text-gray-500">
                                         {isReviveAdReady
-                                            ? t('modals:gameOver.reviveReadyHint')
-                                            : t('modals:gameOver.revivePreparingHint')}
+                                            ? String(t('modals:gameOver.reviveReadyHint', { count: reviveDestroyCount } as any))
+                                            : String(t('modals:gameOver.revivePreparingHint'))}
                                     </p>
                                 </div>
                             )}

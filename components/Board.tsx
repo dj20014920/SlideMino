@@ -16,6 +16,13 @@ export type BoardHandle = {
   setHoverLocation: (pos: { x: number; y: number } | null) => void;
 };
 
+export interface ReviveDestroyEffect {
+  id: string;
+  x: number;
+  y: number;
+  value: number;
+}
+
 interface BoardProps {
   grid: Grid;
   activePiece: Piece | null;
@@ -25,6 +32,10 @@ interface BoardProps {
   valueOverrides?: Record<string, number>;
   htmlId?: string;
   boardScale?: number;
+  reviveSelectionEnabled?: boolean;
+  revivePendingTileId?: string | null;
+  onReviveTileTap?: (tileId: string) => void;
+  reviveDestroyEffects?: ReviveDestroyEffect[];
 }
 
 const BackgroundGrid = React.memo<{ size: number; layout: GridLayout }>(({ size, layout }) => {
@@ -63,6 +74,8 @@ type GridLayout = {
 };
 
 const tileTransitionEase = 'cubic-bezier(0.25,0.1,0.25,1.0)';
+const reviveDestroyAnimation = 'reviveBreakFade 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards';
+const EMPTY_REVIVE_DESTROY_EFFECTS: ReviveDestroyEffect[] = [];
 
 const MergingTilesLayer = React.memo<{
   animatingMerges: (MergingTile & { currentX: number; currentY: number; distance: number })[];
@@ -116,28 +129,61 @@ const TilesLayer = React.memo<{
   tiles: (Tile & { x: number; y: number; distance: number })[];
   layout: GridLayout;
   valueOverrides?: Record<string, number>;
-}>(({ tiles, layout, valueOverrides }) => {
+  reviveSelectionEnabled?: boolean;
+  revivePendingTileId?: string | null;
+  onReviveTileTap?: (tileId: string) => void;
+}>(({
+  tiles,
+  layout,
+  valueOverrides,
+  reviveSelectionEnabled = false,
+  revivePendingTileId = null,
+  onReviveTileTap,
+}) => {
   const { resolveTileAppearance } = useBlockCustomization();
+  const canSelectTiles = reviveSelectionEnabled && typeof onReviveTileTap === 'function';
+
   return (
-    <div className="absolute inset-0 z-10 pointer-events-none">
+    <div
+      className={`
+        absolute inset-0 z-10
+        ${canSelectTiles ? 'pointer-events-auto' : 'pointer-events-none'}
+      `}
+    >
       {tiles.map((tile) => {
         const duration = getSlideAnimationDurationMs(tile.distance);
         const displayValue = valueOverrides?.[tile.id] ?? tile.value;
         const transform = `translate3d(${layout.posPx[tile.x]}px, ${layout.posPx[tile.y]}px, 0)`;
         const { text, fontPx } = getTileNumberLayout(displayValue, layout.cellPx);
         const appearance = resolveTileAppearance(displayValue);
+        const isPendingTarget = canSelectTiles && revivePendingTileId === tile.id;
 
         return (
           <div
             key={tile.id}
             data-tile-id={tile.id}
+            data-revive-selectable={canSelectTiles ? 'true' : 'false'}
+            data-revive-pending={isPendingTarget ? 'true' : 'false'}
             data-tile-distance={tile.distance}
             data-tile-kind="tile"
             className={`
               absolute rounded-xl flex items-center justify-center 
               font-semibold overflow-hidden text-center
               ${appearance.className}
+              ${canSelectTiles ? 'cursor-pointer ring-2 ring-transparent hover:ring-amber-200/70 active:brightness-95' : ''}
+              ${isPendingTarget ? 'ring-amber-300 shadow-[0_0_0_3px_rgba(251,191,36,0.32)]' : ''}
             `}
+            role={canSelectTiles ? 'button' : undefined}
+            tabIndex={canSelectTiles ? 0 : -1}
+            onPointerDown={canSelectTiles ? (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            } : undefined}
+            onClick={canSelectTiles ? (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onReviveTileTap?.(tile.id);
+            } : undefined}
             style={{
               width: `${layout.cellPx}px`,
               height: `${layout.cellPx}px`,
@@ -155,6 +201,54 @@ const TilesLayer = React.memo<{
             }}
           >
             {text}
+          </div>
+        );
+      })}
+    </div>
+  );
+});
+
+const ReviveDestroyLayer = React.memo<{
+  effects: ReviveDestroyEffect[];
+  layout: GridLayout;
+}>(({ effects, layout }) => {
+  const { resolveTileAppearance } = useBlockCustomization();
+  if (effects.length === 0) return null;
+
+  return (
+    <div className="absolute inset-0 z-30 pointer-events-none">
+      {effects.map((effect) => {
+        const transform = `translate3d(${layout.posPx[effect.x]}px, ${layout.posPx[effect.y]}px, 0)`;
+        const appearance = resolveTileAppearance(effect.value);
+        const { text, fontPx } = getTileNumberLayout(effect.value, layout.cellPx);
+        return (
+          <div
+            key={effect.id}
+            className="absolute"
+            style={{
+              left: 0,
+              top: 0,
+              width: `${layout.cellPx}px`,
+              height: `${layout.cellPx}px`,
+              transform,
+            }}
+          >
+            <div
+              className={`
+                w-full h-full rounded-xl flex items-center justify-center
+                font-semibold overflow-hidden text-center
+                ${appearance.className}
+              `}
+              style={{
+                fontSize: `${fontPx}px`,
+                lineHeight: 1,
+                whiteSpace: 'pre-line',
+                animation: reviveDestroyAnimation,
+                ...(appearance.style ?? {}),
+              }}
+            >
+              {text}
+            </div>
           </div>
         );
       })}
@@ -207,7 +301,11 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
   mergingTiles,
   valueOverrides,
   htmlId,
-  boardScale
+  boardScale,
+  reviveSelectionEnabled = false,
+  revivePendingTileId = null,
+  onReviveTileTap,
+  reviveDestroyEffects = EMPTY_REVIVE_DESTROY_EFFECTS,
 }, ref) {
   const baseBoardPx = 420;
   const resolvedScale = boardScale ?? 1;
@@ -401,6 +499,12 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
       />
       {/* Container for content aiming to match padding-box area */}
       <div className="relative w-full h-full">
+        <style>{`
+          @keyframes reviveBreakFade {
+            0% { opacity: 0.95; transform: scale(1); filter: saturate(1); }
+            100% { opacity: 0; transform: scale(0.58); filter: saturate(0.8) blur(1px); }
+          }
+        `}</style>
 
         {/* 1. Background Grid (Empty Slots) */}
         <BackgroundGrid size={size} layout={layout} />
@@ -416,9 +520,18 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
           tiles={renderTiles}
           layout={layout}
           valueOverrides={valueOverrides}
+          reviveSelectionEnabled={reviveSelectionEnabled}
+          revivePendingTileId={revivePendingTileId}
+          onReviveTileTap={onReviveTileTap}
         />
 
-        {/* 4. Ghost Overlay */}
+        {/* 4. Revive Destroy FX */}
+        <ReviveDestroyLayer
+          effects={reviveDestroyEffects}
+          layout={layout}
+        />
+
+        {/* 5. Ghost Overlay */}
         {ghostCells && <GhostOverlay size={size} layout={layout} ghostCells={ghostCells} />}
       </div>
     </div>

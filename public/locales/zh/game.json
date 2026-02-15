@@ -46,7 +46,9 @@
     "customization": "方块自定义",
     "leaderboard": "排行榜",
     "locked": "锁定",
-    "customize": "自定义"
+    "customize": "自定义",
+    "skin": "皮肤",
+    "skinDescription": "收藏"
   },
   "rewardAd": {
     "watchButton": "充值",

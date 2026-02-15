@@ -77,3 +77,24 @@ export interface BlockCustomizationSettingsV1 {
   globalPalette: GlobalTilePaletteSettings;
   perValue: Record<string, TileSkinOverride>; // key = tile value as string (e.g. "1", "2", "4"...)
 }
+
+// --- Skin system ---
+
+// 스킨 카탈로그 항목 (뽑기 가능한 스킨 정의, constants.ts에서 배열로 관리)
+export interface SkinCatalogEntry {
+  id: string;   // "skin_0", "skin_1" ...
+  hex: string;  // "#FF5C5C" 등 큐레이션 색상
+}
+
+// 사용자가 획득한 스킨
+export interface SkinItem {
+  id: string;          // SkinCatalogEntry.id와 동일
+  hex: string;         // 획득 시점의 색상
+  acquiredAt: number;  // Date.now() 타임스탬프
+}
+
+export interface SkinSettings {
+  version: 2;
+  ownedSkins: SkinItem[];
+  activeSkinId: string | null;
+}

@@ -46,7 +46,9 @@
     "customization": "ブロックカスタマイズ",
     "leaderboard": "ランキング",
     "locked": "ロック中",
-    "customize": "カスタマイズ"
+    "customize": "カスタマイズ",
+    "skin": "スキン",
+    "skinDescription": "コレクション"
   },
   "rewardAd": {
     "watchButton": "チャージ",

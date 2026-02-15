@@ -140,5 +140,17 @@
       "optimize": "保存時に{{size}}×{{size}}に最適化されます。",
       "alt": "クロップ元画像"
     }
+  },
+  "skin": {
+    "title": "スキン",
+    "ownedCount": "{{owned}} / {{total}}",
+    "preview": "プレビュー",
+    "drawButton": "広告を見てスキンを引く",
+    "dailyLimit": "今日の引ける回数を使い切りました",
+    "acquired": "獲得完了！",
+    "addedToCollection": "コレクションに追加されました",
+    "notOwned": "未所持",
+    "tapToApply": "タップで適用/解除",
+    "collectionComplete": "コレクション完成！"
   }
 }

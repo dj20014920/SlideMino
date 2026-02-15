@@ -26,6 +26,7 @@ import {
 import { Board, type BoardHandle, type ReviveDestroyEffect } from './components/Board';
 import { Slot } from './components/Slot';
 import { BlockCustomizationModal } from './components/BlockCustomizationModal';
+import { SkinModal } from './components/SkinModal';
 import { Undo2, Home, RotateCw, Move, Palette, Lock, Trophy, HelpCircle, RotateCcw } from 'lucide-react';
 
 import { GameOverModal } from './components/GameOverModal';
@@ -443,6 +444,7 @@ const App: React.FC = () => {
     return Math.min(scaled, gameLayoutProfile.boardScaleCeiling);
   }, [baseBoardScale, gameLayoutProfile.boardScaleMultiplier, gameLayoutProfile.boardScaleCeiling]);
   const [isCustomizationOpen, setIsCustomizationOpen] = useState(false);
+  const [isSkinOpen, setIsSkinOpen] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
 
   // Name Input State
@@ -487,6 +489,8 @@ const App: React.FC = () => {
   const [isSimulatorQaEnabled, setIsSimulatorQaEnabled] = useState(false);
   const [showSimulatorQaPanel, setShowSimulatorQaPanel] = useState(false);
   const [simulatorQaStatus, setSimulatorQaStatus] = useState<string | null>(null);
+  // 테스트 광고 모드 표시 상태 (비스토어 설치 시 지속 배지 표시)
+  const [adTestModeBadge, setAdTestModeBadge] = useState<string | null>(null);
 
   // Check tutorial status on load
   useEffect(() => {
@@ -1046,13 +1050,23 @@ const App: React.FC = () => {
       .then((policy) => {
         if (isCancelled || !policy.shouldUseTestAds) return;
 
-        if (policy.reason === 'virtual-device') {
-          showComboMessage('에뮬/시뮬 환경이라 테스트 광고 모드입니다.', 2600);
-          return;
-        }
+        // 지속 배지: 테스트 광고 모드 원인 표시 (세션 동안 유지)
+        const badgeLabels: Record<string, string> = {
+          'development': 'DEV 테스트 광고',
+          'virtual-device': '에뮬/시뮬 테스트 광고',
+          'env-force-test': 'ENV 강제 테스트 광고',
+          'local-force-test': 'LOCAL 강제 테스트 광고',
+          'non-store-channel': '비스토어 테스트 광고',
+        };
+        setAdTestModeBadge(badgeLabels[policy.reason] ?? '테스트 광고');
 
-        if (policy.reason === 'non-store-channel') {
-          showComboMessage('스토어 외 배포 채널이라 테스트 광고 모드입니다.', 2600);
+        // 초기 토스트: 4초간 상세 안내
+        if (policy.reason === 'virtual-device') {
+          showComboMessage('에뮬/시뮬 환경이라 테스트 광고 모드입니다.', 4000);
+        } else if (policy.reason === 'non-store-channel') {
+          showComboMessage(`스토어 외 배포(${policy.distributionChannel})라 테스트 광고 모드입니다.`, 4000);
+        } else {
+          showComboMessage(`테스트 광고 모드 (${policy.reason})`, 3000);
         }
       })
       .catch(() => {
@@ -2267,6 +2281,11 @@ const App: React.FC = () => {
             {comboMessage}
           </div>
         )}
+        {adTestModeBadge && (
+          <div className="pointer-events-none fixed right-2 top-[calc(4px+var(--app-safe-top))] z-[110] rounded bg-orange-500/80 px-2 py-0.5 text-[9px] font-bold text-white shadow">
+            {adTestModeBadge}
+          </div>
+        )}
         <div
           className="min-h-screen min-h-[100dvh] flex flex-col items-center justify-center p-6 space-y-10"
           style={{ paddingTop: 'calc(1.5rem + var(--app-safe-top))' }}
@@ -2397,10 +2416,10 @@ const App: React.FC = () => {
               onClick={() => tryStartGame(7)}
               className="
               relative group w-full py-4 px-6 rounded-2xl
-              bg-black
-              border border-white/10
-              shadow-lg
-              hover:shadow-xl hover:-translate-y-0.5
+              bg-gradient-to-br from-indigo-600 to-indigo-800
+              border border-indigo-400/30
+              shadow-lg shadow-indigo-900/20
+              hover:shadow-xl hover:shadow-indigo-600/30 hover:-translate-y-0.5
               active:translate-y-0 active:shadow-md
               transition-all duration-200 ease-out
               text-white font-semibold text-lg
@@ -2408,7 +2427,7 @@ const App: React.FC = () => {
             >
               <span className="flex items-center justify-between">
                 <span>{t('game:difficulties.beginner')}</span>
-                <span className="text-gray-500 font-normal text-sm">{t('game:boardSizes.7x7')}</span>
+                <span className="text-indigo-200/70 font-normal text-sm">{t('game:boardSizes.7x7')}</span>
               </span>
             </button>
 
@@ -2437,49 +2456,75 @@ const App: React.FC = () => {
               onClick={() => tryStartGame(10)}
               className="
               relative group w-full py-4 px-6 rounded-2xl
-              bg-white/60 backdrop-blur-sm
-              border border-white/50
+              bg-black
+              border border-white/10
               shadow-lg
               hover:shadow-xl hover:-translate-y-0.5
               active:translate-y-0 active:shadow-md
               transition-all duration-200 ease-out
-              text-gray-800 font-semibold text-lg
+              text-white font-semibold text-lg
             "
             >
               <span className="flex items-center justify-between">
                 <span>{t('game:difficulties.infinite')}</span>
-                <span className="text-gray-400 font-normal text-sm">{t('game:boardSizes.10x10')}</span>
+                <span className="text-gray-500 font-normal text-sm">{t('game:boardSizes.10x10')}</span>
               </span>
             </button>
 
-            {/* Customization */}
-            <button
-              onClick={() => setIsCustomizationOpen(true)}
-              className={`
-              relative group w-full py-3.5 px-6 rounded-2xl
-              bg-white/60 backdrop-blur-sm
-              border border-white/50
-              shadow-lg
-              hover:shadow-xl hover:-translate-y-0.5
-              active:translate-y-0 active:shadow-md
-              transition-all duration-200 ease-out
-              text-gray-800 font-semibold text-base
-              flex items-center justify-between
-            `}
-            >
-              <span className="flex items-center gap-2">
-                <Palette size={16} />
-                {t('game:actions.customization')}
-              </span>
-              {!customizationGate.allowed ? (
-                <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-700/90">
-                  <Lock size={14} />
-                  {customizationGate.reasonKey ? t(customizationGate.reasonKey as any) : t('game:actions.locked')}
+            {/* 스킨 (네이티브 앱 전용) */}
+            {isNativeApp() && (
+              <button
+                onClick={() => setIsSkinOpen(true)}
+                className={`
+                relative group w-full py-3.5 px-6 rounded-2xl
+                bg-white/60 backdrop-blur-sm
+                border border-white/50
+                shadow-lg
+                hover:shadow-xl hover:-translate-y-0.5
+                active:translate-y-0 active:shadow-md
+                transition-all duration-200 ease-out
+                text-gray-800 font-semibold text-base
+                flex items-center justify-between
+              `}
+              >
+                <span className="flex items-center gap-2">
+                  <Palette size={16} />
+                  {t('game:actions.skin')}
                 </span>
-              ) : (
-                <span className="text-gray-400 font-normal text-sm">{t('game:actions.customize')}</span>
-              )}
-            </button>
+                <span className="text-gray-400 font-normal text-sm">{t('game:actions.skinDescription')}</span>
+              </button>
+            )}
+
+            {/* Customization (웹 전용) */}
+            {!isNativeApp() && (
+              <button
+                onClick={() => setIsCustomizationOpen(true)}
+                className={`
+                relative group w-full py-3.5 px-6 rounded-2xl
+                bg-white/60 backdrop-blur-sm
+                border border-white/50
+                shadow-lg
+                hover:shadow-xl hover:-translate-y-0.5
+                active:translate-y-0 active:shadow-md
+                transition-all duration-200 ease-out
+                text-gray-800 font-semibold text-base
+                flex items-center justify-between
+              `}
+              >
+                <span className="flex items-center gap-2">
+                  <Palette size={16} />
+                  {t('game:actions.customization')}
+                </span>
+                {!customizationGate.allowed ? (
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-700/90">
+                    <Lock size={14} />
+                    {customizationGate.reasonKey ? t(customizationGate.reasonKey as any) : t('game:actions.locked')}
+                  </span>
+                ) : (
+                  <span className="text-gray-400 font-normal text-sm">{t('game:actions.customize')}</span>
+                )}
+              </button>
+            )}
 
             {/* Leaderboard Button */}
             <button
@@ -2595,6 +2640,11 @@ const App: React.FC = () => {
             onClose={() => setIsCustomizationOpen(false)}
           />
 
+          <SkinModal
+            open={isSkinOpen}
+            onClose={() => setIsSkinOpen(false)}
+          />
+
           <LeaderboardModal
             open={isLeaderboardOpen}
             onClose={() => setIsLeaderboardOpen(false)}
@@ -2685,6 +2735,11 @@ const App: React.FC = () => {
           className="pointer-events-none fixed left-1/2 top-[calc(12px+var(--app-safe-top))] z-[120] w-max max-w-[92vw] -translate-x-1/2 rounded-full bg-gray-900/92 px-4 py-2 text-center text-[12px] font-medium text-white shadow-xl backdrop-blur-sm whitespace-pre-line"
         >
           {comboMessage}
+        </div>
+      )}
+      {adTestModeBadge && (
+        <div className="pointer-events-none fixed right-2 top-[calc(4px+var(--app-safe-top))] z-[110] rounded bg-orange-500/80 px-2 py-0.5 text-[9px] font-bold text-white shadow">
+          {adTestModeBadge}
         </div>
       )}
       <div

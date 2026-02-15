@@ -12,7 +12,7 @@ import { GoogleAdMob } from '@apps-in-toss/web-framework';
 import { AdMob, RewardAdOptions, RewardAdPluginEvents, AdMobRewardItem, AdLoadInfo } from '@capacitor-community/admob';
 import { ADMOB_TEST_AD_IDS, getRewardAdId, isRewardAdSupported, CURRENT_AD_PLATFORM } from './adConfig';
 import { ensureAdMobReady, getAdMobRequestPolicy } from './admob';
-import { CooldownGate, RetryBackoffScheduler } from './adResilience';
+import { CooldownGate, RetryBackoffScheduler, HourlyFrequencyCap, ClickAbuseGuard } from './adResilience';
 import { MAX_DAILY_AD_VIEWS, REWARD_UNDO_AMOUNT } from '../constants';
 
 // ==========================================
@@ -217,6 +217,10 @@ class RewardAdService {
   private adGroupId: string = '';
   private readonly loadRetryBackoff = new RetryBackoffScheduler();
   private readonly showCooldown = new CooldownGate(7000);
+  // 시간당 최대 10회 노출 제한 (일일 5회 한도의 안전 마진)
+  private readonly hourlyFrequencyCap = new HourlyFrequencyCap(10);
+  // 90초 내 6회 초과 시 2분 차단 (정상 사용은 도달 불가, 자동 스크립트만 감지)
+  private readonly abuseGuard = new ClickAbuseGuard(6, 90_000, 120_000);
 
   private dailyLimiter = new DailyAdLimiter();
   private sessionManager = new RewardSessionManager();
@@ -422,7 +426,21 @@ class RewardAdService {
       return;
     }
 
-    // 3. 일일 제한 체크
+    // 3. 클릭 어뷰징 감지 (60초 내 과도한 요청 → 5분 차단)
+    if (!this.abuseGuard.canProceed()) {
+      console.warn('[RewardAdService] 어뷰징 감지로 차단 중');
+      callbacks.onError(new Error('광고 요청이 비정상적으로 많습니다. 잠시 후 다시 시도해주세요.'));
+      return;
+    }
+
+    // 4. 시간당 빈도 제한 체크
+    if (!this.hourlyFrequencyCap.canProceed()) {
+      console.warn('[RewardAdService] 시간당 한도 도달');
+      callbacks.onError(new Error('시간당 광고 시청 횟수를 초과했습니다. 잠시 후 다시 시도해주세요.'));
+      return;
+    }
+
+    // 5. 일일 제한 체크
     if (!this.dailyLimiter.canWatchAd()) {
       console.warn('[RewardAdService] 일일 한도 도달');
       callbacks.onDailyLimitReached?.();
@@ -430,7 +448,7 @@ class RewardAdService {
       return;
     }
 
-    // 4. 광고 로드 상태 체크
+    // 6. 광고 로드 상태 체크
     if (this.loadStatus !== 'loaded') {
       if (this.loadStatus === 'not_loaded' || this.loadStatus === 'failed') {
         this.preloadAd();
@@ -568,6 +586,10 @@ class RewardAdService {
       console.error('[RewardAdService] 시청 기록 실패');
       return;
     }
+
+    // 시간당 빈도 및 어뷰징 가드 기록
+    this.hourlyFrequencyCap.record();
+    this.abuseGuard.record();
 
     // 보상 지급
     this.showStatus = 'rewarded';

@@ -140,5 +140,17 @@
       "optimize": "保存时优化为{{size}}×{{size}}。",
       "alt": "裁剪源图"
     }
+  },
+  "skin": {
+    "title": "皮肤",
+    "ownedCount": "{{owned}} / {{total}}",
+    "preview": "预览",
+    "drawButton": "看广告抽皮肤",
+    "dailyLimit": "今天的抽取次数已用完",
+    "acquired": "获得成功！",
+    "addedToCollection": "已添加到收藏",
+    "notOwned": "未拥有",
+    "tapToApply": "点击应用/取消",
+    "collectionComplete": "收藏完成！"
   }
 }

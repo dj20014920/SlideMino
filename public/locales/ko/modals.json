@@ -140,5 +140,17 @@
       "optimize": "저장 시 {{size}}×{{size}}로 최적화됩니다.",
       "alt": "크롭 원본"
     }
+  },
+  "skin": {
+    "title": "스킨",
+    "ownedCount": "{{owned}} / {{total}}",
+    "preview": "미리보기",
+    "drawButton": "광고 보고 스킨 뽑기",
+    "dailyLimit": "오늘의 뽑기 횟수를 모두 사용했어요",
+    "acquired": "획득 완료!",
+    "addedToCollection": "컬렉션에 추가되었습니다",
+    "notOwned": "미보유 스킨",
+    "tapToApply": "탭하여 적용/해제",
+    "collectionComplete": "컬렉션 완성!"
   }
 }

@@ -46,7 +46,9 @@
     "customization": "Block Customization",
     "leaderboard": "Leaderboard",
     "locked": "Locked",
-    "customize": "Customize"
+    "customize": "Customize",
+    "skin": "Skin",
+    "skinDescription": "Collection"
   },
   "rewardAd": {
     "watchButton": "Refill",

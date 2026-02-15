@@ -140,5 +140,17 @@
       "optimize": "Optimized to {{size}}×{{size}} on save.",
       "alt": "Crop source"
     }
+  },
+  "skin": {
+    "title": "Skin",
+    "ownedCount": "{{owned}} / {{total}}",
+    "preview": "Preview",
+    "drawButton": "Watch Ad to Draw Skin",
+    "dailyLimit": "You've used all draws for today",
+    "acquired": "Acquired!",
+    "addedToCollection": "Added to your collection",
+    "notOwned": "Not owned",
+    "tapToApply": "Tap to apply/remove",
+    "collectionComplete": "Collection Complete!"
   }
 }

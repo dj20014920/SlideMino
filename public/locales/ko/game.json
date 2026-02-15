@@ -46,7 +46,9 @@
     "customization": "블럭 커스터마이징",
     "leaderboard": "랭킹 보기",
     "locked": "잠김",
-    "customize": "꾸미기"
+    "customize": "꾸미기",
+    "skin": "스킨",
+    "skinDescription": "컬렉션"
   },
   "rewardAd": {
     "watchButton": "충전",

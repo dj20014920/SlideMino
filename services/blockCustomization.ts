@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import { TILE_COLORS, getTileColor } from '../constants';
-import type { BlockCustomizationSettingsV1, GlobalTilePaletteSettings, TileSkinOverride } from '../types';
+import type { BlockCustomizationSettingsV1, GlobalTilePaletteSettings, SkinSettings, TileSkinOverride } from '../types';
 
 export const BLOCK_CUSTOMIZATION_STORAGE_KEY = 'slidemino.blockCustomization.v1';
 
@@ -16,10 +16,10 @@ export const DEFAULT_BLOCK_CUSTOMIZATION_SETTINGS: BlockCustomizationSettingsV1 
   perValue: {},
 };
 
-type Rgb = { r: number; g: number; b: number };
+export type Rgb = { r: number; g: number; b: number };
 type Hsl = { h: number; s: number; l: number };
 
-const clamp = (n: number, min: number, max: number): number => {
+export const clamp = (n: number, min: number, max: number): number => {
   if (!Number.isFinite(n)) return min;
   return Math.min(max, Math.max(min, n));
 };
@@ -36,7 +36,7 @@ const normalizeHexColor = (value: unknown): string | null => {
   return `#${hex.toLowerCase()}`;
 };
 
-const hexToRgb = (hex: string): Rgb => {
+export const hexToRgb = (hex: string): Rgb => {
   const h = hex.startsWith('#') ? hex.slice(1) : hex;
   const r = parseInt(h.slice(0, 2), 16);
   const g = parseInt(h.slice(2, 4), 16);
@@ -44,12 +44,12 @@ const hexToRgb = (hex: string): Rgb => {
   return { r, g, b };
 };
 
-const rgbToHex = ({ r, g, b }: Rgb): string => {
+export const rgbToHex = ({ r, g, b }: Rgb): string => {
   const toHex = (n: number) => clamp(Math.round(n), 0, 255).toString(16).padStart(2, '0');
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 };
 
-const mixRgb = (a: Rgb, b: Rgb, t: number): Rgb => {
+export const mixRgb = (a: Rgb, b: Rgb, t: number): Rgb => {
   const tt = clamp(t, 0, 1);
   return {
     r: a.r + (b.r - a.r) * tt,
@@ -136,7 +136,7 @@ const relativeLuminance = (rgb: Rgb): number => {
 
 const WHITE_TEXT_COLOR = '#f9fafb';
 
-const getWhiteTextStyleForBackground = (backgroundRgb: Rgb): CSSProperties => {
+export const getWhiteTextStyleForBackground = (backgroundRgb: Rgb): CSSProperties => {
   // White text is fixed per product requirement.
   // On very bright tiles, add a thin black outline (stroke-like) to preserve legibility.
   const lum = relativeLuminance(backgroundRgb);
@@ -240,7 +240,7 @@ const getGlobalPaletteColorForValue = (value: number, palette: GlobalTilePalette
   return rgbToHex(rgb);
 };
 
-const buildGradient = (baseHex: string): { backgroundImage: string; baseRgb: Rgb } => {
+export const buildGradient = (baseHex: string): { backgroundImage: string; baseRgb: Rgb } => {
   const baseRgb = hexToRgb(baseHex);
   const hi = rgbToHex(mixRgb(baseRgb, { r: 255, g: 255, b: 255 }, 0.14));
   const lo = rgbToHex(mixRgb(baseRgb, { r: 0, g: 0, b: 0 }, 0.18));
@@ -250,14 +250,44 @@ const buildGradient = (baseHex: string): { backgroundImage: string; baseRgb: Rgb
   };
 };
 
+// 흰색→스킨 색상 수렴: 타일 값이 클수록 스킨 색상에 가까워짐
+const WHITE_RGB: Rgb = { r: 255, g: 255, b: 255 };
+
+export const getSkinColorForValue = (value: number, skinHex: string): string => {
+  const skinRgb = hexToRgb(skinHex);
+  const exp = Math.log2(value);
+  const t = clamp(exp / 15, 0, 1); // 2^15=32768까지 커버
+  const mixed = mixRgb(WHITE_RGB, skinRgb, t);
+  return rgbToHex(mixed);
+};
+
 export const resolveTileAppearance = (
   value: number,
-  settings: BlockCustomizationSettingsV1
+  settings: BlockCustomizationSettingsV1,
+  skinSettings?: SkinSettings
 ): ResolvedTileAppearance => {
   if (!Number.isFinite(value) || value <= 0) {
     return { className: getTileColor(0) };
   }
 
+  // 1순위: 활성 스킨
+  if (skinSettings?.activeSkinId) {
+    const activeSkin = skinSettings.ownedSkins.find(s => s.id === skinSettings.activeSkinId);
+    if (activeSkin) {
+      const baseHex = getSkinColorForValue(value, activeSkin.hex);
+      const { backgroundImage, baseRgb } = buildGradient(baseHex);
+      return {
+        className: getTileColor(value),
+        style: {
+          backgroundImage,
+          backgroundColor: baseHex,
+          ...getWhiteTextStyleForBackground(baseRgb),
+        },
+      };
+    }
+  }
+
+  // 2순위: 기존 커스터마이징 로직
   const baseClassName = getTileColor(value);
   const override = settings.perValue[String(value)];
 

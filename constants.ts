@@ -1,4 +1,4 @@
-import { ShapeType, Coordinate } from './types';
+import { ShapeType, Coordinate, SkinCatalogEntry } from './types';
 
 // Board slide animation (one swipe)
 export const SLIDE_ANIMATION_MS = 250;
@@ -246,10 +246,47 @@ export const MAX_DAILY_AD_VIEWS = 5;
 
 /**
  * 하루 최대 부활 광고 시청 횟수 (게임오버 보상형 전면)
+ * - 게임(세션)당 1번 제한은 hasUsedReviveThisRun으로 별도 관리
+ * - 하루 총 5번까지 부활 가능 (5개 게임에서 각 1번씩)
  */
-export const MAX_DAILY_REVIVE_AD_VIEWS = 2;
+export const MAX_DAILY_REVIVE_AD_VIEWS = 5;
 
 /**
  * 하루 최대 블록 새로고침 보상형 전면 광고 시청 횟수
  */
 export const MAX_DAILY_BLOCK_REFRESH_AD_VIEWS = 5;
+
+// ==========================================
+// 📌 스킨 시스템 상수
+// ==========================================
+
+/**
+ * 하루 최대 스킨 뽑기 광고 시청 횟수
+ */
+export const MAX_DAILY_SKIN_AD_VIEWS = 3;
+
+/**
+ * 스킨 카탈로그 (확장 시 여기에 항목만 추가)
+ * UI 그리드, 서비스, 저장 로직은 이 배열 크기에 자동 적응.
+ */
+export const SKIN_CATALOG: readonly SkinCatalogEntry[] = [
+  { id: 'skin_0',  hex: '#FF5C5C' }, { id: 'skin_1',  hex: '#FF6B6B' },
+  { id: 'skin_2',  hex: '#FF7A59' }, { id: 'skin_3',  hex: '#FF8A3D' },
+  { id: 'skin_4',  hex: '#F97316' }, { id: 'skin_5',  hex: '#FB923C' },
+  { id: 'skin_6',  hex: '#F59E0B' }, { id: 'skin_7',  hex: '#FBBF24' },
+  { id: 'skin_8',  hex: '#EAB308' }, { id: 'skin_9',  hex: '#84CC16' },
+  { id: 'skin_10', hex: '#22C55E' }, { id: 'skin_11', hex: '#10B981' },
+  { id: 'skin_12', hex: '#14B8A6' }, { id: 'skin_13', hex: '#06B6D4' },
+  { id: 'skin_14', hex: '#0EA5E9' }, { id: 'skin_15', hex: '#3B82F6' },
+  { id: 'skin_16', hex: '#4F46E5' }, { id: 'skin_17', hex: '#6366F1' },
+  { id: 'skin_18', hex: '#8B5CF6' }, { id: 'skin_19', hex: '#A855F7' },
+  { id: 'skin_20', hex: '#D946EF' }, { id: 'skin_21', hex: '#EC4899' },
+  { id: 'skin_22', hex: '#F43F5E' }, { id: 'skin_23', hex: '#EF4444' },
+];
+
+/**
+ * 스킨 미리보기에 표시할 타일 값 목록 (1 ~ 32768)
+ */
+export const SKIN_PREVIEW_VALUES: readonly number[] = [
+  1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768,
+];

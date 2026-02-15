@@ -113,9 +113,13 @@ This codebase intentionally **separates web and native app ad stacks**:
 
 ### Native Ad Test-Safety Defaults
 
-- Native AdMob requests now resolve a runtime policy in `services/admob.ts`.
-- To allow production ads only for real store releases, set `VITE_AD_DISTRIBUTION_CHANNEL=store` at build time.
-- Non-store channels (`beta`, `internal`, `qa`, `dev`) are forced to AdMob test IDs by default.
+- Native AdMob requests resolve a runtime policy in `services/admob.ts`.
+- The app now auto-detects store installs through a native plugin (`services/storeInstall.ts` + native iOS/Android code):
+  - Android: installer package + `InstallSourceInfo` / package source.
+  - iOS: receipt type (`sandboxReceipt` vs production receipt) + embedded provisioning check.
+- Only verified store installs are allowed to use production ad unit IDs.
+- TestFlight / sideload / simulator / debug-signed installs are forced to AdMob test IDs.
+- Note: Android Play internal/closed/open testing tracks share the same installer (`com.android.vending`), so client-only logic cannot perfectly separate testing track vs production track.
 - Emergency overrides:
   - `VITE_AD_FORCE_TEST_MODE=true` (always force test ads)
   - localStorage `slidemino_force_test_ads=1` (device-local force test mode)

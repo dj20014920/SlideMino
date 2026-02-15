@@ -5,6 +5,7 @@ import {
 } from '@capacitor-community/admob';
 import { Capacitor } from '@capacitor/core';
 import { Device } from '@capacitor/device';
+import { getNativeInstallInfo } from './storeInstall';
 
 let started = false;
 let startPromise: Promise<void> | null = null;
@@ -56,11 +57,6 @@ const normalizeDistributionChannel = (value?: string | null): AdDistributionChan
   return null;
 };
 
-const hasPreReleaseMarker = (value?: string): boolean => {
-  if (!value) return false;
-  return /(?:^|[\s._-])(beta|alpha|internal|qa|debug|dev|test|rc)(?:$|[\s._-])/i.test(value);
-};
-
 const resolveDistributionChannel = async (): Promise<AdDistributionChannel> => {
   const localOverride = normalizeDistributionChannel(readLocalStorage('slidemino_ad_distribution_channel'));
   if (localOverride) return localOverride;
@@ -72,19 +68,20 @@ const resolveDistributionChannel = async (): Promise<AdDistributionChannel> => {
 
   if (Capacitor.getPlatform() !== 'web') {
     try {
-      const { App } = await import('@capacitor/app');
-      const appInfo = await App.getInfo();
-      const signature = `${appInfo.version ?? ''} ${appInfo.build ?? ''}`;
-      if (hasPreReleaseMarker(signature)) {
-        return 'beta';
+      const installInfo = await getNativeInstallInfo();
+      if (installInfo.isStoreInstall) {
+        return 'store';
       }
+
+      if (installInfo.channel === 'debug_signed') {
+        return 'dev';
+      }
+
+      return 'beta';
     } catch {
       // 앱 정보 조회 실패 시 보수적으로 처리한다.
+      return 'beta';
     }
-
-    // 기본값은 보수적으로 non-store(beta) 취급한다.
-    // 실제 스토어 배포에서는 VITE_AD_DISTRIBUTION_CHANNEL=store를 명시한다.
-    return 'beta';
   }
 
   return 'store';

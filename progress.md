@@ -1413,3 +1413,42 @@ Original prompt: 게임 진행 화면(iPhone 포함)에서 광고 배너가 메�
 - 관련 타입 선언 확장: `/Users/dj/Desktop/SlideMino/vite-env.d.ts`.
 - 네이티브 동기화 확인:
   - `npm run cap:sync` 성공 (build + android/ios plugin sync 정상)
+
+## 2026-02-15 추가 작업 로그 (정식 스토어 설치본 자동 판별로 실광고 제한)
+- 사용자 요청:
+  - "정식 스토어 릴리즈 설치본에서만 실제 광고 ID 사용"
+  - "에뮬레이터/시뮬레이터/사이드로드/테스트 배포는 자동으로 테스트 광고"
+
+### 구현
+- Android 네이티브 플러그인 추가:
+  - `/Users/dj/Desktop/SlideMino/android/app/src/main/java/com/slidemino/app/plugins/StoreInstallPlugin.java`
+  - `PackageManager.getInstallSourceInfo()`(API 30+) + `getInstallerPackageName()`(하위 호환) + `InstallSourceInfo.getPackageSource()`(API 33+)로 설치 출처 판별.
+  - 신뢰 installer 패키지(Play/Amazon/Galaxy/Huawei/ONE store) 기반 `isStoreInstall` 계산.
+- Android 등록:
+  - `/Users/dj/Desktop/SlideMino/android/app/src/main/java/com/slidemino/app/MainActivity.java`
+  - `registerPlugin(StoreInstallPlugin.class)` 추가.
+- iOS 네이티브 플러그인 추가:
+  - `/Users/dj/Desktop/SlideMino/ios/App/App/AppDelegate.swift`
+  - `appStoreReceiptURL`의 `sandboxReceipt`, `embedded.mobileprovision`, receipt 파일 존재 여부로 보수적 판별.
+  - `isStoreInstall = hasReceiptFile && !hasSandboxReceipt && !hasEmbeddedProvision`.
+  - `MainBridgeViewController`에서 플러그인 등록.
+- iOS 브리지 컨트롤러 연결:
+  - `/Users/dj/Desktop/SlideMino/ios/App/App/Base.lproj/Main.storyboard`
+  - `CAPBridgeViewController` -> `MainBridgeViewController` 변경.
+- JS 브리지 서비스 추가:
+  - `/Users/dj/Desktop/SlideMino/services/storeInstall.ts`
+  - 네이티브 결과 normalize + 캐시 + 실패 시 non-store fallback.
+- 광고 정책 연결:
+  - `/Users/dj/Desktop/SlideMino/services/admob.ts`
+  - 분배 채널 판별을 네이티브 설치 출처 기반으로 전환.
+  - `isStoreInstall`이 아니면 기본적으로 테스트 광고 강제.
+
+### 검증
+- `npm run build` 성공.
+- `npx tsc --noEmit` 성공.
+- Android: `./gradlew :app:assembleGoogleDebug :app:assembleAppintosDebug` 성공.
+- iOS: `xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -destination 'generic/platform=iOS Simulator' build` 성공.
+
+### 운영 메모
+- Android의 Play "내부 테스트/클로즈드 테스트"는 installer가 동일(`com.android.vending`)하여 클라이언트 단독으로 프로덕션 트랙과 완전 구분이 불가.
+- 완전 분리가 필요하면 서버/Remote Config로 "실광고 허용 버전 코드 allowlist"를 추가하는 방식 권장.

@@ -40,3 +40,70 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
 }
+
+@objc(StoreInstallPlugin)
+class StoreInstallPlugin: CAPPlugin, CAPBridgedPlugin {
+    let identifier = "StoreInstallPlugin"
+    let jsName = "StoreInstall"
+    let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "getInstallInfo", returnType: CAPPluginReturnPromise)
+    ]
+
+    @objc func getInstallInfo(_ call: CAPPluginCall) {
+        #if targetEnvironment(simulator)
+        call.resolve([
+            "platform": "ios",
+            "isStoreInstall": false,
+            "channel": "simulator",
+            "installerPackage": NSNull(),
+            "initiatingPackage": NSNull(),
+            "packageSource": -1,
+            "receiptFileName": NSNull(),
+            "hasSandboxReceipt": false,
+            "hasEmbeddedProvision": false,
+            "hasReceiptFile": false
+        ])
+        return
+        #endif
+
+        let receiptURL = Bundle.main.appStoreReceiptURL
+        let receiptPath = receiptURL?.path ?? ""
+        let receiptFileName = receiptURL?.lastPathComponent ?? ""
+        let hasSandboxReceipt = receiptPath.contains("sandboxReceipt") || receiptFileName == "sandboxReceipt"
+        let hasEmbeddedProvision = Bundle.main.path(forResource: "embedded", ofType: "mobileprovision") != nil
+        let hasReceiptFile = !receiptPath.isEmpty && FileManager.default.fileExists(atPath: receiptPath)
+
+        // 보수적 정책: 스토어 설치를 명확히 확인할 수 없는 경우는 non-store로 본다.
+        let isStoreInstall = hasReceiptFile && !hasSandboxReceipt && !hasEmbeddedProvision
+        let channel: String
+
+        if isStoreInstall {
+            channel = "store"
+        } else if hasSandboxReceipt {
+            channel = "testflight_or_sandbox"
+        } else if hasEmbeddedProvision {
+            channel = "debug_signed"
+        } else {
+            channel = "unknown"
+        }
+
+        call.resolve([
+            "platform": "ios",
+            "isStoreInstall": isStoreInstall,
+            "channel": channel,
+            "installerPackage": NSNull(),
+            "initiatingPackage": NSNull(),
+            "packageSource": -1,
+            "receiptFileName": receiptFileName,
+            "hasSandboxReceipt": hasSandboxReceipt,
+            "hasEmbeddedProvision": hasEmbeddedProvision,
+            "hasReceiptFile": hasReceiptFile
+        ])
+    }
+}
+
+class MainBridgeViewController: CAPBridgeViewController {
+    override func capacitorDidLoad() {
+        bridge?.registerPluginType(StoreInstallPlugin.self)
+    }
+}

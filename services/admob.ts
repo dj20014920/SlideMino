@@ -10,6 +10,85 @@ let started = false;
 let startPromise: Promise<void> | null = null;
 let canRequestAds: boolean | null = null;
 let isVirtualPromise: Promise<boolean> | null = null;
+let requestPolicyPromise: Promise<AdMobRequestPolicy> | null = null;
+
+type AdDistributionChannel = 'store' | 'beta' | 'internal' | 'qa' | 'dev';
+type AdTestModeReason =
+  | 'development'
+  | 'virtual-device'
+  | 'env-force-test'
+  | 'local-force-test'
+  | 'non-store-channel'
+  | 'store-channel';
+
+export interface AdMobRequestPolicy {
+  shouldUseTestAds: boolean;
+  reason: AdTestModeReason;
+  distributionChannel: AdDistributionChannel;
+  isVirtualDevice: boolean;
+}
+
+const normalizeBool = (value?: string | null): boolean => {
+  if (typeof value !== 'string') return false;
+  const normalized = value.trim().toLowerCase();
+  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
+};
+
+const readLocalStorage = (key: string): string | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+const normalizeDistributionChannel = (value?: string | null): AdDistributionChannel | null => {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'store') return 'store';
+  if (normalized === 'beta' || normalized === 'alpha' || normalized === 'rc' || normalized === 'testflight') {
+    return 'beta';
+  }
+  if (normalized === 'internal') return 'internal';
+  if (normalized === 'qa' || normalized === 'staging') return 'qa';
+  if (normalized === 'dev' || normalized === 'debug') return 'dev';
+  return null;
+};
+
+const hasPreReleaseMarker = (value?: string): boolean => {
+  if (!value) return false;
+  return /(?:^|[\s._-])(beta|alpha|internal|qa|debug|dev|test|rc)(?:$|[\s._-])/i.test(value);
+};
+
+const resolveDistributionChannel = async (): Promise<AdDistributionChannel> => {
+  const localOverride = normalizeDistributionChannel(readLocalStorage('slidemino_ad_distribution_channel'));
+  if (localOverride) return localOverride;
+
+  const envChannel = normalizeDistributionChannel(import.meta.env.VITE_AD_DISTRIBUTION_CHANNEL as string | undefined);
+  if (envChannel) return envChannel;
+
+  if (import.meta.env.DEV) return 'dev';
+
+  if (Capacitor.getPlatform() !== 'web') {
+    try {
+      const { App } = await import('@capacitor/app');
+      const appInfo = await App.getInfo();
+      const signature = `${appInfo.version ?? ''} ${appInfo.build ?? ''}`;
+      if (hasPreReleaseMarker(signature)) {
+        return 'beta';
+      }
+    } catch {
+      // 앱 정보 조회 실패 시 보수적으로 처리한다.
+    }
+
+    // 기본값은 보수적으로 non-store(beta) 취급한다.
+    // 실제 스토어 배포에서는 VITE_AD_DISTRIBUTION_CHANNEL=store를 명시한다.
+    return 'beta';
+  }
+
+  return 'store';
+};
 
 const shouldSkipAttPromptForSimulatorQa = (): boolean => {
   if (Capacitor.getPlatform() !== 'ios') return false;
@@ -93,6 +172,81 @@ const ensureStarted = async (): Promise<void> => {
   })();
 
   return startPromise;
+};
+
+export const getAdMobRequestPolicy = async (): Promise<AdMobRequestPolicy> => {
+  if (Capacitor.getPlatform() === 'web') {
+    return {
+      shouldUseTestAds: false,
+      reason: 'store-channel',
+      distributionChannel: 'store',
+      isVirtualDevice: false,
+    };
+  }
+
+  if (!requestPolicyPromise) {
+    requestPolicyPromise = (async () => {
+      const virtual = await isVirtualDevice();
+      const distributionChannel = await resolveDistributionChannel();
+
+      const envForce = normalizeBool(import.meta.env.VITE_AD_FORCE_TEST_MODE as string | undefined);
+      const localForce = normalizeBool(readLocalStorage('slidemino_force_test_ads'));
+
+      if (import.meta.env.DEV) {
+        return {
+          shouldUseTestAds: true,
+          reason: 'development',
+          distributionChannel,
+          isVirtualDevice: virtual,
+        };
+      }
+
+      if (virtual) {
+        return {
+          shouldUseTestAds: true,
+          reason: 'virtual-device',
+          distributionChannel,
+          isVirtualDevice: true,
+        };
+      }
+
+      if (localForce) {
+        return {
+          shouldUseTestAds: true,
+          reason: 'local-force-test',
+          distributionChannel,
+          isVirtualDevice: virtual,
+        };
+      }
+
+      if (envForce) {
+        return {
+          shouldUseTestAds: true,
+          reason: 'env-force-test',
+          distributionChannel,
+          isVirtualDevice: virtual,
+        };
+      }
+
+      if (distributionChannel !== 'store') {
+        return {
+          shouldUseTestAds: true,
+          reason: 'non-store-channel',
+          distributionChannel,
+          isVirtualDevice: virtual,
+        };
+      }
+
+      return {
+        shouldUseTestAds: false,
+        reason: 'store-channel',
+        distributionChannel,
+        isVirtualDevice: virtual,
+      };
+    })();
+  }
+
+  return requestPolicyPromise;
 };
 
 export const ensureAdMobReady = async (): Promise<boolean> => {

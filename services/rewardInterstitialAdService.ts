@@ -19,7 +19,8 @@ import {
   getRewardInterstitialAdId,
   isRewardInterstitialAdSupported,
 } from './adConfig';
-import { ensureAdMobReady, isVirtualDevice } from './admob';
+import { ensureAdMobReady, getAdMobRequestPolicy } from './admob';
+import { CooldownGate, RetryBackoffScheduler } from './adResilience';
 import { MAX_DAILY_REVIVE_AD_VIEWS } from '../constants';
 
 export interface RewardInterstitialAdCallbacks {
@@ -124,6 +125,8 @@ export class RewardInterstitialAdService {
   private admobCallbacks: RewardInterstitialAdCallbacks | null = null;
   private rewardIssuedForCurrentShow = false;
   private dailyLimiter: DailyRewardInterstitialAdLimiter;
+  private readonly loadRetryBackoff = new RetryBackoffScheduler();
+  private readonly showCooldown = new CooldownGate(7000);
 
   constructor(options: RewardInterstitialAdServiceOptions) {
     this.adUnitId = options.adUnitId;
@@ -191,18 +194,14 @@ export class RewardInterstitialAdService {
 
   private handleLoaded(info: AdLoadInfo): void {
     this.loadStatus = 'loaded';
+    this.loadRetryBackoff.reset();
     console.log(`[${this.logTag}] AdMob 보상형 전면 광고 로드 완료:`, info);
   }
 
   private handleFailedToLoad(error: unknown): void {
     this.loadStatus = 'failed';
     console.error(`[${this.logTag}] AdMob 보상형 전면 광고 로드 실패:`, error);
-
-    setTimeout(() => {
-      if (this.loadStatus === 'failed') {
-        this.preloadAd();
-      }
-    }, 5000);
+    this.scheduleLoadRetry();
   }
 
   private handleShowed(): void {
@@ -214,6 +213,7 @@ export class RewardInterstitialAdService {
     this.loadStatus = 'failed';
     this.isProcessingShow = false;
     this.rewardIssuedForCurrentShow = false;
+    this.scheduleLoadRetry();
 
     if (this.admobCallbacks) {
       this.admobCallbacks.onError(new Error('보상형 전면 광고 표시 실패'));
@@ -239,6 +239,13 @@ export class RewardInterstitialAdService {
     }
 
     setTimeout(() => this.preloadAd(), 100);
+  }
+
+  private scheduleLoadRetry(): void {
+    this.loadRetryBackoff.schedule(() => {
+      if (this.loadStatus !== 'failed') return;
+      this.preloadAd();
+    });
   }
 
   private checkSupport(): boolean {
@@ -281,6 +288,7 @@ export class RewardInterstitialAdService {
       onEvent: (event) => {
         if (event.type === 'loaded') {
           this.loadStatus = 'loaded';
+          this.loadRetryBackoff.reset();
           this.cleanupLoadFn?.();
           this.cleanupLoadFn = null;
         }
@@ -290,6 +298,7 @@ export class RewardInterstitialAdService {
         this.cleanupLoadFn?.();
         this.cleanupLoadFn = null;
         console.error(`[${this.logTag}] 앱인토스 보상형 전면 광고 로드 실패:`, error);
+        this.scheduleLoadRetry();
       },
     });
   }
@@ -304,8 +313,8 @@ export class RewardInterstitialAdService {
       return;
     }
 
-    const isVirtual = await isVirtualDevice();
-    const shouldUseTestAds = import.meta.env.MODE !== 'production' || isVirtual;
+    const requestPolicy = await getAdMobRequestPolicy();
+    const shouldUseTestAds = requestPolicy.shouldUseTestAds;
     const adId = shouldUseTestAds
       ? (CURRENT_AD_PLATFORM === 'admob-ios'
         ? ADMOB_TEST_AD_IDS.IOS.REWARD_INTERSTITIAL
@@ -322,6 +331,7 @@ export class RewardInterstitialAdService {
     } catch (error) {
       this.loadStatus = 'failed';
       console.error(`[${this.logTag}] AdMob 보상형 전면 광고 로드 실패:`, error);
+      this.scheduleLoadRetry();
     }
   }
 
@@ -348,6 +358,12 @@ export class RewardInterstitialAdService {
       return;
     }
 
+    if (!this.showCooldown.canProceed()) {
+      callbacks.onError(new Error('광고 요청이 너무 잦습니다. 잠시 후 다시 시도해주세요.'));
+      return;
+    }
+
+    this.showCooldown.mark();
     this.isProcessingShow = true;
     this.rewardIssuedForCurrentShow = false;
 
@@ -404,6 +420,7 @@ export class RewardInterstitialAdService {
             this.loadStatus = 'failed';
             this.isProcessingShow = false;
             this.rewardIssuedForCurrentShow = false;
+            this.scheduleLoadRetry();
             callbacks.onError(new Error('광고 표시 실패'));
             break;
         }
@@ -413,6 +430,7 @@ export class RewardInterstitialAdService {
         this.loadStatus = 'failed';
         this.isProcessingShow = false;
         this.rewardIssuedForCurrentShow = false;
+        this.scheduleLoadRetry();
         callbacks.onError(error);
       },
     });
@@ -432,6 +450,7 @@ export class RewardInterstitialAdService {
       this.isProcessingShow = false;
       this.rewardIssuedForCurrentShow = false;
       this.admobCallbacks = null;
+      this.scheduleLoadRetry();
       callbacks.onError(error as Error);
     }
   }
@@ -462,6 +481,7 @@ export class RewardInterstitialAdService {
   public cleanup(): void {
     this.cleanupLoadFn?.();
     this.cleanupLoadFn = null;
+    this.loadRetryBackoff.reset();
     this.loadStatus = 'not_loaded';
     this.showStatus = 'idle';
     this.isProcessingShow = false;

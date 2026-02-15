@@ -1358,3 +1358,58 @@ Original prompt: 게임 진행 화면(iPhone 포함)에서 광고 배너가 메�
   - 시작 화면: `/Users/dj/Desktop/SlideMino/screenshots/ios-sim-reverify-initial-20260215.png`
   - 게임 진입 확인: `/Users/dj/Desktop/SlideMino/screenshots/ios-sim-reverify-after-start-3-20260215.png`
   - 핵심(토스트+CTA 전환): `/Users/dj/Desktop/SlideMino/screenshots/ios-sim-reverify-refresh-multi-click-20260215.png`
+
+## 2026-02-15 추가 작업 로그 (AdMob 무효 트래픽 대응 보강: 테스트 강제/백오프/비차단 안내)
+- 사용자 요청 배경:
+  - AdMob 정책센터에서 `무효 트래픽 우려`로 광고 게재 제한 시작(2026-02-14).
+  - 시뮬레이터/에뮬레이터 및 베타 배포에서 실광고 노출 가능성 차단, 연속 호출 완화, 광고 실패 UX 비차단 처리가 목표.
+
+### 아키텍처 보강
+- 공통 런타임 정책 추가: `/Users/dj/Desktop/SlideMino/services/admob.ts`
+  - `getAdMobRequestPolicy()` 도입:
+    - `shouldUseTestAds`, `reason`, `distributionChannel`, `isVirtualDevice`를 단일 계산.
+    - 테스트 강제 조건: `DEV`, `virtual device`, `VITE_AD_FORCE_TEST_MODE`, `localStorage(slidemino_force_test_ads)`, `non-store distribution channel`.
+    - 분배 채널은 `localStorage(slidemino_ad_distribution_channel)` → `VITE_AD_DISTRIBUTION_CHANNEL` → 앱 버전/빌드 프리릴리즈 마커(beta/qa/dev 등) 순으로 판별.
+  - 주의: 웹 빌드 런타임 안정성을 위해 `@capacitor/app`은 정적 import가 아닌 native 분기 내부 dynamic import로 처리.
+
+- 공통 안정화 유틸 추가: `/Users/dj/Desktop/SlideMino/services/adResilience.ts`
+  - `RetryBackoffScheduler`: 지수 백오프(+jitter) 재시도 스케줄러.
+  - `CooldownGate`: 과도한 연속 광고 요청 차단 게이트.
+
+### 서비스 반영
+- `/Users/dj/Desktop/SlideMino/services/rewardAdService.ts`
+  - AdMob 로드 시 정책 기반 테스트 광고 ID 강제 선택(공식 test unit ID).
+  - 실패 재시도: 고정 5초 재시도 -> 백오프 스케줄러.
+  - 표시 요청 쿨다운(7초) 추가.
+  - `not_loaded/failed` 상태에서 사용자 요청 시 preload 트리거.
+
+- `/Users/dj/Desktop/SlideMino/services/rewardInterstitialAdService.ts`
+  - AdMob 로드 시 정책 기반 테스트 광고 ID 강제 선택.
+  - 실패 재시도 백오프 적용.
+  - 표시 요청 쿨다운(7초) 적용.
+  - failedToShow/onError 경로에서 재로드 스케줄링.
+
+- `/Users/dj/Desktop/SlideMino/services/bannerAdService.ts`
+  - AdMob 배너도 정책 기반 테스트 광고 ID 강제 선택.
+
+### 앱 UX 보강
+- `/Users/dj/Desktop/SlideMino/App.tsx`
+  - 기존 `alert(...)` 기반 광고 에러/한도 안내를 전부 비차단형 자동 소멸 안내로 통일.
+  - 공통 상단 안내 토스트 렌더링 추가(`comboMessage` 상태 실사용).
+  - 네이티브 테스트 모드 감지 시 자동 안내문구 노출:
+    - 가상 디바이스: `에뮬/시뮬 환경이라 테스트 광고 모드입니다.`
+    - 비스토어 채널: `스토어 외 배포 채널이라 테스트 광고 모드입니다.`
+
+### 빌드/검증
+- `npm run build` 성공.
+- `npx tsc --noEmit` 성공.
+- develop-web-game 스킬 클라이언트 검증:
+  - 실행: `node ~/.codex/skills/develop-web-game/scripts/web_game_playwright_client.js --url http://127.0.0.1:4175 --actions-file ~/.codex/skills/develop-web-game/references/action_payloads.json --click-selector #mode-btn-beginner --iterations 2 --pause-ms 250 --screenshot-dir /Users/dj/Desktop/SlideMino/output/web-game/20260215-ad-safety`
+  - 산출물: `/Users/dj/Desktop/SlideMino/output/web-game/20260215-ad-safety/shot-0.png`, `/Users/dj/Desktop/SlideMino/output/web-game/20260215-ad-safety/shot-1.png`
+  - 콘솔 에러 파일 미생성(`errors-*.json` 없음) 확인.
+
+### 설정 메모
+- 스토어 릴리스에서만 실광고를 의도할 경우 빌드 시 `VITE_AD_DISTRIBUTION_CHANNEL=store` 명시 필요.
+- 관련 타입 선언 확장: `/Users/dj/Desktop/SlideMino/vite-env.d.ts`.
+- 네이티브 동기화 확인:
+  - `npm run cap:sync` 성공 (build + android/ios plugin sync 정상)

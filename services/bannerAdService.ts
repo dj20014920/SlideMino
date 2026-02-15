@@ -7,8 +7,8 @@
 
 import { GoogleAdMob } from '@apps-in-toss/web-framework';
 import { AdMob, BannerAdPosition, BannerAdSize, BannerAdOptions } from '@capacitor-community/admob';
-import { getBannerAdId, isBannerAdSupported, CURRENT_AD_PLATFORM } from './adConfig';
-import { ensureAdMobReady, isVirtualDevice } from './admob';
+import { ADMOB_TEST_AD_IDS, getBannerAdId, isBannerAdSupported, CURRENT_AD_PLATFORM } from './adConfig';
+import { ensureAdMobReady, getAdMobRequestPolicy } from './admob';
 
 // ==========================================
 // 📌 타입 정의
@@ -122,11 +122,16 @@ class BannerAdService {
   private async showAdMobBanner(): Promise<void> {
     console.log('[BannerAdService] AdMob 배너 표시 시작');
 
-    const isVirtual = await isVirtualDevice();
-    const shouldUseTestAds = import.meta.env.MODE !== 'production' || isVirtual;
+    const requestPolicy = await getAdMobRequestPolicy();
+    const shouldUseTestAds = requestPolicy.shouldUseTestAds;
+    const adId = shouldUseTestAds
+      ? (CURRENT_AD_PLATFORM === 'admob-ios'
+        ? ADMOB_TEST_AD_IDS.IOS.BANNER
+        : ADMOB_TEST_AD_IDS.ANDROID.BANNER)
+      : this.adUnitId;
 
     const options: BannerAdOptions = {
-      adId: this.adUnitId,
+      adId,
       adSize: BannerAdSize.BANNER, // 표준 배너 (320x50)
       position: BannerAdPosition.BOTTOM_CENTER, // 하단 중앙 고정
       margin: 0,

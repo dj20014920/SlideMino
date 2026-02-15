@@ -10,8 +10,9 @@
 
 import { GoogleAdMob } from '@apps-in-toss/web-framework';
 import { AdMob, RewardAdOptions, RewardAdPluginEvents, AdMobRewardItem, AdLoadInfo } from '@capacitor-community/admob';
-import { getRewardAdId, isRewardAdSupported, CURRENT_AD_PLATFORM } from './adConfig';
-import { ensureAdMobReady, isVirtualDevice } from './admob';
+import { ADMOB_TEST_AD_IDS, getRewardAdId, isRewardAdSupported, CURRENT_AD_PLATFORM } from './adConfig';
+import { ensureAdMobReady, getAdMobRequestPolicy } from './admob';
+import { CooldownGate, RetryBackoffScheduler } from './adResilience';
 import { MAX_DAILY_AD_VIEWS, REWARD_UNDO_AMOUNT } from '../constants';
 
 // ==========================================
@@ -214,6 +215,8 @@ class RewardAdService {
   private showStatus: AdShowStatus = 'idle';
   private cleanupLoadFn: (() => void) | null = null;
   private adGroupId: string = '';
+  private readonly loadRetryBackoff = new RetryBackoffScheduler();
+  private readonly showCooldown = new CooldownGate(7000);
 
   private dailyLimiter = new DailyAdLimiter();
   private sessionManager = new RewardSessionManager();
@@ -249,6 +252,7 @@ class RewardAdService {
     // 광고 로드 성공
     AdMob.addListener(RewardAdPluginEvents.Loaded, (info: AdLoadInfo) => {
       this.loadStatus = 'loaded';
+      this.loadRetryBackoff.reset();
       console.log('[RewardAdService] AdMob 광고 로드 완료:', info);
     });
 
@@ -256,13 +260,7 @@ class RewardAdService {
     AdMob.addListener(RewardAdPluginEvents.FailedToLoad, (error) => {
       this.loadStatus = 'failed';
       console.error('[RewardAdService] AdMob 광고 로드 실패:', error);
-
-      // 5초 후 재시도
-      setTimeout(() => {
-        if (this.loadStatus === 'failed') {
-          this.preloadAd();
-        }
-      }, 5000);
+      this.scheduleLoadRetry();
     });
 
     // 광고 표시됨
@@ -277,6 +275,7 @@ class RewardAdService {
       this.showStatus = 'idle';
       this.isProcessingShow = false;
       this.loadStatus = 'failed';
+      this.scheduleLoadRetry();
 
       if (this.admobCallbacks) {
         this.admobCallbacks.onError(new Error('AdMob 광고 표시 실패'));
@@ -308,6 +307,13 @@ class RewardAdService {
       // 세션 정리 및 다음 광고 로드
       this.sessionManager.clearSession();
       setTimeout(() => this.preloadAd(), 100);
+    });
+  }
+
+  private scheduleLoadRetry(): void {
+    this.loadRetryBackoff.schedule(() => {
+      if (this.loadStatus !== 'failed') return;
+      this.preloadAd();
     });
   }
 
@@ -348,6 +354,7 @@ class RewardAdService {
         switch (event.type) {
           case 'loaded':
             this.loadStatus = 'loaded';
+            this.loadRetryBackoff.reset();
             console.log('[RewardAdService] 광고 로드 완료');
             this.cleanupLoadFn?.();
             this.cleanupLoadFn = null;
@@ -359,6 +366,7 @@ class RewardAdService {
         console.error('[RewardAdService] 광고 로드 실패:', error);
         this.cleanupLoadFn?.();
         this.cleanupLoadFn = null;
+        this.scheduleLoadRetry();
       },
     });
   }
@@ -373,11 +381,16 @@ class RewardAdService {
       return;
     }
 
-    const isVirtual = await isVirtualDevice();
-    const shouldUseTestAds = import.meta.env.MODE !== 'production' || isVirtual;
+    const requestPolicy = await getAdMobRequestPolicy();
+    const shouldUseTestAds = requestPolicy.shouldUseTestAds;
+    const adId = shouldUseTestAds
+      ? (CURRENT_AD_PLATFORM === 'admob-ios'
+        ? ADMOB_TEST_AD_IDS.IOS.REWARD
+        : ADMOB_TEST_AD_IDS.ANDROID.REWARD)
+      : this.adGroupId;
 
     const options: RewardAdOptions = {
-      adId: this.adGroupId,
+      adId,
       isTesting: shouldUseTestAds,
     };
 
@@ -388,6 +401,7 @@ class RewardAdService {
     } catch (error) {
       this.loadStatus = 'failed';
       console.error('[RewardAdService] AdMob 광고 로드 실패:', error);
+      this.scheduleLoadRetry();
     }
   }
 
@@ -418,6 +432,9 @@ class RewardAdService {
 
     // 4. 광고 로드 상태 체크
     if (this.loadStatus !== 'loaded') {
+      if (this.loadStatus === 'not_loaded' || this.loadStatus === 'failed') {
+        this.preloadAd();
+      }
       const msg =
         this.loadStatus === 'loading'
           ? '광고를 불러오는 중입니다.'
@@ -426,7 +443,13 @@ class RewardAdService {
       return;
     }
 
+    if (!this.showCooldown.canProceed()) {
+      callbacks.onError(new Error('광고 요청이 너무 잦습니다. 잠시 후 다시 시도해주세요.'));
+      return;
+    }
+
     // 5. 광고 표시
+    this.showCooldown.mark();
     this.isProcessingShow = true;
     this.currentSessionId = this.sessionManager.createSession();
 
@@ -518,6 +541,7 @@ class RewardAdService {
       this.isProcessingShow = false;
       this.loadStatus = 'failed';
       this.admobCallbacks = null;
+      this.scheduleLoadRetry();
       callbacks.onError(error as Error);
     }
   }
@@ -578,6 +602,7 @@ class RewardAdService {
   public cleanup(): void {
     this.cleanupLoadFn?.();
     this.cleanupLoadFn = null;
+    this.loadRetryBackoff.reset();
     this.loadStatus = 'not_loaded';
     this.showStatus = 'idle';
     this.isProcessingShow = false;

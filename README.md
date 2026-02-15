@@ -111,6 +111,15 @@ This codebase intentionally **separates web and native app ad stacks**:
 - Web consent storage/events: `services/adConsent.ts`
 - Native (AdMob + UMP/ATT): `services/admob.ts`
 
+### Native Ad Test-Safety Defaults
+
+- Native AdMob requests now resolve a runtime policy in `services/admob.ts`.
+- To allow production ads only for real store releases, set `VITE_AD_DISTRIBUTION_CHANNEL=store` at build time.
+- Non-store channels (`beta`, `internal`, `qa`, `dev`) are forced to AdMob test IDs by default.
+- Emergency overrides:
+  - `VITE_AD_FORCE_TEST_MODE=true` (always force test ads)
+  - localStorage `slidemino_force_test_ads=1` (device-local force test mode)
+
 ## 📱 Mobile Support
 
 Fully optimized for mobile devices using:

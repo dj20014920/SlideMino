@@ -53,7 +53,7 @@ import { rankingService, type RankEntry, type LiveRankEstimate } from './service
 import { getCurrentRoute, onRouteChange, updatePageMeta, type Route } from './utils/routing';
 import { isNativeApp, isAppIntoS, isAndroidApp } from './utils/platform';
 import { normalizeLanguage } from './i18n/constants';
-import { openNativePrivacyOptionsForm, isVirtualDevice } from './services/admob';
+import { getAdMobRequestPolicy, openNativePrivacyOptionsForm } from './services/admob';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import Terms from './pages/Terms';
 import About from './pages/About';
@@ -393,7 +393,7 @@ const App: React.FC = () => {
   const [boardSize, setBoardSize] = useState<BoardSize>(8);
   const [viewportSize, setViewportSize] = useState<ViewportSize>(getViewportSize);
   const [layoutChromeHeights, setLayoutChromeHeights] = useState<LayoutChromeHeights>(DEFAULT_LAYOUT_CHROME_HEIGHTS);
-  const [, setComboMessage] = useState<string | null>(null);
+  const [comboMessage, setComboMessage] = useState<string | null>(null);
   const isLandscapeViewport = viewportSize.width > viewportSize.height;
   const isTouchLikeWeb = useMemo(() => {
     if (typeof window === 'undefined') return false;
@@ -501,11 +501,11 @@ const App: React.FC = () => {
     if (!isNativeApp()) return;
 
     let isCancelled = false;
-    isVirtualDevice()
-      .then((isVirtual) => {
+    getAdMobRequestPolicy()
+      .then((policy) => {
         if (!isCancelled) {
-          setIsSimulatorQaEnabled(isVirtual);
-          if (isVirtual) {
+          setIsSimulatorQaEnabled(policy.isVirtualDevice);
+          if (policy.isVirtualDevice) {
             setShowSimulatorQaPanel(true);
             try {
               localStorage.setItem('slidemino_skip_att_for_qa', '1');
@@ -1038,6 +1038,32 @@ const App: React.FC = () => {
     }, durationMs);
   }, []);
 
+  useEffect(() => {
+    if (!isNativeApp()) return;
+
+    let isCancelled = false;
+    getAdMobRequestPolicy()
+      .then((policy) => {
+        if (isCancelled || !policy.shouldUseTestAds) return;
+
+        if (policy.reason === 'virtual-device') {
+          showComboMessage('에뮬/시뮬 환경이라 테스트 광고 모드입니다.', 2600);
+          return;
+        }
+
+        if (policy.reason === 'non-store-channel') {
+          showComboMessage('스토어 외 배포 채널이라 테스트 광고 모드입니다.', 2600);
+        }
+      })
+      .catch(() => {
+        // ignore
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [showComboMessage]);
+
   const showBlockRefreshNotice = useCallback((message: string, durationMs = 1600) => {
     setBlockRefreshNotice(message);
     if (blockRefreshNoticeTimeoutRef.current) {
@@ -1095,12 +1121,10 @@ const App: React.FC = () => {
       },
       onError: (error) => {
         console.error('[App] 광고 오류:', error);
-        // 다국어 에러 메시지
-        alert(t('game:rewardAd.error'));
+        showComboMessage(String(t('game:rewardAd.error')), 2200);
       },
       onDailyLimitReached: () => {
-        // 일일 한도 도달 알림
-        alert(t('game:rewardAd.dailyLimitReached'));
+        showComboMessage(String(t('game:rewardAd.dailyLimitReached')), 2200);
       },
     });
   }, [t, showComboMessage]);
@@ -1159,7 +1183,7 @@ const App: React.FC = () => {
   const handleWatchReviveAd = useCallback(() => {
     if (isReviveAdInProgress) return;
     if (countOccupiedTiles(grid) <= 0) {
-      alert(t('modals:gameOver.reviveUnavailable'));
+      showComboMessage(String(t('modals:gameOver.reviveUnavailable')), 1800);
       return;
     }
 
@@ -1200,14 +1224,14 @@ const App: React.FC = () => {
         if (import.meta.env.DEV && isSimulatorQaEnabled) {
           setSimulatorQaStatus(`자동 QA: 부활 광고 오류 (${error.message})`);
         }
-        alert(t('modals:gameOver.reviveError'));
+        showComboMessage(String(t('modals:gameOver.reviveError')), 2200);
       },
       onDailyLimitReached: () => {
         setIsReviveAdInProgress(false);
         if (import.meta.env.DEV && isSimulatorQaEnabled) {
           setSimulatorQaStatus('자동 QA: 부활 광고 일일 한도 도달');
         }
-        alert(t('modals:gameOver.reviveDailyLimitReached'));
+        showComboMessage(String(t('modals:gameOver.reviveDailyLimitReached')), 2200);
       },
     });
   }, [boardSize, grid, isReviveAdInProgress, isSimulatorQaEnabled, showComboMessage, t]);
@@ -2234,6 +2258,15 @@ const App: React.FC = () => {
     return (
       <>
         <CookieConsent />
+        {comboMessage && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="pointer-events-none fixed left-1/2 top-[calc(12px+var(--app-safe-top))] z-[120] w-max max-w-[92vw] -translate-x-1/2 rounded-full bg-gray-900/92 px-4 py-2 text-center text-[12px] font-medium text-white shadow-xl backdrop-blur-sm whitespace-pre-line"
+          >
+            {comboMessage}
+          </div>
+        )}
         <div
           className="min-h-screen min-h-[100dvh] flex flex-col items-center justify-center p-6 space-y-10"
           style={{ paddingTop: 'calc(1.5rem + var(--app-safe-top))' }}
@@ -2645,6 +2678,15 @@ const App: React.FC = () => {
   return (
     <>
       <CookieConsent />
+      {comboMessage && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="pointer-events-none fixed left-1/2 top-[calc(12px+var(--app-safe-top))] z-[120] w-max max-w-[92vw] -translate-x-1/2 rounded-full bg-gray-900/92 px-4 py-2 text-center text-[12px] font-medium text-white shadow-xl backdrop-blur-sm whitespace-pre-line"
+        >
+          {comboMessage}
+        </div>
+      )}
       <div
         className="min-h-screen min-h-[100dvh] flex flex-col items-center text-gray-900 touch-none"
         onPointerDown={handleScreenPointerDown}

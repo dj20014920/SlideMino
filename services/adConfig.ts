@@ -80,8 +80,12 @@ export const ADMOB_AD_IDS = {
       : 'ca-app-pub-3940256099942544/5354046379', // Google 공식 테스트 ID
     // 블록 새로고침용 보상형 전면 광고
     REWARD_INTERSTITIAL_BLOCK_REFRESH: import.meta.env.MODE === 'production'
-      ? 'ca-app-pub-XXXXXXXXXXXXXXXX/ZZZZZZZZZZ' // TODO: Android 새로고침 광고 ID 승인 후 교체
+      ? 'ca-app-pub-5319827978116991/8255972227' // ✅ 사용자 제공 Android 새로고침 보상형 전면 광고 ID
       : 'ca-app-pub-3940256099942544/5354046379', // Google 공식 테스트 ID
+    // 스킨 뽑기용 보상형 광고
+    REWARD_SKIN_DRAW: import.meta.env.MODE === 'production'
+      ? 'ca-app-pub-5319827978116991/6761985205' // ✅ 사용자 제공 Android 스킨뽑기 보상형 광고 ID
+      : 'ca-app-pub-3940256099942544/5224354917', // Google 공식 테스트 보상형 ID
     INTERSTITIAL: import.meta.env.MODE === 'production'
       ? 'ca-app-pub-XXXXXXXXXXXXXXXX/ZZZZZZZZZZ' // TODO: AdMob 승인 후 교체
       : 'ca-app-pub-3940256099942544/1033173712', // Google 공식 테스트 ID
@@ -97,6 +101,10 @@ export const ADMOB_AD_IDS = {
     REWARD: import.meta.env.MODE === 'production'
       ? 'ca-app-pub-5319827978116991/7585964362' // ✅ 사용자 제공 iOS 리워드 광고 ID
       : 'ca-app-pub-3940256099942544/1712485313', // Google 공식 테스트 ID
+    // 스킨 뽑기용 보상형 광고
+    REWARD_SKIN_DRAW: import.meta.env.MODE === 'production'
+      ? 'ca-app-pub-5319827978116991/5203257881' // ✅ 사용자 제공 iOS 스킨뽑기 보상형 광고 ID
+      : 'ca-app-pub-3940256099942544/1712485313', // Google 공식 테스트 보상형 ID
     // ✅ 사용자 제공 iOS 보상형 전면 광고 ID (게임오버 부활)
     REWARD_INTERSTITIAL: import.meta.env.MODE === 'production'
       ? 'ca-app-pub-5319827978116991/1969153095'
@@ -219,6 +227,23 @@ export function getRewardAdId(): string {
 }
 
 /**
+ * 스킨 뽑기 보상형 광고 ID 가져오기
+ */
+export function getSkinRewardAdId(): string {
+  if (SCREENSHOT_MODE) return '';
+  switch (CURRENT_AD_PLATFORM) {
+    case 'admob-android':
+      return ADMOB_AD_IDS.ANDROID.REWARD_SKIN_DRAW;
+
+    case 'admob-ios':
+      return ADMOB_AD_IDS.IOS.REWARD_SKIN_DRAW;
+
+    default:
+      return '';
+  }
+}
+
+/**
  * 전면 광고 ID 가져오기 (플랫폼별 분기)
  */
 export function getInterstitialAdId(): string {
@@ -319,6 +344,20 @@ export function isRewardAdSupported(): boolean {
 }
 
 /**
+ * 스킨 뽑기 보상형 광고 지원 여부
+ */
+export function isSkinRewardAdSupported(): boolean {
+  if (SCREENSHOT_MODE) return false;
+
+  const isSupportedPlatform = CURRENT_AD_PLATFORM === 'admob-ios'
+    || CURRENT_AD_PLATFORM === 'admob-android';
+
+  if (!isSupportedPlatform) return false;
+
+  return isConfiguredAdUnitId(getSkinRewardAdId());
+}
+
+/**
  * 보상형 전면 광고 지원 여부
  */
 export function isRewardInterstitialAdSupported(): boolean {
@@ -373,6 +412,8 @@ if (import.meta.env.DEV) {
   console.log('[AdConfig] 현재 플랫폼:', CURRENT_AD_PLATFORM);
   console.log('[AdConfig] 리워드 광고 ID:', getRewardAdId());
   console.log('[AdConfig] 리워드 광고 지원:', isRewardAdSupported());
+  console.log('[AdConfig] 스킨 뽑기 리워드 광고 ID:', getSkinRewardAdId());
+  console.log('[AdConfig] 스킨 뽑기 리워드 광고 지원:', isSkinRewardAdSupported());
   console.log('[AdConfig] 보상형 전면 광고 ID:', getRewardInterstitialAdId());
   console.log('[AdConfig] 보상형 전면 광고 지원:', isRewardInterstitialAdSupported());
   console.log('[AdConfig] 새로고침 보상형 전면 광고 ID:', getBlockRefreshRewardInterstitialAdId());

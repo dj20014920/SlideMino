@@ -108,12 +108,14 @@ export const LoadingScreen: React.FC = () => {
 
                 {/* Title */}
                 <motion.h1
-                    className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-500 mb-2"
+                    className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-500 mb-2 text-center whitespace-nowrap"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
                 >
-                    블록 슬라이드 (Block Slide)
+                    블록 슬라이드
+                    <br />
+                    <span className="text-xl">(Block Slide)</span>
                 </motion.h1>
 
                 {/* Subtitle / Loading Text with Pulse */}

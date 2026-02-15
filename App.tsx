@@ -2628,7 +2628,7 @@ const App: React.FC = () => {
     : 'scale-100';
   const slotVisibilityClass = isAnimating
     ? 'opacity-40 grayscale'
-    : (isSwipeFocusMode ? 'opacity-60 grayscale-[0.3] saturate-75' : 'opacity-100');
+    : (isSwipeFocusMode ? 'opacity-45 grayscale-[0.4] saturate-75 blur-[1.5px]' : 'opacity-100');
   const phaseIndicatorInteractivityClass = isPlacePhase && !isReviveSelectionMode
     ? 'pointer-events-auto'
     : 'pointer-events-none opacity-35 grayscale select-none';

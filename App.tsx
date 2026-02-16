@@ -3011,50 +3011,48 @@ const App: React.FC = () => {
                 <HelpCircle size={18} />
               </button>
 
-              {/* Undo Button */}
+              {/* Undo / Recharge Button (single slot) */}
               <button
                 type="button"
                 onPointerDown={(e) => {
                   e.stopPropagation();
                 }}
-                onClick={executeUndo}
-                disabled={!lastSnapshot || undoRemaining <= 0 || isAnimating || isReviveSelectionMode}
+                onClick={undoRemaining === 0 && isRewardAdSupported() ? handleWatchRewardAd : executeUndo}
+                disabled={
+                  undoRemaining === 0 && isRewardAdSupported()
+                    ? (isAnimating || isReviveSelectionMode)
+                    : (!lastSnapshot || undoRemaining <= 0 || isAnimating || isReviveSelectionMode)
+                }
+                aria-label={
+                  undoRemaining === 0 && isRewardAdSupported()
+                    ? t('game:rewardAd.watchButtonFull')
+                    : t('game:actions.undo')
+                }
                 className={`
                 px-3 py-1.5 rounded-full text-xs font-semibold flex items-center justify-center gap-2 win98-game-btn ${isWin98ThemeActive ? 'win98-header-action-btn' : ''}
                 border shadow-sm transition-all duration-200
                 ${undoFocusSurfaceClass}
                 pointer-events-auto
-                ${(!lastSnapshot || undoRemaining <= 0 || isAnimating || isReviveSelectionMode)
-                    ? 'bg-gray-100/50 text-gray-300 border-gray-200/50 cursor-not-allowed'
-                    : 'bg-white/70 hover:bg-white text-gray-700 border-white/50 hover:shadow-md active:scale-95'
+                ${undoRemaining === 0 && isRewardAdSupported()
+                    ? `bg-gradient-to-r from-yellow-500 to-amber-500 text-white border-yellow-400/50 shadow-md active:scale-95 ${isSwipeFocusMode ? 'opacity-35 grayscale pointer-events-none select-none' : ''} ${(isAnimating || isReviveSelectionMode) ? 'opacity-50 cursor-not-allowed' : 'hover:from-yellow-600 hover:to-amber-600 hover:shadow-lg'}`
+                    : (!lastSnapshot || undoRemaining <= 0 || isAnimating || isReviveSelectionMode)
+                      ? 'bg-gray-100/50 text-gray-300 border-gray-200/50 cursor-not-allowed'
+                      : 'bg-white/70 hover:bg-white text-gray-700 border-white/50 hover:shadow-md active:scale-95'
                   }
               `}
               >
-                <Undo2 size={14} />
-                <span className="tabular-nums">{undoRemaining}</span>
+                {undoRemaining === 0 && isRewardAdSupported() ? (
+                  <>
+                    <span>📺</span>
+                    <span>{t('game:rewardAd.watchButton')}</span>
+                  </>
+                ) : (
+                  <>
+                    <Undo2 size={14} />
+                    <span className="tabular-nums">{undoRemaining}</span>
+                  </>
+                )}
               </button>
-
-              {/* 🆕 Reward Ad Button - 되돌리기 0일 때만 표시 */}
-              {isRewardAdSupported() && undoRemaining === 0 && (
-                <button
-                  type="button"
-                  onClick={handleWatchRewardAd}
-                  disabled={isAnimating || isReviveSelectionMode}
-                  className={`
-                    px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 win98-game-btn
-                    bg-gradient-to-r from-yellow-500 to-amber-500
-                    text-white border border-yellow-400/50
-                    shadow-md hover:shadow-lg
-                    active:scale-95 transition-all duration-200
-                    ${isSwipeFocusMode ? 'opacity-35 grayscale pointer-events-none select-none' : ''}
-                    ${(isAnimating || isReviveSelectionMode) ? 'opacity-50 cursor-not-allowed' : 'hover:from-yellow-600 hover:to-amber-600'}
-                  `}
-                  aria-label={t('game:rewardAd.watchButtonFull')}
-                >
-                  <span>📺</span>
-                  <span>{t('game:rewardAd.watchButton')}</span>
-                </button>
-              )}
             </div>
           </div>
         </header>

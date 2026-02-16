@@ -18,7 +18,6 @@ type AdTestModeReason =
   | 'development'
   | 'virtual-device'
   | 'env-force-test'
-  | 'local-force-test'
   | 'non-store-channel'
   | 'store-channel';
 
@@ -35,15 +34,6 @@ const normalizeBool = (value?: string | null): boolean => {
   return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
 };
 
-const readLocalStorage = (key: string): string | null => {
-  if (typeof window === 'undefined') return null;
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-};
-
 const normalizeDistributionChannel = (value?: string | null): AdDistributionChannel | null => {
   if (typeof value !== 'string') return null;
   const normalized = value.trim().toLowerCase();
@@ -58,9 +48,6 @@ const normalizeDistributionChannel = (value?: string | null): AdDistributionChan
 };
 
 const resolveDistributionChannel = async (): Promise<AdDistributionChannel> => {
-  const localOverride = normalizeDistributionChannel(readLocalStorage('slidemino_ad_distribution_channel'));
-  if (localOverride) return localOverride;
-
   const envChannel = normalizeDistributionChannel(import.meta.env.VITE_AD_DISTRIBUTION_CHANNEL as string | undefined);
   if (envChannel) return envChannel;
 
@@ -85,26 +72,6 @@ const resolveDistributionChannel = async (): Promise<AdDistributionChannel> => {
   }
 
   return 'store';
-};
-
-const shouldSkipAttPromptForSimulatorQa = (): boolean => {
-  if (Capacitor.getPlatform() !== 'ios') return false;
-
-  // On iOS simulators we skip ATT prompt to keep QA deterministic.
-  if (typeof navigator !== 'undefined' && /simulator/i.test(navigator.userAgent)) {
-    return true;
-  }
-
-  // Optional manual override for local QA sessions.
-  if (import.meta.env.MODE === 'development') {
-    try {
-      const value = localStorage.getItem('slidemino_skip_att_for_qa');
-      return value === '1' || value === 'true' || value === 'yes';
-    } catch {
-      return false;
-    }
-  }
-  return false;
 };
 
 const normalizeCanRequestAds = (info: AdmobConsentInfo | null | undefined): boolean => {
@@ -141,7 +108,7 @@ const ensureStarted = async (): Promise<void> => {
 
     // iOS only: ATT status can affect ad personalization.
     // We keep this best-effort and never block startup on failures.
-    if (Capacitor.getPlatform() === 'ios' && !isVirtual && !shouldSkipAttPromptForSimulatorQa()) {
+    if (Capacitor.getPlatform() === 'ios' && !isVirtual) {
       try {
         const tracking = await AdMob.trackingAuthorizationStatus();
         if (tracking.status === 'notDetermined') {
@@ -187,8 +154,6 @@ export const getAdMobRequestPolicy = async (): Promise<AdMobRequestPolicy> => {
       const distributionChannel = await resolveDistributionChannel();
 
       const envForce = normalizeBool(import.meta.env.VITE_AD_FORCE_TEST_MODE as string | undefined);
-      const localForce = normalizeBool(readLocalStorage('slidemino_force_test_ads'));
-
       if (import.meta.env.DEV) {
         return {
           shouldUseTestAds: true,
@@ -204,15 +169,6 @@ export const getAdMobRequestPolicy = async (): Promise<AdMobRequestPolicy> => {
           reason: 'virtual-device',
           distributionChannel,
           isVirtualDevice: true,
-        };
-      }
-
-      if (localForce) {
-        return {
-          shouldUseTestAds: true,
-          reason: 'local-force-test',
-          distributionChannel,
-          isVirtualDevice: virtual,
         };
       }
 

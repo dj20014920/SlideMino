@@ -8,11 +8,10 @@ import { useBlockCustomization } from '../context/BlockCustomizationContext';
 import type { SkinItem } from '../types';
 import { getSkinColorForValue, resolveSkinAppearance } from '../services/blockCustomization';
 import { buildGradient, getWhiteTextStyleForBackground, hexToRgb } from '../services/blockCustomization';
-import { pickRandomSkin, isCollectionComplete, getAllSkinsUnlockedForEmulator } from '../services/skinService';
+import { pickRandomSkin, isCollectionComplete } from '../services/skinService';
 import { skinRewardAdService } from '../services/skinRewardAdService';
 import { isSkinRewardAdSupported } from '../services/adConfig';
 import { SkinAcquisitionOverlay } from './SkinAcquisitionOverlay';
-import { isEmulator } from '../utils/deviceDetection';
 
 type SkinModalProps = {
   open: boolean;
@@ -54,22 +53,10 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
   const [acquisitionSkin, setAcquisitionSkin] = useState<SkinItem | null>(null);
   const [remainingAds, setRemainingAds] = useState(skinRewardAdService.getRemainingDailyViews());
   const [adError, setAdError] = useState<string | null>(null);
-  const [isTestMode, setIsTestMode] = useState(false);
-
-  // 🧪 에뮬레이터 감지 (테스트 모드)
-  useEffect(() => {
-    isEmulator().then(setIsTestMode);
-  }, []);
 
   const ownedIds = useMemo(
-    () => {
-      // 테스트 모드: 모든 스킨을 소유한 것으로 처리
-      if (isTestMode) {
-        return new Set(SKIN_CATALOG.map(s => s.id));
-      }
-      return new Set(skinSettings.ownedSkins.map(s => s.id));
-    },
-    [skinSettings.ownedSkins, isTestMode]
+    () => new Set(skinSettings.ownedSkins.map(s => s.id)),
+    [skinSettings.ownedSkins]
   );
 
   const collectionComplete = useMemo(
@@ -192,7 +179,6 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
             <div className="title-bar" style={{ background: 'linear-gradient(90deg, #000080, #1084d0)' }}>
               <div className="title-bar-text" style={{ color: '#fff' }}>
                 {t('modals:skin.title')}
-                {isTestMode && ' [TEST MODE]'}
               </div>
               <div className="title-bar-controls">
                 <button aria-label="Close" onClick={onClose} />
@@ -201,9 +187,7 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
 
             <div className="window-body flex-1 min-h-0 overflow-hidden">
               <p className="status-bar-field" style={{ marginBottom: '12px' }}>
-                {isTestMode
-                  ? t('modals:skin.testModeActive', 'All skins unlocked (Emulator)')
-                  : t('modals:skin.ownedCount', { owned: skinSettings.ownedSkins.length, total: SKIN_CATALOG.length })}
+                {t('modals:skin.ownedCount', { owned: skinSettings.ownedSkins.length, total: SKIN_CATALOG.length })}
               </p>
 
               <div className="sunken-panel" style={{ height: '100%', minHeight: '180px', overflowY: 'scroll', padding: '6px', backgroundColor: '#c0c0c0' }}>
@@ -271,7 +255,7 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                 </div>
               </div>
 
-              {!isTestMode && isSkinRewardAdSupported() && (
+              {isSkinRewardAdSupported() && (
                  <div style={{ marginTop: '12px', textAlign: 'center' }}>
                     {collectionComplete ? (
                       <div className="field-row bg-info text-center justify-center">
@@ -325,22 +309,12 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
         <div className="relative z-10 w-full max-w-lg max-h-[90dvh] rounded-3xl bg-white/90 backdrop-blur-sm border border-white/60 shadow-2xl overflow-hidden flex flex-col win98-window">
           {/* 헤더 */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-black/5 shrink-0">
-            <div>
-              <div className="flex items-center gap-2">
+              <div>
                 <h3 className="text-lg font-semibold text-gray-900">{t('modals:skin.title')}</h3>
-                {isTestMode && (
-                  <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-sm">
-                    🧪 TEST
-                  </span>
-                )}
+                <p className="text-xs text-gray-500">
+                  {t('modals:skin.ownedCount', { owned: skinSettings.ownedSkins.length, total: SKIN_CATALOG.length })}
+                </p>
               </div>
-              <p className="text-xs text-gray-500">
-                {isTestMode 
-                  ? `🔓 ${t('modals:skin.testModeActive', 'All skins unlocked (Emulator)')}` 
-                  : t('modals:skin.ownedCount', { owned: skinSettings.ownedSkins.length, total: SKIN_CATALOG.length })
-                }
-              </p>
-            </div>
             <button
               type="button"
               className="p-2 rounded-xl bg-white/70 border border-white/60 text-gray-700 hover:bg-white shadow-sm transition-colors"
@@ -437,8 +411,8 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
               ))}
             </div>
 
-            {/* 뽑기 버튼 영역 (테스트 모드에서는 숨김) */}
-            {!isTestMode && isSkinRewardAdSupported() && (
+            {/* 뽑기 버튼 영역 */}
+            {isSkinRewardAdSupported() && (
               <div className="space-y-2">
                 {collectionComplete ? (
                   <div className="text-center py-3 rounded-2xl bg-gradient-to-r from-amber-50 to-amber-100 border border-amber-200/60 text-amber-700 font-semibold text-sm">

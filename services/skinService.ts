@@ -3,12 +3,10 @@
  * - 스킨 저장/로드 (localStorage)
  * - 미보유 스킨 랜덤 뽑기
  * - 컬렉션 완성 여부 체크
- * - 에뮬레이터 테스트 모드 (모든 스킨 잠금 해제)
  */
 
 import { SKIN_CATALOG } from '../constants';
 import type { SkinItem, SkinSettings } from '../types';
-import { isEmulator } from '../utils/deviceDetection';
 
 const SKIN_STORAGE_KEY = 'slidemino.skin.v2';
 
@@ -53,11 +51,10 @@ export const loadSkinSettings = (): SkinSettings => {
       }
     }
 
-    // activeSkinId: ownedSkins에 있거나 카탈로그에 존재하면 유지 (테스트 모드 호환)
+    // activeSkinId: 보유 중인 스킨일 때만 유지
     const activeSkinId =
       typeof obj.activeSkinId === 'string' &&
-      (ownedSkins.some(s => s.id === obj.activeSkinId) ||
-       SKIN_CATALOG.some(s => s.id === obj.activeSkinId))
+      ownedSkins.some(s => s.id === obj.activeSkinId)
         ? obj.activeSkinId
         : null;
 
@@ -98,33 +95,4 @@ export const pickRandomSkin = (settings: SkinSettings): SkinItem | null => {
  */
 export const isCollectionComplete = (settings: SkinSettings): boolean => {
   return settings.ownedSkins.length >= SKIN_CATALOG.length;
-};
-
-/**
- * 🧪 테스트 모드: 에뮬레이터/시뮬레이터에서 모든 스킨 잠금 해제
- * 
- * @returns 에뮬레이터인 경우 카탈로그의 모든 스킨을 owned로 반환
- */
-export const getAllSkinsUnlockedForEmulator = async (): Promise<SkinItem[] | null> => {
-  const isEmulatorEnv = await isEmulator();
-  if (!isEmulatorEnv) return null;
-
-  // 에뮬레이터에서는 모든 스킨을 소유한 것으로 처리
-  return SKIN_CATALOG.map(entry => ({
-    id: entry.id,
-    hex: entry.hex,
-    acquiredAt: 0, // 테스트 모드 표시용
-  }));
-};
-
-/**
- * 🧪 테스트 모드: 에뮬레이터에서 스킨 보유 여부 확인
- * 
- * @returns 에뮬레이터이면 항상 true, 아니면 실제 보유 여부
- */
-export const isSkinOwned = async (skinId: string, settings: SkinSettings): Promise<boolean> => {
-  const isEmulatorEnv = await isEmulator();
-  if (isEmulatorEnv) return true;
-  
-  return settings.ownedSkins.some(s => s.id === skinId);
 };

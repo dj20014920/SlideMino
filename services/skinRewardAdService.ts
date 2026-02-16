@@ -28,9 +28,6 @@ interface DailyAdData {
 
 class SkinDailyAdLimiter {
   private readonly STORAGE_KEY = 'slidemino_daily_skin_ad_data';
-  private readonly isDailyLimitEnabled =
-    typeof import.meta.env.VITE_ENABLE_SKIN_DAILY_LIMIT === 'string'
-      && ['1', 'true', 'on'].includes(import.meta.env.VITE_ENABLE_SKIN_DAILY_LIMIT.trim().toLowerCase());
 
   private getTodayString(): string {
     const now = new Date();
@@ -58,17 +55,14 @@ class SkinDailyAdLimiter {
   }
 
   public canWatchAd(): boolean {
-    if (!this.isDailyLimitEnabled) return true;
     return this.getData().count < MAX_DAILY_SKIN_AD_VIEWS;
   }
 
   public getRemainingCount(): number {
-    if (!this.isDailyLimitEnabled) return MAX_DAILY_SKIN_AD_VIEWS;
     return Math.max(0, MAX_DAILY_SKIN_AD_VIEWS - this.getData().count);
   }
 
   public recordWatch(): boolean {
-    if (!this.isDailyLimitEnabled) return true;
     const data = this.getData();
     if (data.count >= MAX_DAILY_SKIN_AD_VIEWS) return false;
     data.count += 1;

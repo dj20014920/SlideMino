@@ -70,13 +70,6 @@ import {
 } from './services/adConfig';
 import { normalizePlayerName, validatePlayerName } from './utils/playerName';
 
-declare global {
-  interface Window {
-    __slideMinoSimQaTapReviveAd?: () => void;
-    __slideMinoSimQaEnterReviveSelection?: (count?: number) => void;
-  }
-}
-
 const EMPTY_TILE_VALUE_OVERRIDES: Record<string, number> = {};
 const EMPTY_MERGING_TILES: MergingTile[] = [];
 const DRAG_OVERLAY_SCALE = 1;
@@ -489,9 +482,6 @@ const App: React.FC = () => {
   const [reviveBreakRemaining, setReviveBreakRemaining] = useState(0);
   const [revivePendingTileId, setRevivePendingTileId] = useState<string | null>(null);
   const [reviveDestroyEffects, setReviveDestroyEffects] = useState<ReviveDestroyEffect[]>([]);
-  const [isSimulatorQaEnabled, setIsSimulatorQaEnabled] = useState(false);
-  const [showSimulatorQaPanel, setShowSimulatorQaPanel] = useState(false);
-  const [simulatorQaStatus, setSimulatorQaStatus] = useState<string | null>(null);
   // 테스트 광고 모드 표시 상태 (비스토어 설치 시 지속 배지 표시)
   const [adTestModeBadge, setAdTestModeBadge] = useState<string | null>(null);
 
@@ -502,37 +492,6 @@ const App: React.FC = () => {
       setTutorialStep(1); // Start with Drag tutorial
     }
   }, []);
-
-  useEffect(() => {
-    if (!import.meta.env.DEV) return;
-    if (!isNativeApp()) return;
-
-    let isCancelled = false;
-    getAdMobRequestPolicy()
-      .then((policy) => {
-        if (!isCancelled) {
-          setIsSimulatorQaEnabled(policy.isVirtualDevice);
-          if (policy.isVirtualDevice) {
-            setShowSimulatorQaPanel(true);
-            try {
-              localStorage.setItem('slidemino_skip_att_for_qa', '1');
-            } catch {
-              // ignore
-            }
-          }
-        }
-      })
-      .catch(() => {
-        if (!isCancelled) {
-          setIsSimulatorQaEnabled(false);
-        }
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, []);
-
 
   // Animation Lock
   const [isAnimating, setIsAnimating] = useState(false);
@@ -572,9 +531,6 @@ const App: React.FC = () => {
   const currentPointerPosRef = useRef<{ x: number, y: number } | null>(null);
   const scoreRef = useRef<number>(score);
   const boardSizeRef = useRef<BoardSize>(boardSize);
-  const simulatorAutoProbeRunRef = useRef(false);
-  const simulatorAutoGameOverTriggeredRef = useRef(false);
-  const simulatorAutoReviveTriggeredRef = useRef(false);
 
   useEffect(() => {
     scoreRef.current = score;
@@ -1079,7 +1035,6 @@ const App: React.FC = () => {
           'development': 'DEV 테스트 광고',
           'virtual-device': '에뮬/시뮬 테스트 광고',
           'env-force-test': 'ENV 강제 테스트 광고',
-          'local-force-test': 'LOCAL 강제 테스트 광고',
           'non-store-channel': '비스토어 테스트 광고',
         };
         setAdTestModeBadge(badgeLabels[policy.reason] ?? '테스트 광고');
@@ -1264,9 +1219,6 @@ const App: React.FC = () => {
         setGameState(GameState.PLAYING);
         setHasUsedReviveThisRun(true);
         setIsReviveAdInProgress(false);
-        if (import.meta.env.DEV && isSimulatorQaEnabled) {
-          setSimulatorQaStatus('자동 QA: 부활 성공, 선택 파괴 모드 진입 완료');
-        }
         showComboMessage(String(t('modals:gameOver.reviveSuccess', { count: destroyCount } as any)), 1800);
       },
       onAdClosed: () => {
@@ -1277,20 +1229,14 @@ const App: React.FC = () => {
         console.error('[App] 보상형 전면 광고 오류:', error);
         setIsReviveAdInProgress(false);
         setIsReviveAdReady(rewardInterstitialAdService.isAdReady());
-        if (import.meta.env.DEV && isSimulatorQaEnabled) {
-          setSimulatorQaStatus(`자동 QA: 부활 광고 오류 (${error.message})`);
-        }
         showComboMessage(String(t('modals:gameOver.reviveError')), 2200);
       },
       onDailyLimitReached: () => {
         setIsReviveAdInProgress(false);
-        if (import.meta.env.DEV && isSimulatorQaEnabled) {
-          setSimulatorQaStatus('자동 QA: 부활 광고 일일 한도 도달');
-        }
         showComboMessage(String(t('modals:gameOver.reviveDailyLimitReached')), 2200);
       },
     });
-  }, [boardSize, grid, isReviveAdInProgress, isSimulatorQaEnabled, showComboMessage, t]);
+  }, [boardSize, grid, isReviveAdInProgress, showComboMessage, t]);
 
   const handleReviveTileTap = useCallback((tileId: string) => {
     if (!isReviveSelectionMode || gameState !== GameState.PLAYING) return;
@@ -1343,59 +1289,6 @@ const App: React.FC = () => {
     reviveDestroyEffectTimeoutsRef.current.push(timeoutId);
   }, [gameState, grid, isAnimating, isReviveSelectionMode, reviveBreakRemaining, revivePendingTileId]);
 
-  const handleSimulatorQaEnterReviveSelection = useCallback((requestedCount?: number) => {
-    if (!import.meta.env.DEV) return;
-
-    const baseCount = REVIVE_DESTROY_COUNT_BY_BOARD_SIZE[boardSizeRef.current];
-    const count = typeof requestedCount === 'number' && Number.isFinite(requestedCount)
-      ? Math.max(1, Math.floor(requestedCount))
-      : baseCount;
-
-    slideLockRef.current = false;
-    setIsAnimating(false);
-    setLastSnapshot(null);
-    setPhase(Phase.PLACE);
-    setCanSkipSlide(false);
-    setReviveDestroyEffects([]);
-    setRevivePendingTileId(null);
-    setReviveBreakRemaining(count);
-    isReviveSelectionModeRef.current = true;
-    setIsReviveSelectionMode(true);
-    setGameState(GameState.PLAYING);
-    setHasUsedReviveThisRun(true);
-    setIsReviveAdInProgress(false);
-    setGrid((prevGrid) => {
-      if (countOccupiedTiles(prevGrid) > 0) return prevGrid;
-
-      const size = boardSizeRef.current;
-      const seededGrid = createEmptyGrid(size);
-      const center = Math.floor(size / 2);
-      const offsets: Array<[number, number]> = [
-        [0, 0],
-        [-1, 0],
-        [1, 0],
-        [0, -1],
-        [0, 1],
-      ];
-      const values = [2, 4, 8, 16, 32];
-      const stamp = Date.now();
-
-      offsets.forEach(([offsetX, offsetY], idx) => {
-        const x = Math.max(0, Math.min(size - 1, center + offsetX));
-        const y = Math.max(0, Math.min(size - 1, center + offsetY));
-        if (seededGrid[y][x]) return;
-        seededGrid[y][x] = {
-          id: `qa-revive-${stamp}-${idx}`,
-          value: values[idx] ?? 2,
-        };
-      });
-
-      return seededGrid;
-    });
-
-    showComboMessage(String(t('modals:gameOver.reviveSuccess', { count } as any)), 1400);
-  }, [showComboMessage, t]);
-
   useEffect(() => {
     if (!isReviveSelectionMode) return;
     const occupied = countOccupiedTiles(grid);
@@ -1413,172 +1306,6 @@ const App: React.FC = () => {
     }
     showComboMessage(String(t('modals:gameOver.reviveNoTargets')), 1600);
   }, [grid, isReviveSelectionMode, reviveBreakRemaining, showComboMessage, t]);
-
-  useEffect(() => {
-    if (!import.meta.env.DEV) return;
-
-    window.__slideMinoSimQaEnterReviveSelection = (count?: number) => {
-      handleSimulatorQaEnterReviveSelection(count);
-    };
-
-    return () => {
-      delete window.__slideMinoSimQaEnterReviveSelection;
-    };
-  }, [handleSimulatorQaEnterReviveSelection]);
-
-  const getSimulatorQaMode = useCallback((): string | null => {
-    if (typeof window === 'undefined') return null;
-    try {
-      return localStorage.getItem('slidemino_sim_qa_mode');
-    } catch {
-      return null;
-    }
-  }, []);
-
-  const handleSimulatorReviveAdProbe = useCallback(() => {
-    if (!isSimulatorQaEnabled) return;
-
-    if (!isRewardInterstitialAdSupported()) {
-      setSimulatorQaStatus('현재 환경에서는 보상형 전면 광고를 지원하지 않습니다.');
-      return;
-    }
-
-    if (!rewardInterstitialAdService.isAdReady()) {
-      rewardInterstitialAdService.preloadAd();
-      setSimulatorQaStatus('광고 준비 중... 1~3초 뒤 다시 눌러주세요.');
-
-      window.setTimeout(() => {
-        if (rewardInterstitialAdService.isAdReady()) {
-          setSimulatorQaStatus('광고 준비 완료. 버튼을 다시 눌러 표시를 테스트하세요.');
-        }
-      }, 1200);
-      return;
-    }
-
-    setSimulatorQaStatus('광고 표시 요청 중...');
-    rewardInterstitialAdService.showReviveAd({
-      onRewardEarned: () => {
-        setSimulatorQaStatus('보상 이벤트 수신 완료 (userEarnedReward)');
-      },
-      onAdClosed: () => {
-        setSimulatorQaStatus('광고 닫힘 이벤트 수신 완료 (dismissed)');
-      },
-      onError: (error) => {
-        console.error('[SimulatorQA] 보상형 전면 광고 테스트 실패:', error);
-        setSimulatorQaStatus(`광고 테스트 오류: ${error.message}`);
-      },
-      onDailyLimitReached: () => {
-        setSimulatorQaStatus('일일 부활 광고 한도에 도달했습니다.');
-      },
-    });
-  }, [isSimulatorQaEnabled]);
-
-  useEffect(() => {
-    if (!isSimulatorQaEnabled) return;
-
-    window.__slideMinoSimQaTapReviveAd = () => {
-      handleSimulatorReviveAdProbe();
-    };
-
-    return () => {
-      delete window.__slideMinoSimQaTapReviveAd;
-    };
-  }, [handleSimulatorReviveAdProbe, isSimulatorQaEnabled]);
-
-  useEffect(() => {
-    if (!isSimulatorQaEnabled) return;
-    if (gameState !== GameState.MENU) return;
-    if (simulatorAutoProbeRunRef.current) return;
-
-    simulatorAutoProbeRunRef.current = true;
-    setShowSimulatorQaPanel(true);
-    setSimulatorQaStatus('자동 QA: 보상형 전면 광고 로드 시작...');
-    rewardInterstitialAdService.preloadAd();
-
-    let checks = 0;
-    const maxChecks = 12;
-    const intervalId = window.setInterval(() => {
-      checks += 1;
-      if (rewardInterstitialAdService.isAdReady()) {
-        window.clearInterval(intervalId);
-        setSimulatorQaStatus('자동 QA: 로드 완료, 광고 표시 요청 중...');
-        rewardInterstitialAdService.showReviveAd({
-          onRewardEarned: () => {
-            setSimulatorQaStatus('자동 QA 성공: 보상 콜백 수신');
-          },
-          onAdClosed: () => {
-            setSimulatorQaStatus('자동 QA 완료: 광고 닫힘 콜백 수신');
-          },
-          onError: (error) => {
-            console.error('[SimulatorQA] 자동 프로브 오류:', error);
-            setSimulatorQaStatus(`자동 QA 오류: ${error.message}`);
-          },
-          onDailyLimitReached: () => {
-            setSimulatorQaStatus('자동 QA: 일일 한도 도달');
-          },
-        });
-        return;
-      }
-
-      if (checks >= maxChecks) {
-        window.clearInterval(intervalId);
-        setSimulatorQaStatus('자동 QA: 광고 준비 대기 중 (추가 탭으로 수동 재시도 가능)');
-      }
-    }, 500);
-
-    return () => {
-      window.clearInterval(intervalId);
-    };
-  }, [gameState, isSimulatorQaEnabled]);
-
-  useEffect(() => {
-    if (gameState === GameState.MENU) {
-      simulatorAutoGameOverTriggeredRef.current = false;
-      simulatorAutoReviveTriggeredRef.current = false;
-    }
-  }, [gameState]);
-
-  // DEV 시뮬레이터 전용 자동 QA 모드:
-  // localStorage('slidemino_sim_qa_mode') = 'force_gameover_and_revive'
-  // => 게임 진입 즉시 강제 게임오버를 만들고, 광고 준비 완료 시 부활까지 자동 시도
-  useEffect(() => {
-    if (getSimulatorQaMode() !== 'force_gameover_and_revive') return;
-    if (gameState !== GameState.PLAYING) return;
-    if (simulatorAutoGameOverTriggeredRef.current) return;
-
-    simulatorAutoGameOverTriggeredRef.current = true;
-    setIsReviveAdReady(rewardInterstitialAdService.isAdReady());
-    if (!rewardInterstitialAdService.isAdReady()) {
-      rewardInterstitialAdService.preloadAd();
-    }
-    setSimulatorQaStatus('자동 QA: 강제 게임오버 진입');
-    setGameState(GameState.GAME_OVER);
-  }, [gameState, getSimulatorQaMode]);
-
-  useEffect(() => {
-    if (getSimulatorQaMode() !== 'force_gameover_and_revive') return;
-    if (gameState !== GameState.GAME_OVER) return;
-    if (!isRewardInterstitialAdSupported()) return;
-    if (hasUsedReviveThisRun) return;
-    if (simulatorAutoReviveTriggeredRef.current || isReviveAdInProgress) return;
-
-    if (!isReviveAdReady) {
-      setSimulatorQaStatus('자동 QA: 부활 광고 준비 대기 중...');
-      rewardInterstitialAdService.preloadAd();
-      return;
-    }
-
-    simulatorAutoReviveTriggeredRef.current = true;
-    setSimulatorQaStatus('자동 QA: 부활 광고 시도 중...');
-    handleWatchReviveAd();
-  }, [
-    gameState,
-    getSimulatorQaMode,
-    handleWatchReviveAd,
-    hasUsedReviveThisRun,
-    isReviveAdInProgress,
-    isReviveAdReady,
-  ]);
 
   // 🆕 광고 미리 로드 (게임 진행 중이고 되돌리기가 0일 때)
   useEffect(() => {
@@ -1972,18 +1699,6 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // 시뮬레이터 QA 단축키(DEV 전용): 게임오버 상태에서 V 키로 부활 광고 트리거
-      if (
-        import.meta.env.DEV
-        && isSimulatorQaEnabled
-        && gameState === GameState.GAME_OVER
-        && (e.key === 'v' || e.key === 'V')
-      ) {
-        e.preventDefault();
-        handleWatchReviveAd();
-        return;
-      }
-
       if (e.key === 'r' || e.key === 'R') {
         if (draggingPiece) rotateActivePiece();
       }
@@ -2016,11 +1731,8 @@ const App: React.FC = () => {
   }, [
     gameState,
     phase,
-    grid,
     draggingPiece,
     rotateActivePiece,
-    handleWatchReviveAd,
-    isSimulatorQaEnabled,
     isReviveSelectionMode,
   ]);
 
@@ -2738,35 +2450,6 @@ const App: React.FC = () => {
               ))}
             </p>
           </div>
-
-          {isSimulatorQaEnabled && (
-            <div className="w-full max-w-xs rounded-2xl border border-amber-200/80 bg-amber-50/90 p-3 text-left shadow-sm">
-              <button
-                type="button"
-                id="sim-qa-toggle-btn"
-                onClick={() => setShowSimulatorQaPanel((prev) => !prev)}
-                className="w-full rounded-xl border border-amber-300/70 bg-amber-100/80 px-3 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-100 transition-colors"
-              >
-                {showSimulatorQaPanel ? '시뮬레이터 QA 닫기' : '시뮬레이터 QA 열기'}
-              </button>
-
-              {showSimulatorQaPanel && (
-                <div className="mt-2 space-y-2">
-                  <button
-                    type="button"
-                    id="sim-qa-revive-ad-btn"
-                    onClick={handleSimulatorReviveAdProbe}
-                    className="w-full rounded-xl bg-amber-600 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-700 transition-colors"
-                  >
-                    보상형 전면 광고(부활) 테스트
-                  </button>
-                  <p className="text-xs text-amber-900/90 leading-relaxed">
-                    {simulatorQaStatus ?? '시뮬레이터 전용 도구입니다. 실제 사용자에게는 보이지 않습니다.'}
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
 
           {isWin98ThemeActive ? (
             <div className="window w-full max-w-md animate-slide-up win98-menu-window">

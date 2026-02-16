@@ -92,12 +92,15 @@ const MergingTilesLayer = React.memo<{
         const transform = `translate3d(${layout.posPx[mt.currentX]}px, ${layout.posPx[mt.currentY]}px, 0)`;
         const { text, fontPx } = getTileNumberLayout(mt.value, layout.cellPx);
         const appearance = resolveTileAppearance(mt.value);
+        const preserveAppearanceInWin98 = Boolean(appearance.style?.backgroundColor || appearance.style?.backgroundImage || appearance.style?.boxShadow);
         return (
           <div
             key={`merge-${mt.id}`}
             data-tile-id={mt.id}
             data-tile-distance={mt.distance}
             data-tile-kind="merge"
+            data-win98-allow-gradient={preserveAppearanceInWin98 ? 'true' : undefined}
+            data-win98-allow-shadow={preserveAppearanceInWin98 ? 'true' : undefined}
             className={`
               absolute rounded-xl win98-tile-face flex items-center justify-center 
               font-semibold overflow-hidden text-center
@@ -167,6 +170,7 @@ const TilesLayer = React.memo<{
         const transform = `translate3d(${layout.posPx[tile.x]}px, ${layout.posPx[tile.y]}px, 0)`;
         const { text, fontPx } = getTileNumberLayout(displayValue, layout.cellPx);
         const appearance = resolveTileAppearance(displayValue);
+        const preserveAppearanceInWin98 = Boolean(appearance.style?.backgroundColor || appearance.style?.backgroundImage || appearance.style?.boxShadow);
         const isPendingTarget = canSelectTiles && revivePendingTileId === tile.id;
         const evervaultIntensity = isEvervaultSkin
           ? clamp(Math.log2(Math.max(1, displayValue)) / 15, 0, 1)
@@ -181,6 +185,8 @@ const TilesLayer = React.memo<{
             data-revive-pending={isPendingTarget ? 'true' : 'false'}
             data-tile-distance={tile.distance}
             data-tile-kind="tile"
+            data-win98-allow-gradient={preserveAppearanceInWin98 ? 'true' : undefined}
+            data-win98-allow-shadow={preserveAppearanceInWin98 ? 'true' : undefined}
             className={`
               absolute ${isWin98ThemeActive ? '' : 'rounded-xl'} win98-tile-face flex items-center justify-center 
               font-semibold overflow-hidden text-center
@@ -251,6 +257,7 @@ const ReviveDestroyLayer = React.memo<{
       {effects.map((effect) => {
         const transform = `translate3d(${layout.posPx[effect.x]}px, ${layout.posPx[effect.y]}px, 0)`;
         const appearance = resolveTileAppearance(effect.value);
+        const preserveAppearanceInWin98 = Boolean(appearance.style?.backgroundColor || appearance.style?.backgroundImage || appearance.style?.boxShadow);
         const { text, fontPx } = getTileNumberLayout(effect.value, layout.cellPx);
         return (
           <div
@@ -271,6 +278,8 @@ const ReviveDestroyLayer = React.memo<{
                 ${appearance.className}
               `}
               data-tile-kind="revive-effect"
+              data-win98-allow-gradient={preserveAppearanceInWin98 ? 'true' : undefined}
+              data-win98-allow-shadow={preserveAppearanceInWin98 ? 'true' : undefined}
               style={{
                 fontSize: `${fontPx}px`,
                 lineHeight: 1,

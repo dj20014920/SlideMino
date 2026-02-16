@@ -3052,13 +3052,14 @@ const App: React.FC = () => {
                 disabled={isReviveSelectionMode}
                 className={`
                   p-2 rounded-full text-gray-600 win98-icon-btn ${isWin98ThemeActive ? 'win98-header-icon-btn' : ''}
+                  flex items-center justify-center leading-none
                   bg-white/70 hover:bg-white border border-white/50
                   shadow-sm hover:shadow-md transition-all duration-200 active:scale-95
                   ${(isSwipeFocusMode || isReviveSelectionMode) ? 'opacity-35 grayscale pointer-events-none select-none' : ''}
                 `}
                 aria-label={t('common:aria.help')}
               >
-                <HelpCircle size={18} />
+                <HelpCircle size={18} className="block" />
               </button>
 
               {/* Undo / Recharge Button (single slot) */}

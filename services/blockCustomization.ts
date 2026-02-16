@@ -376,8 +376,8 @@ function resolveExplicitPaletteSkin(
   palette: string[],
   styleData?: any,
 ): ResolvedTileAppearance {
-  const idx = Math.min(Math.max(0, Math.floor(Math.log2(Math.max(1, value)))), palette.length - 1);
-  const paletteHex = palette[idx];
+  const exponent = Math.max(0, Math.floor(Math.log2(Math.max(1, value))));
+  const paletteHex = resolveExtendedPaletteColor(exponent, palette);
   const paletteRgb = hexToRgb(paletteHex);
   const renderMode: SkinRenderMode = SKIN_RENDER_MODES[skinId] || 'standard';
   const t = clamp(Math.log2(Math.max(1, value)) / 15, 0, 1);
@@ -427,6 +427,36 @@ function resolveExplicitPaletteSkin(
 
   return { className: getTileColor(value), style };
 }
+
+const normalizeHueDelta = (delta: number): number => {
+  if (delta > 180) return delta - 360;
+  if (delta < -180) return delta + 360;
+  return delta;
+};
+
+// Explicit palette는 기본 16단계(1~32768) 기준이지만,
+// 그 이상 값에서도 마지막 색으로 고정하지 않고 꼬리 구간의 변화량을 외삽해
+// 미리보기/실게임에서 일관된 색상 progression을 유지한다.
+const resolveExtendedPaletteColor = (exponent: number, palette: string[]): string => {
+  if (palette.length === 0) return '#ffffff';
+  if (exponent < palette.length) return palette[exponent];
+  if (palette.length === 1) return palette[0];
+
+  const lastIndex = palette.length - 1;
+  const overflowSteps = exponent - lastIndex;
+  const prevHsl = rgbToHsl(hexToRgb(palette[lastIndex - 1]));
+  const lastHsl = rgbToHsl(hexToRgb(palette[lastIndex]));
+
+  const hueStep = normalizeHueDelta(lastHsl.h - prevHsl.h);
+  const satStep = lastHsl.s - prevHsl.s;
+  const lightStep = lastHsl.l - prevHsl.l;
+
+  const nextH = (lastHsl.h + hueStep * overflowSteps + 360 * 8) % 360;
+  const nextS = clamp(lastHsl.s + satStep * overflowSteps, 0, 100);
+  const nextL = clamp(lastHsl.l + lightStep * overflowSteps, 3, 97);
+
+  return rgbToHex(hslToRgb({ h: nextH, s: nextS, l: nextL }));
+};
 
 // ==============================================
 // Auto Text Color
@@ -502,9 +532,17 @@ export const resolveTileAppearance = (
 
   // 1순위: 활성 스킨
   if (skinSettings?.activeSkinId) {
-    const activeSkin = skinSettings.ownedSkins.find(s => s.id === skinSettings.activeSkinId);
-    if (activeSkin) {
-      return resolveSkinAppearance(value, activeSkin);
+    // 컬렉션 미리보기와 실제 게임 타일이 동일한 색/스타일 경로를 사용하도록
+    // 카탈로그 정의를 우선 소스로 사용한다.
+    const catalogSkin = SKIN_CATALOG.find((entry) => entry.id === skinSettings.activeSkinId);
+    if (catalogSkin) {
+      return resolveSkinAppearance(value, catalogSkin);
+    }
+
+    // 구버전/예외 데이터 호환용 fallback
+    const ownedSkin = skinSettings.ownedSkins.find((skin) => skin.id === skinSettings.activeSkinId);
+    if (ownedSkin) {
+      return resolveSkinAppearance(value, ownedSkin);
     }
   }
 

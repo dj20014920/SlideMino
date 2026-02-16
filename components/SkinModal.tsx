@@ -2,13 +2,13 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, Lock, X } from 'lucide-react';
-import { SKIN_CATALOG, SKIN_PREVIEW_VALUES, MAX_DAILY_SKIN_AD_VIEWS } from '../constants';
+import { SKIN_CATALOG, SKIN_PREVIEW_VALUES, MAX_DAILY_SKIN_AD_VIEWS, FRAGMENTS_PER_DUPLICATE } from '../constants';
 import { getTileNumberLayout } from '../constants';
 import { useBlockCustomization } from '../context/BlockCustomizationContext';
-import type { SkinItem } from '../types';
+import type { SkinItem, SkinDrawResult } from '../types';
 import { getSkinColorForValue, resolveSkinAppearance } from '../services/blockCustomization';
 import { buildGradient, getWhiteTextStyleForBackground, hexToRgb } from '../services/blockCustomization';
-import { pickRandomSkin, isCollectionComplete } from '../services/skinService';
+import { drawSkin, isCollectionComplete, getFragmentCost } from '../services/skinService';
 import { skinRewardAdService } from '../services/skinRewardAdService';
 import { isSkinRewardAdSupported } from '../services/adConfig';
 import { SkinAcquisitionOverlay } from './SkinAcquisitionOverlay';
@@ -47,10 +47,11 @@ const SkinPreviewTile = React.memo<{ value: number; skin: { id?: string; hex: st
 
 export function SkinModal({ open, onClose }: SkinModalProps) {
   const { t } = useTranslation();
-  const { skinSettings, activeSkin, addSkin, setActiveSkin, isWin98ThemeActive } = useBlockCustomization();
+  const { skinSettings, activeSkin, addSkin, setActiveSkin, isWin98ThemeActive, addFragments, purchaseSkin } = useBlockCustomization();
   const [selectedSkinHex, setSelectedSkinHex] = useState<string | null>(null);
   const [selectedSkinId, setSelectedSkinId] = useState<string | null>(null);
-  const [acquisitionSkin, setAcquisitionSkin] = useState<SkinItem | null>(null);
+  const [acquisitionSkin, setAcquisitionSkin] = useState<{ id?: string; hex: string; style?: any } | null>(null);
+  const [acquisitionIsDuplicate, setAcquisitionIsDuplicate] = useState(false);
   const [remainingAds, setRemainingAds] = useState(skinRewardAdService.getRemainingDailyViews());
   const [adError, setAdError] = useState<string | null>(null);
 
@@ -114,27 +115,33 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
   const handleDraw = useCallback(() => {
     setAdError(null);
 
-    let rewardedSkin: SkinItem | null = null;
+    let drawResult: SkinDrawResult | null = null;
     let adClosed = false;
 
     const startAcquisitionAfterClose = () => {
-      if (!adClosed || !rewardedSkin) return;
+      if (!adClosed || !drawResult) return;
 
-      // 광고가 완전히 닫힌 뒤에만 획득 애니메이션 시작
-      setAcquisitionSkin(rewardedSkin);
-      addSkin(rewardedSkin);
+      if (drawResult.type === 'new') {
+        setAcquisitionSkin(drawResult.skin);
+        setAcquisitionIsDuplicate(false);
+        addSkin(drawResult.skin);
+      } else {
+        // 중복 → 조각 지급
+        setAcquisitionSkin({ id: drawResult.skin.id, hex: drawResult.skin.hex, style: drawResult.skin.style });
+        setAcquisitionIsDuplicate(true);
+        addFragments(drawResult.fragmentsEarned);
+      }
+
       setRemainingAds(skinRewardAdService.getRemainingDailyViews());
-
-      rewardedSkin = null;
+      drawResult = null;
     };
 
     skinRewardAdService.showRewardAd({
       onRewardEarned: () => {
-        const newSkin = pickRandomSkin(skinSettings);
-        if (!newSkin) return;
+        const result = drawSkin(skinSettings);
+        if (!result) return;
 
-        // 보상 확정 정보만 저장하고, 실제 연출/지급은 광고 종료 시점에 실행
-        rewardedSkin = newSkin;
+        drawResult = result;
         startAcquisitionAfterClose();
       },
       onAdClosed: () => {
@@ -149,7 +156,20 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
         setRemainingAds(0);
       },
     });
-  }, [skinSettings, addSkin]);
+  }, [skinSettings, addSkin, addFragments]);
+
+  // 조각으로 스킨 교환
+  const handlePurchase = useCallback((skinId: string) => {
+    const entry = SKIN_CATALOG.find(e => e.id === skinId);
+    if (!entry) return;
+    // 방어 코드: UI가 이미 막고 있지만, 이중 확인
+    if (ownedIds.has(skinId)) return;
+    const cost = getFragmentCost(skinId);
+    if (skinSettings.fragments < cost) return;
+    purchaseSkin(skinId);
+    setAcquisitionSkin({ id: entry.id, hex: entry.hex, style: entry.style });
+    setAcquisitionIsDuplicate(false);
+  }, [purchaseSkin, ownedIds, skinSettings.fragments]);
 
   // 미리보기 표시할 스킨: 선택된 스킨 > 활성 스킨 > 첫 번째 카탈로그
   const previewSkin = useMemo(() => {
@@ -188,6 +208,7 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
             <div className="window-body flex-1 min-h-0 overflow-hidden">
               <p className="status-bar-field" style={{ marginBottom: '12px' }}>
                 {String(t('modals:skin.ownedCount', { owned: skinSettings.ownedSkins.length, total: SKIN_CATALOG.length } as any))}
+                {' | 🧩 '}{skinSettings.fragments}
               </p>
 
               <div className="sunken-panel" style={{ height: '100%', minHeight: '180px', overflowY: 'scroll', padding: '6px', backgroundColor: '#c0c0c0' }}>
@@ -218,6 +239,9 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                               }}
                             >
                               <div className={`w-full h-full ${className}`} style={style} data-win98-allow-gradient="true" data-win98-allow-shadow="true" data-skin-swatch="true">
+                                {entry.premium && (
+                                  <div className="absolute top-0 right-0 z-20" style={{ fontSize: '8px', lineHeight: 1 }}>💎</div>
+                                )}
                                 {isActive && (
                                   <div className="absolute inset-0 flex items-center justify-center">
                                      <span style={{ color: '#000', fontWeight: 'bold', textShadow: '1px 1px 0 #fff' }}>v</span>
@@ -246,7 +270,26 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                              ))}
                           </div>
                           <div style={{ textAlign: 'center', marginTop: '4px', fontSize: '11px' }}>
-                            {ownedIds.has(selectedSkinId) ? t('modals:skin.tapToApply') : t('modals:skin.notOwned')}
+                            {ownedIds.has(selectedSkinId) ? t('modals:skin.tapToApply') : (
+                              <>
+                                <div>{t('modals:skin.notOwned')}</div>
+                                {(() => {
+                                  const cost = getFragmentCost(selectedSkinId);
+                                  const canAfford = skinSettings.fragments >= cost;
+                                  return (
+                                    <button
+                                      disabled={!canAfford}
+                                      onClick={() => handlePurchase(selectedSkinId)}
+                                      style={{ width: '100%', marginTop: '4px', fontWeight: canAfford ? 'bold' : 'normal' }}
+                                    >
+                                      {canAfford
+                                        ? t('modals:skin.purchaseButton', { cost })
+                                        : t('modals:skin.insufficientFragments', { current: skinSettings.fragments, cost })}
+                                    </button>
+                                  );
+                                })()}
+                              </>
+                            )}
                           </div>
                         </div>
                       )}
@@ -257,11 +300,12 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
 
               {isSkinRewardAdSupported() && (
                  <div style={{ marginTop: '12px', textAlign: 'center' }}>
-                    {collectionComplete ? (
-                      <div className="field-row bg-info text-center justify-center">
+                    {collectionComplete && (
+                      <div className="field-row bg-info text-center justify-center" style={{ marginBottom: '4px' }}>
                          <p>{t('modals:skin.collectionComplete')}</p>
                       </div>
-                    ) : remainingAds > 0 ? (
+                    )}
+                    {remainingAds > 0 ? (
                       <button onClick={handleDraw} style={{ width: '100%', height: '32px', fontWeight: 'bold' }}>
                         {t('modals:skin.drawButton')} ({remainingAds}/{MAX_DAILY_SKIN_AD_VIEWS})
                       </button>
@@ -288,7 +332,10 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
         {acquisitionSkin && (
           <SkinAcquisitionOverlay
              skin={acquisitionSkin}
-             onComplete={() => setAcquisitionSkin(null)}
+             isDuplicate={acquisitionIsDuplicate}
+             fragmentsEarned={acquisitionIsDuplicate ? FRAGMENTS_PER_DUPLICATE : undefined}
+             totalFragments={skinSettings.fragments}
+             onComplete={() => { setAcquisitionSkin(null); setAcquisitionIsDuplicate(false); }}
           />
         )}
       </AnimatePresence>
@@ -311,9 +358,11 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
           <div className="flex items-center justify-between px-5 py-4 border-b border-black/5 shrink-0">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">{t('modals:skin.title')}</h3>
-                <p className="text-xs text-gray-500">
-                  {String(t('modals:skin.ownedCount', { owned: skinSettings.ownedSkins.length, total: SKIN_CATALOG.length } as any))}
-                </p>
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <span>{String(t('modals:skin.ownedCount', { owned: skinSettings.ownedSkins.length, total: SKIN_CATALOG.length } as any))}</span>
+                  <span className="text-gray-300">|</span>
+                  <span>🧩 {skinSettings.fragments}</span>
+                </div>
               </div>
             <button
               type="button"
@@ -353,6 +402,10 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                           `}
                           style={style}
                         >
+                          {/* 프리미엄 배지 */}
+                          {entry.premium && (
+                            <div className="absolute top-0.5 right-0.5 z-20 text-[8px] leading-none drop-shadow">💎</div>
+                          )}
                           {/* 활성 스킨 체크마크 */}
                           {isActive && (
                             <div className="absolute inset-0 flex items-center justify-center z-10">
@@ -396,12 +449,35 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                               <SkinPreviewTile key={v} value={v} skin={previewSkin} tilePx={52} />
                             ))}
                           </div>
-                          {/* 선택 상태 안내 */}
-                          <div className="text-xs text-gray-500 text-center">
-                            {ownedIds.has(selectedSkinId)
-                              ? t('modals:skin.tapToApply')
-                              : t('modals:skin.notOwned')
-                            }
+                          {/* 선택 상태 안내 + 교환 버튼 */}
+                          <div className="text-xs text-center space-y-1.5">
+                            {ownedIds.has(selectedSkinId) ? (
+                              <span className="text-gray-500">{t('modals:skin.tapToApply')}</span>
+                            ) : (
+                              <>
+                                <div className="text-gray-500">{t('modals:skin.notOwned')}</div>
+                                {(() => {
+                                  const cost = getFragmentCost(selectedSkinId);
+                                  const canAfford = skinSettings.fragments >= cost;
+                                  return (
+                                    <button
+                                      type="button"
+                                      disabled={!canAfford}
+                                      onClick={(e) => { e.stopPropagation(); handlePurchase(selectedSkinId); }}
+                                      className={`w-full py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                                        canAfford
+                                          ? 'bg-gray-900 text-white hover:bg-gray-800 active:scale-[0.98]'
+                                          : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                      }`}
+                                    >
+                                      {canAfford
+                                        ? t('modals:skin.purchaseButton', { cost })
+                                        : t('modals:skin.insufficientFragments', { current: skinSettings.fragments, cost })}
+                                    </button>
+                                  );
+                                })()}
+                              </>
+                            )}
                           </div>
                         </div>
                       </motion.div>
@@ -414,11 +490,12 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
             {/* 뽑기 버튼 영역 */}
             {isSkinRewardAdSupported() && (
               <div className="space-y-2">
-                {collectionComplete ? (
-                  <div className="text-center py-3 rounded-2xl bg-gradient-to-r from-amber-50 to-amber-100 border border-amber-200/60 text-amber-700 font-semibold text-sm">
+                {collectionComplete && (
+                  <div className="text-center py-2 rounded-2xl bg-gradient-to-r from-amber-50 to-amber-100 border border-amber-200/60 text-amber-700 font-semibold text-sm">
                     {t('modals:skin.collectionComplete')}
                   </div>
-                ) : remainingAds > 0 ? (
+                )}
+                {remainingAds > 0 ? (
                   <button
                     type="button"
                     onClick={handleDraw}
@@ -449,7 +526,10 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
         {acquisitionSkin && (
           <SkinAcquisitionOverlay
             skin={acquisitionSkin}
-            onComplete={() => setAcquisitionSkin(null)}
+            isDuplicate={acquisitionIsDuplicate}
+            fragmentsEarned={acquisitionIsDuplicate ? FRAGMENTS_PER_DUPLICATE : undefined}
+            totalFragments={skinSettings.fragments}
+            onComplete={() => { setAcquisitionSkin(null); setAcquisitionIsDuplicate(false); }}
           />
         )}
       </AnimatePresence>

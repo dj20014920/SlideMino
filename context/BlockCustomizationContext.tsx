@@ -13,7 +13,7 @@ import {
   saveSkinSettings,
 } from '../services/skinService';
 import { getFeatureGateDecision, type FeatureGateDecision } from '../services/featureGates';
-import { SKIN_CATALOG } from '../constants';
+import { SKIN_CATALOG, FRAGMENT_COST_NORMAL, FRAGMENT_COST_PREMIUM } from '../constants';
 
 type BlockCustomizationContextValue = {
   gate: FeatureGateDecision;
@@ -27,6 +27,8 @@ type BlockCustomizationContextValue = {
   isWin98ThemeActive: boolean;
   addSkin: (skin: SkinItem) => void;
   setActiveSkin: (id: string | null) => void;
+  addFragments: (amount: number) => void;
+  purchaseSkin: (skinId: string) => void;
 };
 
 const BlockCustomizationContext = createContext<BlockCustomizationContextValue | null>(null);
@@ -137,6 +139,29 @@ export function BlockCustomizationProvider({ children }: { children: React.React
     });
   }, []);
 
+  const addFragments = useCallback((amount: number) => {
+    setSkinSettings(prev => ({
+      ...prev,
+      fragments: prev.fragments + amount,
+    }));
+  }, []);
+
+  const purchaseSkin = useCallback((skinId: string) => {
+    setSkinSettings(prev => {
+      if (prev.ownedSkins.some(s => s.id === skinId)) return prev;
+      const entry = SKIN_CATALOG.find(e => e.id === skinId);
+      if (!entry) return prev;
+      const cost = entry.premium ? FRAGMENT_COST_PREMIUM : FRAGMENT_COST_NORMAL;
+      if (prev.fragments < cost) return prev;
+      const newSkin: SkinItem = { id: entry.id, hex: entry.hex, acquiredAt: Date.now() };
+      return {
+        ...prev,
+        fragments: prev.fragments - cost,
+        ownedSkins: [...prev.ownedSkins, newSkin],
+      };
+    });
+  }, []);
+
   const setActiveSkin = useCallback((id: string | null) => {
     setSkinSettings(prev => ({ ...prev, activeSkinId: id }));
   }, []);
@@ -163,8 +188,10 @@ export function BlockCustomizationProvider({ children }: { children: React.React
       isWin98ThemeActive,
       addSkin,
       setActiveSkin,
+      addFragments,
+      purchaseSkin,
     }),
-    [gate, settings, resetAll, resolver, skinSettings, activeSkin, isWin98ThemeActive, addSkin, setActiveSkin]
+    [gate, settings, resetAll, resolver, skinSettings, activeSkin, isWin98ThemeActive, addSkin, setActiveSkin, addFragments, purchaseSkin]
   );
 
   return (

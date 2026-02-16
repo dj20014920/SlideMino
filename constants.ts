@@ -265,6 +265,9 @@ export const MAX_DAILY_BLOCK_REFRESH_AD_VIEWS = 5;
  * 하루 최대 스킨 뽑기 광고 시청 횟수
  */
 export const MAX_DAILY_SKIN_AD_VIEWS = 3;
+export const FRAGMENTS_PER_DUPLICATE = 1;  // 중복 뽑기 시 획득 조각 수
+export const FRAGMENT_COST_NORMAL = 10;    // 일반 스킨 교환 비용
+export const FRAGMENT_COST_PREMIUM = 30;   // 프리미엄 스킨 교환 비용
 
 /**
  * 스킨 카탈로그 (확장 시 여기에 항목만 추가)

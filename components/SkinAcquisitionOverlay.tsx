@@ -5,6 +5,9 @@ import { hexToRgb, resolveSkinAppearance } from '../services/blockCustomization'
 
 type SkinAcquisitionOverlayProps = {
   skin: { id?: string; hex: string; style?: any };
+  isDuplicate?: boolean;
+  fragmentsEarned?: number;
+  totalFragments?: number;
   onComplete: () => void;
 };
 
@@ -21,7 +24,13 @@ const ANIMATION_TIMINGS = {
  * - 임계점에서 고광도 플래시 + 코로나(후광) + 플레어
  * - 최종 획득 스킨 블럭 노출
  */
-export const SkinAcquisitionOverlay: React.FC<SkinAcquisitionOverlayProps> = ({ skin, onComplete }) => {
+export const SkinAcquisitionOverlay: React.FC<SkinAcquisitionOverlayProps> = ({
+  skin,
+  isDuplicate = false,
+  fragmentsEarned = 0,
+  totalFragments = 0,
+  onComplete,
+}) => {
   const { t } = useTranslation();
   const [phase, setPhase] = useState(0); // 0=준비, 1=힘겹게 합성, 2=임계 플래시, 3=결과 노출
   const [canDismiss, setCanDismiss] = useState(false); // 클릭해서 닫을 수 있는지 여부
@@ -332,18 +341,24 @@ export const SkinAcquisitionOverlay: React.FC<SkinAcquisitionOverlayProps> = ({ 
             className="flex flex-col items-center gap-4 z-30"
           >
             <div className="text-3xl font-bold text-white drop-shadow-lg tracking-wider">
-              {t('modals:skinAcquisition.title')}
+              {isDuplicate
+                ? t('modals:skinAcquisition.duplicateTitle')
+                : t('modals:skinAcquisition.title')}
             </div>
             
             <div 
                 className="px-6 py-2 rounded-full text-base font-mono font-bold text-white border border-white/30 shadow-[0_0_15px_rgba(255,255,255,0.2)]"
                 style={{ backgroundColor: colors.corona, textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}
             >
-              {skinHex.toUpperCase()}
+              {isDuplicate
+                ? t('modals:skinAcquisition.fragmentEarned', { count: fragmentsEarned })
+                : skinHex.toUpperCase()}
             </div>
             
             <div className="text-base text-white/70 font-medium">
-              {t('modals:skinAcquisition.addedToCollection')}
+              {isDuplicate
+                ? t('modals:skinAcquisition.totalFragments', { total: totalFragments })
+                : t('modals:skinAcquisition.addedToCollection')}
             </div>
             
             {/* 탭하여 닫기 안내 */}

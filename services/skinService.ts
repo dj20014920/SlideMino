@@ -1,12 +1,13 @@
 /**
  * 스킨 컬렉션 서비스
  * - 스킨 저장/로드 (localStorage)
- * - 미보유 스킨 랜덤 뽑기
- * - 컬렉션 완성 여부 체크
+ * - 가중치 랜덤 뽑기 (프리미엄 = 확률 절반)
+ * - 중복 뽑기 → 스킨 조각 지급
+ * - 조각으로 스킨 교환
  */
 
-import { SKIN_CATALOG } from '../constants';
-import type { SkinItem, SkinSettings } from '../types';
+import { SKIN_CATALOG, FRAGMENTS_PER_DUPLICATE, FRAGMENT_COST_NORMAL, FRAGMENT_COST_PREMIUM } from '../constants';
+import type { SkinItem, SkinSettings, SkinDrawResult } from '../types';
 
 const SKIN_STORAGE_KEY = 'slidemino.skin.v2';
 
@@ -14,6 +15,7 @@ export const DEFAULT_SKIN_SETTINGS: SkinSettings = {
   version: 2,
   ownedSkins: [],
   activeSkinId: null,
+  fragments: 0,
 };
 
 // 유효한 hex 색상인지 검증
@@ -58,7 +60,13 @@ export const loadSkinSettings = (): SkinSettings => {
         ? obj.activeSkinId
         : null;
 
-    return { version: 2, ownedSkins, activeSkinId };
+    // fragments: 기존 데이터에 없으면 0으로 초기화 (하위 호환)
+    const fragments =
+      typeof obj.fragments === 'number' && Number.isFinite(obj.fragments)
+        ? Math.max(0, Math.floor(obj.fragments))
+        : 0;
+
+    return { version: 2, ownedSkins, activeSkinId, fragments };
   } catch {
     return DEFAULT_SKIN_SETTINGS;
   }
@@ -73,21 +81,45 @@ export const saveSkinSettings = (settings: SkinSettings): void => {
 };
 
 /**
- * 미보유 스킨 중 하나를 랜덤 선택하여 SkinItem 생성.
- * 모든 스킨 보유 시 null 반환.
+ * 가중치 랜덤 스킨 뽑기.
+ * - 일반 스킨: 가중치 2, 프리미엄 스킨: 가중치 1 (확률 절반)
+ * - 보유 스킨이 뽑히면 → 중복 → 스킨 조각 지급
+ * - 미보유 스킨이 뽑히면 → 새 스킨 획득
  */
-export const pickRandomSkin = (settings: SkinSettings): SkinItem | null => {
+export const drawSkin = (settings: SkinSettings): SkinDrawResult | null => {
+  if (SKIN_CATALOG.length === 0) return null;
+
   const ownedIds = new Set(settings.ownedSkins.map(s => s.id));
-  const unowned = SKIN_CATALOG.filter(entry => !ownedIds.has(entry.id));
+  const totalWeight = SKIN_CATALOG.reduce(
+    (sum, entry) => sum + (entry.premium ? 1 : 2), 0,
+  );
 
-  if (unowned.length === 0) return null;
+  let roll = Math.random() * totalWeight;
+  for (const entry of SKIN_CATALOG) {
+    roll -= entry.premium ? 1 : 2;
+    if (roll <= 0) {
+      if (ownedIds.has(entry.id)) {
+        return { type: 'duplicate', skin: entry, fragmentsEarned: FRAGMENTS_PER_DUPLICATE };
+      }
+      return { type: 'new', skin: { id: entry.id, hex: entry.hex, acquiredAt: Date.now() } };
+    }
+  }
 
-  const picked = unowned[Math.floor(Math.random() * unowned.length)];
-  return {
-    id: picked.id,
-    hex: picked.hex,
-    acquiredAt: Date.now(),
-  };
+  // 안전장치 (부동소수점 오차 방지)
+  const last = SKIN_CATALOG[SKIN_CATALOG.length - 1];
+  if (ownedIds.has(last.id)) {
+    return { type: 'duplicate', skin: last, fragmentsEarned: FRAGMENTS_PER_DUPLICATE };
+  }
+  return { type: 'new', skin: { id: last.id, hex: last.hex, acquiredAt: Date.now() } };
+};
+
+/**
+ * 스킨 교환에 필요한 조각 수 (일반: 10, 프리미엄: 30)
+ */
+export const getFragmentCost = (skinId: string): number => {
+  const entry = SKIN_CATALOG.find(e => e.id === skinId);
+  if (!entry) return Infinity;
+  return entry.premium ? FRAGMENT_COST_PREMIUM : FRAGMENT_COST_NORMAL;
 };
 
 /**

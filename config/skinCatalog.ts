@@ -12,6 +12,7 @@ export const ADDITIONAL_SKIN_CATALOG: SkinCatalogEntry[] = [
     hex: '#c0c0c0',
     category: 'digital',
     nameKey: 'retroWindows98',
+    premium: true,
     style: {
       type: 'solid',
       value: '#c0c0c0',
@@ -35,6 +36,7 @@ export const ADDITIONAL_SKIN_CATALOG: SkinCatalogEntry[] = [
     hex: '#a855f7',
     category: 'digital',
     nameKey: 'evervaultCard',
+    premium: true,
     style: {
       type: 'solid',
       value: '#0a0a0a',

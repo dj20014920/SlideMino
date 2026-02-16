@@ -155,11 +155,17 @@
     "addedToCollection": "Added to your collection",
     "notOwned": "Not owned",
     "tapToApply": "Tap to apply/remove",
-    "collectionComplete": "Collection Complete!"
+    "collectionComplete": "Collection Complete!",
+    "purchaseButton": "🧩 Exchange for {{cost}} fragments",
+    "insufficientFragments": "Not enough ({{current}}/{{cost}})",
+    "premium": "Premium"
   },
   "skinAcquisition": {
     "title": "Skin Acquired!",
     "addedToCollection": "Added to your collection!",
-    "tapToClose": "Tap to close"
+    "tapToClose": "Tap to close",
+    "duplicateTitle": "Fragment Earned!",
+    "fragmentEarned": "+{{count}} Fragment",
+    "totalFragments": "Total: {{total}}"
   }
 }

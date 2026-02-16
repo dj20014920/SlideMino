@@ -101,6 +101,7 @@ export interface SkinCatalogEntry {
   category?: SkinCategory;
   nameKey?: string; // i18n key suffix
   style?: SkinStyle; // Advanced styling
+  premium?: boolean; // 프리미엄 스킨 (뽑기 확률 절반, 교환 비용 증가)
 }
 
 // 사용자가 획득한 스킨
@@ -115,4 +116,10 @@ export interface SkinSettings {
   version: 2;
   ownedSkins: SkinItem[];
   activeSkinId: string | null;
+  fragments: number; // 스킨 조각 (중복 뽑기 시 획득, 교환에 사용)
 }
+
+// 스킨 뽑기 결과
+export type SkinDrawResult =
+  | { type: 'new'; skin: SkinItem }
+  | { type: 'duplicate'; skin: SkinCatalogEntry; fragmentsEarned: number };

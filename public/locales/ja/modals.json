@@ -155,11 +155,17 @@
     "addedToCollection": "コレクションに追加されました",
     "notOwned": "未所持",
     "tapToApply": "タップで適用/解除",
-    "collectionComplete": "コレクション完成！"
+    "collectionComplete": "コレクション完成！",
+    "purchaseButton": "🧩 {{cost}}個のかけらで交換",
+    "insufficientFragments": "かけら不足 ({{current}}/{{cost}})",
+    "premium": "プレミアム"
   },
   "skinAcquisition": {
     "title": "スキン獲得！",
     "addedToCollection": "コレクションに追加されました！",
-    "tapToClose": "タップして閉じる"
+    "tapToClose": "タップして閉じる",
+    "duplicateTitle": "スキンのかけら獲得！",
+    "fragmentEarned": "+{{count}} かけら",
+    "totalFragments": "所持: {{total}}個"
   }
 }

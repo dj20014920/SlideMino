@@ -155,11 +155,17 @@
     "addedToCollection": "已添加到收藏",
     "notOwned": "未拥有",
     "tapToApply": "点击应用/取消",
-    "collectionComplete": "收藏完成！"
+    "collectionComplete": "收藏完成！",
+    "purchaseButton": "🧩 {{cost}}个碎片兑换",
+    "insufficientFragments": "碎片不足 ({{current}}/{{cost}})",
+    "premium": "高级"
   },
   "skinAcquisition": {
     "title": "获得皮肤！",
     "addedToCollection": "已添加到收藏！",
-    "tapToClose": "点击关闭"
+    "tapToClose": "点击关闭",
+    "duplicateTitle": "获得皮肤碎片！",
+    "fragmentEarned": "+{{count}} 碎片",
+    "totalFragments": "持有: {{total}}个"
   }
 }

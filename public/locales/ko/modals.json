@@ -155,11 +155,17 @@
     "addedToCollection": "컬렉션에 추가되었습니다",
     "notOwned": "미보유 스킨",
     "tapToApply": "탭하여 적용/해제",
-    "collectionComplete": "컬렉션 완성!"
+    "collectionComplete": "컴렉션 완성!",
+    "purchaseButton": "🧩 {{cost}}조각으로 교환",
+    "insufficientFragments": "조각 부족 ({{current}}/{{cost}})",
+    "premium": "프리미엄"
   },
   "skinAcquisition": {
     "title": "스킨 획득!",
-    "addedToCollection": "컬렉션에 추가되었습니다!",
-    "tapToClose": "화면을 탭하여 닫기"
+    "addedToCollection": "컴렉션에 추가되었습니다!",
+    "tapToClose": "화면을 탭하여 닫기",
+    "duplicateTitle": "스킨 조각 획득!",
+    "fragmentEarned": "+{{count}} 조각",
+    "totalFragments": "보유: {{total}}조각"
   }
 }

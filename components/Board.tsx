@@ -306,7 +306,7 @@ const GhostOverlay = React.memo<{
           <div
             key={`ghost-${idx}`}
             className={`
-              absolute ${isWin98ThemeActive ? '' : 'rounded-xl'} opacity-70 border-2 box-border
+              absolute ${isWin98ThemeActive ? '' : 'rounded-xl'} ${isWin98ThemeActive ? 'opacity-100' : 'opacity-70'} border-2 box-border
               transition-colors duration-150
               ${isWin98ThemeActive
                 ? ghostCells.isValid

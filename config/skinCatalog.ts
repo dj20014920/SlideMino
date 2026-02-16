@@ -15,7 +15,6 @@ export const ADDITIONAL_SKIN_CATALOG: SkinCatalogEntry[] = [
     style: {
       type: 'solid',
       value: '#c0c0c0',
-      textColor: '#222222',
       borderColor: '#0a0a0a',
       customCss: [
         'border-radius: 0px',

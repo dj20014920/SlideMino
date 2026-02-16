@@ -29,6 +29,8 @@ const SkinPreviewTile = React.memo<{ value: number; skin: { id?: string; hex: st
       <div
         className={`rounded-2xl win98-tile-face flex items-center justify-center font-semibold overflow-hidden text-center select-none shrink-0 ${className}`}
         data-skin-preview-tile="true"
+        data-win98-allow-gradient="true"
+        data-win98-allow-shadow="true"
         style={{
           width: `${tilePx}px`,
           height: `${tilePx}px`,
@@ -231,7 +233,7 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                                   : 'inset -1px -1px #000, inset 1px 1px #fff' // Raised look
                               }}
                             >
-                              <div className={`w-full h-full ${className}`} style={style}>
+                              <div className={`w-full h-full ${className}`} style={style} data-win98-allow-gradient="true" data-win98-allow-shadow="true" data-skin-swatch="true">
                                 {isActive && (
                                   <div className="absolute inset-0 flex items-center justify-center">
                                      <span style={{ color: '#000', fontWeight: 'bold', textShadow: '1px 1px 0 #fff' }}>v</span>

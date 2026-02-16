@@ -11,22 +11,22 @@ export const SKIN_PROGRESSIONS: Record<string, HSLProgression> = {
 };
 export const SKIN_EXPLICIT_PALETTES: Record<string, string[]> = {
   skin_digital_win98: [
-    '#f7f7f7',
-    '#ededed',
-    '#e3e3e3',
-    '#d8d8d8',
-    '#cdcdcd',
-    '#c0c0c0',
-    '#b8b8b8',
-    '#b2b2b2',
-    '#ababab',
-    '#a4a4a4',
-    '#9d9d9d',
-    '#969696',
-    '#8f8f8f',
-    '#888888',
-    '#818181',
-    '#7a7a7a',
+    '#ffffff', // 1
+    '#f5f5f5', // 2
+    '#ebebeb', // 4
+    '#dfdfdf', // 8
+    '#d2d2d2', // 16
+    '#c5c5c5', // 32
+    '#b8b8b8', // 64
+    '#ababab', // 128
+    '#9d9d9d', // 256
+    '#909090', // 512
+    '#838383', // 1024
+    '#767676', // 2048
+    '#696969', // 4096
+    '#5d5d5d', // 8192
+    '#515151', // 16384
+    '#454545', // 32768
   ],
   // Evervault: white → dark with increasing purple tint
   skin_digital_evervault: [

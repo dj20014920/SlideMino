@@ -170,16 +170,20 @@ body.theme-win98 .win98-panel [class*="rounded-"] {
   border-radius: 0 !important;
 }
 
-body.theme-win98 .window [class*="bg-gradient"],
-body.theme-win98 .win98-window [class*="bg-gradient"],
-body.theme-win98 .win98-panel [class*="bg-gradient"] {
+body.theme-win98 .window [class*="bg-gradient"]:not([data-win98-allow-gradient="true"]):not([data-skin-preview-tile="true"]),
+body.theme-win98 .win98-window [class*="bg-gradient"]:not([data-win98-allow-gradient="true"]):not([data-skin-preview-tile="true"]),
+body.theme-win98 .win98-panel [class*="bg-gradient"]:not([data-win98-allow-gradient="true"]):not([data-skin-preview-tile="true"]) {
   background: var(--win98-surface) !important;
 }
 
-body.theme-win98 .window [class*="shadow"],
-body.theme-win98 .win98-window [class*="shadow"],
-body.theme-win98 .win98-panel [class*="shadow"] {
+body.theme-win98 .window [class*="shadow"]:not([data-win98-allow-shadow="true"]):not([data-skin-preview-tile="true"]),
+body.theme-win98 .win98-window [class*="shadow"]:not([data-win98-allow-shadow="true"]):not([data-skin-preview-tile="true"]),
+body.theme-win98 .win98-panel [class*="shadow"]:not([data-win98-allow-shadow="true"]):not([data-skin-preview-tile="true"]) {
   box-shadow: none !important;
+}
+
+body.theme-win98 [data-skin-swatch="true"] {
+  border: 1px solid rgba(0, 0, 0, 0.25);
 }
 
 body.theme-win98 .window button,
@@ -335,15 +339,38 @@ body.theme-win98 .win98-slot-rotate-btn {
 body.theme-win98 .win98-ghost-valid,
 body.theme-win98 .win98-ghost-invalid {
   border-radius: 0 !important;
-  border-width: 1px !important;
-  border-style: dashed !important;
-  background: rgba(192, 192, 192, 0.6) !important;
+  border-width: 2px !important;
+  border-style: solid !important;
+  background-size: 6px 6px;
+  animation: win98GhostPulse 620ms steps(2, end) infinite;
 }
 
 body.theme-win98 .win98-ghost-valid {
-  border-color: #4b5563 !important;
+  border-color: #003d7a !important;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(0, 61, 122, 0.36) 0,
+    rgba(0, 61, 122, 0.36) 3px,
+    rgba(195, 217, 255, 0.22) 3px,
+    rgba(195, 217, 255, 0.22) 6px
+  );
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.65);
 }
 
 body.theme-win98 .win98-ghost-invalid {
-  border-color: #b91c1c !important;
+  border-color: #7a0000 !important;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(122, 0, 0, 0.34) 0,
+    rgba(122, 0, 0, 0.34) 3px,
+    rgba(255, 209, 209, 0.24) 3px,
+    rgba(255, 209, 209, 0.24) 6px
+  );
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.58);
+}
+
+@keyframes win98GhostPulse {
+  0% { filter: brightness(1); }
+  50% { filter: brightness(1.12); }
+  100% { filter: brightness(1); }
 }

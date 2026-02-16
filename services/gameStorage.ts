@@ -47,6 +47,7 @@ export interface SavedGameState {
     moveCount?: number;
     startedAt?: number;
     playerName?: string;
+    sessionLockedPlayerName?: string;
     savedAt: number; // timestamp
 }
 
@@ -83,6 +84,9 @@ const parseSavedGameState = (raw: string | null): SavedGameState | null => {
     // startedAt가 없는 구버전 데이터는 마지막 저장 시각으로 보정해 안티치트 오탐을 줄인다.
     const startedAt = typeof parsed.startedAt === 'number' ? parsed.startedAt : savedAt;
     const playerName = typeof parsed.playerName === 'string' ? parsed.playerName : undefined;
+    const sessionLockedPlayerName = typeof parsed.sessionLockedPlayerName === 'string'
+        ? parsed.sessionLockedPlayerName
+        : undefined;
     const hasUsedRevive = typeof parsed.hasUsedRevive === 'boolean' ? parsed.hasUsedRevive : undefined;
     const isReviveSelectionMode = typeof parsed.isReviveSelectionMode === 'boolean'
         ? parsed.isReviveSelectionMode
@@ -121,6 +125,7 @@ const parseSavedGameState = (raw: string | null): SavedGameState | null => {
         moveCount,
         startedAt,
         playerName,
+        sessionLockedPlayerName,
         hasUsedRevive,
         isReviveSelectionMode,
         reviveBreakRemaining,

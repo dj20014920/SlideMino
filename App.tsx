@@ -105,6 +105,7 @@ interface ActiveGameRankingSnapshot {
   duration: number;
   moves: number;
   playerName: string;
+  sessionLockedPlayerName: string | null;
 }
 
 const cloneGameSnapshot = (snapshot: GameSnapshot): GameSnapshot => ({
@@ -452,6 +453,7 @@ const App: React.FC = () => {
   const [isNameInputOpen, setIsNameInputOpen] = useState(false);
   const [pendingDifficulty, setPendingDifficulty] = useState<number | null>(null);
   const [playerName, setPlayerName] = useState<string>(loadInitialPlayerName);
+  const [sessionLockedPlayerName, setSessionLockedPlayerName] = useState<string | null>(null);
   const [showActiveGameWarning, setShowActiveGameWarning] = useState(false);
   const [isActiveGameExitModalOpen, setIsActiveGameExitModalOpen] = useState(false);
   const [activeGameExitContext, setActiveGameExitContext] = useState<ActiveGameExitContext>('HOME');
@@ -559,6 +561,7 @@ const App: React.FC = () => {
   const hoverGridPosRef = useRef<{ x: number; y: number } | null>(null);
   const swipeStartRef = useRef<{ x: number, y: number } | null>(null); // 스와이프 시작 좌표
   const slideLockRef = useRef(false); // state 반영 전에도 즉시 입력 차단
+  const isReviveSelectionModeRef = useRef(false); // 부활 선택 모드 동기 가드 (state보다 먼저 반영)
   const mergeClearTimeoutRef = useRef<number | null>(null);
   const mergeFinalizeTimeoutRef = useRef<number | null>(null);
   const unlockTimeoutRef = useRef<number | null>(null);
@@ -655,6 +658,7 @@ const App: React.FC = () => {
     setBlockRefreshRemaining(saved.blockRefreshRemaining ?? INITIAL_BLOCK_REFRESH_AMOUNT);
     setShowBlockRefreshAdButton(Boolean(saved.showBlockRefreshAdButton));
     setHasUsedReviveThisRun(Boolean(saved.hasUsedRevive));
+    isReviveSelectionModeRef.current = Boolean(saved.isReviveSelectionMode);
     setIsReviveSelectionMode(Boolean(saved.isReviveSelectionMode));
     setReviveBreakRemaining(saved.reviveBreakRemaining ?? 0);
     setRevivePendingTileId(saved.revivePendingTileId ?? null);
@@ -669,6 +673,7 @@ const App: React.FC = () => {
       getReusablePlayerName(rankingService.getSavedName()) ??
       ''
     );
+    setSessionLockedPlayerName(getReusablePlayerName(saved.sessionLockedPlayerName) ?? null);
     sessionIdRef.current = saved.sessionId ?? crypto.randomUUID();
     moveCountRef.current = typeof saved.moveCount === 'number' ? saved.moveCount : 0;
     gameStartTimeRef.current = typeof saved.startedAt === 'number' ? saved.startedAt : saved.savedAt;
@@ -706,6 +711,7 @@ const App: React.FC = () => {
       moveCount: moveCountRef.current,
       startedAt: gameStartTimeRef.current,
       playerName,
+      sessionLockedPlayerName: sessionLockedPlayerName ?? undefined,
     });
   }, [
     gameState,
@@ -724,6 +730,7 @@ const App: React.FC = () => {
     reviveBreakRemaining,
     revivePendingTileId,
     playerName,
+    sessionLockedPlayerName,
   ]);
 
   // 게임 상태 자동 저장 (debounce + 종료 직전 플러시)
@@ -804,6 +811,7 @@ const App: React.FC = () => {
         duration: elapsedSeconds,
         moves: moveCountRef.current,
         playerName,
+        sessionLockedPlayerName,
       };
     }
 
@@ -819,8 +827,9 @@ const App: React.FC = () => {
       duration: elapsedSeconds,
       moves: typeof saved.moveCount === 'number' ? saved.moveCount : 0,
       playerName: saved.playerName ?? playerName,
+      sessionLockedPlayerName: getReusablePlayerName(saved.sessionLockedPlayerName) ?? sessionLockedPlayerName,
     };
-  }, [gameState, score, boardSize, playerName]);
+  }, [gameState, score, boardSize, playerName, sessionLockedPlayerName]);
 
   const resolveReusablePlayerName = useCallback((): string | null => {
     return getReusablePlayerName(playerName) ?? getReusablePlayerName(rankingService.getSavedName());
@@ -869,6 +878,7 @@ const App: React.FC = () => {
     clearGameState();
     reviveDestroyEffectTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
     reviveDestroyEffectTimeoutsRef.current = [];
+    isReviveSelectionModeRef.current = false;
     setIsReviveSelectionMode(false);
     setReviveBreakRemaining(0);
     setRevivePendingTileId(null);
@@ -910,6 +920,17 @@ const App: React.FC = () => {
     setShowActiveGameWarning(false);
     setIsNameInputOpen(true);
   }, [activeGameExitContext, goToMenu, pendingDifficulty, startGameWithReusableNameOrPrompt]);
+
+  const handleActiveGameExitNameLocked = useCallback((name: string) => {
+    setSessionLockedPlayerName(name);
+    setPlayerName(name);
+    rankingService.saveName(name);
+  }, []);
+
+  const handleActiveGameExitIntermediateSaveComplete = useCallback(() => {
+    setIsActiveGameExitModalOpen(false);
+    setActiveGameRankingSnapshot(null);
+  }, []);
 
   const handleActiveGameExitRegisteredAndProceed = useCallback(() => {
     const context = activeGameExitContext;
@@ -994,6 +1015,7 @@ const App: React.FC = () => {
     setBlockRefreshRemaining(INITIAL_BLOCK_REFRESH_AMOUNT);
     setShowBlockRefreshAdButton(false);
     setHasUsedReviveThisRun(false);
+    isReviveSelectionModeRef.current = false;
     setIsReviveSelectionMode(false);
     setReviveBreakRemaining(0);
     setRevivePendingTileId(null);
@@ -1001,6 +1023,7 @@ const App: React.FC = () => {
     setIsReviveAdInProgress(false);
     setIsReviveAdReady(false);
     setIsBlockRefreshAdInProgress(false);
+    setSessionLockedPlayerName(null);
 
     // Anti-cheat: Start Timer & Session ID
     gameStartTimeRef.current = Date.now();
@@ -1208,6 +1231,24 @@ const App: React.FC = () => {
       onRewardEarned: () => {
         const destroyCount = REVIVE_DESTROY_COUNT_BY_BOARD_SIZE[boardSize];
 
+        // ref를 state보다 먼저 동기적으로 설정하여
+        // 네이티브 콜백 내 개별 setState 사이에 게임오버 체크가 끼어드는 것을 방지
+        isReviveSelectionModeRef.current = true;
+
+        // 이전 슬라이드 애니메이션 잔여 타임아웃 정리 (부활 도중 예기치 않은 상태 변경 방지)
+        if (mergeClearTimeoutRef.current) {
+          window.clearTimeout(mergeClearTimeoutRef.current);
+          mergeClearTimeoutRef.current = null;
+        }
+        if (mergeFinalizeTimeoutRef.current) {
+          window.clearTimeout(mergeFinalizeTimeoutRef.current);
+          mergeFinalizeTimeoutRef.current = null;
+        }
+        if (unlockTimeoutRef.current) {
+          window.clearTimeout(unlockTimeoutRef.current);
+          unlockTimeoutRef.current = null;
+        }
+
         setMergingTiles(EMPTY_MERGING_TILES);
         setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
         slideLockRef.current = false;
@@ -1318,6 +1359,7 @@ const App: React.FC = () => {
     setReviveDestroyEffects([]);
     setRevivePendingTileId(null);
     setReviveBreakRemaining(count);
+    isReviveSelectionModeRef.current = true;
     setIsReviveSelectionMode(true);
     setGameState(GameState.PLAYING);
     setHasUsedReviveThisRun(true);
@@ -1360,6 +1402,7 @@ const App: React.FC = () => {
     if (reviveBreakRemaining > 0 && occupied > 0) return;
 
     const exhaustedByCount = reviveBreakRemaining <= 0;
+    isReviveSelectionModeRef.current = false;
     setIsReviveSelectionMode(false);
     setRevivePendingTileId(null);
     setReviveBreakRemaining(0);
@@ -1608,6 +1651,7 @@ const App: React.FC = () => {
       rewardInterstitialAdService.cleanup();
       setIsReviveAdReady(false);
       setIsReviveAdInProgress(false);
+      isReviveSelectionModeRef.current = false;
       setIsReviveSelectionMode(false);
       setReviveBreakRemaining(0);
       setRevivePendingTileId(null);
@@ -2088,7 +2132,9 @@ const App: React.FC = () => {
     }
 
     if (gameState !== GameState.PLAYING) return;
-    if (isReviveSelectionMode) return;
+    // state + ref 이중 가드: 네이티브 광고 콜백의 비동기 타이밍으로 인해
+    // state가 아직 반영되지 않은 중간 렌더에서도 게임오버 판정을 방지
+    if (isReviveSelectionMode || isReviveSelectionModeRef.current) return;
 
     const availability = getTurnActionAvailability(grid, slots);
 
@@ -2828,8 +2874,12 @@ const App: React.FC = () => {
               moves={activeGameRankingSnapshot.moves}
               sessionId={activeGameRankingSnapshot.sessionId}
               playerName={activeGameRankingSnapshot.playerName}
+              lockedPlayerName={activeGameRankingSnapshot.sessionLockedPlayerName}
+              isWin98ThemeActive={isWin98ThemeActive}
               onCancel={handleActiveGameExitCancel}
               onProceedWithoutRegister={handleActiveGameExitProceedWithoutRegister}
+              onIntermediateSaveComplete={handleActiveGameExitIntermediateSaveComplete}
+              onSessionNameLocked={handleActiveGameExitNameLocked}
               onRegisteredAndProceed={handleActiveGameExitRegisteredAndProceed}
             />
           )}
@@ -3271,8 +3321,12 @@ const App: React.FC = () => {
             moves={activeGameRankingSnapshot.moves}
             sessionId={activeGameRankingSnapshot.sessionId}
             playerName={activeGameRankingSnapshot.playerName}
+            lockedPlayerName={activeGameRankingSnapshot.sessionLockedPlayerName}
+            isWin98ThemeActive={isWin98ThemeActive}
             onCancel={handleActiveGameExitCancel}
             onProceedWithoutRegister={handleActiveGameExitProceedWithoutRegister}
+            onIntermediateSaveComplete={handleActiveGameExitIntermediateSaveComplete}
+            onSessionNameLocked={handleActiveGameExitNameLocked}
             onRegisteredAndProceed={handleActiveGameExitRegisteredAndProceed}
           />
         )}

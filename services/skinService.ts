@@ -53,8 +53,11 @@ export const loadSkinSettings = (): SkinSettings => {
       }
     }
 
+    // activeSkinId: ownedSkins에 있거나 카탈로그에 존재하면 유지 (테스트 모드 호환)
     const activeSkinId =
-      typeof obj.activeSkinId === 'string' && ownedSkins.some(s => s.id === obj.activeSkinId)
+      typeof obj.activeSkinId === 'string' &&
+      (ownedSkins.some(s => s.id === obj.activeSkinId) ||
+       SKIN_CATALOG.some(s => s.id === obj.activeSkinId))
         ? obj.activeSkinId
         : null;
 

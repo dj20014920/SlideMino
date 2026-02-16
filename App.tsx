@@ -2977,7 +2977,8 @@ const App: React.FC = () => {
           <div className="flex flex-col items-end gap-2 transition-all duration-200">
             {/* Phase Indicator - Glass Pill */}
             <div className={`
-            px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2 win98-pill-btn
+            px-4 py-2 rounded-full text-sm font-semibold flex items-center justify-center gap-2 win98-pill-btn
+            ${isWin98ThemeActive ? 'win98-header-main-btn' : ''}
             transition-all duration-200 ease-out
             ${phaseIndicatorInteractivityClass}
             ${isPlacePhase
@@ -3000,7 +3001,7 @@ const App: React.FC = () => {
                 onClick={() => setShowHelpModal(true)}
                 disabled={isReviveSelectionMode}
                 className={`
-                  p-2 rounded-full text-gray-600 win98-icon-btn
+                  p-2 rounded-full text-gray-600 win98-icon-btn ${isWin98ThemeActive ? 'win98-header-icon-btn' : ''}
                   bg-white/70 hover:bg-white border border-white/50
                   shadow-sm hover:shadow-md transition-all duration-200 active:scale-95
                   ${(isSwipeFocusMode || isReviveSelectionMode) ? 'opacity-35 grayscale pointer-events-none select-none' : ''}
@@ -3019,7 +3020,7 @@ const App: React.FC = () => {
                 onClick={executeUndo}
                 disabled={!lastSnapshot || undoRemaining <= 0 || isAnimating || isReviveSelectionMode}
                 className={`
-                px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-2 win98-game-btn
+                px-3 py-1.5 rounded-full text-xs font-semibold flex items-center justify-center gap-2 win98-game-btn ${isWin98ThemeActive ? 'win98-header-action-btn' : ''}
                 border shadow-sm transition-all duration-200
                 ${undoFocusSurfaceClass}
                 pointer-events-auto

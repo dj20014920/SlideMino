@@ -15,8 +15,12 @@ interface ActiveGameExitModalProps {
     moves: number;
     sessionId: string;
     playerName?: string;
+    lockedPlayerName?: string | null;
+    isWin98ThemeActive?: boolean;
     onCancel: () => void;
     onProceedWithoutRegister: () => void;
+    onIntermediateSaveComplete: () => void;
+    onSessionNameLocked?: (name: string) => void;
     onRegisteredAndProceed: () => void;
 }
 
@@ -29,12 +33,17 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
     moves,
     sessionId,
     playerName,
+    lockedPlayerName,
+    isWin98ThemeActive,
     onCancel,
     onProceedWithoutRegister,
+    onIntermediateSaveComplete,
+    onSessionNameLocked,
     onRegisteredAndProceed,
 }) => {
     const { t } = useTranslation();
     const [step, setStep] = useState<'CHOICE' | 'REGISTER' | 'SUBMITTED'>('CHOICE');
+    const [submitIntent, setSubmitIntent] = useState<'EXIT' | 'MID_SAVE'>('EXIT');
     const [name, setName] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [nameError, setNameError] = useState<string | null>(null);
@@ -44,20 +53,22 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
     useEffect(() => {
         if (!open) return;
         setStep('CHOICE');
-        setName(playerName || rankingService.getSavedName());
+        setSubmitIntent('EXIT');
+        setName(lockedPlayerName || playerName || rankingService.getSavedName());
         setIsSubmitting(false);
         setNameError(null);
         setSubmitError(null);
         setSubmitInfo(null);
-    }, [open, context, playerName]);
+    }, [open, context, playerName, lockedPlayerName]);
 
     if (!open) return null;
 
-    const submitScoreWithName = async (trimmedName: string) => {
+    const submitScoreWithName = async (trimmedName: string, intent: 'EXIT' | 'MID_SAVE') => {
         setIsSubmitting(true);
         setNameError(null);
         setSubmitError(null);
         setSubmitInfo(null);
+        setSubmitIntent(intent);
 
         const result = await rankingService.submitScore(
             sessionId,
@@ -70,17 +81,20 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
 
         setIsSubmitting(false);
         if (result.success) {
+            onSessionNameLocked?.(trimmedName);
             setStep('SUBMITTED');
             return;
         }
 
         if (result.queued) {
+            onSessionNameLocked?.(trimmedName);
             setSubmitInfo(t('modals:rankingRegister.queuedMessage'));
             setStep('SUBMITTED');
             return;
         }
 
         if (result.alreadySubmitted) {
+            onSessionNameLocked?.(trimmedName);
             setSubmitInfo(t('modals:rankingRegister.alreadySubmittedMessage'));
             setStep('SUBMITTED');
             return;
@@ -91,6 +105,12 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        const fixedName = normalizePlayerName(lockedPlayerName ?? '');
+        if (fixedName) {
+            await submitScoreWithName(fixedName, submitIntent);
+            return;
+        }
+
         const trimmedName = normalizePlayerName(name);
         const errorKey = validatePlayerName(trimmedName);
         if (errorKey) {
@@ -98,17 +118,17 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
             return;
         }
 
-        await submitScoreWithName(trimmedName);
+        await submitScoreWithName(trimmedName, submitIntent);
     };
 
-    const handleRegisterClick = () => {
-        const defaultName = normalizePlayerName(name || playerName || rankingService.getSavedName());
-        const errorKey = validatePlayerName(defaultName);
-        if (errorKey) {
-            setStep('REGISTER');
-            return;
-        }
-        void submitScoreWithName(defaultName);
+    const handleRegisterAndExitClick = () => {
+        setSubmitIntent('EXIT');
+        setStep('REGISTER');
+    };
+
+    const handleIntermediateSaveClick = () => {
+        setSubmitIntent('MID_SAVE');
+        setStep('REGISTER');
     };
 
     const titleKey = context === 'HOME'
@@ -126,6 +146,9 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
     const confirmKey = context === 'HOME'
         ? 'modals:activeGameExit.confirmHome'
         : 'modals:activeGameExit.confirmNewGame';
+    const submittedMessage = submitIntent === 'MID_SAVE'
+        ? t('modals:activeGameExit.midSaveSubmittedMessage')
+        : t('modals:activeGameExit.submittedMessage');
 
     return (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6">
@@ -152,41 +175,56 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                         <div className="flex flex-col gap-3 pt-1">
                             <button
                                 type="button"
-                                onClick={handleRegisterClick}
-                                disabled={isSubmitting}
+                                                                onClick={onProceedWithoutRegister}
                                 className="
-                                  w-full py-4 rounded-2xl
-                                  bg-gradient-to-br from-indigo-500 to-purple-600
-                                  text-white font-bold text-lg
-                                  shadow-lg shadow-indigo-500/25
-                                  hover:shadow-xl hover:shadow-indigo-500/35 hover:-translate-y-0.5
-                                  disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0
-                                  active:translate-y-0 active:scale-[0.98]
+                                                                    w-full py-3.5 rounded-2xl
+                                                                    bg-white border border-gray-200
+                                                                    text-gray-900 font-semibold
+                                                                    shadow-sm
+                                                                    hover:bg-gray-50 hover:border-gray-300
+                                                                    active:scale-[0.98]
                                   transition-all duration-200
                                 "
                             >
-                                <span className="flex items-center justify-center gap-2">
-                                    <Medal size={20} className="text-indigo-100" />
-                                    {isSubmitting
-                                        ? t('modals:rankingRegister.submitting')
-                                        : t('modals:activeGameExit.registerButton')}
-                                </span>
+                                                                {t(proceedWithoutKey)}
                             </button>
 
                             <button
                                 type="button"
-                                onClick={onProceedWithoutRegister}
+                                                                onClick={handleIntermediateSaveClick}
                                 className="
-                                  w-full py-3.5 rounded-2xl
-                                  bg-white border border-gray-200
-                                  text-gray-900 font-semibold
-                                  shadow-sm
-                                  hover:bg-gray-50 hover:border-gray-300
+                                                                    w-full py-4 rounded-2xl
+                                                                    bg-gradient-to-br from-emerald-500 to-teal-600
+                                                                    text-white font-bold text-lg
+                                                                    shadow-lg shadow-emerald-500/25
+                                                                    hover:shadow-xl hover:shadow-emerald-500/35 hover:-translate-y-0.5
                                   active:scale-[0.98]
                                   transition-all duration-200
                                 "
                             >
-                                {t(proceedWithoutKey)}
+                                                                <span className="flex items-center justify-center gap-2">
+                                                                        <Send size={18} className="text-emerald-100" />
+                                                                        {t('modals:activeGameExit.midSaveButton')}
+                                                                </span>
+                                                        </button>
+
+                                                        <button
+                                                                type="button"
+                                                                onClick={handleRegisterAndExitClick}
+                                                                className="
+                                                                    w-full py-4 rounded-2xl
+                                                                    bg-gradient-to-br from-indigo-500 to-purple-600
+                                                                    text-white font-bold text-lg
+                                                                    shadow-lg shadow-indigo-500/25
+                                                                    hover:shadow-xl hover:shadow-indigo-500/35 hover:-translate-y-0.5
+                                                                    active:translate-y-0 active:scale-[0.98]
+                                                                    transition-all duration-200
+                                                                "
+                                                        >
+                                                                <span className="flex items-center justify-center gap-2">
+                                                                        <Medal size={20} className="text-indigo-100" />
+                                                                        {t('modals:activeGameExit.registerButton')}
+                                                                </span>
                             </button>
 
                             <button
@@ -218,30 +256,59 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                         </div>
 
                         <div>
-                            <label htmlFor="active-game-exit-name" className="block text-xs font-bold text-gray-500 uppercase ml-1 mb-1.5">
-                                {t('common:labels.name')}
-                            </label>
-                            <input
-                                id="active-game-exit-name"
-                                type="text"
-                                value={name}
-                                onChange={(e) => {
-                                    setName(e.target.value);
-                                    setNameError(null);
-                                    setSubmitError(null);
-                                }}
-                                placeholder={t('modals:nameInput.placeholder')}
-                                maxLength={PLAYER_NAME_MAX_LENGTH}
-                                className="
-                                  w-full px-5 py-4 rounded-2xl
-                                  bg-white/80 border border-gray-200
-                                  text-xl font-bold text-gray-900 text-center
-                                  placeholder:text-gray-300 placeholder:font-normal
-                                  focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500
-                                  transition-all shadow-sm
-                                "
-                                autoFocus
-                            />
+                            {isWin98ThemeActive ? (
+                                <div className="field-row items-center gap-2">
+                                    <label htmlFor="active-game-exit-name" className="shrink-0">
+                                        {t('common:labels.name')}
+                                    </label>
+                                    <input
+                                        id="active-game-exit-name"
+                                        type="text"
+                                        value={name}
+                                        onChange={(e) => {
+                                            setName(e.target.value);
+                                            setNameError(null);
+                                            setSubmitError(null);
+                                        }}
+                                        placeholder={t('modals:nameInput.placeholder')}
+                                        maxLength={PLAYER_NAME_MAX_LENGTH}
+                                        readOnly={Boolean(lockedPlayerName)}
+                                        className="min-w-0 flex-1 px-2 py-1"
+                                        autoFocus
+                                    />
+                                </div>
+                            ) : (
+                                <>
+                                    <label htmlFor="active-game-exit-name" className="block text-xs font-bold text-gray-500 uppercase ml-1 mb-1.5">
+                                        {t('common:labels.name')}
+                                    </label>
+                                    <input
+                                        id="active-game-exit-name"
+                                        type="text"
+                                        value={name}
+                                        onChange={(e) => {
+                                            setName(e.target.value);
+                                            setNameError(null);
+                                            setSubmitError(null);
+                                        }}
+                                        placeholder={t('modals:nameInput.placeholder')}
+                                        maxLength={PLAYER_NAME_MAX_LENGTH}
+                                        readOnly={Boolean(lockedPlayerName)}
+                                        className="
+                                          w-full px-5 py-4 rounded-2xl
+                                          bg-white/80 border border-gray-200
+                                          text-xl font-bold text-gray-900 text-center
+                                          placeholder:text-gray-300 placeholder:font-normal
+                                          focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500
+                                          transition-all shadow-sm
+                                        "
+                                        autoFocus
+                                    />
+                                </>
+                            )}
+                            {lockedPlayerName && (
+                                <p className="mt-1 text-xs text-gray-500 text-center">{t('modals:activeGameExit.lockedNameNotice')}</p>
+                            )}
                             {nameError && (
                                 <p className="mt-1 text-xs text-red-500 font-medium text-center">{nameError}</p>
                             )}
@@ -261,7 +328,7 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                         <div className="flex flex-col gap-3">
                             <button
                                 type="submit"
-                                disabled={isSubmitting || !name.trim()}
+                                                                disabled={isSubmitting || (!lockedPlayerName && !name.trim())}
                                 className="
                                   w-full py-4 rounded-2xl
                                   bg-gray-900 text-white font-bold text-lg
@@ -304,12 +371,12 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                         <div className="space-y-2">
                             <h3 className="text-2xl font-bold text-gray-900">{t('modals:rankingRegister.success')}</h3>
                             <p className="text-sm text-gray-500 whitespace-pre-line">
-                                {submitInfo ?? t('modals:activeGameExit.submittedMessage')}
+                                {submitInfo ?? submittedMessage}
                             </p>
                         </div>
                         <button
                             type="button"
-                            onClick={onRegisteredAndProceed}
+                            onClick={submitIntent === 'MID_SAVE' ? onIntermediateSaveComplete : onRegisteredAndProceed}
                             className="
                               w-full py-4 rounded-2xl
                               bg-gray-900 text-white font-bold text-lg
@@ -319,7 +386,9 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                               transition-all duration-200
                             "
                         >
-                            {t(confirmKey)}
+                            {submitIntent === 'MID_SAVE'
+                                ? t('modals:activeGameExit.continueAfterMidSave')
+                                : t(confirmKey)}
                         </button>
                     </div>
                 )}

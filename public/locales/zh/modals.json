@@ -156,5 +156,10 @@
     "notOwned": "未拥有",
     "tapToApply": "点击应用/取消",
     "collectionComplete": "收藏完成！"
+  },
+  "skinAcquisition": {
+    "title": "获得皮肤！",
+    "addedToCollection": "已添加到收藏！",
+    "tapToClose": "点击关闭"
   }
 }

@@ -156,5 +156,10 @@
     "notOwned": "미보유 스킨",
     "tapToApply": "탭하여 적용/해제",
     "collectionComplete": "컬렉션 완성!"
+  },
+  "skinAcquisition": {
+    "title": "스킨 획득!",
+    "addedToCollection": "컬렉션에 추가되었습니다!",
+    "tapToClose": "화면을 탭하여 닫기"
   }
 }

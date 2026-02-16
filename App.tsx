@@ -2426,7 +2426,7 @@ const App: React.FC = () => {
             <h1 className="text-5xl font-bold text-gray-900 tracking-tight">
               {isWin98ThemeActive ? (
                 (() => {
-                  const titleText = t('game:title');
+                  const titleText = String(t('game:title'));
                   const matched = titleText.match(/^(.*)\s\((.*)\)$/);
                   if (!matched) return titleText;
                   return (

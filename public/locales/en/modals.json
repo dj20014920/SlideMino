@@ -156,5 +156,10 @@
     "notOwned": "Not owned",
     "tapToApply": "Tap to apply/remove",
     "collectionComplete": "Collection Complete!"
+  },
+  "skinAcquisition": {
+    "title": "Skin Acquired!",
+    "addedToCollection": "Added to your collection!",
+    "tapToClose": "Tap to close"
   }
 }

@@ -156,5 +156,10 @@
     "notOwned": "未所持",
     "tapToApply": "タップで適用/解除",
     "collectionComplete": "コレクション完成！"
+  },
+  "skinAcquisition": {
+    "title": "スキン獲得！",
+    "addedToCollection": "コレクションに追加されました！",
+    "tapToClose": "タップして閉じる"
   }
 }

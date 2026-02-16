@@ -187,7 +187,7 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
 
             <div className="window-body flex-1 min-h-0 overflow-hidden">
               <p className="status-bar-field" style={{ marginBottom: '12px' }}>
-                {t('modals:skin.ownedCount', { owned: skinSettings.ownedSkins.length, total: SKIN_CATALOG.length })}
+                {String(t('modals:skin.ownedCount', { owned: skinSettings.ownedSkins.length, total: SKIN_CATALOG.length } as any))}
               </p>
 
               <div className="sunken-panel" style={{ height: '100%', minHeight: '180px', overflowY: 'scroll', padding: '6px', backgroundColor: '#c0c0c0' }}>
@@ -312,7 +312,7 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">{t('modals:skin.title')}</h3>
                 <p className="text-xs text-gray-500">
-                  {t('modals:skin.ownedCount', { owned: skinSettings.ownedSkins.length, total: SKIN_CATALOG.length })}
+                  {String(t('modals:skin.ownedCount', { owned: skinSettings.ownedSkins.length, total: SKIN_CATALOG.length } as any))}
                 </p>
               </div>
             <button

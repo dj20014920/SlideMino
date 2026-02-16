@@ -5,6 +5,7 @@ import { Check, Lock, X } from 'lucide-react';
 import { SKIN_CATALOG, SKIN_PREVIEW_VALUES, MAX_DAILY_SKIN_AD_VIEWS } from '../constants';
 import { getTileNumberLayout } from '../constants';
 import { useBlockCustomization } from '../context/BlockCustomizationContext';
+import type { SkinItem } from '../types';
 import { getSkinColorForValue } from '../services/blockCustomization';
 import { buildGradient, getWhiteTextStyleForBackground, hexToRgb } from '../services/blockCustomization';
 import { pickRandomSkin, isCollectionComplete } from '../services/skinService';
@@ -97,19 +98,32 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
   const handleDraw = useCallback(() => {
     setAdError(null);
 
+    let rewardedSkin: SkinItem | null = null;
+    let adClosed = false;
+
+    const startAcquisitionAfterClose = () => {
+      if (!adClosed || !rewardedSkin) return;
+
+      // 광고가 완전히 닫힌 뒤에만 획득 애니메이션 시작
+      setAcquisitionSkin({ hex: rewardedSkin.hex });
+      addSkin(rewardedSkin);
+      setRemainingAds(skinRewardAdService.getRemainingDailyViews());
+
+      rewardedSkin = null;
+    };
+
     skinRewardAdService.showRewardAd({
       onRewardEarned: () => {
         const newSkin = pickRandomSkin(skinSettings);
         if (!newSkin) return;
 
-        // 획득 애니메이션 시작
-        setAcquisitionSkin({ hex: newSkin.hex });
-
-        // 컬렉션에 추가
-        addSkin(newSkin);
-        setRemainingAds(skinRewardAdService.getRemainingDailyViews());
+        // 보상 확정 정보만 저장하고, 실제 연출/지급은 광고 종료 시점에 실행
+        rewardedSkin = newSkin;
+        startAcquisitionAfterClose();
       },
       onAdClosed: () => {
+        adClosed = true;
+        startAcquisitionAfterClose();
         setRemainingAds(skinRewardAdService.getRemainingDailyViews());
       },
       onError: (error) => {

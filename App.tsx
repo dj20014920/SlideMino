@@ -2040,7 +2040,6 @@ const App: React.FC = () => {
       // 예외 상태 안전장치: SLIDE 단계에서 어떤 방향도 불가능하면 PLACE로 복귀시킨다.
       if (!hasPossibleMoves(grid)) {
         finishSlideTurn();
-        showComboMessage(String(t('game:status.noMergePlaceMessage')));
       }
       return;
     }
@@ -2115,10 +2114,8 @@ const App: React.FC = () => {
         // 새 규칙: 머지가 발생했다면 이번 턴은 계속 스와이프만 가능
         setPhase(Phase.SLIDE);
         setCanSkipSlide(false);
-        showComboMessage(String(t('game:status.mergeContinueMessage')));
       } else {
         finishSlideTurn();
-        showComboMessage(String(t('game:status.noMergePlaceMessage')));
       }
     }, lockMs);
   };

@@ -1,1 +1,7 @@
-{}
+{
+  "skinAcquisition": {
+    "title": "获得皮肤！",
+    "addedToCollection": "已添加到收藏！",
+    "tapToClose": "点击关闭"
+  }
+}

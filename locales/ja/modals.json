@@ -1,1 +1,7 @@
-{}
+{
+  "skinAcquisition": {
+    "title": "スキン獲得！",
+    "addedToCollection": "コレクションに追加されました！",
+    "tapToClose": "タップして閉じる"
+  }
+}

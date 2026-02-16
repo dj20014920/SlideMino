@@ -1,1 +1,7 @@
-{}
+{
+  "skinAcquisition": {
+    "title": "Skin Acquired!",
+    "addedToCollection": "Added to your collection!",
+    "tapToClose": "Tap to close"
+  }
+}

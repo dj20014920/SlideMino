@@ -10,9 +10,9 @@ type SkinAcquisitionOverlayProps = {
 
 const ANIMATION_TIMINGS = {
   prepare: 140,
-  struggleMerge: 2200, // Increased for drama
+  struggleMerge: 2800, // 더욱 길게 늘려서 극적인 효과 강화
   fusionFlash: 520,
-  revealHold: 2400, // Slightly longer reveal
+  revealHold: 2400,
 } as const;
 
 /**
@@ -24,6 +24,7 @@ const ANIMATION_TIMINGS = {
 export const SkinAcquisitionOverlay: React.FC<SkinAcquisitionOverlayProps> = ({ skinHex, onComplete }) => {
   const { t } = useTranslation();
   const [phase, setPhase] = useState(0); // 0=준비, 1=힘겹게 합성, 2=임계 플래시, 3=결과 노출
+  const [canDismiss, setCanDismiss] = useState(false); // 클릭해서 닫을 수 있는지 여부
 
   const colors = useMemo(() => {
     const rgb = hexToRgb(skinHex);
@@ -54,10 +55,11 @@ export const SkinAcquisitionOverlay: React.FC<SkinAcquisitionOverlayProps> = ({ 
       await new Promise(r => setTimeout(r, ANIMATION_TIMINGS.fusionFlash));
       if (!mounted) return;
       setPhase(3);
-
-      await new Promise(r => setTimeout(r, ANIMATION_TIMINGS.revealHold));
+      
+      // 스킨 표시 후 짧은 딜레이 후 탭 가능하게 설정
+      await new Promise(r => setTimeout(r, 800)); // 0.8초 후 탭 가능
       if (!mounted) return;
-      onComplete();
+      setCanDismiss(true);
     };
 
     run();
@@ -65,19 +67,25 @@ export const SkinAcquisitionOverlay: React.FC<SkinAcquisitionOverlayProps> = ({ 
     return () => {
       mounted = false;
     };
-  }, [onComplete]);
+  }, []); // onComplete 의존성 제거 (자동 호출 안 함)
+
+  const handleDismiss = () => {
+    if (canDismiss) {
+      onComplete();
+    }
+  };
 
   // Generate shake keyframes for the struggle phase
-  // More intense shake as time progresses
   const shakeKeyframes = useMemo(() => {
     const frames = [];
-    const steps = 30; // Number of keyframes
+    const steps = 60; // More frames for smoother slow motion
     for (let i = 0; i <= steps; i++) {
         const progress = i / steps;
-        // Shake amplitude increases with progress
-        const amplitude = progress < 0.5 ? 2 : 1 + ( progress * 5); 
+        // 후반부(합쳐지기 직전)에 진동 강도 극대화
+        // 초반엔 약하게, 후반에 매우 강하게
+        const amplitude = progress < 0.6 ? 1 : 1 + (Math.pow(progress, 3) * 6); 
         const y = (Math.random() - 0.5) * amplitude;
-        const rotate = (Math.random() - 0.5) * (amplitude * 1.5);
+        const rotate = (Math.random() - 0.5) * (amplitude * 2);
         frames.push({ y, rotate });
     }
     return {
@@ -91,9 +99,10 @@ export const SkinAcquisitionOverlay: React.FC<SkinAcquisitionOverlayProps> = ({ 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0, transition: { duration: 0.5 } }}
-      className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/85 backdrop-blur-xl"
+      className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/85 backdrop-blur-xl cursor-pointer"
+      onClick={handleDismiss}
     >
-      <div className="relative flex flex-col items-center w-full max-w-md">
+      <div className="relative flex flex-col items-center w-full max-w-md pointer-events-none">
         {/* 블록 합성 애니메이션 컨테이너 */}
         <div className="relative h-64 w-full flex items-center justify-center mb-8 overflow-visible">
           
@@ -102,13 +111,13 @@ export const SkinAcquisitionOverlay: React.FC<SkinAcquisitionOverlayProps> = ({ 
             <motion.div
               initial={{ opacity: 0, scale: 0.2 }}
               animate={{
-                opacity: phase === 1 ? [0, 0.3, 0.5, 0.8] : 1, // Ramp up visibility
-                scale: phase === 1 ? [0.8, 1.2, 0.9, 1.5] : 3, // Pulse and explode
-                filter: phase === 1 ? ["brightness(1)", "brightness(1.5)", "brightness(2)"] : "brightness(3)",
+                opacity: phase === 1 ? [0, 0.2, 0.4, 0.9] : 1, 
+                scale: phase === 1 ? [0.8, 1, 1.2, 0.9, 1.6] : 3, 
+                filter: phase === 1 ? ["brightness(1)", "brightness(1.5)", "brightness(2.5)"] : "brightness(3)",
               }}
               transition={{
                 duration: phase === 1 ? ANIMATION_TIMINGS.struggleMerge / 1000 : 0.2,
-                times: phase === 1 ? [0, 0.4, 0.8, 1] : undefined,
+                times: phase === 1 ? [0, 0.5, 0.8, 0.9, 1] : undefined,
               }}
               className="absolute w-16 h-16 rounded-full blur-xl z-0"
               style={{
@@ -125,25 +134,26 @@ export const SkinAcquisitionOverlay: React.FC<SkinAcquisitionOverlayProps> = ({ 
                 initial={{ opacity: 1 }}
                 exit={{ opacity: 0, transition: { duration: 0.1 } }}
               >
-                {/* 왼쪽 블록 */}
+                {/* 왼쪽 블록: -40 위치에서 만남 (w-20은 80px, 중심 40px) */}
                 <motion.div
-                  initial={{ x: -140, opacity: 0, scale: 0.8 }}
+                  initial={{ x: -160, opacity: 0, scale: 0.8 }}
                   animate={{
                     x: phase === 0
-                      ? -140
+                      ? -160
                       : phase === 1
-                        ? [-140, -40, -48, -25, -32, -15, -20, -8, -12, -4, -6, 0] // Key struggle movements
-                        : 0,
+                        ? [-160, -60, -68, -48, -55, -42, -45, -41, -43, -40, -42, -40] // -40 부근에서 격렬하게 저항하며 천천히 접근
+                        : -40,
                     y: phase === 1 ? shakeKeyframes.y : 0,
                     rotate: phase === 1 ? shakeKeyframes.rotate : 0,
                     opacity: 1,
-                    scale: phase === 1 ? [1, 0.95, 1.05, 0.9, 1.1, 1] : 1, // Squish and stretch
-                    filter: phase === 1 ? ["brightness(1)", "brightness(1.2)", "brightness(2)"] : "brightness(1)"
+                    scale: phase === 1 ? [1, 0.9, 1.1, 0.95, 1.05, 0.98, 1.02, 1] : 1,
+                    filter: phase === 1 ? ["brightness(1)", "brightness(1.2)", "brightness(3)"] : "brightness(1)"
                   }}
                   transition={{
                     x: {
                         duration: ANIMATION_TIMINGS.struggleMerge / 1000,
-                        times: [0, 0.2, 0.3, 0.5, 0.6, 0.75, 0.82, 0.9, 0.94, 0.97, 0.99, 1],
+                        // 초반에 빠르게 접근하고, 후반에 매우 느리게(0.5 이후부터 촘촘하게)
+                        times: [0, 0.15, 0.25, 0.4, 0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95, 1],
                         ease: "easeInOut" 
                     },
                     y: {
@@ -162,25 +172,25 @@ export const SkinAcquisitionOverlay: React.FC<SkinAcquisitionOverlayProps> = ({ 
                   ?
                 </motion.div>
 
-                {/* 오른쪽 블록 */}
+                {/* 오른쪽 블록: 40 위치에서 만남 */}
                 <motion.div
-                  initial={{ x: 140, opacity: 0, scale: 0.8 }}
+                  initial={{ x: 160, opacity: 0, scale: 0.8 }}
                   animate={{
                     x: phase === 0
-                      ? 140
+                      ? 160
                       : phase === 1
-                        ? [140, 40, 48, 25, 32, 15, 20, 8, 12, 4, 6, 0]
-                        : 0,
+                        ? [160, 60, 68, 48, 55, 42, 45, 41, 43, 40, 42, 40]
+                        : 40,
                     y: phase === 1 ? shakeKeyframes.y : 0,
                     rotate: phase === 1 ? shakeKeyframes.rotate : 0,
                     opacity: 1,
-                    scale: phase === 1 ? [1, 0.95, 1.05, 0.9, 1.1, 1] : 1,
-                    filter: phase === 1 ? ["brightness(1)", "brightness(1.2)", "brightness(2)"] : "brightness(1)"
+                    scale: phase === 1 ? [1, 0.9, 1.1, 0.95, 1.05, 0.98, 1.02, 1] : 1,
+                    filter: phase === 1 ? ["brightness(1)", "brightness(1.2)", "brightness(3)"] : "brightness(1)"
                   }}
                   transition={{
                     x: {
                         duration: ANIMATION_TIMINGS.struggleMerge / 1000,
-                        times: [0, 0.2, 0.3, 0.5, 0.6, 0.75, 0.82, 0.9, 0.94, 0.97, 0.99, 1],
+                        times: [0, 0.15, 0.25, 0.4, 0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95, 1],
                         ease: "easeInOut"
                     },
                     y: {
@@ -319,7 +329,7 @@ export const SkinAcquisitionOverlay: React.FC<SkinAcquisitionOverlayProps> = ({ 
             className="flex flex-col items-center gap-4 z-30"
           >
             <div className="text-3xl font-bold text-white drop-shadow-lg tracking-wider">
-              {t('modals:skin.acquired')}
+              {t('modals:skinAcquisition.title')}
             </div>
             
             <div 
@@ -330,8 +340,19 @@ export const SkinAcquisitionOverlay: React.FC<SkinAcquisitionOverlayProps> = ({ 
             </div>
             
             <div className="text-base text-white/70 font-medium">
-              {t('modals:skin.addedToCollection')}
+              {t('modals:skinAcquisition.addedToCollection')}
             </div>
+            
+            {/* 탭하여 닫기 안내 */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: canDismiss ? 1 : 0, scale: canDismiss ? 1 : 0.9 }}
+              transition={{ duration: 0.3 }}
+              className="mt-6 px-5 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white/80 text-sm font-medium flex items-center gap-2"
+            >
+              <span>👆</span>
+              <span>{t('modals:skinAcquisition.tapToClose')}</span>
+            </motion.div>
           </motion.div>
         )}
       </div>

@@ -19,21 +19,25 @@ import koCommon from '../public/locales/ko/common.json';
 import koGame from '../public/locales/ko/game.json';
 import koModals from '../public/locales/ko/modals.json';
 import koPages from '../public/locales/ko/pages.json';
+import koSkins from '../public/locales/ko/skins.json';
 
 import enCommon from '../public/locales/en/common.json';
 import enGame from '../public/locales/en/game.json';
 import enModals from '../public/locales/en/modals.json';
 import enPages from '../public/locales/en/pages.json';
+import enSkins from '../public/locales/en/skins.json';
 
 import jaCommon from '../public/locales/ja/common.json';
 import jaGame from '../public/locales/ja/game.json';
 import jaModals from '../public/locales/ja/modals.json';
 import jaPages from '../public/locales/ja/pages.json';
+import jaSkins from '../public/locales/ja/skins.json';
 
 import zhCommon from '../public/locales/zh/common.json';
 import zhGame from '../public/locales/zh/game.json';
 import zhModals from '../public/locales/zh/modals.json';
 import zhPages from '../public/locales/zh/pages.json';
+import zhSkins from '../public/locales/zh/skins.json';
 
 // 리소스 구조 정의
 const resources = {
@@ -42,24 +46,28 @@ const resources = {
     game: koGame,
     modals: koModals,
     pages: koPages,
+    skins: koSkins,
   },
   en: {
     common: enCommon,
     game: enGame,
     modals: enModals,
     pages: enPages,
+    skins: enSkins,
   },
   ja: {
     common: jaCommon,
     game: jaGame,
     modals: jaModals,
     pages: jaPages,
+    skins: jaSkins,
   },
   zh: {
     common: zhCommon,
     game: zhGame,
     modals: zhModals,
     pages: zhPages,
+    skins: zhSkins,
   },
 } as const;
 
@@ -164,6 +172,7 @@ declare module 'i18next' {
       game: typeof enGame;
       modals: typeof enModals;
       pages: typeof enPages;
+      skins: typeof enSkins;
     };
   }
 }

@@ -80,16 +80,34 @@ export interface BlockCustomizationSettingsV1 {
 
 // --- Skin system ---
 
+export type SkinCategory = 'basic' | 'material' | 'digital' | 'art' | 'food' | 'nature';
+
+export interface SkinStyle {
+  type: 'solid' | 'gradient' | 'image' | 'css-pattern';
+  // Base background (hex, gradient string, or url)
+  value: string;
+  // Optional specific overrides
+  textColor?: string;
+  borderColor?: string;
+  shadow?: string;
+  // For complex CSS patterns
+  customCss?: string; // Serialized CSS properties
+}
+
 // 스킨 카탈로그 항목 (뽑기 가능한 스킨 정의, constants.ts에서 배열로 관리)
 export interface SkinCatalogEntry {
   id: string;   // "skin_0", "skin_1" ...
-  hex: string;  // "#FF5C5C" 등 큐레이션 색상
+  hex: string;  // 큐레이션 색상 (UI 표시용, 대표 색상)
+  category?: SkinCategory;
+  nameKey?: string; // i18n key suffix
+  style?: SkinStyle; // Advanced styling
 }
 
 // 사용자가 획득한 스킨
 export interface SkinItem {
   id: string;          // SkinCatalogEntry.id와 동일
-  hex: string;         // 획득 시점의 색상
+  hex: string;         // 획득 시점의 색상 (Legacy support)
+  style?: SkinStyle;   // 획득 시점의 스타일 (For advanced skins)
   acquiredAt: number;  // Date.now() 타임스탬프
 }
 

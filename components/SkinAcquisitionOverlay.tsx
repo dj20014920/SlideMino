@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { hexToRgb } from '../services/blockCustomization';
+import { hexToRgb, resolveSkinAppearance } from '../services/blockCustomization';
 
 type SkinAcquisitionOverlayProps = {
-  skinHex: string;
+  skin: { id?: string; hex: string; style?: any };
   onComplete: () => void;
 };
 
@@ -21,10 +21,12 @@ const ANIMATION_TIMINGS = {
  * - 임계점에서 고광도 플래시 + 코로나(후광) + 플레어
  * - 최종 획득 스킨 블럭 노출
  */
-export const SkinAcquisitionOverlay: React.FC<SkinAcquisitionOverlayProps> = ({ skinHex, onComplete }) => {
+export const SkinAcquisitionOverlay: React.FC<SkinAcquisitionOverlayProps> = ({ skin, onComplete }) => {
   const { t } = useTranslation();
   const [phase, setPhase] = useState(0); // 0=준비, 1=힘겹게 합성, 2=임계 플래시, 3=결과 노출
   const [canDismiss, setCanDismiss] = useState(false); // 클릭해서 닫을 수 있는지 여부
+  const skinHex = skin.hex;
+  const appearance = useMemo(() => resolveSkinAppearance(2048, skin), [skin]);
 
   const colors = useMemo(() => {
     const rgb = hexToRgb(skinHex);
@@ -293,7 +295,8 @@ export const SkinAcquisitionOverlay: React.FC<SkinAcquisitionOverlayProps> = ({ 
                   className="relative w-32 h-32 rounded-3xl z-20 overflow-hidden ring-4 ring-white/30"
                   style={{
                     backgroundColor: skinHex,
-                    boxShadow: `0 0 50px ${colors.glow}, 0 0 100px ${colors.corona}`,
+                    ...appearance.style,
+                    boxShadow: `0 0 50px ${colors.glow}, 0 0 100px ${colors.corona}, ${appearance.style?.boxShadow ?? ''}`,
                   }}
                 >
                   {/* 블록 내부의 하이라이트 */}

@@ -1,6 +1,15 @@
 import type { CSSProperties } from 'react';
-import { TILE_COLORS, getTileColor } from '../constants';
-import type { BlockCustomizationSettingsV1, GlobalTilePaletteSettings, SkinSettings, TileSkinOverride } from '../types';
+import { TILE_COLORS, getTileColor, SKIN_CATALOG } from '../constants';
+import type { BlockCustomizationSettingsV1, GlobalTilePaletteSettings, SkinSettings, TileSkinOverride, SkinCatalogEntry } from '../types';
+import {
+  SKIN_PROGRESSIONS,
+  SKIN_EXPLICIT_PALETTES,
+  SKIN_ANIMATIONS,
+  SKIN_RENDER_MODES,
+  getValueShadow,
+  getAutoBorderColor,
+  type SkinRenderMode,
+} from '../config/skinPalettes';
 
 export const BLOCK_CUSTOMIZATION_STORAGE_KEY = 'slidemino.blockCustomization.v1';
 
@@ -261,6 +270,209 @@ export const getSkinColorForValue = (value: number, skinHex: string): string => 
   return rgbToHex(mixed);
 };
 
+// --- New Helper for Previews ---
+export const resolveSkinAppearance = (value: number, skin: { id?: string; hex: string; style?: any }): ResolvedTileAppearance => {
+  const skinId = skin.id || '';
+
+  // Look up style from catalog if not provided (backward compatibility)
+  let styleData = skin.style;
+  if (!styleData && skinId) {
+    const entry = SKIN_CATALOG.find((e) => e.id === skinId);
+    if (entry) styleData = entry.style;
+  }
+
+  // ── 1. Explicit palette skins (Neon, Pop Art, Stained Glass) ──
+  const explicitPalette = SKIN_EXPLICIT_PALETTES[skinId];
+  if (explicitPalette) {
+    return resolveExplicitPaletteSkin(value, skinId, explicitPalette, styleData);
+  }
+
+  // ── 2. HSL progression skins (all complex skins) ──
+  const progression = SKIN_PROGRESSIONS[skinId];
+  if (progression) {
+    return resolveProgressionSkin(value, skinId, progression, styleData);
+  }
+
+  // ── 3. Legacy fallback (basic color skins: skin_0 through skin_23) ──
+  const baseHex = getSkinColorForValue(value, skin.hex);
+  const { backgroundImage, baseRgb } = buildGradient(baseHex);
+  return {
+    className: getTileColor(value),
+    style: {
+      backgroundImage,
+      backgroundColor: baseHex,
+      ...getWhiteTextStyleForBackground(baseRgb),
+    },
+  };
+};
+
+// ==============================================
+// Progression Skin Renderer
+// ==============================================
+// Interpolates HSL from start→end based on log2(value).
+// Produces a rich gradient per value with auto text color & border.
+
+function resolveProgressionSkin(
+  value: number,
+  skinId: string,
+  prog: [number, number, number, number, number, number],
+  styleData?: any,
+): ResolvedTileAppearance {
+  const t = clamp(Math.log2(Math.max(1, value)) / 15, 0, 1);
+
+  const h = prog[0] + (prog[3] - prog[0]) * t;
+  const s = prog[1] + (prog[4] - prog[1]) * t;
+  const l = prog[2] + (prog[5] - prog[2]) * t;
+
+  const baseHex = rgbToHex(hslToRgb({ h, s, l }));
+  const baseRgb = hexToRgb(baseHex);
+  const { backgroundImage } = buildGradient(baseHex);
+
+  const renderMode: SkinRenderMode = SKIN_RENDER_MODES[skinId] || 'standard';
+
+  const style: CSSProperties = {
+    backgroundColor: baseHex,
+    backgroundImage,
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    borderColor: getAutoBorderColor(h, s, l),
+    boxShadow: getValueShadow(t),
+    ...getAutoTextColor(baseRgb),
+  };
+
+  // Apply structural properties from skin definition (customCss)
+  if (styleData) {
+    // For css-pattern skins: overlay the pattern on the palette gradient
+    if ((styleData.type === 'css-pattern' || styleData.type === 'gradient') && styleData.value) {
+      style.backgroundImage = `${styleData.value}, ${backgroundImage}`;
+      (style as any).backgroundBlendMode = 'overlay';
+    }
+
+    // Apply customCss properties (border-radius, font, etc.) but skip color overrides
+    if (styleData.customCss) {
+      applyStructuralCss(style, styleData.customCss as string);
+    }
+  }
+
+  // Apply animation if defined
+  const anim = SKIN_ANIMATIONS[skinId];
+  if (anim) {
+    style.animation = anim;
+  }
+
+  return { className: getTileColor(value), style };
+}
+
+// ==============================================
+// Explicit Palette Skin Renderer
+// ==============================================
+// Uses a specific hex color per value index (16 colors).
+// Handles special render modes (neon glow, wireframe, etc.).
+
+function resolveExplicitPaletteSkin(
+  value: number,
+  skinId: string,
+  palette: string[],
+  styleData?: any,
+): ResolvedTileAppearance {
+  const idx = Math.min(Math.max(0, Math.floor(Math.log2(Math.max(1, value)))), palette.length - 1);
+  const paletteHex = palette[idx];
+  const paletteRgb = hexToRgb(paletteHex);
+  const renderMode: SkinRenderMode = SKIN_RENDER_MODES[skinId] || 'standard';
+  const t = clamp(Math.log2(Math.max(1, value)) / 15, 0, 1);
+
+  const style: CSSProperties = {};
+
+  if (renderMode === 'neon') {
+    // ── Neon: Black BG, colored text/glow ──
+    style.backgroundColor = '#0a0a0a';
+    style.backgroundImage = 'none';
+    style.color = paletteHex;
+    style.textShadow = `0 0 6px ${paletteHex}, 0 0 14px ${paletteHex}`;
+    style.borderStyle = 'solid';
+    style.borderWidth = '1.5px';
+    style.borderColor = paletteHex;
+    style.boxShadow = `0 0 5px ${paletteHex}80, 0 0 12px ${paletteHex}40, inset 0 0 6px ${paletteHex}30`;
+  } else {
+    // ── Standard explicit palette ──
+    const { backgroundImage } = buildGradient(paletteHex);
+    style.backgroundColor = paletteHex;
+    style.backgroundImage = backgroundImage;
+    style.borderStyle = 'solid';
+    style.borderWidth = styleData?.type === 'css-pattern' ? '2px' : '1px';
+    style.borderColor = `rgba(0,0,0,0.25)`;
+    style.boxShadow = getValueShadow(t);
+    Object.assign(style, getAutoTextColor(paletteRgb));
+
+    // Stained Glass: thick dark border (leaded glass look)
+    if (skinId === 'skin_art_stained_glass') {
+      style.borderWidth = '2.5px';
+      style.borderColor = '#1a1a1a';
+      style.boxShadow = `inset 0 0 8px rgba(0,0,0,0.45), ${getValueShadow(t)}`;
+    }
+  }
+
+  // Apply customCss if defined
+  if (styleData?.customCss) {
+    applyStructuralCss(style, styleData.customCss as string);
+  }
+
+  // Apply animation
+  const anim = SKIN_ANIMATIONS[skinId];
+  if (anim) {
+    style.animation = anim;
+  }
+
+  return { className: getTileColor(value), style };
+}
+
+// ==============================================
+// Auto Text Color
+// ==============================================
+// Chooses white or dark text based on background luminance.
+// For light backgrounds, adds a subtle outline for legibility.
+
+function getAutoTextColor(bgRgb: Rgb): CSSProperties {
+  const lum = relativeLuminance(bgRgb);
+
+  if (lum > 0.55) {
+    // Light background: dark text with subtle shadow
+    return {
+      color: '#1a1a2e',
+      textShadow: '0 1px 1px rgba(255,255,255,0.3)',
+    };
+  }
+
+  // Dark background: white text
+  return getWhiteTextStyleForBackground(bgRgb);
+}
+
+// ==============================================
+// Structural CSS Parser
+// ==============================================
+// Applies customCss properties that contribute to structure/texture,
+// but skips color-related properties (handled by palette system).
+
+const SKIP_CSS_PROPS = new Set([
+  'background-color', 'backgroundColor',
+  'color', 'background-image', 'backgroundImage',
+]);
+
+function applyStructuralCss(style: CSSProperties, cssString: string): void {
+  cssString.split(';').forEach((rule) => {
+    const colonIdx = rule.indexOf(':');
+    if (colonIdx === -1) return;
+    const rawKey = rule.slice(0, colonIdx).trim();
+    const rawValue = rule.slice(colonIdx + 1).trim();
+    if (!rawKey || !rawValue) return;
+    if (SKIP_CSS_PROPS.has(rawKey)) return;
+    const camelKey = rawKey.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+    if (SKIP_CSS_PROPS.has(camelKey)) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (style as any)[camelKey] = rawValue;
+  });
+}
+
 export const resolveTileAppearance = (
   value: number,
   settings: BlockCustomizationSettingsV1,
@@ -274,18 +486,10 @@ export const resolveTileAppearance = (
   if (skinSettings?.activeSkinId) {
     const activeSkin = skinSettings.ownedSkins.find(s => s.id === skinSettings.activeSkinId);
     if (activeSkin) {
-      const baseHex = getSkinColorForValue(value, activeSkin.hex);
-      const { backgroundImage, baseRgb } = buildGradient(baseHex);
-      return {
-        className: getTileColor(value),
-        style: {
-          backgroundImage,
-          backgroundColor: baseHex,
-          ...getWhiteTextStyleForBackground(baseRgb),
-        },
-      };
+      return resolveSkinAppearance(value, activeSkin);
     }
   }
+
 
   // 2순위: 기존 커스터마이징 로직
   const baseClassName = getTileColor(value);

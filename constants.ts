@@ -1,4 +1,5 @@
 import { ShapeType, Coordinate, SkinCatalogEntry } from './types';
+import { ADDITIONAL_SKIN_CATALOG } from './config/skinCatalog';
 
 // Board slide animation (one swipe)
 export const SLIDE_ANIMATION_MS = 250;
@@ -270,6 +271,7 @@ export const MAX_DAILY_SKIN_AD_VIEWS = 3;
  * UI 그리드, 서비스, 저장 로직은 이 배열 크기에 자동 적응.
  */
 export const SKIN_CATALOG: readonly SkinCatalogEntry[] = [
+  ...ADDITIONAL_SKIN_CATALOG,
   { id: 'skin_0',  hex: '#FF5C5C' }, { id: 'skin_1',  hex: '#FF6B6B' },
   { id: 'skin_2',  hex: '#FF7A59' }, { id: 'skin_3',  hex: '#FF8A3D' },
   { id: 'skin_4',  hex: '#F97316' }, { id: 'skin_5',  hex: '#FB923C' },

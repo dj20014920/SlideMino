@@ -38,7 +38,7 @@ export const LANGUAGE_CONFIGS: Record<SupportedLanguage, LanguageConfig> = {
 export const DEFAULT_LANGUAGE: SupportedLanguage = 'en';
 export const LANGUAGE_STORAGE_KEY = 'slidemino-language';
 
-export const NAMESPACES = ['common', 'game', 'modals', 'pages'] as const;
+export const NAMESPACES = ['common', 'game', 'modals', 'pages', 'skins'] as const;
 export type Namespace = typeof NAMESPACES[number];
 
 export const normalizeLanguage = (language?: string): SupportedLanguage => {

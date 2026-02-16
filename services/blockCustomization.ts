@@ -332,11 +332,11 @@ function resolveProgressionSkin(
 
   const style: CSSProperties = {
     backgroundColor: baseHex,
-    backgroundImage,
+    backgroundImage: renderMode === 'flat' ? 'none' : backgroundImage,
     borderStyle: 'solid',
-    borderWidth: '1px',
+    borderWidth: styleData?.type === 'css-pattern' ? '2px' : '1px',
     borderColor: getAutoBorderColor(h, s, l),
-    boxShadow: getValueShadow(t),
+    boxShadow: renderMode === 'flat' ? 'none' : getValueShadow(t),
     ...getAutoTextColor(baseRgb),
   };
 
@@ -352,6 +352,7 @@ function resolveProgressionSkin(
     if (styleData.customCss) {
       applyStructuralCss(style, styleData.customCss as string);
     }
+    applySkinStyleOverrides(style, styleData);
   }
 
   // Apply animation if defined
@@ -397,11 +398,11 @@ function resolveExplicitPaletteSkin(
     // ── Standard explicit palette ──
     const { backgroundImage } = buildGradient(paletteHex);
     style.backgroundColor = paletteHex;
-    style.backgroundImage = backgroundImage;
+    style.backgroundImage = renderMode === 'flat' ? 'none' : backgroundImage;
     style.borderStyle = 'solid';
     style.borderWidth = styleData?.type === 'css-pattern' ? '2px' : '1px';
     style.borderColor = `rgba(0,0,0,0.25)`;
-    style.boxShadow = getValueShadow(t);
+    style.boxShadow = renderMode === 'flat' ? 'none' : getValueShadow(t);
     Object.assign(style, getAutoTextColor(paletteRgb));
 
     // Stained Glass: thick dark border (leaded glass look)
@@ -416,6 +417,7 @@ function resolveExplicitPaletteSkin(
   if (styleData?.customCss) {
     applyStructuralCss(style, styleData.customCss as string);
   }
+  applySkinStyleOverrides(style, styleData);
 
   // Apply animation
   const anim = SKIN_ANIMATIONS[skinId];
@@ -471,6 +473,22 @@ function applyStructuralCss(style: CSSProperties, cssString: string): void {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (style as any)[camelKey] = rawValue;
   });
+}
+
+function applySkinStyleOverrides(
+  style: CSSProperties,
+  styleData?: { textColor?: unknown; borderColor?: unknown; shadow?: unknown } | null
+): void {
+  if (!styleData) return;
+  if (typeof styleData.textColor === 'string' && styleData.textColor) {
+    style.color = styleData.textColor;
+  }
+  if (typeof styleData.borderColor === 'string' && styleData.borderColor) {
+    style.borderColor = styleData.borderColor;
+  }
+  if (typeof styleData.shadow === 'string' && styleData.shadow) {
+    style.boxShadow = styleData.shadow;
+  }
 }
 
 export const resolveTileAppearance = (

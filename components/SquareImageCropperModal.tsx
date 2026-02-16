@@ -154,7 +154,7 @@ export function SquareImageCropperModal({
     >
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onCancel} />
 
-      <div className="relative z-10 w-full max-w-lg rounded-3xl bg-white/90 backdrop-blur-sm border border-white/60 shadow-2xl overflow-hidden">
+      <div className="relative z-10 w-full max-w-lg rounded-3xl bg-white/90 backdrop-blur-sm border border-white/60 shadow-2xl overflow-hidden win98-window">
         <div className="flex items-start justify-between px-5 py-4 border-b border-black/5">
           <div>
             <h3 className="text-lg font-semibold text-gray-900">{t('modals:blockCustomization.cropper.title')}</h3>

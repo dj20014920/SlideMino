@@ -16,17 +16,20 @@ export interface SlotProps {
 
 export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, index, disabled, isPressed = false, htmlId }) => {
   const { t } = useTranslation();
-  const { resolveTileAppearance } = useBlockCustomization();
+  const { resolveTileAppearance, isWin98ThemeActive } = useBlockCustomization();
 
   // 빈 슬롯 렌더링
   if (!piece) {
     return (
-      <div className="
-        w-full aspect-square rounded-2xl
-        bg-white/20 backdrop-blur-sm
-        border border-dashed border-gray-300/50
-        opacity-40
-      "/>
+      <div
+        className={`
+          w-full aspect-square opacity-40
+          ${isWin98ThemeActive
+            ? 'win98-slot-shell'
+            : 'rounded-2xl win98-window bg-white/20 backdrop-blur-sm border border-dashed border-gray-300/50'
+          }
+        `}
+      />
     );
   }
 
@@ -50,18 +53,20 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
   return (
     <div
       className={`
-        relative w-full aspect-square rounded-2xl flex items-center justify-center
-        bg-white/40 backdrop-blur-sm
-        border border-white/50
-        shadow-[0_4px_16px_rgba(0,0,0,0.06)]
+        relative w-full aspect-square flex items-center justify-center
+        ${isWin98ThemeActive ? 'win98-slot-shell' : 'rounded-2xl win98-window bg-white/40 backdrop-blur-sm border border-white/50 shadow-[0_4px_16px_rgba(0,0,0,0.06)]'}
         cursor-grab active:cursor-grabbing 
         transition-all duration-150 ease-out
         group
         ${disabled
           ? 'opacity-30 pointer-events-none grayscale'
           : isPressed
-            ? 'bg-white/55 ring-2 ring-emerald-300/80 shadow-[0_8px_20px_rgba(16,185,129,0.2)]'
-            : 'hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] hover:bg-white/50'
+            ? isWin98ThemeActive
+              ? 'brightness-95'
+              : 'bg-white/55 ring-2 ring-emerald-300/80 shadow-[0_8px_20px_rgba(16,185,129,0.2)]'
+            : isWin98ThemeActive
+              ? ''
+              : 'hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] hover:bg-white/50'
         }
       `}
       id={htmlId}
@@ -76,18 +81,17 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
       {!disabled && (
         <button
           type="button"
-          className="
-            absolute left-2 bottom-2 z-10
-            w-7 h-7 rounded-full touch-manipulation
+          className={`
+            absolute left-1.5 bottom-1.5 z-10
+            touch-manipulation
             inline-flex items-center justify-center
-            bg-white/80
-            text-gray-600 
-            border border-white/40
-            shadow-md
-            hover:bg-gray-800 hover:text-white hover:border-gray-700
             transition-colors duration-150
             opacity-100
-          "
+            ${isWin98ThemeActive
+              ? 'win98-game-btn win98-slot-rotate-btn text-gray-700'
+              : 'w-7 h-7 rounded-full bg-white/80 text-gray-600 border border-white/40 shadow-md hover:bg-gray-800 hover:text-white hover:border-gray-700'
+            }
+          `}
           data-rotate-button
           onPointerDown={(e) => {
             e.preventDefault();
@@ -104,7 +108,7 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
           }}
           aria-label={t('common:aria.rotateBlock')}
         >
-          <RotateCw size={13} />
+          <RotateCw size={isWin98ThemeActive ? 11 : 13} />
         </button>
       )}
 
@@ -126,8 +130,7 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
               <div
                 key={i}
                 className={`
-                  rounded-lg
-                  border border-white/30
+                  ${isWin98ThemeActive ? 'win98-slot-mini-cell' : 'rounded-lg border border-white/30'}
                   ${appearance.className}
                 `}
                 style={{

@@ -58,7 +58,7 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({ open, difficulty
             />
 
             {/* Modal Content - 키보드 오버랩 방지를 위해 모바일에서는 하단 정렬 */}
-            <div className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden animate-scale-in mb-safe">
+            <div className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden animate-scale-in mb-safe win98-window">
                 <div className="p-6">
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-xl font-bold text-gray-800">

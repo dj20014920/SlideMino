@@ -54,6 +54,7 @@ import { rankingService, type RankEntry, type LiveRankEstimate } from './service
 import { getCurrentRoute, onRouteChange, updatePageMeta, type Route } from './utils/routing';
 import { isNativeApp, isAppIntoS, isAndroidApp } from './utils/platform';
 import { normalizeLanguage } from './i18n/constants';
+import { LANGUAGE_CONFIGS, type SupportedLanguage } from './i18n/constants';
 import { getAdMobRequestPolicy, openNativePrivacyOptionsForm } from './services/admob';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import Terms from './pages/Terms';
@@ -364,7 +365,7 @@ const App: React.FC = () => {
 
   // --- State ---
   const [isLoading, setIsLoading] = useState(true);
-  const { gate: customizationGate, resolveTileAppearance } = useBlockCustomization();
+  const { gate: customizationGate, resolveTileAppearance, isWin98ThemeActive } = useBlockCustomization();
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
 
   // Hide Capacitor Splash Screen immediately
@@ -2217,8 +2218,8 @@ const App: React.FC = () => {
     return (
       <>
         <CookieConsent />
-        <div className="min-h-screen min-h-[100dvh] flex items-center justify-center px-6 py-10 bg-gradient-to-b from-gray-50 to-gray-100 text-gray-900">
-          <div className="w-full max-w-sm rounded-3xl border border-white/70 bg-white/80 backdrop-blur-sm shadow-xl p-8 text-center space-y-3">
+        <div className={`${isWin98ThemeActive ? 'win98-app-shell' : ''} min-h-screen min-h-[100dvh] flex items-center justify-center px-6 py-10 bg-gradient-to-b from-gray-50 to-gray-100 text-gray-900`}>
+          <div className={`w-full max-w-sm rounded-3xl border border-white/70 bg-white/80 backdrop-blur-sm shadow-xl p-8 text-center space-y-3 ${isWin98ThemeActive ? 'win98-window' : ''}`}>
             <div className="mx-auto w-14 h-14 rounded-2xl border border-gray-200 bg-white flex items-center justify-center text-2xl">
               📱
             </div>
@@ -2269,6 +2270,370 @@ const App: React.FC = () => {
     const shouldSuppressGameModeTutorial =
       isNameInputOpen || isCustomizationOpen || isLeaderboardOpen || isActiveGameExitModalOpen;
 
+    const handleReplayTutorial = () => {
+      localStorage.removeItem('tutorial_back_nav_seen_v1');
+      localStorage.removeItem('tutorial_game_mode_seen_v1');
+      localStorage.removeItem('tutorial_completed');
+      setTutorialResetKey(prev => prev + 1);
+      setTutorialStep(1);
+      const btn = document.getElementById('replay-tutorial-btn');
+      if(btn) {
+        btn.innerText = "✨ " + t('common:actions.resetDone', '리셋 완료!');
+        setTimeout(() => {
+            if(btn) btn.innerText = t('common:actions.replayTutorial', '튜토리얼 다시보기');
+        }, 1500);
+      }
+    };
+
+    const setLanguageFromMenu = (langCode: SupportedLanguage) => {
+      i18n.changeLanguage(langCode);
+      try {
+        localStorage.setItem('slidemino-language', langCode);
+      } catch {
+        // ignore
+      }
+    };
+
+    const currentLang = normalizeLanguage(i18n.resolvedLanguage ?? i18n.language);
+
+    const win98UtilityButtons = (
+      <fieldset>
+        <legend>메뉴</legend>
+        {isNativeApp() && (
+          <div className="field-row">
+            <input id="menu-action-skin" type="radio" name="menu-action-win98" onClick={() => setIsSkinOpen(true)} readOnly />
+            <label htmlFor="menu-action-skin">{t('game:actions.skin')}</label>
+          </div>
+        )}
+
+        {!isNativeApp() && (
+          <div className="field-row">
+            <input
+              id="menu-action-customize"
+              type="radio"
+              name="menu-action-win98"
+              onClick={() => setIsCustomizationOpen(true)}
+              disabled={!customizationGate.allowed}
+              readOnly
+            />
+            <label htmlFor="menu-action-customize">
+              {!customizationGate.allowed
+                ? `${t('game:actions.customization')} (${customizationGate.reasonKey ? t(customizationGate.reasonKey as any) : t('game:actions.locked')})`
+                : t('game:actions.customization')}
+            </label>
+          </div>
+        )}
+
+        <div className="field-row">
+          <input id="menu-action-leaderboard" type="radio" name="menu-action-win98" onClick={() => setIsLeaderboardOpen(true)} readOnly />
+          <label htmlFor="menu-action-leaderboard">{t('game:actions.leaderboard')}</label>
+        </div>
+
+        <div className="field-row">
+          <input id="menu-action-replay" type="radio" name="menu-action-win98" onClick={handleReplayTutorial} readOnly />
+          <label htmlFor="menu-action-replay">{t('common:actions.replayTutorial', '튜토리얼 다시보기')}</label>
+        </div>
+
+        <fieldset style={{ marginTop: '8px' }}>
+          <legend>언어</legend>
+          {(Object.keys(LANGUAGE_CONFIGS) as SupportedLanguage[]).map((langCode) => (
+            <div key={langCode} className="field-row">
+              <input
+                id={`menu-lang-${langCode}`}
+                type="radio"
+                name="menu-language-win98"
+                checked={currentLang === langCode}
+                onClick={() => setLanguageFromMenu(langCode)}
+                readOnly
+              />
+              <label htmlFor={`menu-lang-${langCode}`}>
+                {LANGUAGE_CONFIGS[langCode].displayName} {LANGUAGE_CONFIGS[langCode].flag}
+              </label>
+            </div>
+          ))}
+        </fieldset>
+      </fieldset>
+    );
+
+    const win98DifficultyRows = (
+      <>
+        {hasActiveGame() && (
+          <div className="field-row">
+            <input
+              id="difficulty-continue"
+              type="radio"
+              name="difficulty-win98"
+              onChange={() => {
+                const saved = loadGameState();
+                if (saved) {
+                  restoreSavedGame(saved);
+                }
+              }}
+            />
+            <label htmlFor="difficulty-continue">{t('game:difficulties.continue')} ({boardSize}×{boardSize})</label>
+          </div>
+        )}
+
+        <div className="field-row">
+          <input id="difficulty-4" type="radio" name="difficulty-win98" checked={boardSize === 4} onChange={() => tryStartGame(4)} />
+          <label htmlFor="difficulty-4">{t('game:difficulties.expert')} ({t('game:boardSizes.4x4')})</label>
+        </div>
+        <div className="field-row">
+          <input
+            id="difficulty-5"
+            type="radio"
+            name="difficulty-win98"
+            checked={boardSize === 5}
+            onChange={() => {
+              tryStartGame(5);
+              localStorage.setItem('tutorial_game_mode_seen_v1', 'true');
+            }}
+          />
+          <label htmlFor="difficulty-5">{t('game:difficulties.normal')} ({t('game:boardSizes.5x5')})</label>
+        </div>
+        <div className="field-row">
+          <input id="difficulty-7" type="radio" name="difficulty-win98" checked={boardSize === 7} onChange={() => tryStartGame(7)} />
+          <label htmlFor="difficulty-7">{t('game:difficulties.beginner')} ({t('game:boardSizes.7x7')})</label>
+        </div>
+        <div className="field-row">
+          <input id="difficulty-8" type="radio" name="difficulty-win98" checked={boardSize === 8} onChange={() => tryStartGame(8)} />
+          <label htmlFor="difficulty-8">{t('game:difficulties.easy')} ({t('game:boardSizes.8x8')})</label>
+        </div>
+        <div className="field-row">
+          <input id="difficulty-10" type="radio" name="difficulty-win98" checked={boardSize === 10} onChange={() => tryStartGame(10)} />
+          <label htmlFor="difficulty-10">{t('game:difficulties.infinite')} ({t('game:boardSizes.10x10')})</label>
+        </div>
+      </>
+    );
+
+    const menuActionButtons = (
+      <>
+        <AnimatePresence mode="wait">
+          {isLoading && <LoadingScreen key="loading-screen-menu" />}
+        </AnimatePresence>
+
+        {hasActiveGame() && (
+          <button
+            onClick={() => {
+              const saved = loadGameState();
+              if (saved) {
+                restoreSavedGame(saved);
+              }
+            }}
+            className="
+            relative group w-full py-4 px-6 rounded-2xl win98-menu-btn
+            bg-gradient-to-br from-emerald-500 to-emerald-600
+            border border-emerald-400/30
+            shadow-lg shadow-emerald-900/20
+            hover:shadow-xl hover:shadow-emerald-600/30 hover:-translate-y-0.5
+            active:translate-y-0 active:shadow-md
+            transition-all duration-200 ease-out
+            text-white font-semibold text-lg
+          "
+          >
+            <span className="flex items-center justify-between">
+              <span>{t('game:difficulties.continue')}</span>
+              <span className={`${isWin98ThemeActive ? 'win98-muted' : 'text-emerald-200/70'} font-normal text-sm`}>{boardSize}×{boardSize}</span>
+            </span>
+          </button>
+        )}
+
+        <button
+          onClick={() => tryStartGame(4)}
+          className="
+          relative group w-full py-4 px-6 rounded-2xl win98-menu-btn
+          bg-gradient-to-br from-red-600 via-red-700 to-red-900
+          border border-red-400/30
+          shadow-lg shadow-red-900/20
+          hover:shadow-xl hover:shadow-red-600/30 hover:-translate-y-0.5
+          active:translate-y-0 active:shadow-md
+          transition-all duration-200 ease-out
+          text-white font-semibold text-lg
+        "
+        >
+          <span className="flex items-center justify-between">
+            <span>{t('game:difficulties.expert')}</span>
+            <span className={`${isWin98ThemeActive ? 'win98-muted' : 'text-red-200/70'} font-normal text-sm`}>{t('game:boardSizes.4x4')}</span>
+          </span>
+        </button>
+
+        <button
+          id="mode-btn-beginner"
+          onClick={() => {
+            tryStartGame(5);
+            localStorage.setItem('tutorial_game_mode_seen_v1', 'true');
+          }}
+          className="
+          relative group w-full py-4 px-6 rounded-2xl win98-menu-btn
+          bg-gradient-to-br from-blue-600 to-blue-700
+          border border-blue-400/30
+          shadow-lg shadow-blue-900/20
+          hover:shadow-xl hover:shadow-blue-600/30 hover:-translate-y-0.5
+          active:translate-y-0 active:shadow-md
+          transition-all duration-200 ease-out
+          text-white font-semibold text-lg
+        "
+        >
+          <span className="flex items-center justify-between">
+            <span>{t('game:difficulties.normal')}</span>
+            <span className={`${isWin98ThemeActive ? 'win98-muted' : 'text-blue-200/70'} font-normal text-sm`}>{t('game:boardSizes.5x5')}</span>
+          </span>
+        </button>
+
+        <button
+          onClick={() => tryStartGame(7)}
+          className="
+          relative group w-full py-4 px-6 rounded-2xl win98-menu-btn
+          bg-gradient-to-br from-indigo-600 to-indigo-800
+          border border-indigo-400/30
+          shadow-lg shadow-indigo-900/20
+          hover:shadow-xl hover:shadow-indigo-600/30 hover:-translate-y-0.5
+          active:translate-y-0 active:shadow-md
+          transition-all duration-200 ease-out
+          text-white font-semibold text-lg
+        "
+        >
+          <span className="flex items-center justify-between">
+            <span>{t('game:difficulties.beginner')}</span>
+            <span className={`${isWin98ThemeActive ? 'win98-muted' : 'text-indigo-200/70'} font-normal text-sm`}>{t('game:boardSizes.7x7')}</span>
+          </span>
+        </button>
+
+        <button
+          onClick={() => tryStartGame(8)}
+          className="
+          relative group w-full py-4 px-6 rounded-2xl win98-menu-btn
+          bg-gradient-to-br from-gray-800 to-gray-900
+          border border-white/10
+          shadow-lg
+          hover:shadow-xl hover:-translate-y-0.5
+          active:translate-y-0 active:shadow-md
+          transition-all duration-200 ease-out
+          text-white font-semibold text-lg
+        "
+        >
+          <span className="flex items-center justify-between">
+            <span>{t('game:difficulties.easy')}</span>
+            <span className={`${isWin98ThemeActive ? 'win98-muted' : 'text-gray-400'} font-normal text-sm`}>{t('game:boardSizes.8x8')}</span>
+          </span>
+        </button>
+
+        <button
+          onClick={() => tryStartGame(10)}
+          className="
+          relative group w-full py-4 px-6 rounded-2xl win98-menu-btn
+          bg-black
+          border border-white/10
+          shadow-lg
+          hover:shadow-xl hover:-translate-y-0.5
+          active:translate-y-0 active:shadow-md
+          transition-all duration-200 ease-out
+          text-white font-semibold text-lg
+        "
+        >
+          <span className="flex items-center justify-between">
+            <span>{t('game:difficulties.infinite')}</span>
+            <span className={`${isWin98ThemeActive ? 'win98-muted' : 'text-gray-500'} font-normal text-sm`}>{t('game:boardSizes.10x10')}</span>
+          </span>
+        </button>
+
+        {isNativeApp() && (
+          <button
+            onClick={() => setIsSkinOpen(true)}
+            className={`
+            relative group w-full py-3.5 px-6 rounded-2xl win98-menu-btn
+            bg-white/60 backdrop-blur-sm
+            border border-white/50
+            shadow-lg
+            hover:shadow-xl hover:-translate-y-0.5
+            active:translate-y-0 active:shadow-md
+            transition-all duration-200 ease-out
+            text-gray-800 font-semibold text-base
+            flex items-center justify-between
+          `}
+          >
+            <span className="flex items-center gap-2">
+              <Palette size={16} />
+              {t('game:actions.skin')}
+            </span>
+            <span className="text-gray-400 font-normal text-sm">{t('game:actions.skinDescription')}</span>
+          </button>
+        )}
+
+        {!isNativeApp() && (
+          <button
+            onClick={() => setIsCustomizationOpen(true)}
+            className={`
+            relative group w-full py-3.5 px-6 rounded-2xl win98-menu-btn
+            bg-white/60 backdrop-blur-sm
+            border border-white/50
+            shadow-lg
+            hover:shadow-xl hover:-translate-y-0.5
+            active:translate-y-0 active:shadow-md
+            transition-all duration-200 ease-out
+            text-gray-800 font-semibold text-base
+            flex items-center justify-between
+          `}
+          >
+            <span className="flex items-center gap-2">
+              <Palette size={16} />
+              {t('game:actions.customization')}
+            </span>
+            {!customizationGate.allowed ? (
+              <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-700/90">
+                <Lock size={14} />
+                {customizationGate.reasonKey ? t(customizationGate.reasonKey as any) : t('game:actions.locked')}
+              </span>
+            ) : (
+              <span className="text-gray-400 font-normal text-sm">{t('game:actions.customize')}</span>
+            )}
+          </button>
+        )}
+
+        <button
+          onClick={() => setIsLeaderboardOpen(true)}
+          className={`
+          relative group w-full py-3.5 px-6 rounded-2xl win98-menu-btn
+          bg-white/60 backdrop-blur-sm
+          border border-white/50
+          shadow-lg
+          hover:shadow-xl hover:-translate-y-0.5
+          active:translate-y-0 active:shadow-md
+          transition-all duration-200 ease-out
+          text-gray-800 font-semibold text-base
+          flex items-center justify-between
+        `}
+        >
+          <span className="flex items-center gap-2">
+            <Trophy size={16} className="text-yellow-600" />
+            {t('game:actions.leaderboard')}
+          </span>
+        </button>
+
+        {!isWin98ThemeActive && <LanguageSwitcher />}
+
+        <button
+          onClick={handleReplayTutorial}
+          id="replay-tutorial-btn"
+          className="
+            w-full py-3.5 px-6 rounded-2xl win98-menu-btn
+            bg-white/30 backdrop-blur-sm
+            border border-white/20
+            text-gray-600 hover:text-gray-900
+            hover:bg-white/50 hover:-translate-y-0.5
+            active:translate-y-0 active:shadow-sm
+            transition-all duration-200 ease-out
+            shadow-sm
+            text-sm font-semibold
+            flex items-center justify-center gap-2
+          "
+        >
+          <RotateCcw size={14} />
+          {t('common:actions.replayTutorial', '튜토리얼 다시보기')}
+        </button>
+      </>
+    );
+
     return (
       <>
         <CookieConsent />
@@ -2287,13 +2652,39 @@ const App: React.FC = () => {
           </div>
         )}
         <div
-          className="min-h-screen min-h-[100dvh] flex flex-col items-center justify-center p-6 space-y-10"
-          style={{ paddingTop: 'calc(1.5rem + var(--app-safe-top))' }}
+          className={`${isWin98ThemeActive ? 'win98-app-shell' : ''} min-h-screen min-h-[100dvh] flex flex-col items-center justify-center p-6 space-y-6`}
+          style={{ paddingTop: 'calc(0.5rem + var(--app-safe-top))' }}
         >
+          {isWin98ThemeActive && (
+            <div className="window w-full max-w-md win98-top-window">
+              <div className="title-bar">
+                <div className="title-bar-text">블록 슬라이드<br />(Block Slide)</div>
+                <div className="title-bar-controls">
+                  <button aria-label="Help" onClick={() => setIsLeaderboardOpen(true)} />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* 로고 영역 */}
           <div className="text-center space-y-3 animate-fade-in">
             <h1 className="text-5xl font-bold text-gray-900 tracking-tight">
-              {t('game:title')}
+              {isWin98ThemeActive ? (
+                (() => {
+                  const titleText = t('game:title');
+                  const matched = titleText.match(/^(.*)\s\((.*)\)$/);
+                  if (!matched) return titleText;
+                  return (
+                    <>
+                      {matched[1]}
+                      <br />
+                      ({matched[2]})
+                    </>
+                  );
+                })()
+              ) : (
+                t('game:title')
+              )}
             </h1>
             <p className="text-gray-500 text-lg max-w-xs mx-auto leading-relaxed">
               {tagline.split('\n').map((line, index, arr) => (
@@ -2334,261 +2725,29 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {/* 난이도 선택 버튼들 */}
-          <div className="flex flex-col gap-4 w-full max-w-xs animate-slide-up">
-            <AnimatePresence mode="wait">
-              {isLoading && <LoadingScreen key="loading-screen-menu" />}
-            </AnimatePresence>
-
-            {/* 게임 이어하기 버튼 - 진행중인 게임이 있을 때만 표시 */}
-            {hasActiveGame() && (
-              <button
-                onClick={() => {
-                  const saved = loadGameState();
-                  if (saved) {
-                    restoreSavedGame(saved);
-                  }
-                }}
-                className="
-                relative group w-full py-4 px-6 rounded-2xl
-                bg-gradient-to-br from-emerald-500 to-emerald-600
-                border border-emerald-400/30
-                shadow-lg shadow-emerald-900/20
-                hover:shadow-xl hover:shadow-emerald-600/30 hover:-translate-y-0.5
-                active:translate-y-0 active:shadow-md
-                transition-all duration-200 ease-out
-                text-white font-semibold text-lg
-              "
-              >
-                <span className="flex items-center justify-between">
-                  <span>{t('game:difficulties.continue')}</span>
-                  <span className="text-emerald-200/70 font-normal text-sm">{boardSize}×{boardSize}</span>
-                </span>
-              </button>
-            )}
-
-            {/* 고수 - 4×4 */}
-            <button
-              onClick={() => tryStartGame(4)}
-              className="
-              relative group w-full py-4 px-6 rounded-2xl
-              bg-gradient-to-br from-red-600 via-red-700 to-red-900
-              border border-red-400/30
-              shadow-lg shadow-red-900/20
-              hover:shadow-xl hover:shadow-red-600/30 hover:-translate-y-0.5
-              active:translate-y-0 active:shadow-md
-              transition-all duration-200 ease-out
-              text-white font-semibold text-lg
-            "
-            >
-              <span className="flex items-center justify-between">
-                <span>{t('game:difficulties.expert')}</span>
-                <span className="text-red-200/70 font-normal text-sm">{t('game:boardSizes.4x4')}</span>
-              </span>
-            </button>
-
-            {/* 일반 - 5×5 */}
-            <button
-              id="mode-btn-beginner"
-              onClick={() => {
-                tryStartGame(5);
-                localStorage.setItem('tutorial_game_mode_seen_v1', 'true');
-              }}
-              className="
-              relative group w-full py-4 px-6 rounded-2xl
-              bg-gradient-to-br from-blue-600 to-blue-700
-              border border-blue-400/30
-              shadow-lg shadow-blue-900/20
-              hover:shadow-xl hover:shadow-blue-600/30 hover:-translate-y-0.5
-              active:translate-y-0 active:shadow-md
-              transition-all duration-200 ease-out
-              text-white font-semibold text-lg
-            "
-            >
-              <span className="flex items-center justify-between">
-                <span>{t('game:difficulties.normal')}</span>
-                <span className="text-blue-200/70 font-normal text-sm">{t('game:boardSizes.5x5')}</span>
-              </span>
-            </button>
-
-            {/* 뉴비 - 7×7 */}
-            <button
-              onClick={() => tryStartGame(7)}
-              className="
-              relative group w-full py-4 px-6 rounded-2xl
-              bg-gradient-to-br from-indigo-600 to-indigo-800
-              border border-indigo-400/30
-              shadow-lg shadow-indigo-900/20
-              hover:shadow-xl hover:shadow-indigo-600/30 hover:-translate-y-0.5
-              active:translate-y-0 active:shadow-md
-              transition-all duration-200 ease-out
-              text-white font-semibold text-lg
-            "
-            >
-              <span className="flex items-center justify-between">
-                <span>{t('game:difficulties.beginner')}</span>
-                <span className="text-indigo-200/70 font-normal text-sm">{t('game:boardSizes.7x7')}</span>
-              </span>
-            </button>
-
-            {/* 왕초보 - 8×8 */}
-            <button
-              onClick={() => tryStartGame(8)}
-              className="
-              relative group w-full py-4 px-6 rounded-2xl
-              bg-gradient-to-br from-gray-800 to-gray-900
-              border border-white/10
-              shadow-lg
-              hover:shadow-xl hover:-translate-y-0.5
-              active:translate-y-0 active:shadow-md
-              transition-all duration-200 ease-out
-              text-white font-semibold text-lg
-            "
-            >
-              <span className="flex items-center justify-between">
-                <span>{t('game:difficulties.easy')}</span>
-                <span className="text-gray-400 font-normal text-sm">{t('game:boardSizes.8x8')}</span>
-              </span>
-            </button>
-
-            {/* 무한모드 - 10×10 */}
-            <button
-              onClick={() => tryStartGame(10)}
-              className="
-              relative group w-full py-4 px-6 rounded-2xl
-              bg-black
-              border border-white/10
-              shadow-lg
-              hover:shadow-xl hover:-translate-y-0.5
-              active:translate-y-0 active:shadow-md
-              transition-all duration-200 ease-out
-              text-white font-semibold text-lg
-            "
-            >
-              <span className="flex items-center justify-between">
-                <span>{t('game:difficulties.infinite')}</span>
-                <span className="text-gray-500 font-normal text-sm">{t('game:boardSizes.10x10')}</span>
-              </span>
-            </button>
-
-            {/* 스킨 (네이티브 앱 전용) */}
-            {isNativeApp() && (
-              <button
-                onClick={() => setIsSkinOpen(true)}
-                className={`
-                relative group w-full py-3.5 px-6 rounded-2xl
-                bg-white/60 backdrop-blur-sm
-                border border-white/50
-                shadow-lg
-                hover:shadow-xl hover:-translate-y-0.5
-                active:translate-y-0 active:shadow-md
-                transition-all duration-200 ease-out
-                text-gray-800 font-semibold text-base
-                flex items-center justify-between
-              `}
-              >
-                <span className="flex items-center gap-2">
-                  <Palette size={16} />
-                  {t('game:actions.skin')}
-                </span>
-                <span className="text-gray-400 font-normal text-sm">{t('game:actions.skinDescription')}</span>
-              </button>
-            )}
-
-            {/* Customization (웹 전용) */}
-            {!isNativeApp() && (
-              <button
-                onClick={() => setIsCustomizationOpen(true)}
-                className={`
-                relative group w-full py-3.5 px-6 rounded-2xl
-                bg-white/60 backdrop-blur-sm
-                border border-white/50
-                shadow-lg
-                hover:shadow-xl hover:-translate-y-0.5
-                active:translate-y-0 active:shadow-md
-                transition-all duration-200 ease-out
-                text-gray-800 font-semibold text-base
-                flex items-center justify-between
-              `}
-              >
-                <span className="flex items-center gap-2">
-                  <Palette size={16} />
-                  {t('game:actions.customization')}
-                </span>
-                {!customizationGate.allowed ? (
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-700/90">
-                    <Lock size={14} />
-                    {customizationGate.reasonKey ? t(customizationGate.reasonKey as any) : t('game:actions.locked')}
-                  </span>
-                ) : (
-                  <span className="text-gray-400 font-normal text-sm">{t('game:actions.customize')}</span>
-                )}
-              </button>
-            )}
-
-            {/* Leaderboard Button */}
-            <button
-              onClick={() => setIsLeaderboardOpen(true)}
-              className={`
-              relative group w-full py-3.5 px-6 rounded-2xl
-              bg-white/60 backdrop-blur-sm
-              border border-white/50
-              shadow-lg
-              hover:shadow-xl hover:-translate-y-0.5
-              active:translate-y-0 active:shadow-md
-              transition-all duration-200 ease-out
-              text-gray-800 font-semibold text-base
-              flex items-center justify-between
-            `}
-            >
-              <span className="flex items-center gap-2">
-                <Trophy size={16} className="text-yellow-600" />
-                {t('game:actions.leaderboard')}
-              </span>
-            </button>
-
-            {/* Language Switcher */}
-            <LanguageSwitcher />
-
-            {/* Replay Tutorial Button */}
-            <button
-                onClick={() => {
-                  localStorage.removeItem('tutorial_back_nav_seen_v1');
-                  localStorage.removeItem('tutorial_game_mode_seen_v1');
-                  localStorage.removeItem('tutorial_completed'); // Reset game tutorial too
-                  setTutorialResetKey(prev => prev + 1);
-                  setTutorialStep(1); // Enable game Drag tutorial if they start game immediately
-                  
-                  // Show feedback toast or alert?
-                  // Simple alert for clarity or just button feedback.
-                  // Let's use window.alert for now or just visual feedback.
-                  // Or just let the UI react (GameModeTutorial will appear).
-                  const btn = document.getElementById('replay-tutorial-btn');
-                  if(btn) {
-                    btn.innerText = "✨ " + t('common:actions.resetDone', '리셋 완료!');
-                    setTimeout(() => {
-                        if(btn) btn.innerText = t('common:actions.replayTutorial', '튜토리얼 다시보기');
-                    }, 1500);
-                  }
-                }}
-                id="replay-tutorial-btn"
-                className="
-                  w-full py-3.5 px-6 rounded-2xl
-                  bg-white/30 backdrop-blur-sm
-                  border border-white/20
-                  text-gray-600 hover:text-gray-900
-                  hover:bg-white/50 hover:-translate-y-0.5
-                  active:translate-y-0 active:shadow-sm
-                  transition-all duration-200 ease-out
-                  shadow-sm
-                  text-sm font-semibold
-                  flex items-center justify-center gap-2
-                "
-              >
-              <RotateCcw size={14} />
-              {t('common:actions.replayTutorial', '튜토리얼 다시보기')}
-            </button>
-          </div>
+          {isWin98ThemeActive ? (
+            <div className="window w-full max-w-md animate-slide-up win98-menu-window">
+              <div className="title-bar">
+                <div className="title-bar-text">난이도 선택</div>
+                <div className="title-bar-controls">
+                  <button aria-label="Close" onClick={() => setIsLeaderboardOpen(false)} />
+                </div>
+              </div>
+              <div className="window-body">
+                <div className="win98-radio-group">
+                  <fieldset>
+                    <legend>난이도 선택 메뉴</legend>
+                    {win98DifficultyRows}
+                  </fieldset>
+                  {win98UtilityButtons}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4 w-full max-w-xs animate-slide-up">
+              {menuActionButtons}
+            </div>
+          )}
 
           {/* 푸터 네비게이션 - 앱인토스에서는 숨김 (불필요한 영역 제거) */}
           {!isAppIntoS() && (
@@ -2743,19 +2902,37 @@ const App: React.FC = () => {
         </div>
       )}
       <div
-        className="min-h-screen min-h-[100dvh] flex flex-col items-center text-gray-900 touch-none"
+        className={`${isWin98ThemeActive ? 'win98-app-shell' : ''} min-h-screen min-h-[100dvh] flex flex-col items-center text-gray-900 touch-none`}
         onPointerDown={handleScreenPointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}
       >
+        {isWin98ThemeActive && (
+          <div
+            className="window w-full"
+            style={{
+              maxWidth: `${gameLayoutProfile.columnWidthPx}px`,
+              marginTop: 'calc(8px + var(--game-safe-top))',
+            }}
+          >
+            <div className="title-bar">
+              <div className="title-bar-text">블록 슬라이드 (Block Slide)</div>
+              <div className="title-bar-controls">
+                <button aria-label="Help" onClick={() => setShowHelpModal(true)} />
+                <button aria-label="Close" onClick={handleHomeButtonClick} disabled={isAnimating} />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <header
           ref={headerRef}
-          className="w-full flex justify-between items-center p-4"
+          className={`w-full flex justify-between items-center p-4 ${isWin98ThemeActive ? 'win98-game-header' : ''}`}
           style={{
             maxWidth: `${gameLayoutProfile.columnWidthPx}px`,
-            paddingTop: 'calc(16px + var(--game-safe-top))',
+            paddingTop: isWin98ThemeActive ? '8px' : 'calc(16px + var(--game-safe-top))',
             // 앱인토스: 우측 상단 공통 내비게이션 영역 확보
             paddingRight: 'calc(16px + var(--appintos-nav-safe-right))'
           }}
@@ -2767,7 +2944,7 @@ const App: React.FC = () => {
               onClick={handleHomeButtonClick}
               disabled={isAnimating}
               className={`
-              p-2.5 rounded-full flex items-center justify-center
+              p-2.5 rounded-full flex items-center justify-center win98-icon-btn
               border shadow-sm transition-all duration-200
               ${isAnimating
                   ? 'bg-gray-100/50 text-gray-300 border-gray-200/50 cursor-not-allowed'
@@ -2800,7 +2977,7 @@ const App: React.FC = () => {
           <div className="flex flex-col items-end gap-2 transition-all duration-200">
             {/* Phase Indicator - Glass Pill */}
             <div className={`
-            px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2 
+            px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2 win98-pill-btn
             transition-all duration-200 ease-out
             ${phaseIndicatorInteractivityClass}
             ${isPlacePhase
@@ -2823,7 +3000,7 @@ const App: React.FC = () => {
                 onClick={() => setShowHelpModal(true)}
                 disabled={isReviveSelectionMode}
                 className={`
-                  p-2 rounded-full text-gray-600
+                  p-2 rounded-full text-gray-600 win98-icon-btn
                   bg-white/70 hover:bg-white border border-white/50
                   shadow-sm hover:shadow-md transition-all duration-200 active:scale-95
                   ${(isSwipeFocusMode || isReviveSelectionMode) ? 'opacity-35 grayscale pointer-events-none select-none' : ''}
@@ -2842,7 +3019,7 @@ const App: React.FC = () => {
                 onClick={executeUndo}
                 disabled={!lastSnapshot || undoRemaining <= 0 || isAnimating || isReviveSelectionMode}
                 className={`
-                px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-2
+                px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-2 win98-game-btn
                 border shadow-sm transition-all duration-200
                 ${undoFocusSurfaceClass}
                 pointer-events-auto
@@ -2863,7 +3040,7 @@ const App: React.FC = () => {
                   onClick={handleWatchRewardAd}
                   disabled={isAnimating || isReviveSelectionMode}
                   className={`
-                    px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5
+                    px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 win98-game-btn
                     bg-gradient-to-r from-yellow-500 to-amber-500
                     text-white border border-yellow-400/50
                     shadow-md hover:shadow-lg
@@ -2904,24 +3081,49 @@ const App: React.FC = () => {
           )}
 
           <div className={`
-            transition-all duration-200
+            transition-all duration-200 w-full flex justify-center
             ${boardFocusSurfaceClass}
           `}>
-            <Board
-              ref={boardHandleRef}
-              htmlId="game-board"
-              grid={grid}
-              phase={phase}
-              activePiece={draggingPiece}
-              boardRef={boardRef}
-              mergingTiles={mergingTiles}
-              valueOverrides={tileValueOverrides}
-              boardScale={boardScale}
-              reviveSelectionEnabled={isReviveSelectionMode}
-              revivePendingTileId={revivePendingTileId}
-              onReviveTileTap={handleReviveTileTap}
-              reviveDestroyEffects={reviveDestroyEffects}
-            />
+            {isWin98ThemeActive ? (
+              <div className="window win98-game-board-window w-full max-w-[520px]">
+                <div className="title-bar">
+                  <div className="title-bar-text">Game...</div>
+                </div>
+                <div className="window-body win98-board-body">
+                  <Board
+                    ref={boardHandleRef}
+                    htmlId="game-board"
+                    grid={grid}
+                    phase={phase}
+                    activePiece={draggingPiece}
+                    boardRef={boardRef}
+                    mergingTiles={mergingTiles}
+                    valueOverrides={tileValueOverrides}
+                    boardScale={boardScale}
+                    reviveSelectionEnabled={isReviveSelectionMode}
+                    revivePendingTileId={revivePendingTileId}
+                    onReviveTileTap={handleReviveTileTap}
+                    reviveDestroyEffects={reviveDestroyEffects}
+                  />
+                </div>
+              </div>
+            ) : (
+              <Board
+                ref={boardHandleRef}
+                htmlId="game-board"
+                grid={grid}
+                phase={phase}
+                activePiece={draggingPiece}
+                boardRef={boardRef}
+                mergingTiles={mergingTiles}
+                valueOverrides={tileValueOverrides}
+                boardScale={boardScale}
+                reviveSelectionEnabled={isReviveSelectionMode}
+                revivePendingTileId={revivePendingTileId}
+                onReviveTileTap={handleReviveTileTap}
+                reviveDestroyEffects={reviveDestroyEffects}
+              />
+            )}
           </div>
 
 
@@ -2967,7 +3169,7 @@ const App: React.FC = () => {
                 onClick={handleWatchBlockRefreshAd}
                 disabled={isBlockRefreshButtonDisabled || isBlockRefreshAdInProgress}
                 className={`
-                  inline-flex items-center justify-center px-4 py-2 rounded-full text-xs font-semibold
+                  inline-flex items-center justify-center px-4 py-2 rounded-full text-xs font-semibold win98-game-btn
                   border transition-all duration-200
                   ${(isBlockRefreshButtonDisabled || isBlockRefreshAdInProgress)
                     ? 'bg-gray-100/60 text-gray-400 border-gray-200/80 cursor-not-allowed'
@@ -2986,7 +3188,7 @@ const App: React.FC = () => {
                 onClick={handleRefreshPreviewBlocks}
                 disabled={isBlockRefreshButtonDisabled}
                 className={`
-                  inline-flex items-center justify-center px-4 py-2 rounded-full text-xs font-semibold
+                  inline-flex items-center justify-center px-4 py-2 rounded-full text-xs font-semibold win98-game-btn
                   border transition-all duration-200
                   ${isBlockRefreshButtonDisabled
                     ? 'bg-gray-100/60 text-gray-400 border-gray-200/80 cursor-not-allowed'
@@ -3008,7 +3210,7 @@ const App: React.FC = () => {
               }}
               className={`
                 absolute right-0 inline-flex items-center justify-center
-                w-9 h-9 rounded-full
+                w-9 h-9 rounded-full win98-icon-btn
                 bg-white/80 border border-white/70
                 text-gray-700 shadow-sm
                 hover:bg-white

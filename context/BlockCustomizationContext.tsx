@@ -13,6 +13,7 @@ import {
   saveSkinSettings,
 } from '../services/skinService';
 import { getFeatureGateDecision, type FeatureGateDecision } from '../services/featureGates';
+import { SKIN_CATALOG } from '../constants';
 
 type BlockCustomizationContextValue = {
   gate: FeatureGateDecision;
@@ -23,11 +24,15 @@ type BlockCustomizationContextValue = {
   // 스킨 시스템
   skinSettings: SkinSettings;
   activeSkin: SkinItem | null;
+  isWin98ThemeActive: boolean;
   addSkin: (skin: SkinItem) => void;
   setActiveSkin: (id: string | null) => void;
 };
 
 const BlockCustomizationContext = createContext<BlockCustomizationContextValue | null>(null);
+const WIN98_THEME_CLASS = 'theme-win98';
+const WIN98_STYLESHEET_ID = 'slidemino-win98-theme-link';
+const WIN98_STYLESHEET_HREF = '/vendor/98css/style.css';
 
 export function BlockCustomizationProvider({ children }: { children: React.ReactNode }) {
   const gate = useMemo(() => getFeatureGateDecision('blockCustomization'), []);
@@ -78,14 +83,58 @@ export function BlockCustomizationProvider({ children }: { children: React.React
 
   const activeSkin = useMemo(() => {
     if (!skinSettings.activeSkinId) return null;
-    return skinSettings.ownedSkins.find(s => s.id === skinSettings.activeSkinId) ?? null;
+    const owned = skinSettings.ownedSkins.find(s => s.id === skinSettings.activeSkinId);
+    if (owned) return owned;
+    const catalogSkin = SKIN_CATALOG.find(s => s.id === skinSettings.activeSkinId);
+    if (!catalogSkin) return null;
+    return {
+      id: catalogSkin.id,
+      hex: catalogSkin.hex,
+      acquiredAt: 0,
+    };
   }, [skinSettings.activeSkinId, skinSettings.ownedSkins]);
+  const isWin98ThemeActive = skinSettings.activeSkinId === 'skin_digital_win98';
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const htmlEl = document.documentElement;
+    const bodyEl = document.body;
+
+    htmlEl.classList.toggle(WIN98_THEME_CLASS, isWin98ThemeActive);
+    bodyEl.classList.toggle(WIN98_THEME_CLASS, isWin98ThemeActive);
+
+    const existingLink = document.getElementById(WIN98_STYLESHEET_ID) as HTMLLinkElement | null;
+    if (isWin98ThemeActive) {
+      if (!existingLink) {
+        const linkEl = document.createElement('link');
+        linkEl.id = WIN98_STYLESHEET_ID;
+        linkEl.rel = 'stylesheet';
+        linkEl.href = WIN98_STYLESHEET_HREF;
+        document.head.appendChild(linkEl);
+      }
+    } else if (existingLink) {
+      existingLink.remove();
+    }
+
+    return () => {
+      if (!isWin98ThemeActive) return;
+      htmlEl.classList.remove(WIN98_THEME_CLASS);
+      bodyEl.classList.remove(WIN98_THEME_CLASS);
+      const mountedLink = document.getElementById(WIN98_STYLESHEET_ID);
+      if (mountedLink) mountedLink.remove();
+    };
+  }, [isWin98ThemeActive]);
 
   const addSkin = useCallback((skin: SkinItem) => {
-    setSkinSettings(prev => ({
-      ...prev,
-      ownedSkins: [...prev.ownedSkins, skin],
-    }));
+    setSkinSettings(prev => {
+      if (prev.ownedSkins.some(existing => existing.id === skin.id)) {
+        return prev;
+      }
+      return {
+        ...prev,
+        ownedSkins: [...prev.ownedSkins, skin],
+      };
+    });
   }, []);
 
   const setActiveSkin = useCallback((id: string | null) => {
@@ -111,10 +160,11 @@ export function BlockCustomizationProvider({ children }: { children: React.React
       resolveTileAppearance: resolver,
       skinSettings,
       activeSkin,
+      isWin98ThemeActive,
       addSkin,
       setActiveSkin,
     }),
-    [gate, settings, resetAll, resolver, skinSettings, activeSkin, addSkin, setActiveSkin]
+    [gate, settings, resetAll, resolver, skinSettings, activeSkin, isWin98ThemeActive, addSkin, setActiveSkin]
   );
 
   return (

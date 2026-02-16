@@ -1452,3 +1452,65 @@ Original prompt: 게임 진행 화면(iPhone 포함)에서 광고 배너가 메�
 ### 운영 메모
 - Android의 Play "내부 테스트/클로즈드 테스트"는 installer가 동일(`com.android.vending`)하여 클라이언트 단독으로 프로덕션 트랙과 완전 구분이 불가.
 - 완전 분리가 필요하면 서버/Remote Config로 "실광고 허용 버전 코드 allowlist"를 추가하는 방식 권장.
+
+## 2026-02-16 작업 로그 (Win98 스킨 적용 시 전체 UI 테마 전환)
+- 사용자 요청: `skin_digital_win98` 적용 시 블럭뿐 아니라 전체 UI를 98.css/픽셀 느낌으로 전환하고, 타일 숫자(1,2,4,8...)도 픽셀 폰트로 표시.
+
+### 오픈소스 반영
+- `98.css` 원본 리소스를 프로젝트에 직접 추가:
+  - `/Users/dj/Desktop/SlideMino/public/vendor/98css/style.css`
+  - `/Users/dj/Desktop/SlideMino/public/vendor/98css/LICENSE`
+  - `/Users/dj/Desktop/SlideMino/public/vendor/98css/fonts/converted/ms_sans_serif*.woff*`
+
+### 구현 변경
+- 전역 테마 토글:
+  - `/Users/dj/Desktop/SlideMino/context/BlockCustomizationContext.tsx`
+  - `activeSkinId === "skin_digital_win98"`일 때:
+    - `html/body`에 `theme-win98` 클래스 토글
+    - `<link id="slidemino-win98-theme-link" href="/vendor/98css/style.css">` 동적 주입/해제
+- Win98 오버라이드 스타일 추가:
+  - `/Users/dj/Desktop/SlideMino/styles/win98-theme.css`
+  - `index.tsx`에서 로드
+  - 버튼/입력/패널/모달의 베벨 보더, 라운드 제거, 픽셀 폰트 적용, 배경/그라데이션 억제 등 보정
+- UI 루트/패널 클래스 연결:
+  - `App.tsx` 메뉴/게임 루트에 `win98-app-shell` 연결
+  - 주요 모달/패널에 `win98-window` 클래스 연결
+    - `SkinModal`, `BlockCustomizationModal`, `HelpModal`, `LeaderboardModal`, `NameInputModal`, `ActiveGameExitModal`, `SquareImageCropperModal`, `GameOverModal`, `CookieConsent`, `Board`, `Slot`
+- 타일 숫자 픽셀화:
+  - `Board.tsx`, `SkinModal.tsx`, `BlockCustomizationModal.tsx`의 숫자 렌더 엘리먼트에 `win98-tile-number`/`win98-tile-face`/data attribute 연결.
+
+### 검증
+- `npm run build` 성공.
+- develop-web-game 스킬 클라이언트 실행:
+  - `node /Users/dj/.codex/skills/develop-web-game/scripts/web_game_playwright_client.js --url http://127.0.0.1:5174 --actions-json '{\"steps\":[{\"buttons\":[],\"frames\":4}]}' --iterations 1 --pause-ms 200 --screenshot-dir /Users/dj/Desktop/SlideMino/output/web-game/win98-global-theme-check`
+- Playwright MCP 수동 검증:
+  - `localStorage['slidemino.skin.v2']`에 Win98 스킨 활성 상태 주입 후 새로고침
+  - `body.theme-win98` + `#slidemino-win98-theme-link` 존재 확인
+  - 스크린샷에서 메뉴/게임/커스터마이징 모달이 Win98 스타일로 전환되고 숫자 타일이 픽셀 폰트로 표시되는 것 확인
+  - 비활성화 시(`activeSkinId:null`) 클래스/링크 제거 확인.
+
+## 2026-02-16 작업 로그 (98.css 스킨 톤 재조정)
+- 사용자 피드백 반영: 기존 Win98 스킨이 "부드러운/현대적인" 느낌이라 원본 98.css 질감과 다르다는 이슈 확인.
+- 원본 참조 고정: `https://github.com/jdan/98.css/blob/master/style.css`의 표면 색/베벨(raised border) 토큰 기준으로 재설계.
+
+### 구현 변경
+- `/Users/dj/Desktop/SlideMino/config/skinCatalog.ts`
+  - `skin_digital_win98`를 `css-pattern` + 오버레이 방식에서 `solid` 기반으로 변경.
+  - `textColor=#222222`, `borderColor=#0a0a0a` 지정.
+  - `box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #ffffff, inset -2px -2px #808080, inset 2px 2px #dfdfdf` 적용.
+- `/Users/dj/Desktop/SlideMino/config/skinPalettes.ts`
+  - Win98 항목을 HSL progression에서 explicit palette로 전환.
+  - `SKIN_RENDER_MODES.skin_digital_win98 = 'flat'`로 설정(기본 3D gradient 제거 목적).
+- `/Users/dj/Desktop/SlideMino/services/blockCustomization.ts`
+  - `flat` render mode 실제 반영: 배경 그라데이션/값 기반 그림자 비활성화(`backgroundImage: none`, `boxShadow: none`).
+  - `textColor`, `borderColor`, `shadow`를 스킨 스타일에서 직접 적용하는 `applySkinStyleOverrides` 추가.
+
+### 검증
+- `npm run build` 성공.
+- develop-web-game 클라이언트 실행:
+  - `node /Users/dj/.codex/skills/develop-web-game/scripts/web_game_playwright_client.js --url http://127.0.0.1:5174 --actions-json '{\"steps\":[{\"buttons\":[],\"frames\":4}]}' --iterations 1 --pause-ms 250 --screenshot-dir /Users/dj/Desktop/SlideMino/output/web-game/win98-reskin-check`
+  - 산출물 확인: `/Users/dj/Desktop/SlideMino/output/web-game/win98-reskin-check/shot-0.png`
+  - `errors-*.json` 미생성(새 콘솔 에러 없음).
+
+### 메모
+- 웹 환경에서는 `isNativeApp()` 조건으로 스킨 버튼이 숨겨져 스킨 모달 자체를 직접 열 수 없음(`App.tsx` 메뉴 분기).

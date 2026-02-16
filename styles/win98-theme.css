@@ -1,0 +1,324 @@
+/*
+ * SlideMino Win98 theme bridge.
+ * Upstream visual references and fonts are from 98.css (MIT):
+ * https://github.com/jdan/98.css
+ */
+
+:root {
+  --win98-text-color: #222222;
+  --win98-surface: #c0c0c0;
+  --win98-button-highlight: #ffffff;
+  --win98-button-face: #dfdfdf;
+  --win98-button-shadow: #808080;
+  --win98-window-frame: #0a0a0a;
+}
+
+@font-face {
+  font-family: "Pixelated MS Sans Serif";
+  src: url("/vendor/98css/fonts/converted/ms_sans_serif.woff2") format("woff2"),
+    url("/vendor/98css/fonts/converted/ms_sans_serif.woff") format("woff");
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Pixelated MS Sans Serif";
+  src: url("/vendor/98css/fonts/converted/ms_sans_serif_bold.woff2") format("woff2"),
+    url("/vendor/98css/fonts/converted/ms_sans_serif_bold.woff") format("woff");
+  font-weight: 700;
+  font-style: normal;
+}
+
+body.theme-win98,
+body.theme-win98 * {
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+}
+
+html.theme-win98,
+body.theme-win98 {
+  color: var(--win98-text-color);
+  background: var(--win98-surface) !important;
+}
+
+body.theme-win98 a {
+  color: #0000ff;
+  text-decoration: underline;
+}
+
+body.theme-win98 .win98-app-shell {
+  background: var(--win98-surface) !important;
+}
+
+body.theme-win98 .win98-app-shell h1 {
+  font-size: 2.6rem !important;
+  line-height: 1.08 !important;
+}
+
+body.theme-win98 .win98-app-shell h2,
+body.theme-win98 .win98-app-shell h3,
+body.theme-win98 .win98-app-shell h4 {
+  font-size: inherit !important;
+  line-height: inherit !important;
+}
+
+body.theme-win98 .win98-top-window {
+  margin-bottom: 4px;
+}
+
+body.theme-win98 .win98-top-window .title-bar-text {
+  white-space: pre-line;
+  line-height: 1.05;
+}
+
+body.theme-win98 .win98-menu-window {
+  max-height: calc(100dvh - 240px);
+  display: flex;
+  flex-direction: column;
+}
+
+body.theme-win98 .win98-menu-window .window-body {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+body.theme-win98 .win98-menu-window .window-body > fieldset + fieldset {
+  margin-top: 8px;
+}
+
+body.theme-win98 .win98-menu-window .window-body fieldset .field-row > button {
+  width: 100%;
+}
+
+body.theme-win98 .win98-radio-group input[type="radio"] {
+  position: static !important;
+  opacity: 1 !important;
+  appearance: radio !important;
+  -webkit-appearance: radio !important;
+  -moz-appearance: radio !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 6px 0 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  transform: none !important;
+}
+
+body.theme-win98 .win98-radio-group input[type="radio"] + label {
+  margin-left: 0 !important;
+}
+
+body.theme-win98 .win98-radio-group input[type="radio"] + label::before,
+body.theme-win98 .win98-radio-group input[type="radio"] + label::after {
+  content: none !important;
+  display: none !important;
+}
+
+body.theme-win98 .win98-game-header {
+  align-items: flex-start;
+}
+
+body.theme-win98 .win98-game-board-window {
+  max-width: 520px;
+}
+
+body.theme-win98 .win98-board-body {
+  margin: 8px;
+  display: flex;
+  justify-content: center;
+}
+
+body.theme-win98 .window,
+body.theme-win98 .win98-window,
+body.theme-win98 .win98-panel,
+body.theme-win98 [data-win98-surface="true"] {
+  color: var(--win98-text-color) !important;
+  background: var(--win98-surface) !important;
+  border: none !important;
+  box-shadow: inset -1px -1px var(--win98-window-frame), inset 1px 1px var(--win98-button-face),
+    inset -2px -2px var(--win98-button-shadow), inset 2px 2px var(--win98-button-highlight) !important;
+}
+
+body.theme-win98 .window [class*="rounded-"],
+body.theme-win98 .win98-window [class*="rounded-"],
+body.theme-win98 .win98-panel [class*="rounded-"] {
+  border-radius: 0 !important;
+}
+
+body.theme-win98 .window [class*="bg-gradient"],
+body.theme-win98 .win98-window [class*="bg-gradient"],
+body.theme-win98 .win98-panel [class*="bg-gradient"] {
+  background: var(--win98-surface) !important;
+}
+
+body.theme-win98 .window [class*="shadow"],
+body.theme-win98 .win98-window [class*="shadow"],
+body.theme-win98 .win98-panel [class*="shadow"] {
+  box-shadow: none !important;
+}
+
+body.theme-win98 .window button,
+body.theme-win98 .window input[type="submit"],
+body.theme-win98 .window input[type="reset"],
+body.theme-win98 .win98-window button,
+body.theme-win98 .win98-window input[type="submit"],
+body.theme-win98 .win98-window input[type="reset"],
+body.theme-win98 .win98-panel button,
+body.theme-win98 .win98-panel input[type="submit"],
+body.theme-win98 .win98-panel input[type="reset"] {
+  box-sizing: border-box !important;
+  border: none !important;
+  border-radius: 0 !important;
+  color: var(--win98-text-color) !important;
+  text-shadow: none !important;
+  background: var(--win98-surface) !important;
+  box-shadow: inset -1px -1px var(--win98-window-frame), inset 1px 1px var(--win98-button-highlight),
+    inset -2px -2px var(--win98-button-shadow), inset 2px 2px var(--win98-button-face) !important;
+  min-height: 23px;
+  transform: none !important;
+  transition: none !important;
+}
+
+body.theme-win98 .window button:not(:disabled):active,
+body.theme-win98 .window input[type="submit"]:not(:disabled):active,
+body.theme-win98 .window input[type="reset"]:not(:disabled):active,
+body.theme-win98 .win98-window button:not(:disabled):active,
+body.theme-win98 .win98-window input[type="submit"]:not(:disabled):active,
+body.theme-win98 .win98-window input[type="reset"]:not(:disabled):active,
+body.theme-win98 .win98-panel button:not(:disabled):active,
+body.theme-win98 .win98-panel input[type="submit"]:not(:disabled):active,
+body.theme-win98 .win98-panel input[type="reset"]:not(:disabled):active {
+  box-shadow: inset -1px -1px var(--win98-button-highlight), inset 1px 1px var(--win98-window-frame),
+    inset -2px -2px var(--win98-button-face), inset 2px 2px var(--win98-button-shadow) !important;
+  padding-top: 1px;
+  padding-left: 1px;
+}
+
+body.theme-win98 .window button:disabled,
+body.theme-win98 .win98-window button:disabled,
+body.theme-win98 .win98-panel button:disabled {
+  color: var(--win98-button-shadow) !important;
+  text-shadow: 1px 1px 0 var(--win98-button-highlight) !important;
+  opacity: 1 !important;
+}
+
+body.theme-win98 .window input,
+body.theme-win98 .window textarea,
+body.theme-win98 .window select,
+body.theme-win98 .win98-window input,
+body.theme-win98 .win98-window textarea,
+body.theme-win98 .win98-window select,
+body.theme-win98 .win98-panel input,
+body.theme-win98 .win98-panel textarea,
+body.theme-win98 .win98-panel select {
+  border: none !important;
+  border-radius: 0 !important;
+  color: var(--win98-text-color) !important;
+  background: #ffffff !important;
+  box-shadow: inset -1px -1px var(--win98-button-highlight), inset 1px 1px var(--win98-button-shadow),
+    inset -2px -2px var(--win98-button-face), inset 2px 2px var(--win98-window-frame) !important;
+}
+
+body.theme-win98 [data-board-bg-slot="true"] {
+  background: #b9b9b9 !important;
+  border: 1px solid #8f8f8f !important;
+  box-shadow: inset -1px -1px #8f8f8f, inset 1px 1px #efefef !important;
+}
+
+body.theme-win98 [data-tile-kind],
+body.theme-win98 [data-skin-preview-tile="true"],
+body.theme-win98 .win98-tile-number {
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif !important;
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+  text-shadow: none !important;
+  -webkit-font-smoothing: none;
+}
+
+body.theme-win98 .win98-tile-face {
+  border-radius: 0 !important;
+}
+
+body.theme-win98 .win98-menu-btn,
+body.theme-win98 .win98-game-btn,
+body.theme-win98 .win98-pill-btn,
+body.theme-win98 .win98-icon-btn {
+  border-radius: 0 !important;
+  border: none !important;
+  color: var(--win98-text-color) !important;
+  background: var(--win98-surface) !important;
+  box-shadow: inset -1px -1px var(--win98-window-frame), inset 1px 1px var(--win98-button-highlight),
+    inset -2px -2px var(--win98-button-shadow), inset 2px 2px var(--win98-button-face) !important;
+  text-shadow: none !important;
+  transform: none !important;
+}
+
+body.theme-win98 .win98-menu-btn:active,
+body.theme-win98 .win98-game-btn:active,
+body.theme-win98 .win98-pill-btn:active,
+body.theme-win98 .win98-icon-btn:active {
+  box-shadow: inset -1px -1px var(--win98-button-highlight), inset 1px 1px var(--win98-window-frame),
+    inset -2px -2px var(--win98-button-face), inset 2px 2px var(--win98-button-shadow) !important;
+}
+
+body.theme-win98 .win98-menu-btn {
+  min-height: 32px;
+}
+
+body.theme-win98 .win98-muted {
+  color: #6b7280 !important;
+}
+
+body.theme-win98 .win98-board-shell {
+  border-radius: 0 !important;
+  border: none !important;
+  background: #bdbdbd !important;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #ffffff,
+    inset -2px -2px #808080, inset 2px 2px #dfdfdf !important;
+}
+
+body.theme-win98 .win98-board-cell {
+  border-radius: 0 !important;
+  background: #b7b7b7 !important;
+  border: 1px solid #8e8e8e !important;
+  box-shadow: inset -1px -1px #8e8e8e, inset 1px 1px #eeeeee !important;
+}
+
+body.theme-win98 .win98-slot-shell {
+  border-radius: 0 !important;
+  border: none !important;
+  background: var(--win98-surface) !important;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #ffffff,
+    inset -2px -2px #808080, inset 2px 2px #dfdfdf !important;
+}
+
+body.theme-win98 .win98-slot-mini-cell {
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: inset -1px -1px #8a8a8a, inset 1px 1px #ffffff !important;
+}
+
+body.theme-win98 .win98-slot-rotate-btn {
+  width: 22px;
+  height: 18px;
+  min-width: 22px !important;
+  min-height: 18px !important;
+  padding: 0 !important;
+  line-height: 1 !important;
+}
+
+body.theme-win98 .win98-ghost-valid,
+body.theme-win98 .win98-ghost-invalid {
+  border-radius: 0 !important;
+  border-width: 1px !important;
+  border-style: dashed !important;
+  background: rgba(192, 192, 192, 0.6) !important;
+}
+
+body.theme-win98 .win98-ghost-valid {
+  border-color: #4b5563 !important;
+}
+
+body.theme-win98 .win98-ghost-invalid {
+  border-color: #b91c1c !important;
+}

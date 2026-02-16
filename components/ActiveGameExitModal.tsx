@@ -131,7 +131,7 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6">
             <div className="absolute inset-0 bg-white/80 backdrop-blur-xl animate-fade-in" />
 
-            <div className="relative z-10 w-full max-w-sm rounded-3xl border border-white/70 bg-white/70 p-6 shadow-2xl shadow-slate-900/10 animate-slide-up">
+            <div className="relative z-10 w-full max-w-sm rounded-3xl border border-white/70 bg-white/70 p-6 shadow-2xl shadow-slate-900/10 animate-slide-up win98-window">
                 {step === 'CHOICE' && (
                     <div className="space-y-5">
                         <div className="space-y-2 text-center">

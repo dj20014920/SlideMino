@@ -4,6 +4,7 @@ import React, {
   useLayoutEffect,
   useState,
   useRef,
+  useCallback,
   useImperativeHandle,
   forwardRef
 } from 'react';
@@ -11,6 +12,10 @@ import { Grid, Piece, Phase, Tile, MergingTile } from '../types';
 import { canPlacePiece } from '../services/gameLogic';
 import { getTileColor, getTileNumberLayout, getSlideAnimationDurationMs, BOARD_CELL_GAP_PX } from '../constants';
 import { useBlockCustomization } from '../context/BlockCustomizationContext';
+import EvervaultTileOverlay from './EvervaultTileOverlay';
+import { clamp } from '../services/blockCustomization';
+
+const EVERVAULT_SKIN_ID = 'skin_digital_evervault';
 
 export type BoardHandle = {
   setHoverLocation: (pos: { x: number; y: number } | null) => void;
@@ -38,7 +43,7 @@ interface BoardProps {
   reviveDestroyEffects?: ReviveDestroyEffect[];
 }
 
-const BackgroundGrid = React.memo<{ size: number; layout: GridLayout }>(({ size, layout }) => {
+const BackgroundGrid = React.memo<{ size: number; layout: GridLayout; isWin98ThemeActive: boolean }>(({ size, layout, isWin98ThemeActive }) => {
   if (layout.cellPx <= 0) return null;
   return (
     <div className="absolute inset-0 z-0 pointer-events-none">
@@ -49,10 +54,8 @@ const BackgroundGrid = React.memo<{ size: number; layout: GridLayout }>(({ size,
         return (
           <div
             key={`bg-${i}`}
-            className={`
-              absolute rounded-xl
-              ${getTileColor(0)}
-            `}
+            className={`absolute ${isWin98ThemeActive ? 'win98-board-cell' : `rounded-xl ${getTileColor(0)}`}`}
+            data-board-bg-slot="true"
             style={{
               width: `${layout.cellPx}px`,
               height: `${layout.cellPx}px`,
@@ -96,7 +99,7 @@ const MergingTilesLayer = React.memo<{
             data-tile-distance={mt.distance}
             data-tile-kind="merge"
             className={`
-              absolute rounded-xl flex items-center justify-center 
+              absolute rounded-xl win98-tile-face flex items-center justify-center 
               font-semibold overflow-hidden text-center
               ${appearance.className}
             `}
@@ -117,7 +120,7 @@ const MergingTilesLayer = React.memo<{
               ...(appearance.style ?? {}),
             }}
           >
-            {text}
+            <span className="win98-tile-number">{text}</span>
           </div>
         );
       })}
@@ -132,6 +135,10 @@ const TilesLayer = React.memo<{
   reviveSelectionEnabled?: boolean;
   revivePendingTileId?: string | null;
   onReviveTileTap?: (tileId: string) => void;
+  isEvervaultSkin?: boolean;
+  mergeFlashTileIds?: ReadonlySet<string>;
+  onMergeFlashEnd?: (tileId: string) => void;
+  isWin98ThemeActive?: boolean;
 }>(({
   tiles,
   layout,
@@ -139,6 +146,10 @@ const TilesLayer = React.memo<{
   reviveSelectionEnabled = false,
   revivePendingTileId = null,
   onReviveTileTap,
+  isEvervaultSkin = false,
+  mergeFlashTileIds,
+  onMergeFlashEnd,
+  isWin98ThemeActive = false,
 }) => {
   const { resolveTileAppearance } = useBlockCustomization();
   const canSelectTiles = reviveSelectionEnabled && typeof onReviveTileTap === 'function';
@@ -157,6 +168,10 @@ const TilesLayer = React.memo<{
         const { text, fontPx } = getTileNumberLayout(displayValue, layout.cellPx);
         const appearance = resolveTileAppearance(displayValue);
         const isPendingTarget = canSelectTiles && revivePendingTileId === tile.id;
+        const evervaultIntensity = isEvervaultSkin
+          ? clamp(Math.log2(Math.max(1, displayValue)) / 15, 0, 1)
+          : 0;
+        const isMergeFlashing = isEvervaultSkin && mergeFlashTileIds?.has(tile.id);
 
         return (
           <div
@@ -167,7 +182,7 @@ const TilesLayer = React.memo<{
             data-tile-distance={tile.distance}
             data-tile-kind="tile"
             className={`
-              absolute rounded-xl flex items-center justify-center 
+              absolute ${isWin98ThemeActive ? '' : 'rounded-xl'} win98-tile-face flex items-center justify-center 
               font-semibold overflow-hidden text-center
               ${appearance.className}
               ${canSelectTiles ? 'cursor-pointer ring-2 ring-transparent hover:ring-amber-200/70 focus-visible:ring-amber-300 focus-visible:outline-none active:brightness-95' : ''}
@@ -207,7 +222,15 @@ const TilesLayer = React.memo<{
               ...(appearance.style ?? {}),
             }}
           >
-            {text}
+            <span className="win98-tile-number" style={{ position: 'relative', zIndex: 2 }}>{text}</span>
+            {isEvervaultSkin && evervaultIntensity > 0.01 && (
+              <EvervaultTileOverlay
+                intensity={evervaultIntensity}
+                sizePx={layout.cellPx}
+                mergeFlash={!!isMergeFlashing}
+                onFlashEnd={onMergeFlashEnd ? () => onMergeFlashEnd(tile.id) : undefined}
+              />
+            )}
           </div>
         );
       })}
@@ -218,7 +241,8 @@ const TilesLayer = React.memo<{
 const ReviveDestroyLayer = React.memo<{
   effects: ReviveDestroyEffect[];
   layout: GridLayout;
-}>(({ effects, layout }) => {
+  isWin98ThemeActive: boolean;
+}>(({ effects, layout, isWin98ThemeActive }) => {
   const { resolveTileAppearance } = useBlockCustomization();
   if (effects.length === 0) return null;
 
@@ -242,10 +266,11 @@ const ReviveDestroyLayer = React.memo<{
           >
             <div
               className={`
-                w-full h-full rounded-xl flex items-center justify-center
+                w-full h-full ${isWin98ThemeActive ? '' : 'rounded-xl'} win98-tile-face flex items-center justify-center
                 font-semibold overflow-hidden text-center
                 ${appearance.className}
               `}
+              data-tile-kind="revive-effect"
               style={{
                 fontSize: `${fontPx}px`,
                 lineHeight: 1,
@@ -254,7 +279,7 @@ const ReviveDestroyLayer = React.memo<{
                 ...(appearance.style ?? {}),
               }}
             >
-              {text}
+              <span className="win98-tile-number">{text}</span>
             </div>
           </div>
         );
@@ -267,7 +292,8 @@ const GhostOverlay = React.memo<{
   size: number;
   layout: GridLayout;
   ghostCells: { cells: { x: number; y: number }[]; isValid: boolean };
-}>(({ size, layout, ghostCells }) => {
+  isWin98ThemeActive: boolean;
+}>(({ size, layout, ghostCells, isWin98ThemeActive }) => {
   if (ghostCells.cells.length === 0) return null;
 
   return (
@@ -280,11 +306,15 @@ const GhostOverlay = React.memo<{
           <div
             key={`ghost-${idx}`}
             className={`
-              absolute rounded-xl opacity-70 border-2 box-border
+              absolute ${isWin98ThemeActive ? '' : 'rounded-xl'} opacity-70 border-2 box-border
               transition-colors duration-150
-              ${ghostCells.isValid
-                ? 'bg-gray-800/50 border-gray-600'
-                : 'bg-red-400/50 border-red-300'}
+              ${isWin98ThemeActive
+                ? ghostCells.isValid
+                  ? 'win98-ghost-valid'
+                  : 'win98-ghost-invalid'
+                : ghostCells.isValid
+                  ? 'bg-gray-800/50 border-gray-600'
+                  : 'bg-red-400/50 border-red-300'}
             `}
             style={{
               width: `${layout.cellPx}px`,
@@ -375,6 +405,42 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
       setAnimatingMerges([]);
     }
   }, [mergingTiles]);
+
+  // ── Evervault skin: detect active skin & track merge flash ──
+  const { activeSkin, isWin98ThemeActive } = useBlockCustomization();
+  const isEvervaultSkin = activeSkin?.id === EVERVAULT_SKIN_ID;
+
+  const [mergeFlashTileIds, setMergeFlashTileIds] = useState<ReadonlySet<string>>(new Set());
+
+  // When mergingTiles arrive, find the RECEIVING tiles at the destination
+  useEffect(() => {
+    if (!isEvervaultSkin || mergingTiles.length === 0) return;
+
+    // Collect merge destination coordinates
+    const destCoords = new Set(mergingTiles.map(mt => `${mt.toX},${mt.toY}`));
+
+    // Find tile IDs at those positions in the grid
+    const flashIds = new Set<string>();
+    grid.forEach((row, y) => {
+      row.forEach((tile, x) => {
+        if (tile && destCoords.has(`${x},${y}`)) {
+          flashIds.add(tile.id);
+        }
+      });
+    });
+
+    if (flashIds.size > 0) {
+      setMergeFlashTileIds(flashIds);
+    }
+  }, [isEvervaultSkin, mergingTiles, grid]);
+
+  const handleMergeFlashEnd = useCallback((tileId: string) => {
+    setMergeFlashTileIds(prev => {
+      const next = new Set(prev);
+      next.delete(tileId);
+      return next;
+    });
+  }, []);
 
   // 드래그가 끝나면(= activePiece가 없어지면) hover를 즉시 정리해서 불필요한 렌더를 줄임
   useEffect(() => {
@@ -470,19 +536,21 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
   }, [grid, activePiece, hoverLocation]);
 
   // Phase별 보드 테두리 스타일
-  const boardBorderStyle = phase === Phase.SLIDE
-    ? 'ring-1 ring-gray-400/50'
-    : 'ring-1 ring-white/30';
-  const glowOpacityClass = phase === Phase.SLIDE ? 'opacity-100' : 'opacity-0';
+  const boardBorderStyle = isWin98ThemeActive
+    ? ''
+    : phase === Phase.SLIDE
+      ? 'ring-1 ring-gray-400/50'
+      : 'ring-1 ring-white/30';
+  const glowOpacityClass = isWin98ThemeActive ? 'opacity-0' : phase === Phase.SLIDE ? 'opacity-100' : 'opacity-0';
 
   return (
     <div
       ref={boardRef}
       id={htmlId}
       className={`
-        relative p-3
-        bg-white/40
-        rounded-3xl select-none overflow-hidden
+        relative ${isWin98ThemeActive ? 'p-4 win98-board-shell' : 'p-3 win98-window'}
+        ${isWin98ThemeActive ? '' : 'bg-white/40'}
+        ${isWin98ThemeActive ? '' : 'rounded-3xl'} select-none overflow-hidden
         shadow-lg transition-shadow duration-200 ease-out
         ${boardBorderStyle}
       `}
@@ -511,10 +579,15 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
             0% { opacity: 0.95; transform: scale(1); filter: saturate(1); }
             100% { opacity: 0; transform: scale(0.58); filter: saturate(0.8) blur(1px); }
           }
+          @keyframes evervaultFlash {
+            0% { opacity: 1; transform: scale(1); }
+            40% { opacity: 0.8; transform: scale(1.02); }
+            100% { opacity: 0; transform: scale(1); }
+          }
         `}</style>
 
         {/* 1. Background Grid (Empty Slots) */}
-        <BackgroundGrid size={size} layout={layout} />
+        <BackgroundGrid size={size} layout={layout} isWin98ThemeActive={isWin98ThemeActive} />
 
         {/* 2. Merging Tiles Layer (Absorbed tiles animating to merge destination) */}
         <MergingTilesLayer
@@ -530,16 +603,21 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
           reviveSelectionEnabled={reviveSelectionEnabled}
           revivePendingTileId={revivePendingTileId}
           onReviveTileTap={onReviveTileTap}
+          isEvervaultSkin={isEvervaultSkin}
+          mergeFlashTileIds={mergeFlashTileIds}
+          onMergeFlashEnd={handleMergeFlashEnd}
+          isWin98ThemeActive={isWin98ThemeActive}
         />
 
         {/* 4. Revive Destroy FX */}
         <ReviveDestroyLayer
           effects={reviveDestroyEffects}
           layout={layout}
+          isWin98ThemeActive={isWin98ThemeActive}
         />
 
         {/* 5. Ghost Overlay */}
-        {ghostCells && <GhostOverlay size={size} layout={layout} ghostCells={ghostCells} />}
+        {ghostCells && <GhostOverlay size={size} layout={layout} ghostCells={ghostCells} isWin98ThemeActive={isWin98ThemeActive} />}
       </div>
     </div>
   );

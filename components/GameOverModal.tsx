@@ -116,7 +116,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
             <div className="absolute inset-0 bg-white/80 backdrop-blur-xl animate-fade-in" />
 
             {/* Content */}
-            <div className="relative z-10 flex flex-col items-center w-full max-w-sm animate-slide-up">
+            <div className="relative z-10 flex flex-col items-center w-full max-w-sm animate-slide-up win98-window p-5">
 
                 {step === 'INITIAL' && (
                     <div className="flex flex-col items-center space-y-8 w-full">

@@ -59,6 +59,15 @@ const StoreInstall = registerPlugin<StoreInstallPlugin>('StoreInstall');
 
 let installInfoPromise: Promise<NativeInstallInfo> | null = null;
 
+const createFallbackInfo = (platform: string): NativeInstallInfo => ({
+  ...DEFAULT_NON_STORE,
+  platform: normalizePlatform(platform),
+});
+
+const wait = (ms: number): Promise<void> => new Promise((resolve) => {
+  globalThis.setTimeout(resolve, ms);
+});
+
 const normalizePlatform = (value: unknown): NativePlatform => {
   if (value === 'ios' || value === 'android' || value === 'web') return value;
   const platform = Capacitor.getPlatform();
@@ -108,13 +117,31 @@ export const getNativeInstallInfo = async (): Promise<NativeInstallInfo> => {
   }
 
   if (!installInfoPromise) {
-    installInfoPromise = StoreInstall.getInstallInfo()
-      .then(normalizeNativeInstallInfo)
-      .catch(() => ({
-        ...DEFAULT_NON_STORE,
-        platform: normalizePlatform(platform),
-      }));
+    installInfoPromise = (async () => {
+      try {
+        const first = await StoreInstall.getInstallInfo();
+        return normalizeNativeInstallInfo(first);
+      } catch {
+        // 브리지 초기화 타이밍으로 첫 호출이 실패할 수 있어 짧게 1회 재시도한다.
+      }
+
+      await wait(250);
+
+      try {
+        const second = await StoreInstall.getInstallInfo();
+        return normalizeNativeInstallInfo(second);
+      } catch {
+        return createFallbackInfo(platform);
+      }
+    })();
   }
 
-  return installInfoPromise;
+  const info = await installInfoPromise;
+
+  // 플러그인 준비 타이밍 이슈 등 일시 실패를 다음 호출에서 재시도할 수 있게 한다.
+  if (info.detection === 'fallback') {
+    installInfoPromise = null;
+  }
+
+  return info;
 };

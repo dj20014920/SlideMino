@@ -69,12 +69,15 @@ class StoreInstallPlugin: CAPPlugin, CAPBridgedPlugin {
         let receiptURL = Bundle.main.appStoreReceiptURL
         let receiptPath = receiptURL?.path ?? ""
         let receiptFileName = receiptURL?.lastPathComponent ?? ""
+        let hasReceiptURL = receiptURL != nil
         let hasSandboxReceipt = receiptPath.contains("sandboxReceipt") || receiptFileName == "sandboxReceipt"
         let hasEmbeddedProvision = Bundle.main.path(forResource: "embedded", ofType: "mobileprovision") != nil
         let hasReceiptFile = !receiptPath.isEmpty && FileManager.default.fileExists(atPath: receiptPath)
 
-        // 보수적 정책: 스토어 설치를 명확히 확인할 수 없는 경우는 non-store로 본다.
-        let isStoreInstall = hasReceiptFile && !hasSandboxReceipt && !hasEmbeddedProvision
+        // App Store 배포본은 embedded.mobileprovision 이 없고 sandbox 영수증이 아니다.
+        // 일부 기기/타이밍에서 영수증 파일 생성이 지연될 수 있어 receipt URL 존재도 함께 고려한다.
+        let isLikelyStoreSigned = !hasEmbeddedProvision && !hasSandboxReceipt
+        let isStoreInstall = isLikelyStoreSigned && (hasReceiptFile || hasReceiptURL)
         let channel: String
 
         if isStoreInstall {

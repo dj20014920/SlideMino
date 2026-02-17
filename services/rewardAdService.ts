@@ -10,8 +10,8 @@
 
 import { GoogleAdMob } from '@apps-in-toss/web-framework';
 import { AdMob, RewardAdOptions, RewardAdPluginEvents, AdMobRewardItem, AdLoadInfo } from '@capacitor-community/admob';
-import { ADMOB_TEST_AD_IDS, getRewardAdId, isRewardAdSupported, CURRENT_AD_PLATFORM } from './adConfig';
-import { ensureAdMobReady, getAdMobRequestPolicy } from './admob';
+import { getRewardAdId, isRewardAdSupported, CURRENT_AD_PLATFORM } from './adConfig';
+import { ensureAdMobReady } from './admob';
 import { CooldownGate, RetryBackoffScheduler, HourlyFrequencyCap, ClickAbuseGuard } from './adResilience';
 import { MAX_DAILY_AD_VIEWS, REWARD_UNDO_AMOUNT } from '../constants';
 
@@ -385,17 +385,8 @@ class RewardAdService {
       return;
     }
 
-    const requestPolicy = await getAdMobRequestPolicy();
-    const shouldUseTestAds = requestPolicy.shouldUseTestAds;
-    const adId = shouldUseTestAds
-      ? (CURRENT_AD_PLATFORM === 'admob-ios'
-        ? ADMOB_TEST_AD_IDS.IOS.REWARD
-        : ADMOB_TEST_AD_IDS.ANDROID.REWARD)
-      : this.adGroupId;
-
     const options: RewardAdOptions = {
-      adId,
-      isTesting: shouldUseTestAds,
+      adId: this.adGroupId,
     };
 
     try {

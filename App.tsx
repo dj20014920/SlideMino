@@ -55,7 +55,7 @@ import { getCurrentRoute, onRouteChange, updatePageMeta, type Route } from './ut
 import { isNativeApp, isAppIntoS, isAndroidApp } from './utils/platform';
 import { normalizeLanguage } from './i18n/constants';
 import { LANGUAGE_CONFIGS, type SupportedLanguage } from './i18n/constants';
-import { getAdMobRequestPolicy, openNativePrivacyOptionsForm } from './services/admob';
+import { openNativePrivacyOptionsForm } from './services/admob';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import Terms from './pages/Terms';
 import About from './pages/About';
@@ -482,8 +482,6 @@ const App: React.FC = () => {
   const [reviveBreakRemaining, setReviveBreakRemaining] = useState(0);
   const [revivePendingTileId, setRevivePendingTileId] = useState<string | null>(null);
   const [reviveDestroyEffects, setReviveDestroyEffects] = useState<ReviveDestroyEffect[]>([]);
-  // 테스트 광고 모드 표시 상태 (비스토어 설치 시 지속 배지 표시)
-  const [adTestModeBadge, setAdTestModeBadge] = useState<string | null>(null);
 
   // Check tutorial status on load
   useEffect(() => {
@@ -1021,41 +1019,6 @@ const App: React.FC = () => {
       comboMessageTimeoutRef.current = null;
     }, durationMs);
   }, []);
-
-  useEffect(() => {
-    if (!isNativeApp()) return;
-
-    let isCancelled = false;
-    getAdMobRequestPolicy()
-      .then((policy) => {
-        if (isCancelled || !policy.shouldUseTestAds) return;
-
-        // 지속 배지: 테스트 광고 모드 원인 표시 (세션 동안 유지)
-        const badgeLabels: Record<string, string> = {
-          'development': 'DEV 테스트 광고',
-          'virtual-device': '에뮬/시뮬 테스트 광고',
-          'env-force-test': 'ENV 강제 테스트 광고',
-          'non-store-channel': '비스토어 테스트 광고',
-        };
-        setAdTestModeBadge(badgeLabels[policy.reason] ?? '테스트 광고');
-
-        // 초기 토스트: 4초간 상세 안내
-        if (policy.reason === 'virtual-device') {
-          showComboMessage('에뮬/시뮬 환경이라 테스트 광고 모드입니다.', 4000);
-        } else if (policy.reason === 'non-store-channel') {
-          showComboMessage(`스토어 외 배포(${policy.distributionChannel})라 테스트 광고 모드입니다.`, 4000);
-        } else {
-          showComboMessage(`테스트 광고 모드 (${policy.reason})`, 3000);
-        }
-      })
-      .catch(() => {
-        // ignore
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [showComboMessage]);
 
   const showBlockRefreshNotice = useCallback((message: string, durationMs = 1600) => {
     setBlockRefreshNotice(message);
@@ -2401,11 +2364,6 @@ const App: React.FC = () => {
             {comboMessage}
           </div>
         )}
-        {adTestModeBadge && (
-          <div className="pointer-events-none fixed right-2 top-[calc(4px+var(--app-safe-top))] z-[110] rounded bg-orange-500/80 px-2 py-0.5 text-[9px] font-bold text-white shadow">
-            {adTestModeBadge}
-          </div>
-        )}
         <div
           className={`${isWin98ThemeActive ? 'win98-app-shell' : ''} min-h-screen min-h-[100dvh] flex flex-col items-center justify-center p-6 space-y-6`}
           style={{ paddingTop: 'calc(0.5rem + var(--app-safe-top))' }}
@@ -2624,11 +2582,6 @@ const App: React.FC = () => {
           className="pointer-events-none fixed left-1/2 top-[calc(12px+var(--app-safe-top))] z-[120] w-max max-w-[92vw] -translate-x-1/2 rounded-full bg-gray-900/92 px-4 py-2 text-center text-[12px] font-medium text-white shadow-xl backdrop-blur-sm whitespace-pre-line"
         >
           {comboMessage}
-        </div>
-      )}
-      {adTestModeBadge && (
-        <div className="pointer-events-none fixed right-2 top-[calc(4px+var(--app-safe-top))] z-[110] rounded bg-orange-500/80 px-2 py-0.5 text-[9px] font-bold text-white shadow">
-          {adTestModeBadge}
         </div>
       )}
       <div

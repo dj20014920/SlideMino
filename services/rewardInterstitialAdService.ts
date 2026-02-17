@@ -14,12 +14,11 @@ import {
   RewardInterstitialAdPluginEvents,
 } from '@capacitor-community/admob';
 import {
-  ADMOB_TEST_AD_IDS,
   CURRENT_AD_PLATFORM,
   getRewardInterstitialAdId,
   isRewardInterstitialAdSupported,
 } from './adConfig';
-import { ensureAdMobReady, getAdMobRequestPolicy } from './admob';
+import { ensureAdMobReady } from './admob';
 import { CooldownGate, RetryBackoffScheduler, HourlyFrequencyCap, ClickAbuseGuard } from './adResilience';
 import { MAX_DAILY_REVIVE_AD_VIEWS } from '../constants';
 
@@ -317,17 +316,8 @@ export class RewardInterstitialAdService {
       return;
     }
 
-    const requestPolicy = await getAdMobRequestPolicy();
-    const shouldUseTestAds = requestPolicy.shouldUseTestAds;
-    const adId = shouldUseTestAds
-      ? (CURRENT_AD_PLATFORM === 'admob-ios'
-        ? ADMOB_TEST_AD_IDS.IOS.REWARD_INTERSTITIAL
-        : ADMOB_TEST_AD_IDS.ANDROID.REWARD_INTERSTITIAL)
-      : this.adUnitId;
-
     const options: RewardInterstitialAdOptions = {
-      adId,
-      isTesting: shouldUseTestAds,
+      adId: this.adUnitId,
     };
 
     try {

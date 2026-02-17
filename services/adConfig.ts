@@ -70,75 +70,30 @@ export const ADSENSE_AD_IDS = {
 export const ADMOB_AD_IDS = {
   // Android
   ANDROID: {
-    // 프로덕션: 실제 광고 ID / 개발: 테스트 광고 ID
-    REWARD: import.meta.env.MODE === 'production'
-      ? 'ca-app-pub-5319827978116991/4879909972' // ✅ 사용자 제공 Android 리워드 광고 ID
-      : 'ca-app-pub-3940256099942544/5224354917', // Google 공식 테스트 ID
+    REWARD: 'ca-app-pub-5319827978116991/4879909972', // ✅ 사용자 제공 Android 리워드 광고 ID
     // 게임오버 부활용 보상형 전면 광고
-    REWARD_INTERSTITIAL: import.meta.env.MODE === 'production'
-      ? 'ca-app-pub-5319827978116991/5753319580' // ✅ 사용자 제공 Android 보상형 전면 광고 ID
-      : 'ca-app-pub-3940256099942544/5354046379', // Google 공식 테스트 ID
+    REWARD_INTERSTITIAL: 'ca-app-pub-5319827978116991/5753319580', // ✅ 사용자 제공 Android 보상형 전면 광고 ID
     // 블록 새로고침용 보상형 전면 광고
-    REWARD_INTERSTITIAL_BLOCK_REFRESH: import.meta.env.MODE === 'production'
-      ? 'ca-app-pub-5319827978116991/8255972227' // ✅ 사용자 제공 Android 새로고침 보상형 전면 광고 ID
-      : 'ca-app-pub-3940256099942544/5354046379', // Google 공식 테스트 ID
+    REWARD_INTERSTITIAL_BLOCK_REFRESH: 'ca-app-pub-5319827978116991/8255972227', // ✅ 사용자 제공 Android 새로고침 보상형 전면 광고 ID
     // 스킨 뽑기용 보상형 광고
-    REWARD_SKIN_DRAW: import.meta.env.MODE === 'production'
-      ? 'ca-app-pub-5319827978116991/6761985205' // ✅ 사용자 제공 Android 스킨뽑기 보상형 광고 ID
-      : 'ca-app-pub-3940256099942544/5224354917', // Google 공식 테스트 보상형 ID
-    INTERSTITIAL: import.meta.env.MODE === 'production'
-      ? 'ca-app-pub-XXXXXXXXXXXXXXXX/ZZZZZZZZZZ' // TODO: AdMob 승인 후 교체
-      : 'ca-app-pub-3940256099942544/1033173712', // Google 공식 테스트 ID
-    // 🆕 배너 광고 (프로덕션: 사용자 제공 실제 ID)
-    BANNER: import.meta.env.MODE === 'production'
-      ? 'ca-app-pub-5319827978116991/6947103527' // ✅ 사용자 제공 Android 배너 광고 ID
-      : 'ca-app-pub-3940256099942544/6300978111', // Google 공식 테스트 배너 ID
+    REWARD_SKIN_DRAW: 'ca-app-pub-5319827978116991/6761985205', // ✅ 사용자 제공 Android 스킨뽑기 보상형 광고 ID
+    INTERSTITIAL: 'ca-app-pub-XXXXXXXXXXXXXXXX/ZZZZZZZZZZ', // TODO: AdMob 승인 후 교체
+    // 🆕 배너 광고
+    BANNER: 'ca-app-pub-5319827978116991/6947103527', // ✅ 사용자 제공 Android 배너 광고 ID
   },
 
   // iOS
   IOS: {
-    // 프로덕션: 실제 광고 ID / 개발: 테스트 광고 ID
-    REWARD: import.meta.env.MODE === 'production'
-      ? 'ca-app-pub-5319827978116991/7585964362' // ✅ 사용자 제공 iOS 리워드 광고 ID
-      : 'ca-app-pub-3940256099942544/1712485313', // Google 공식 테스트 ID
+    REWARD: 'ca-app-pub-5319827978116991/7585964362', // ✅ 사용자 제공 iOS 리워드 광고 ID
     // 스킨 뽑기용 보상형 광고
-    REWARD_SKIN_DRAW: import.meta.env.MODE === 'production'
-      ? 'ca-app-pub-5319827978116991/5203257881' // ✅ 사용자 제공 iOS 스킨뽑기 보상형 광고 ID
-      : 'ca-app-pub-3940256099942544/1712485313', // Google 공식 테스트 보상형 ID
+    REWARD_SKIN_DRAW: 'ca-app-pub-5319827978116991/5203257881', // ✅ 사용자 제공 iOS 스킨뽑기 보상형 광고 ID
     // ✅ 사용자 제공 iOS 보상형 전면 광고 ID (게임오버 부활)
-    REWARD_INTERSTITIAL: import.meta.env.MODE === 'production'
-      ? 'ca-app-pub-5319827978116991/1969153095'
-      : 'ca-app-pub-3940256099942544/6978759866', // Google 공식 테스트 ID
+    REWARD_INTERSTITIAL: 'ca-app-pub-5319827978116991/1969153095',
     // ✅ 사용자 제공 iOS 보상형 전면 광고 ID (블록 새로고침)
-    REWARD_INTERSTITIAL_BLOCK_REFRESH: import.meta.env.MODE === 'production'
-      ? 'ca-app-pub-5319827978116991/5545204513'
-      : 'ca-app-pub-3940256099942544/6978759866', // Google 공식 테스트 ID
-    INTERSTITIAL: import.meta.env.MODE === 'production'
-      ? 'ca-app-pub-XXXXXXXXXXXXXXXX/ZZZZZZZZZZ' // TODO: AdMob 승인 후 교체
-      : 'ca-app-pub-3940256099942544/4411468910', // Google 공식 테스트 ID
-    // 🆕 배너 광고 (프로덕션: 사용자 제공 실제 ID)
-    BANNER: import.meta.env.MODE === 'production'
-      ? 'ca-app-pub-5319827978116991/1116192349' // ✅ 사용자 제공 iOS 배너 광고 ID
-      : 'ca-app-pub-3940256099942544/2934735716', // Google 공식 테스트 배너 ID
-  },
-} as const;
-
-/**
- * Google 공식 테스트 광고 ID (모드/환경과 무관한 고정값)
- * - 시뮬레이터/에뮬레이터 검증 시 강제 사용
- */
-export const ADMOB_TEST_AD_IDS = {
-  ANDROID: {
-    REWARD: 'ca-app-pub-3940256099942544/5224354917',
-    REWARD_INTERSTITIAL: 'ca-app-pub-3940256099942544/5354046379',
-    INTERSTITIAL: 'ca-app-pub-3940256099942544/1033173712',
-    BANNER: 'ca-app-pub-3940256099942544/6300978111',
-  },
-  IOS: {
-    REWARD: 'ca-app-pub-3940256099942544/1712485313',
-    REWARD_INTERSTITIAL: 'ca-app-pub-3940256099942544/6978759866',
-    INTERSTITIAL: 'ca-app-pub-3940256099942544/4411468910',
-    BANNER: 'ca-app-pub-3940256099942544/2934735716',
+    REWARD_INTERSTITIAL_BLOCK_REFRESH: 'ca-app-pub-5319827978116991/5545204513',
+    INTERSTITIAL: 'ca-app-pub-XXXXXXXXXXXXXXXX/ZZZZZZZZZZ', // TODO: AdMob 승인 후 교체
+    // 🆕 배너 광고
+    BANNER: 'ca-app-pub-5319827978116991/1116192349', // ✅ 사용자 제공 iOS 배너 광고 ID
   },
 } as const;
 

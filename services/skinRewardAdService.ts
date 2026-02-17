@@ -6,8 +6,8 @@
  */
 
 import { AdMob, RewardAdOptions, RewardAdPluginEvents, AdMobRewardItem, AdLoadInfo } from '@capacitor-community/admob';
-import { getSkinRewardAdId, isSkinRewardAdSupported, CURRENT_AD_PLATFORM, ADMOB_TEST_AD_IDS } from './adConfig';
-import { ensureAdMobReady, getAdMobRequestPolicy } from './admob';
+import { getSkinRewardAdId, isSkinRewardAdSupported, CURRENT_AD_PLATFORM } from './adConfig';
+import { ensureAdMobReady } from './admob';
 import { CooldownGate, RetryBackoffScheduler, HourlyFrequencyCap, ClickAbuseGuard } from './adResilience';
 import { MAX_DAILY_SKIN_AD_VIEWS } from '../constants';
 
@@ -156,16 +156,7 @@ class SkinRewardAdService {
     const canRequest = await ensureAdMobReady();
     if (!canRequest) { this.loadStatus = 'failed'; return; }
 
-    // 다른 광고 서비스와 동일한 중앙 정책으로 테스트/실제 광고 분기
-    const requestPolicy = await getAdMobRequestPolicy();
-    const shouldUseTestAds = requestPolicy.shouldUseTestAds;
-    const adId = shouldUseTestAds
-      ? (CURRENT_AD_PLATFORM === 'admob-ios'
-        ? ADMOB_TEST_AD_IDS.IOS.REWARD
-        : ADMOB_TEST_AD_IDS.ANDROID.REWARD)
-      : this.adUnitId;
-
-    const options: RewardAdOptions = { adId, isTesting: shouldUseTestAds };
+    const options: RewardAdOptions = { adId: this.adUnitId };
 
     try {
       await AdMob.prepareRewardVideoAd(options);

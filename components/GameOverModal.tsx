@@ -77,12 +77,11 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         if (result.success) {
             setSubmitInfo(null);
             setStep('SUBMITTED');
-        } else if (result.queued) {
-            setSubmitInfo(t('modals:rankingRegister.queuedMessage'));
-            setStep('SUBMITTED');
         } else if (result.alreadySubmitted) {
             setSubmitInfo(t('modals:rankingRegister.alreadySubmittedMessage'));
             setStep('SUBMITTED');
+        } else if (result.offline) {
+            setSubmitError(t('modals:leaderboard.offline'));
         } else {
             setSubmitError(t('modals:rankingRegister.failureMessage'));
         }
@@ -101,13 +100,8 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
     };
 
     const handleRegisterClick = () => {
-        const defaultName = normalizePlayerName(name || playerName || rankingService.getSavedName());
-        const errorKey = validatePlayerName(defaultName);
-        if (errorKey) {
-            setStep('REGISTER');
-            return;
-        }
-        void submitScoreWithName(defaultName);
+        // 랭킹 등록은 항상 이름 입력/확인 단계를 거친다.
+        setStep('REGISTER');
     };
 
     return (

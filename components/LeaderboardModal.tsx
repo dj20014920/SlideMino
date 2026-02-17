@@ -8,6 +8,8 @@ interface LeaderboardModalProps {
     onClose: () => void;
 }
 
+const LEADERBOARD_REFRESH_INTERVAL_MS = 5000;
+
 export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClose }) => {
     const { t } = useTranslation();
     const [rankings, setRankings] = useState<RankEntry[]>([]);
@@ -25,25 +27,45 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
     };
 
     useEffect(() => {
-        if (open) {
-            setLoading(true);
+        if (!open) return;
+
+        let cancelled = false;
+        const fetchLeaderboard = async (showLoading: boolean) => {
+            if (showLoading) setLoading(true);
             setHasError(false);
-            setIsOffline(false);
-            setFromCache(false);
-            rankingService.getLeaderboard()
-                .then(result => {
-                    setRankings(result.data);
-                    setIsOffline(result.offline);
-                    setFromCache(result.fromCache);
-                })
-                .catch(err => {
-                    console.error(err);
+
+            try {
+                const result = await rankingService.getLeaderboard();
+                if (cancelled) return;
+                setRankings(result.data);
+                setIsOffline(result.offline);
+                setFromCache(result.fromCache);
+            } catch (err) {
+                console.error(err);
+                if (!cancelled) {
                     setHasError(true);
-                })
-                .finally(() => {
-                    setLoading(false);
-                });
-        }
+                    setIsOffline(typeof navigator !== 'undefined' ? !navigator.onLine : false);
+                    setFromCache(false);
+                }
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        };
+
+        void fetchLeaderboard(true);
+        const intervalId = window.setInterval(() => {
+            void fetchLeaderboard(false);
+        }, LEADERBOARD_REFRESH_INTERVAL_MS);
+        const handleOnline = () => {
+            void fetchLeaderboard(false);
+        };
+        window.addEventListener('online', handleOnline);
+
+        return () => {
+            cancelled = true;
+            window.clearInterval(intervalId);
+            window.removeEventListener('online', handleOnline);
+        };
     }, [open]);
 
     if (!open) return null;

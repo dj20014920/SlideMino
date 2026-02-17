@@ -86,17 +86,15 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
             return;
         }
 
-        if (result.queued) {
-            onSessionNameLocked?.(trimmedName);
-            setSubmitInfo(t('modals:rankingRegister.queuedMessage'));
-            setStep('SUBMITTED');
-            return;
-        }
-
         if (result.alreadySubmitted) {
             onSessionNameLocked?.(trimmedName);
             setSubmitInfo(t('modals:rankingRegister.alreadySubmittedMessage'));
             setStep('SUBMITTED');
+            return;
+        }
+
+        if (result.offline) {
+            setSubmitError(t('modals:leaderboard.offline'));
             return;
         }
 

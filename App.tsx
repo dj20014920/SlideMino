@@ -50,7 +50,7 @@ import {
 } from './constants';
 import { useBlockCustomization } from './context/BlockCustomizationContext';
 import { saveGameState, loadGameState, clearGameState, hasActiveGame, type SavedGameState } from './services/gameStorage';
-import { rankingService, type RankEntry, type LiveRankEstimate } from './services/rankingService';
+import { rankingService, type LiveRankEstimate } from './services/rankingService';
 import { getCurrentRoute, onRouteChange, updatePageMeta, type Route } from './utils/routing';
 import { isNativeApp, isAppIntoS, isAndroidApp } from './utils/platform';
 import { normalizeLanguage } from './i18n/constants';
@@ -73,6 +73,9 @@ import { normalizePlayerName, validatePlayerName } from './utils/playerName';
 const EMPTY_TILE_VALUE_OVERRIDES: Record<string, number> = {};
 const EMPTY_MERGING_TILES: MergingTile[] = [];
 const DRAG_OVERLAY_SCALE = 1;
+const LIVE_RANK_POLL_INTERVAL_MS = 5000;
+const LIVE_RANK_SCORE_SYNC_DEBOUNCE_MS = 350;
+const LIVE_RANK_MIN_REQUEST_INTERVAL_MS = 1000;
 
 // Undo 시스템: 직전 상태를 저장하기 위한 스냅샷 인터페이스
 interface GameSnapshot {
@@ -512,9 +515,12 @@ const App: React.FC = () => {
   const [liveRankEstimate, setLiveRankEstimate] = useState<LiveRankEstimate | null>(null); // 게임 중 예상 순위
 
   const boardMetricsRef = useRef<BoardMetrics | null>(null);
-  const leaderboardSnapshotRef = useRef<RankEntry[]>([]);
   const liveRankFailureCountRef = useRef(0);
   const liveRankRetryAfterRef = useRef(0);
+  const liveRankLastRequestAtRef = useRef(0);
+  const liveRankRequestInFlightRef = useRef(false);
+  const liveRankRequestQueuedRef = useRef(false);
+  const liveRankRequestSequenceRef = useRef(0);
   const hoverGridPosRef = useRef<{ x: number; y: number } | null>(null);
   const swipeStartRef = useRef<{ x: number, y: number } | null>(null); // 스와이프 시작 좌표
   const slideLockRef = useRef(false); // state 반영 전에도 즉시 입력 차단
@@ -529,6 +535,7 @@ const App: React.FC = () => {
   const currentPointerPosRef = useRef<{ x: number, y: number } | null>(null);
   const scoreRef = useRef<number>(score);
   const boardSizeRef = useRef<BoardSize>(boardSize);
+  const gameStateRef = useRef<GameState>(gameState);
 
   useEffect(() => {
     scoreRef.current = score;
@@ -537,6 +544,10 @@ const App: React.FC = () => {
   useEffect(() => {
     boardSizeRef.current = boardSize;
   }, [boardSize]);
+
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -620,7 +631,11 @@ const App: React.FC = () => {
     setIsReviveAdInProgress(false);
     setIsReviveAdReady(false);
     setIsBlockRefreshAdInProgress(false);
-    leaderboardSnapshotRef.current = [];
+    liveRankFailureCountRef.current = 0;
+    liveRankRetryAfterRef.current = 0;
+    liveRankLastRequestAtRef.current = 0;
+    liveRankRequestInFlightRef.current = false;
+    liveRankRequestQueuedRef.current = false;
     setLiveRankEstimate(null);
     setPlayerName(
       getReusablePlayerName(saved.playerName) ??
@@ -983,7 +998,11 @@ const App: React.FC = () => {
     gameStartTimeRef.current = Date.now();
     moveCountRef.current = 0;
     sessionIdRef.current = crypto.randomUUID(); // 새 게임마다 고유 세션 ID 생성
-    leaderboardSnapshotRef.current = [];
+    liveRankFailureCountRef.current = 0;
+    liveRankRetryAfterRef.current = 0;
+    liveRankLastRequestAtRef.current = 0;
+    liveRankRequestInFlightRef.current = false;
+    liveRankRequestQueuedRef.current = false;
     setLiveRankEstimate(null); // 순위 표시 초기화
 
     // 온보딩: 튜토리얼 미완료 시 활성화
@@ -1262,6 +1281,9 @@ const App: React.FC = () => {
     setIsReviveSelectionMode(false);
     setRevivePendingTileId(null);
     setReviveBreakRemaining(0);
+    // 부활 파괴 모드가 끝나면 블록 배치가 아니라 스와이프 단계부터 재개한다.
+    setPhase(Phase.SLIDE);
+    setCanSkipSlide(false);
 
     if (exhaustedByCount) {
       showComboMessage(String(t('modals:gameOver.reviveSelectionComplete')), 1600);
@@ -1825,57 +1847,97 @@ const App: React.FC = () => {
     }
   }, [phase, grid, slots, gameState, score, highScore, isAnimating, finishSlideTurn, isReviveSelectionMode]);
 
+  const refreshLiveRankEstimate = useCallback(async (force = false) => {
+    if (gameStateRef.current !== GameState.PLAYING) return;
+
+    const now = Date.now();
+    if (!force && now < liveRankRetryAfterRef.current) return;
+    if (!force && now - liveRankLastRequestAtRef.current < LIVE_RANK_MIN_REQUEST_INTERVAL_MS) return;
+
+    if (liveRankRequestInFlightRef.current) {
+      liveRankRequestQueuedRef.current = true;
+      return;
+    }
+
+    liveRankRequestInFlightRef.current = true;
+    liveRankLastRequestAtRef.current = now;
+    const requestSequence = ++liveRankRequestSequenceRef.current;
+    const requestedScore = scoreRef.current;
+    const requestedDifficulty = String(boardSizeRef.current);
+
+    try {
+      const estimate = await rankingService.getLiveRankEstimate(requestedScore, requestedDifficulty);
+      if (requestSequence !== liveRankRequestSequenceRef.current) return;
+
+      liveRankFailureCountRef.current = 0;
+      liveRankRetryAfterRef.current = 0;
+
+      if (gameStateRef.current !== GameState.PLAYING) return;
+      if (requestedScore !== scoreRef.current || requestedDifficulty !== String(boardSizeRef.current)) {
+        liveRankRequestQueuedRef.current = true;
+        return;
+      }
+
+      setLiveRankEstimate(estimate);
+    } catch (error) {
+      if (requestSequence !== liveRankRequestSequenceRef.current) return;
+
+      liveRankFailureCountRef.current += 1;
+      const cappedFailures = Math.min(liveRankFailureCountRef.current, 6);
+      const backoffMs = Math.min(120_000, 5_000 * (2 ** (cappedFailures - 1)));
+      liveRankRetryAfterRef.current = Date.now() + backoffMs;
+
+      if (import.meta.env.DEV && liveRankFailureCountRef.current === 1) {
+        console.warn('[랭킹 추정] 실시간 랭킹 조회 실패:', error);
+      }
+    } finally {
+      liveRankRequestInFlightRef.current = false;
+      if (liveRankRequestQueuedRef.current) {
+        liveRankRequestQueuedRef.current = false;
+        void refreshLiveRankEstimate();
+      }
+    }
+  }, []);
+
   // --- 게임 중 예상 랭킹 업데이트 ---
   useEffect(() => {
     if (gameState !== GameState.PLAYING) {
-      leaderboardSnapshotRef.current = [];
       liveRankFailureCountRef.current = 0;
       liveRankRetryAfterRef.current = 0;
+      liveRankLastRequestAtRef.current = 0;
+      liveRankRequestInFlightRef.current = false;
+      liveRankRequestQueuedRef.current = false;
       setLiveRankEstimate(null);
       return;
     }
 
-    let cancelled = false;
-    const updateEstimate = async () => {
-      if (Date.now() < liveRankRetryAfterRef.current) return;
-
-      try {
-        const result = await rankingService.getLeaderboard();
-        if (cancelled) return;
-        leaderboardSnapshotRef.current = result.data;
-        liveRankFailureCountRef.current = 0;
-        liveRankRetryAfterRef.current = 0;
-        setLiveRankEstimate(
-          rankingService.estimateLiveRank(scoreRef.current, String(boardSizeRef.current), result.data)
-        );
-      } catch (error) {
-        liveRankFailureCountRef.current += 1;
-        const cappedFailures = Math.min(liveRankFailureCountRef.current, 6);
-        const backoffMs = Math.min(120_000, 5_000 * (2 ** (cappedFailures - 1)));
-        liveRankRetryAfterRef.current = Date.now() + backoffMs;
-
-        if (import.meta.env.DEV && liveRankFailureCountRef.current === 1) {
-          console.warn('[랭킹 추정] 랭킹 조회 실패:', error);
-        }
-      }
+    void refreshLiveRankEstimate(true);
+    const intervalId = window.setInterval(() => {
+      void refreshLiveRankEstimate();
+    }, LIVE_RANK_POLL_INTERVAL_MS);
+    const handleOnline = () => {
+      void refreshLiveRankEstimate(true);
     };
-
-    void updateEstimate();
-    const intervalId = window.setInterval(updateEstimate, 15000);
+    window.addEventListener('online', handleOnline);
 
     return () => {
-      cancelled = true;
       window.clearInterval(intervalId);
+      window.removeEventListener('online', handleOnline);
     };
-  }, [gameState]);
+  }, [gameState, refreshLiveRankEstimate]);
 
-  // 점수/난이도 변경 시 최신 랭킹 스냅샷으로 즉시 재계산
+  // 점수/난이도 변경 시 실제 랭킹 기준으로 빠르게 동기화
   useEffect(() => {
     if (gameState !== GameState.PLAYING) return;
-    setLiveRankEstimate(
-      rankingService.estimateLiveRank(score, String(boardSize), leaderboardSnapshotRef.current)
-    );
-  }, [gameState, score, boardSize]);
+
+    const timeoutId = window.setTimeout(() => {
+      void refreshLiveRankEstimate();
+    }, LIVE_RANK_SCORE_SYNC_DEBOUNCE_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [gameState, score, boardSize, refreshLiveRankEstimate]);
 
 
   // --- Render Helpers ---

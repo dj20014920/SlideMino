@@ -1,9 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { CSSProperties, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TILE_COLORS } from '../constants';
 
 const CELL_SIZE = 64;
 const GAP = 12;
+const INITIAL_BLOCK_OFFSET_X = (CELL_SIZE + GAP) / 2;
+const CENTERED_TILE_STYLE: CSSProperties = {
+    left: '50%',
+    top: '50%',
+    width: CELL_SIZE,
+    height: CELL_SIZE,
+    marginLeft: -CELL_SIZE / 2,
+    marginTop: -CELL_SIZE / 2,
+};
 
 export const LoadingScreen: React.FC = () => {
     // Animation phases: 0=Separate, 1=Merging, 2=Merged/Pulse
@@ -46,9 +55,9 @@ export const LoadingScreen: React.FC = () => {
                                 {/* Left Block (4) */}
                                 <motion.div
                                     key="block-left"
-                                    initial={{ x: -40, opacity: 0, scale: 0.8 }}
+                                    initial={{ x: -INITIAL_BLOCK_OFFSET_X, opacity: 0, scale: 0.8 }}
                                     animate={{
-                                        x: phase === 0 ? -40 : 0,
+                                        x: phase === 0 ? -INITIAL_BLOCK_OFFSET_X : 0,
                                         opacity: 1,
                                         scale: 1
                                     }}
@@ -57,7 +66,8 @@ export const LoadingScreen: React.FC = () => {
                                         stiffness: 200,
                                         damping: 25
                                     }}
-                                    className={`absolute w-16 h-16 rounded-xl flex items-center justify-center text-2xl font-bold ${TILE_COLORS[4]}`}
+                                    className={`absolute rounded-xl flex items-center justify-center text-2xl font-bold ${TILE_COLORS[4]}`}
+                                    style={CENTERED_TILE_STYLE}
                                 >
                                     4
                                 </motion.div>
@@ -65,9 +75,9 @@ export const LoadingScreen: React.FC = () => {
                                 {/* Right Block (4) */}
                                 <motion.div
                                     key="block-right"
-                                    initial={{ x: 40, opacity: 0, scale: 0.8 }}
+                                    initial={{ x: INITIAL_BLOCK_OFFSET_X, opacity: 0, scale: 0.8 }}
                                     animate={{
-                                        x: phase === 0 ? 40 : 0,
+                                        x: phase === 0 ? INITIAL_BLOCK_OFFSET_X : 0,
                                         opacity: 1,
                                         scale: 1
                                     }}
@@ -76,7 +86,8 @@ export const LoadingScreen: React.FC = () => {
                                         stiffness: 200,
                                         damping: 25
                                     }}
-                                    className={`absolute w-16 h-16 rounded-xl flex items-center justify-center text-2xl font-bold ${TILE_COLORS[4]}`}
+                                    className={`absolute rounded-xl flex items-center justify-center text-2xl font-bold ${TILE_COLORS[4]}`}
+                                    style={CENTERED_TILE_STYLE}
                                 >
                                     4
                                 </motion.div>

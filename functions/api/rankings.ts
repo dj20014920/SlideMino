@@ -5,6 +5,7 @@
 
 import { resetRankingsIfNewMonth } from '../utils/monthlyReset';
 import { checkRateLimit, getClientIp } from '../utils/rateLimit';
+import { validateDifficulty, validateScore } from '../utils/validation';
 
 interface Env {
   DB: D1Database;
@@ -99,6 +100,79 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     await resetRankingsIfNewMonth(env);
 
+    const requestUrl = new URL(request.url);
+    const mode = requestUrl.searchParams.get('mode');
+
+    // mode=live: 현재 점수 기준 실시간 순위 계산 (게임 중 헤더 표시용)
+    if (mode === 'live') {
+      const difficultyParam = requestUrl.searchParams.get('difficulty');
+      const scoreParam = requestUrl.searchParams.get('score');
+
+      if (!difficultyParam || scoreParam === null) {
+        return errorResponse('Missing difficulty or score', 400, corsHeaders);
+      }
+
+      const difficultyValidation = validateDifficulty(difficultyParam);
+      if (!difficultyValidation.valid) {
+        return errorResponse(difficultyValidation.error ?? 'Invalid difficulty', 400, corsHeaders);
+      }
+
+      const parsedScore = Number(scoreParam);
+      if (!Number.isFinite(parsedScore)) {
+        return errorResponse('Score must be a number', 400, corsHeaders);
+      }
+
+      const scoreValidation = validateScore(parsedScore);
+      if (!scoreValidation.valid) {
+        return errorResponse(scoreValidation.error ?? 'Invalid score', 400, corsHeaders);
+      }
+
+      const difficulty = difficultyValidation.value!;
+      const score = scoreValidation.value!;
+
+      try {
+        const higherCountResult = await env.DB.prepare(
+          `SELECT COUNT(*) as higher_count
+           FROM rankings
+           WHERE difficulty = ? AND score > ?`
+        ).bind(difficulty, score).first<{ higher_count: number | string }>();
+
+        const nextHigherScoreResult = await env.DB.prepare(
+          `SELECT MIN(score) as next_higher_score
+           FROM rankings
+           WHERE difficulty = ? AND score > ?`
+        ).bind(difficulty, score).first<{ next_higher_score: number | null }>();
+
+        const higherCount = Number(higherCountResult?.higher_count ?? 0);
+        const nextHigherScore = typeof nextHigherScoreResult?.next_higher_score === 'number'
+          ? nextHigherScoreResult.next_higher_score
+          : null;
+
+        const rank = Math.max(1, higherCount + 1);
+        const pointsToNext = nextHigherScore === null ? 0 : Math.max(0, nextHigherScore - score + 1);
+
+        return new Response(
+          JSON.stringify({
+            rank,
+            pointsToNext,
+            difficulty,
+            score,
+          }),
+          {
+            status: 200,
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'application/json',
+              'Cache-Control': 'no-store, no-cache, must-revalidate',
+            },
+          }
+        );
+      } catch (dbError) {
+        console.error('Database error (live rank):', dbError);
+        return errorResponse('Failed to calculate live rank', 500, corsHeaders);
+      }
+    }
+
     // ========== 데이터베이스 조회 (Layer 4) ==========
     // Prepared statement로 SQL Injection 방어
     // 최신 50개 랭킹만 반환 (성능 최적화)
@@ -115,12 +189,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         {
           status: 200,
           headers: {
-            ...corsHeaders,
-            'Content-Type': 'application/json',
-            'Cache-Control': 'public, max-age=15', // 15초 캐시 (사용자 경험과 성능 균형)
-          },
-        }
-      );
+              ...corsHeaders,
+              'Content-Type': 'application/json',
+              // 랭킹은 실시간 우선 정책으로 항상 최신값을 전달한다.
+              'Cache-Control': 'no-store, no-cache, must-revalidate',
+            },
+          }
+        );
 
     } catch (dbError) {
       console.error('Database error:', dbError);

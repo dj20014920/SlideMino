@@ -2,12 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CAPACITOR_DEBUG</key>
+	<key>CAPACITOR_DEBUG</key>
 	<string>$(CAPACITOR_DEBUG)</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>블록 슬라이드 (Block Slide)</string>
+	<string>블록 슬라이드 (Block Slide)</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -22,22 +22,18 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>GADApplicationIdentifier</key>
+	<string>ca-app-pub-5319827978116991~7661419396</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<!-- AdMob App ID (replace with your real App ID from AdMob console) -->
-	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-5319827978116991~7661419396</string>
-	<!-- iOS App Tracking Transparency (ATT) prompt description -->
-	<key>NSUserTrackingUsageDescription</key>
-	<string>Your data may be used to deliver more relevant ads and help keep 블록 슬라이드 (Block Slide) free to play.</string>
-	<!-- Camera access for block customization photo capture -->
 	<key>NSCameraUsageDescription</key>
 	<string>블록 슬라이드 (Block Slide) needs camera access to take photos for customizing block appearances.</string>
-	<!-- Photo Library access for block customization image selection -->
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>블록 슬라이드 (Block Slide) needs photo library access to select images for customizing block appearances.</string>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>Your data may be used to deliver more relevant ads and help keep 블록 슬라이드 (Block Slide) free to play.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -67,17 +63,17 @@
 	</array>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>

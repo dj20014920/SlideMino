@@ -27,6 +27,11 @@ export interface LiveRankEstimate {
     pointsToNext: number;
 }
 
+interface LiveRankApiResponse {
+    rank?: unknown;
+    pointsToNext?: unknown;
+}
+
 interface PendingScore {
     sessionId: string;
     name: string;
@@ -38,15 +43,10 @@ interface PendingScore {
     updatedAt: number;
 }
 
-interface LeaderboardCache {
-    data: RankEntry[];
-    updatedAt: number;
-}
-
 const STORAGE_KEY_NAME = 'slidemino_player_name';
 const STORAGE_KEY_QUEUE = 'slidemino_pending_scores_v1';
-const STORAGE_KEY_LEADERBOARD_CACHE = 'slidemino_leaderboard_cache_v1';
 const LEADERBOARD_ERROR_LOG_COOLDOWN_MS = 60_000;
+const REALTIME_RANKING_ONLY = true;
 
 let lastLeaderboardErrorLogAt = 0;
 
@@ -119,23 +119,6 @@ const enqueueScore = (payload: Omit<PendingScore, 'updatedAt'>): void => {
     saveQueue(queue);
 };
 
-const loadLeaderboardCache = (): LeaderboardCache | null => {
-    try {
-        const raw = safeReadLocalStorage(STORAGE_KEY_LEADERBOARD_CACHE);
-        if (!raw) return null;
-        const parsed = JSON.parse(raw) as LeaderboardCache;
-        if (!parsed || !Array.isArray(parsed.data)) return null;
-        return parsed;
-    } catch {
-        return null;
-    }
-};
-
-const saveLeaderboardCache = (data: RankEntry[]): void => {
-    const payload: LeaderboardCache = { data, updatedAt: Date.now() };
-    safeWriteLocalStorage(STORAGE_KEY_LEADERBOARD_CACHE, JSON.stringify(payload));
-};
-
 const shouldQueue = (status?: number): boolean => {
     if (status === 0 || status === undefined) return true;
     return status === 429 || status >= 500;
@@ -175,6 +158,7 @@ const postScore = async (
 };
 
 const flushPendingScores = async (): Promise<void> => {
+    if (REALTIME_RANKING_ONLY) return;
     if (!isOnline()) return;
     const queue = loadQueue();
     const items = Object.values(queue).sort((a, b) => a.updatedAt - b.updatedAt);
@@ -202,6 +186,7 @@ const flushPendingScores = async (): Promise<void> => {
 let syncInitialized = false;
 
 const initSync = (): void => {
+    if (REALTIME_RANKING_ONLY) return;
     if (syncInitialized) return;
     if (typeof window === 'undefined') return;
     syncInitialized = true;
@@ -256,10 +241,48 @@ const estimateLiveRank = (score: number, difficulty: string, leaderboard: RankEn
     };
 };
 
+const parseLiveRankEstimate = (payload: LiveRankApiResponse): LiveRankEstimate | null => {
+    const rank = typeof payload.rank === 'number' ? payload.rank : Number(payload.rank);
+    const pointsToNext = typeof payload.pointsToNext === 'number'
+        ? payload.pointsToNext
+        : Number(payload.pointsToNext);
+
+    if (!Number.isFinite(rank) || !Number.isFinite(pointsToNext)) {
+        return null;
+    }
+
+    return {
+        rank: Math.max(1, Math.floor(rank)),
+        pointsToNext: Math.max(0, Math.floor(pointsToNext)),
+    };
+};
+
 export const rankingService = {
     initSync,
     flushPendingScores,
     estimateLiveRank,
+    getLiveRankEstimate: async (score: number, difficulty: string): Promise<LiveRankEstimate | null> => {
+        if (!isOnline()) return null;
+
+        const normalizedDifficulty = normalizeDifficultyForApi(difficulty);
+        const query = new URLSearchParams({
+            mode: 'live',
+            difficulty: normalizedDifficulty,
+            score: String(Math.max(0, Math.floor(score))),
+            _ts: String(Date.now()),
+        });
+
+        const response = await fetch(getApiUrl(`/api/rankings?${query.toString()}`), {
+            cache: 'no-store',
+        });
+
+        if (!response.ok) {
+            throw new Error(`Live rank request failed: ${response.status}`);
+        }
+
+        const data = await response.json() as LiveRankApiResponse;
+        return parseLiveRankEstimate(data);
+    },
     /**
      * Get the saved player name from LocalStorage
      */
@@ -289,10 +312,7 @@ export const rankingService = {
         rankingService.saveName(name);
         const payload = buildPayload(sessionId, name, score, difficulty, duration, moves);
 
-        if (!isOnline()) {
-            enqueueScore(payload);
-            return { success: false, queued: true, offline: true };
-        }
+        if (!isOnline()) return { success: false, offline: true };
 
         const result = await postScore(payload);
         if (result.success) {
@@ -303,39 +323,39 @@ export const rankingService = {
             return { success: false, alreadySubmitted: true };
         }
 
-        if (shouldQueue(result.status)) {
+        if (!REALTIME_RANKING_ONLY && shouldQueue(result.status)) {
             enqueueScore(payload);
             return { success: false, queued: true, offline: !isOnline() };
         }
 
-        return { success: false };
+        if (result.status === 0 && !isOnline()) {
+            return { success: false, offline: true };
+        }
+
+        return { success: false, offline: !isOnline() };
     },
 
     /**
      * Fetch top scores
      */
     getLeaderboard: async (): Promise<LeaderboardResponse> => {
-        const cached = loadLeaderboardCache();
-
         if (!isOnline()) {
             return {
-                data: cached?.data ?? [],
+                data: [],
                 offline: true,
-                fromCache: Boolean(cached),
+                fromCache: false,
             };
         }
 
         try {
-            const response = await fetch(getApiUrl('/api/rankings'));
+            const url = new URL(getApiUrl('/api/rankings'), typeof window !== 'undefined' ? window.location.origin : 'https://slidemino.emozleep.space');
+            url.searchParams.set('_ts', String(Date.now()));
+            const response = await fetch(url.toString(), { cache: 'no-store' });
             if (!response.ok) throw new Error('Network response was not ok');
             const data = await response.json();
-            saveLeaderboardCache(data as RankEntry[]);
             return { data: data as RankEntry[], offline: false, fromCache: false };
         } catch (error) {
             logLeaderboardFetchFailure(error);
-            if (cached) {
-                return { data: cached.data, offline: false, fromCache: true };
-            }
             throw error;
         }
     }

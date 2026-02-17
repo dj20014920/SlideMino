@@ -1514,3 +1514,147 @@ Original prompt: 게임 진행 화면(iPhone 포함)에서 광고 배너가 메�
 
 ### 메모
 - 웹 환경에서는 `isNativeApp()` 조건으로 스킨 버튼이 숨겨져 스킨 모달 자체를 직접 열 수 없음(`App.tsx` 메뉴 분기).
+
+## 2026-02-17 추가 작업 로그 (부활 종료 후 시작 단계 전환)
+- 요청: 부활 시 타일 n개 파괴를 완료한 직후, 다음 턴을 블록 배치(PLACE)가 아니라 스와이프(SLIDE)로 시작하도록 수정.
+- 변경 파일: `/Users/dj/Desktop/SlideMino/App.tsx`
+- 핵심 수정:
+  - 부활 선택 모드 종료 useEffect에서 `setPhase(Phase.SLIDE)`와 `setCanSkipSlide(false)`를 명시.
+  - 기존처럼 부활 선택 모드/남은 파괴 카운트/대기 타일 상태는 즉시 정리.
+- 검증:
+  - `npm run build` 성공.
+  - 코드 경로 교차검증: 게임오버 체크는 `isReviveSelectionMode`/`ref` 가드 후 실행되며, 부활 선택 종료 시점에 `SLIDE` 전환 코드가 단일 지점으로 고정됨.
+- 비고:
+  - 로컬 웹(dev)에서는 보상형 전면 광고가 비활성(AdSense 경로)이라 실제 광고 콜백 기반 E2E 재현은 제한됨.
+
+## 2026-02-17 추가 작업 로그 (초기 로딩 화면 중앙 정렬 보정)
+- 요청: 앱 시작 직후 로딩 애니메이션이 좌측 치우쳐 보이는 현상을 제거하고, 첫 프레임부터 중앙에서 시작하도록 보정.
+- 변경 파일: `/Users/dj/Desktop/SlideMino/components/LoadingScreen.tsx`
+- 근본 원인:
+  - 로딩의 좌/우 블록(`4`, `4`)이 `absolute` 좌표 기준을 컨테이너 좌상단(0,0)으로 사용하고, `x` 애니메이션만 적용되어 초기 프레임이 좌측으로 밀려 보일 수 있는 구조였음.
+- 조치:
+  - 블록 기준 좌표를 `left: 50%`, `top: 50%`, 음수 margin 보정으로 중앙 앵커링.
+  - 좌우 분리 거리도 상수(`INITIAL_BLOCK_OFFSET_X = (CELL_SIZE + GAP) / 2`)로 통일해 대칭 이동 보장.
+  - 타입 안정성을 위해 `CENTERED_TILE_STYLE: CSSProperties`로 공통 스타일화.
+- 검증:
+  - `npm run build` 성공.
+  - develop-web-game 스킬 스크립트 실행:
+    - `node /Users/dj/.codex/skills/develop-web-game/scripts/web_game_playwright_client.js --url http://127.0.0.1:4175 --actions-file /Users/dj/.codex/skills/develop-web-game/references/action_payloads.json --iterations 1 --pause-ms 120`
+  - DevTools 런타임 계측에서 로딩 오버레이 루트(`fixed inset-0 ... backdrop-blur-2xl`)의 중심이 viewport 중심과 일치(`offsetX=0`, `offsetY=0`)함을 확인.
+- 메모:
+  - 자동 실행 환경에서 기존 런타임 에러(`ReferenceError: leaderboardSnapshotRef is not defined`)가 별도 관측됨(`output/web-game/errors-0.json`).
+
+## 2026-02-17 추가 작업 로그 (게임 중 실시간 랭킹 동기화 정확도 개선)
+- 사용자 이슈:
+  - 게임 진행 중 좌측 상단 `예상 #순위 / 다음 순위까지 점수`가 중간 저장/재진입 흐름에서 실시간으로 맞지 않거나 오래된 정보 기반으로 보이는 문제.
+- 근본 원인 정리:
+  - 기존 로직은 게임 중 랭킹 추정값을 `15초 주기 leaderboard 스냅샷` + `로컬 캐시 fallback`으로 계산.
+  - 이 구조는 최신 서버 순위 반영이 느리고(최대 15초 지연), 오류 시 과거 캐시 데이터가 계속 반영되어 실제 순위와 괴리될 수 있음.
+  - 또한 top 50 스냅샷 기반 추정은 실제 순위와 오차가 생길 가능성이 있음.
+- 수정 내용:
+  - `/Users/dj/Desktop/SlideMino/functions/api/rankings.ts`
+    - `mode=live` 쿼리 지원 추가 (`difficulty`, `score` 필수).
+    - DB에서 같은 난이도 기준으로 `COUNT(score > 현재점수)`/`MIN(score > 현재점수)`를 조회해 실제 랭크/다음 순위까지 필요 점수 계산.
+    - 응답 헤더를 `Cache-Control: no-store, no-cache, must-revalidate`로 설정하여 실시간 용도에서 캐시 오염 방지.
+  - `/Users/dj/Desktop/SlideMino/services/rankingService.ts`
+    - `getLiveRankEstimate(score, difficulty)` 추가.
+    - `/api/rankings?mode=live&difficulty=...&score=...&_ts=...` 호출 + `cache: 'no-store'`로 강제 최신 조회.
+    - 응답 파싱/정규화(음수 방지, 정수화) 로직 추가.
+  - `/Users/dj/Desktop/SlideMino/App.tsx`
+    - 기존 `leaderboard snapshot` 기반 추정 루프 제거.
+    - 실시간 랭킹 요청 루프 도입:
+      - 게임 중 5초 폴링
+      - 점수/난이도 변경 시 350ms 디바운스로 즉시 재조회
+      - 중복 요청 방지(in-flight/queued), out-of-order 응답 무시(sequence), 실패 backoff 유지
+      - 온라인 복귀 시 즉시 재조회
+    - 새 게임/복구 시 live-rank 관련 ref 상태 초기화 강화.
+
+## 2026-02-17 검증 로그
+- 빌드:
+  - `npm run build` 성공.
+- 타입체크:
+  - `npx tsc --noEmit` 실패(기존 파일의 i18n 타입 오류, 이번 수정 파일과 무관):
+    - `components/SkinAcquisitionOverlay.tsx`
+    - `components/SkinModal.tsx`
+- 플레이 검증(Playwright 기반, 점수 변경 동기화 확인):
+  - 환경: `/Users/dj/.codex/skills/develop-web-game/node_modules/playwright` 사용.
+  - 저장 상태 주입(PLAYING/4x4/score=100/phase=SLIDE) 후 `ArrowLeft`로 머지 발생시켜 점수 `100 -> 104` 확인.
+  - 네트워크 관측(실시간 랭킹 API 요청 score 파라미터):
+    - `100` 요청 후 점수 변경 직후 `104` 요청 재발생 확인.
+  - UI 텍스트 반영:
+    - 변경 전: `Est. #200`, `200 pts to next rank`, `score=100`
+    - 변경 후: `Est. #196`, `196 pts to next rank`, `score=104`
+  - 콘솔 오류: `errorCount=0`.
+- 시각 산출물:
+  - `/Users/dj/Desktop/SlideMino/output/web-game/live-rank-sync-after-fix.png`
+
+## 다음 에이전트 참고 메모
+- 로컬 개발 서버(Vite)에서 `/api/*`를 직접 띄우지 않으면 실시간 랭킹은 네트워크 실패/backoff로 보일 수 있음. 실제 서버 검증 시 Cloudflare Functions 경로를 함께 확인할 것.
+- 현재 top-50 leaderboard 조회 API는 기존 유지(모달용), 게임 중 헤더는 `mode=live` 계산 경로를 사용.
+
+## 2026-02-17 추가 작업 로그 (랭킹 완전 실시간화 + 등록 ID 입력 강제)
+- 요청 반영:
+  - 랭킹 조회/표시/등록 경로를 캐시/지연 기반이 아닌 실시간 기준으로 통일.
+  - 중간저장/게임오버 등록에서 아이디(닉네임) 입력 누락으로 생기던 오류 흐름 제거.
+
+- 핵심 수정:
+  - `/Users/dj/Desktop/SlideMino/services/rankingService.ts`
+    - `REALTIME_RANKING_ONLY=true` 추가.
+    - `submitScore()`:
+      - 오프라인 시 큐 적재(지연 제출) 제거, 즉시 `offline` 실패 반환.
+      - 서버 오류 시 자동 큐 적재도 비활성화(실시간 정책).
+    - `getLeaderboard()`:
+      - 로컬 캐시 fallback 제거.
+      - 매 호출마다 `_ts` 쿼리 + `cache: 'no-store'`로 항상 최신 조회.
+    - `initSync()/flushPendingScores()`는 실시간 모드에서 동작하지 않도록 early return.
+  - `/Users/dj/Desktop/SlideMino/functions/api/rankings.ts`
+    - 일반 랭킹 목록 응답 헤더도 `Cache-Control: no-store, no-cache, must-revalidate`로 변경.
+  - `/Users/dj/Desktop/SlideMino/components/LeaderboardModal.tsx`
+    - 모달 열림 동안 5초 주기 자동 재조회 + 온라인 복귀 시 즉시 재조회 추가.
+  - `/Users/dj/Desktop/SlideMino/components/GameOverModal.tsx`
+    - `Register Score` 클릭 시 즉시 제출 분기 제거.
+    - 항상 이름 입력/확인 폼(`REGISTER`)으로 진입 후 제출하도록 변경.
+    - 오프라인 제출 시 성공 처리 대신 오프라인 에러 노출.
+  - `/Users/dj/Desktop/SlideMino/components/ActiveGameExitModal.tsx`
+    - 오프라인 제출 시 성공/큐 처리 대신 오프라인 에러 노출.
+
+- 검증:
+  - `npm run build` 성공.
+  - Playwright 검증 (develop-web-game 스킬의 playwright 런타임 사용):
+    1) 게임오버 등록 플로우:
+       - `Register Score` 클릭 직후 submit API 호출 수 `0`.
+       - 이름 입력 후 제출 시 호출 수 `1`, payload의 `name/score` 정상.
+    2) 리더보드 실시간 갱신:
+       - 모달 오픈 후 `/api/rankings?_ts=...` 요청이 5초 간격으로 2회 이상 발생 확인.
+    3) 오프라인 제출:
+       - 큐(`slidemino_pending_scores_v1`) 미생성 확인.
+       - 제출 성공 화면 대신 오프라인 안내/에러 유지 확인.
+
+## 2026-02-17 추가 재검증 (수정 후 최종)
+- 게임오버 등록 버튼 검증:
+  - `Register Score` 클릭 직후 `/api/submit` 호출 수: `0`.
+  - 이름 입력 후 `submit` 클릭 시 호출 수: `1`, payload `name=Tester01` 확인.
+- 리더보드 모달 실시간 폴링:
+  - 모달 오픈 후 `/api/rankings?_ts=...` 요청이 5초 간격으로 반복 호출됨(6.2초 대기에서 2회 확인).
+- 오프라인 등록:
+  - 오프라인 제출 시 `slidemino_pending_scores_v1` 키가 생성되지 않음(`null`).
+  - 지연 제출 큐 경로가 비활성화된 실시간 정책대로 동작.
+
+## 2026-02-17 배포 로그 (Cloudflare Pages)
+- 인증 확인:
+  - `npx wrangler whoami` 성공 (pages/write 포함 토큰 확인).
+- 프로젝트 확인:
+  - Pages 프로젝트: `slidemino`
+  - 기존 production branch: `main`
+- 빌드:
+  - `npm run build:cf`는 기존 i18n 타입 오류(`components/SkinAcquisitionOverlay.tsx`, `components/SkinModal.tsx`)로 실패.
+  - 배포 산출물 생성은 `npm run build` 후 `cp -R functions/. dist/functions/`로 진행.
+- 배포 실행:
+  - `npx wrangler pages deploy dist --project-name slidemino --branch main`
+  - 신규 배포 URL: `https://17bce769.slidemino.pages.dev`
+  - deployment id: `17bce769-5163-494d-b96c-f73627390ec2`
+- 배포 검증:
+  - `npx wrangler pages deployment list --project-name slidemino`에서 신규 production 배포 `just now` 확인.
+  - `https://17bce769.slidemino.pages.dev/api/rankings?mode=live&difficulty=4&score=100`
+    - 응답 200, `cache-control: no-store, no-cache, must-revalidate`, body에 `rank/pointsToNext` 확인.
+  - 커스텀 도메인 `https://slidemino.emozleep.space/api/rankings?mode=live&difficulty=4&score=100`도 동일 응답 확인.

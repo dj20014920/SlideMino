@@ -27,6 +27,8 @@ dist-ssr
 !.vscode/extensions.json
 .idea
 .idea/
+.serena/
+.codex/
 *.iml
 .DS_Store
 *.suo
@@ -60,6 +62,9 @@ ios/App/Pods/
 ios/App/Podfile.lock
 ios/App/build/
 ios/App/xcworkspace/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcuserstate
 *.xcworkspace/
 *.pbxuser
 *.perspectivev3
@@ -77,10 +82,16 @@ ios/capacitor-cordova-ios-plugins/build/
 build/
 .gradle/
 *.xcworkspace
+*.tsbuildinfo
+
+# Test artifacts
+playwright-report/
+test-results/
 
 # Local artifacts
 screenshots/
 output/
+progress.md
 coverage/
 .nyc_output/
 .cache/

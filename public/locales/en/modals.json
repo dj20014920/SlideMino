@@ -76,6 +76,19 @@
     "confirmHome": "Go To Menu",
     "confirmNewGame": "Start New Game"
   },
+  "updateRequired": {
+    "title": "Update Required",
+    "description": "Please update to the latest version for a stable game experience.",
+    "currentVersionLabel": "Current Version",
+    "latestVersionLabel": "Latest Version",
+    "storeHint": "You can update from {{store}}.",
+    "updateButton": "Update Now",
+    "openingButton": "Opening Store...",
+    "store": {
+      "apple": "App Store",
+      "google": "Google Play"
+    }
+  },
   "tutorial": {
     "drag": "Drag block to board!",
     "swipe": "Swipe screen/keys to Merge!"

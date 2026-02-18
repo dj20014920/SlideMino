@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { AnimatePresence } from 'framer-motion';
 import { LoadingScreen } from './components/LoadingScreen';
 import { useTranslation } from 'react-i18next';
+import { App as CapacitorApp } from '@capacitor/app';
 import { SplashScreen } from '@capacitor/splash-screen';
 import {
   GameState,
@@ -35,10 +36,13 @@ import { LeaderboardModal } from './components/LeaderboardModal';
 import { NameInputModal } from './components/NameInputModal';
 import { ActiveGameExitModal, type ActiveGameExitContext } from './components/ActiveGameExitModal';
 import { TutorialOverlay } from './components/TutorialOverlay';
+import { GameFeaturesTutorial } from './components/GameFeaturesTutorial';
+import { SkinFeatureTutorial } from './components/SkinFeatureTutorial';
 import AdBanner from './components/AdBanner';
 import { CookieConsent } from './components/CookieConsent';
 import { HelpModal } from './components/HelpModal';
 import { LanguageSwitcher } from './components/LanguageSwitcher';
+import { NativeUpdateModal } from './components/NativeUpdateModal';
 import {
   BOARD_CELL_GAP_PX,
   SLIDE_UNLOCK_BUFFER_MS,
@@ -69,6 +73,11 @@ import {
   isRewardInterstitialAdSupported,
 } from './services/adConfig';
 import { normalizePlayerName, validatePlayerName } from './utils/playerName';
+import {
+  checkNativeUpdateRequirement,
+  openNativeMarketForUpdate,
+  type NativeUpdateRequirement,
+} from './services/nativeUpdate';
 
 const EMPTY_TILE_VALUE_OVERRIDES: Record<string, number> = {};
 const EMPTY_MERGING_TILES: MergingTile[] = [];
@@ -362,12 +371,17 @@ const App: React.FC = () => {
     };
 
     updateViewportSize();
+
+    // iOS WKWebView 콜드스타트: 초기 뷰포트가 0×0 일 수 있어 지연 재측정으로 보정
+    const retryId = setTimeout(updateViewportSize, 120);
+
     window.addEventListener('resize', updateViewportSize);
     window.addEventListener('orientationchange', updateViewportSize);
     window.visualViewport?.addEventListener('resize', updateViewportSize);
     window.visualViewport?.addEventListener('scroll', updateViewportSize);
 
     return () => {
+      clearTimeout(retryId);
       window.removeEventListener('resize', updateViewportSize);
       window.removeEventListener('orientationchange', updateViewportSize);
       window.visualViewport?.removeEventListener('resize', updateViewportSize);
@@ -377,6 +391,8 @@ const App: React.FC = () => {
 
   // --- State ---
   const [isLoading, setIsLoading] = useState(true);
+  const [nativeUpdateRequirement, setNativeUpdateRequirement] = useState<NativeUpdateRequirement | null>(null);
+  const [isOpeningUpdateStore, setIsOpeningUpdateStore] = useState(false);
   const { gate: customizationGate, resolveTileAppearance, isWin98ThemeActive, premiumUiOverrides } = useBlockCustomization();
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
 
@@ -399,6 +415,65 @@ const App: React.FC = () => {
     }, 1200);
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (!isNative || isAppIntoSBuild) {
+      setNativeUpdateRequirement(null);
+      setIsOpeningUpdateStore(false);
+      return;
+    }
+
+    let isDisposed = false;
+    let checkInFlight = false;
+    let listenerHandle: { remove: () => Promise<void> } | null = null;
+
+    const runVersionCheck = async () => {
+      if (checkInFlight) return;
+      checkInFlight = true;
+      try {
+        const requirement = await checkNativeUpdateRequirement();
+        if (!isDisposed) {
+          setNativeUpdateRequirement(requirement);
+          if (!requirement) {
+            setIsOpeningUpdateStore(false);
+          }
+        }
+      } finally {
+        checkInFlight = false;
+      }
+    };
+
+    void runVersionCheck();
+
+    CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+      if (!isActive) return;
+      void runVersionCheck();
+    }).then((handle) => {
+      if (isDisposed) {
+        void handle.remove();
+        return;
+      }
+      listenerHandle = handle;
+    }).catch(() => {
+      // ignore
+    });
+
+    return () => {
+      isDisposed = true;
+      if (listenerHandle) {
+        void listenerHandle.remove();
+      }
+    };
+  }, [isNative, isAppIntoSBuild]);
+
+  useEffect(() => {
+    if (!isOpeningUpdateStore) return;
+    const timer = globalThis.setTimeout(() => {
+      setIsOpeningUpdateStore(false);
+    }, 2500);
+    return () => globalThis.clearTimeout(timer);
+  }, [isOpeningUpdateStore]);
+
   const [grid, setGrid] = useState<Grid>(createEmptyGrid(8));
   const [slots, setSlots] = useState<(Piece | null)[]>([null, null, null]);
   const [score, setScore] = useState(0);
@@ -1472,7 +1547,8 @@ const App: React.FC = () => {
     const paddingRight = parseFloat(styles.paddingRight) || 0;
     const paddingBottom = parseFloat(styles.paddingBottom) || 0;
 
-    const size = boardSize;
+    // Board 컴포넌트와 동일하게 grid.length 기반으로 계산하여 일관성 보장
+    const size = grid.length;
     const innerWidth = rect.width - paddingLeft - paddingRight;
     const innerHeight = rect.height - paddingTop - paddingBottom;
     const totalGap = (size - 1) * BOARD_CELL_GAP_PX;
@@ -1490,7 +1566,7 @@ const App: React.FC = () => {
       pitch,
       size,
     };
-  }, [boardSize]);
+  }, [grid]);
 
   const applyDragOverlayTransform = useCallback((pointerX: number, pointerY: number) => {
     if (!dragOverlayRef.current) return;
@@ -1851,7 +1927,10 @@ const App: React.FC = () => {
 
     setGrid(newGrid);
 
-    // Merge 완료 시점에 값/점수 반영 (이동 + 흡수 애니메이션이 끝난 뒤)
+    // Post-animation 상태 변경을 스태거링하여 한 프레임에 몰리는 글리치 방지
+    // Step 1 (lockMs): 병합 고스트 타일 제거 (위에서 이미 설정됨)
+    // Step 2 (lockMs + 16ms): 값/점수 반영
+    // Step 3 (lockMs + 32ms): 입력 해제
     if (mergeFinalizeTimeoutRef.current) {
       window.clearTimeout(mergeFinalizeTimeoutRef.current);
       mergeFinalizeTimeoutRef.current = null;
@@ -1861,10 +1940,9 @@ const App: React.FC = () => {
         setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
         setScore(prev => prev + scoreAdded);
         mergeFinalizeTimeoutRef.current = null;
-      }, lockMs);
+      }, lockMs + 16);
     }
 
-    // Wait for animation to finish before unlocking
     if (unlockTimeoutRef.current) {
       window.clearTimeout(unlockTimeoutRef.current);
       unlockTimeoutRef.current = null;
@@ -1882,7 +1960,7 @@ const App: React.FC = () => {
       } else {
         finishSlideTurn();
       }
-    }, lockMs);
+    }, lockMs + 32);
   };
 
   // --- Game Over Check ---
@@ -2060,6 +2138,12 @@ const App: React.FC = () => {
     );
   };
 
+  const handleOpenNativeUpdateStore = useCallback(() => {
+    if (!nativeUpdateRequirement) return;
+    setIsOpeningUpdateStore(true);
+    openNativeMarketForUpdate(nativeUpdateRequirement);
+  }, [nativeUpdateRequirement]);
+
   // --- Views ---
 
   if (shouldShowPortraitLockOverlay) {
@@ -2075,6 +2159,22 @@ const App: React.FC = () => {
             <p className="text-sm text-gray-600 leading-relaxed">{orientationLockMessage.body}</p>
           </div>
         </div>
+      </>
+    );
+  }
+
+  if (nativeUpdateRequirement) {
+    return (
+      <>
+        <NativeUpdateModal
+          open
+          requirement={nativeUpdateRequirement}
+          isOpeningStore={isOpeningUpdateStore}
+          onUpdateNow={handleOpenNativeUpdateStore}
+        />
+        <AnimatePresence mode="wait">
+          {isLoading && <LoadingScreen key="loading-screen-update-gate" />}
+        </AnimatePresence>
       </>
     );
   }
@@ -2394,6 +2494,7 @@ const App: React.FC = () => {
 
         {isNativeApp() && (
           <button
+            id="menu-skin-btn"
             onClick={() => setIsSkinOpen(true)}
             className={`
             relative group w-full py-3.5 px-6 rounded-2xl win98-menu-btn
@@ -2670,6 +2771,7 @@ const App: React.FC = () => {
             key={tutorialResetKey}
             suppressed={shouldSuppressGameModeTutorial}
           />
+          <SkinFeatureTutorial isMenuVisible={true} />
         </div>
       </>
     );
@@ -2841,6 +2943,7 @@ const App: React.FC = () => {
 
               {/* Undo / Recharge Button (single slot) */}
               <button
+                id="game-undo-btn"
                 type="button"
                 onPointerDown={(e) => {
                   e.stopPropagation();
@@ -2908,7 +3011,7 @@ const App: React.FC = () => {
           )}
 
           <div className={`
-            transition-all duration-200 w-full flex justify-center
+            transition-all duration-200 w-full flex items-center justify-center
             ${boardFocusSurfaceClass}
           `}>
             {isWin98ThemeActive ? (
@@ -3055,6 +3158,7 @@ const App: React.FC = () => {
         </main>
 
         <TutorialOverlay step={tutorialStep} />
+        <GameFeaturesTutorial tutorialStep={tutorialStep} />
         <HelpModal isOpen={showHelpModal} onClose={() => setShowHelpModal(false)} />
 
         {/* Ad Banner for Game Screen */}

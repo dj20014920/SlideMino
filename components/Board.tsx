@@ -111,16 +111,17 @@ const MergingTilesLayer = React.memo<{
               height: `${layout.cellPx}px`,
               left: 0,
               top: 0,
-              transform,
               fontSize: `${fontPx}px`,
               lineHeight: 1,
               whiteSpace: 'pre-line',
+              ...(appearance.style ?? {}),
+              // 아래 속성들은 appearance.style보다 항상 우선
+              transform,
               opacity: 0.7,
               transition: duration
                 ? `transform ${duration}ms ${tileTransitionEase}`
                 : undefined,
               willChange: duration ? 'transform' : undefined,
-              ...(appearance.style ?? {}),
             }}
           >
             <span className="win98-tile-number">{text}</span>
@@ -217,15 +218,16 @@ const TilesLayer = React.memo<{
               height: `${layout.cellPx}px`,
               left: 0,
               top: 0,
-              transform,
               fontSize: `${fontPx}px`,
               lineHeight: 1,
               whiteSpace: 'pre-line',
+              ...(appearance.style ?? {}),
+              // 아래 속성들은 appearance.style보다 항상 우선
+              transform,
               transition: duration
                 ? `transform ${duration}ms ${tileTransitionEase}`
                 : undefined,
               willChange: duration ? 'transform' : undefined,
-              ...(appearance.style ?? {}),
             }}
           >
             <span className="win98-tile-number" style={{ position: 'relative', zIndex: 2 }}>{text}</span>
@@ -386,7 +388,11 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
   })[]>([]);
 
   // When new mergingTiles arrive, start animation sequence
-  useEffect(() => {
+  // useLayoutEffect: DOM에 시작 위치를 동기적으로 커밋 (paint 전)
+  // single rAF: paint 후 도착 위치로 이동 → CSS transition 발동
+  useLayoutEffect(() => {
+    let rafId: number | null = null;
+
     if (mergingTiles.length > 0) {
       // Phase 1: Set tiles at their STARTING position (fromX, fromY)
       const startingTiles = mergingTiles.map(mt => {
@@ -400,19 +406,21 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
       });
       setAnimatingMerges(startingTiles);
 
-      // Phase 2: On next frame, move tiles to DESTINATION (toX, toY)
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setAnimatingMerges(prev => prev.map(mt => ({
-            ...mt,
-            currentX: mt.toX,
-            currentY: mt.toY
-          })));
-        });
+      // Phase 2: single rAF로 1프레임 만에 transition 시작
+      rafId = requestAnimationFrame(() => {
+        setAnimatingMerges(prev => prev.map(mt => ({
+          ...mt,
+          currentX: mt.toX,
+          currentY: mt.toY
+        })));
       });
     } else {
       setAnimatingMerges([]);
     }
+
+    return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
   }, [mergingTiles]);
 
   // ── Evervault skin: detect active skin & track merge flash ──
@@ -499,7 +507,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
     observer.observe(el);
 
     return () => observer.disconnect();
-  }, [boardRef, size]);
+  }, [boardRef, size, boardPx]);
 
   // Extract tiles for rendering with distance calculation
   const { tiles: renderTiles, nextPositions } = useMemo(() => {
@@ -566,7 +574,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
       style={{
         width: `${boardPx}px`,
         maxWidth: '100%',
-        aspectRatio: '1/1',
+        aspectRatio: '1 / 1',
       }}
     >
       {/* Phase glow */}

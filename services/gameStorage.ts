@@ -79,6 +79,15 @@ const parseSavedGameState = (raw: string | null): SavedGameState | null => {
         return null;
     }
 
+    // 그리드 차원과 boardSize 일치 검증: 불일치 시 복원 거부 (손상 데이터 방어)
+    if (
+        parsed.grid.length !== parsed.boardSize ||
+        parsed.grid.some(row => !Array.isArray(row) || row.length !== parsed.boardSize)
+    ) {
+        console.warn('[GameStorage] 그리드 차원 불일치:', parsed.grid.length, '!=', parsed.boardSize);
+        return null;
+    }
+
     const sessionId = typeof parsed.sessionId === 'string' ? parsed.sessionId : undefined;
     const moveCount = typeof parsed.moveCount === 'number' ? parsed.moveCount : undefined;
     const savedAt = typeof parsed.savedAt === 'number' ? parsed.savedAt : Date.now();

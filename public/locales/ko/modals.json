@@ -76,6 +76,19 @@
     "confirmHome": "메뉴로 이동",
     "confirmNewGame": "새 게임 시작"
   },
+  "updateRequired": {
+    "title": "새 버전 업데이트가 필요합니다",
+    "description": "안정적인 플레이를 위해 최신 버전으로 업데이트해 주세요.",
+    "currentVersionLabel": "현재 버전",
+    "latestVersionLabel": "최신 버전",
+    "storeHint": "{{store}}에서 업데이트를 진행할 수 있습니다.",
+    "updateButton": "지금 업데이트",
+    "openingButton": "스토어 여는 중...",
+    "store": {
+      "apple": "App Store",
+      "google": "Google Play"
+    }
+  },
   "tutorial": {
     "drag": "블록을 보드로 드래그!",
     "swipe": "화면/키를 스와이프해 합치세요!"
@@ -155,7 +168,7 @@
     "addedToCollection": "컬렉션에 추가되었습니다",
     "notOwned": "미보유 스킨",
     "tapToApply": "탭하여 적용/해제",
-    "collectionComplete": "컴렉션 완성!",
+    "collectionComplete": "칼렉션 완성!",
     "purchaseButton": "🧩 {{cost}}조각으로 교환",
     "insufficientFragments": "조각 부족 ({{current}}/{{cost}})",
     "premium": "프리미엄",
@@ -165,7 +178,7 @@
   },
   "skinAcquisition": {
     "title": "스킨 획득!",
-    "addedToCollection": "컴렉션에 추가되었습니다!",
+    "addedToCollection": "컬렉션에 추가되었습니다!",
     "tapToClose": "화면을 탭하여 닫기",
     "duplicateTitle": "스킨 조각 획득!",
     "fragmentEarned": "+{{count}} 조각",

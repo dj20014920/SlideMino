@@ -76,6 +76,19 @@
     "confirmHome": "前往菜单",
     "confirmNewGame": "开始新游戏"
   },
+  "updateRequired": {
+    "title": "需要更新到新版本",
+    "description": "为确保稳定游戏体验，请更新到最新版本。",
+    "currentVersionLabel": "当前版本",
+    "latestVersionLabel": "最新版本",
+    "storeHint": "可前往 {{store}} 完成更新。",
+    "updateButton": "立即更新",
+    "openingButton": "正在打开商店...",
+    "store": {
+      "apple": "App Store",
+      "google": "Google Play"
+    }
+  },
   "tutorial": {
     "drag": "将方块拖到棋盘！",
     "swipe": "滑动屏幕/按键进行合并！"

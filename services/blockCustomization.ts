@@ -275,6 +275,20 @@ const DISALLOWED_TILE_STYLE_KEYS = [
   'scale',
   'transformOrigin',
   'transformStyle',
+  // 애니메이션 속성: Board.tsx의 transition/willChange가 항상 우선되어야 함
+  'transition',
+  'transitionProperty',
+  'transitionDuration',
+  'transitionTimingFunction',
+  'transitionDelay',
+  'willChange',
+  'animation',
+  'animationName',
+  'animationDuration',
+  'animationTimingFunction',
+  'animationDelay',
+  'animationIterationCount',
+  'opacity',
 ] as const;
 
 export const sanitizeTileAppearanceStyle = (style?: CSSProperties): CSSProperties | undefined => {
@@ -702,6 +716,17 @@ const SKIP_CSS_PROPS = new Set([
   'translate',
   'rotate',
   'scale',
+  // 애니메이션 속성: Board.tsx의 transition/willChange가 항상 우선되어야 함
+  'transition',
+  'transition-property', 'transitionProperty',
+  'transition-duration', 'transitionDuration',
+  'transition-timing-function', 'transitionTimingFunction',
+  'transition-delay', 'transitionDelay',
+  'will-change', 'willChange',
+  'animation',
+  'animation-name', 'animationName',
+  'animation-duration', 'animationDuration',
+  'opacity',
 ]);
 
 function applyStructuralCss(style: CSSProperties, cssString: string): void {

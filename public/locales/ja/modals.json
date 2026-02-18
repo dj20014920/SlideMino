@@ -76,6 +76,19 @@
     "confirmHome": "メニューへ移動",
     "confirmNewGame": "新しいゲーム開始"
   },
+  "updateRequired": {
+    "title": "新しいバージョンへの更新が必要です",
+    "description": "安定してプレイするため、最新バージョンにアップデートしてください。",
+    "currentVersionLabel": "現在のバージョン",
+    "latestVersionLabel": "最新バージョン",
+    "storeHint": "{{store}} からアップデートできます。",
+    "updateButton": "今すぐアップデート",
+    "openingButton": "ストアを開いています...",
+    "store": {
+      "apple": "App Store",
+      "google": "Google Play"
+    }
+  },
   "tutorial": {
     "drag": "ブロックをボードにドラッグ！",
     "swipe": "画面/キーをスワイプして合体！"

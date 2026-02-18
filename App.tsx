@@ -377,7 +377,7 @@ const App: React.FC = () => {
 
   // --- State ---
   const [isLoading, setIsLoading] = useState(true);
-  const { gate: customizationGate, resolveTileAppearance, isWin98ThemeActive } = useBlockCustomization();
+  const { gate: customizationGate, resolveTileAppearance, isWin98ThemeActive, premiumUiOverrides } = useBlockCustomization();
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
 
   // Hide Capacitor Splash Screen immediately
@@ -2113,6 +2113,14 @@ const App: React.FC = () => {
     );
   }
 
+  const premiumUi = premiumUiOverrides;
+  const premiumMenuActionRadioGroupName = premiumUi?.menuActionRadioGroupName ?? 'menu-action-win98';
+  const premiumDifficultyRadioGroupName = premiumUi?.difficultyRadioGroupName ?? 'difficulty-win98';
+  const premiumLanguageRadioGroupName = premiumUi?.languageRadioGroupName ?? 'menu-language-win98';
+  const premiumTopWindowTitle = premiumUi?.topWindowTitle ?? '블록 슬라이드\n(Block Slide)';
+  const premiumTopWindowTitleLines = premiumTopWindowTitle.split('\n');
+  const premiumTopWindowTitleSingleLine = premiumTopWindowTitleLines.join(' ');
+
   // ========== MENU SCREEN ==========
   if (gameState === GameState.MENU) {
     const shouldSuppressGameModeTutorial =
@@ -2143,13 +2151,12 @@ const App: React.FC = () => {
     };
 
     const currentLang = normalizeLanguage(i18n.resolvedLanguage ?? i18n.language);
-
     const win98UtilityButtons = (
       <fieldset>
-        <legend>메뉴</legend>
+        <legend>{premiumUi?.utilityLegend ?? '메뉴'}</legend>
         {isNativeApp() && (
           <div className="field-row">
-            <input id="menu-action-skin" type="radio" name="menu-action-win98" onClick={() => setIsSkinOpen(true)} readOnly />
+            <input id="menu-action-skin" type="radio" name={premiumMenuActionRadioGroupName} onClick={() => setIsSkinOpen(true)} readOnly />
             <label htmlFor="menu-action-skin">{t('game:actions.skin')}</label>
           </div>
         )}
@@ -2159,7 +2166,7 @@ const App: React.FC = () => {
             <input
               id="menu-action-customize"
               type="radio"
-              name="menu-action-win98"
+              name={premiumMenuActionRadioGroupName}
               onClick={() => setIsCustomizationOpen(true)}
               disabled={!customizationGate.allowed}
               readOnly
@@ -2173,23 +2180,23 @@ const App: React.FC = () => {
         )}
 
         <div className="field-row">
-          <input id="menu-action-leaderboard" type="radio" name="menu-action-win98" onClick={() => setIsLeaderboardOpen(true)} readOnly />
+          <input id="menu-action-leaderboard" type="radio" name={premiumMenuActionRadioGroupName} onClick={() => setIsLeaderboardOpen(true)} readOnly />
           <label htmlFor="menu-action-leaderboard">{t('game:actions.leaderboard')}</label>
         </div>
 
         <div className="field-row">
-          <input id="menu-action-replay" type="radio" name="menu-action-win98" onClick={handleReplayTutorial} readOnly />
+          <input id="menu-action-replay" type="radio" name={premiumMenuActionRadioGroupName} onClick={handleReplayTutorial} readOnly />
           <label htmlFor="menu-action-replay">{t('common:actions.replayTutorial', '튜토리얼 다시보기')}</label>
         </div>
 
         <fieldset style={{ marginTop: '8px' }}>
-          <legend>언어</legend>
+          <legend>{premiumUi?.languageLegend ?? '언어'}</legend>
           {(Object.keys(LANGUAGE_CONFIGS) as SupportedLanguage[]).map((langCode) => (
             <div key={langCode} className="field-row">
               <input
                 id={`menu-lang-${langCode}`}
                 type="radio"
-                name="menu-language-win98"
+                name={premiumLanguageRadioGroupName}
                 checked={currentLang === langCode}
                 onClick={() => setLanguageFromMenu(langCode)}
                 readOnly
@@ -2210,7 +2217,7 @@ const App: React.FC = () => {
             <input
               id="difficulty-continue"
               type="radio"
-              name="difficulty-win98"
+              name={premiumDifficultyRadioGroupName}
               onChange={() => {
                 const saved = loadGameState();
                 if (saved) {
@@ -2223,14 +2230,14 @@ const App: React.FC = () => {
         )}
 
         <div className="field-row">
-          <input id="difficulty-4" type="radio" name="difficulty-win98" checked={boardSize === 4} onChange={() => tryStartGame(4)} />
+          <input id="difficulty-4" type="radio" name={premiumDifficultyRadioGroupName} checked={boardSize === 4} onChange={() => tryStartGame(4)} />
           <label htmlFor="difficulty-4">{t('game:difficulties.expert')} ({t('game:boardSizes.4x4')})</label>
         </div>
         <div className="field-row">
           <input
             id="difficulty-5"
             type="radio"
-            name="difficulty-win98"
+            name={premiumDifficultyRadioGroupName}
             checked={boardSize === 5}
             onChange={() => {
               tryStartGame(5);
@@ -2240,15 +2247,15 @@ const App: React.FC = () => {
           <label htmlFor="difficulty-5">{t('game:difficulties.normal')} ({t('game:boardSizes.5x5')})</label>
         </div>
         <div className="field-row">
-          <input id="difficulty-7" type="radio" name="difficulty-win98" checked={boardSize === 7} onChange={() => tryStartGame(7)} />
+          <input id="difficulty-7" type="radio" name={premiumDifficultyRadioGroupName} checked={boardSize === 7} onChange={() => tryStartGame(7)} />
           <label htmlFor="difficulty-7">{t('game:difficulties.beginner')} ({t('game:boardSizes.7x7')})</label>
         </div>
         <div className="field-row">
-          <input id="difficulty-8" type="radio" name="difficulty-win98" checked={boardSize === 8} onChange={() => tryStartGame(8)} />
+          <input id="difficulty-8" type="radio" name={premiumDifficultyRadioGroupName} checked={boardSize === 8} onChange={() => tryStartGame(8)} />
           <label htmlFor="difficulty-8">{t('game:difficulties.easy')} ({t('game:boardSizes.8x8')})</label>
         </div>
         <div className="field-row">
-          <input id="difficulty-10" type="radio" name="difficulty-win98" checked={boardSize === 10} onChange={() => tryStartGame(10)} />
+          <input id="difficulty-10" type="radio" name={premiumDifficultyRadioGroupName} checked={boardSize === 10} onChange={() => tryStartGame(10)} />
           <label htmlFor="difficulty-10">{t('game:difficulties.infinite')} ({t('game:boardSizes.10x10')})</label>
         </div>
       </>
@@ -2501,7 +2508,14 @@ const App: React.FC = () => {
           {isWin98ThemeActive && (
             <div className="window w-full max-w-md win98-top-window">
               <div className="title-bar">
-                <div className="title-bar-text">블록 슬라이드<br />(Block Slide)</div>
+                <div className="title-bar-text">
+                  {premiumTopWindowTitleLines.map((line, index) => (
+                    <React.Fragment key={`${line}-${index}`}>
+                      {line}
+                      {index < premiumTopWindowTitleLines.length - 1 && <br />}
+                    </React.Fragment>
+                  ))}
+                </div>
                 <div className="title-bar-controls">
                   <button aria-label="Help" onClick={() => setIsLeaderboardOpen(true)} />
                 </div>
@@ -2542,7 +2556,7 @@ const App: React.FC = () => {
           {isWin98ThemeActive ? (
             <div className="window w-full max-w-md animate-slide-up win98-menu-window">
               <div className="title-bar">
-                <div className="title-bar-text">난이도 선택</div>
+                <div className="title-bar-text">{premiumUi?.menuWindowTitle ?? '난이도 선택'}</div>
                 <div className="title-bar-controls">
                   <button aria-label="Close" onClick={() => setIsLeaderboardOpen(false)} />
                 </div>
@@ -2550,7 +2564,7 @@ const App: React.FC = () => {
               <div className="window-body">
                 <div className="win98-radio-group">
                   <fieldset>
-                    <legend>난이도 선택 메뉴</legend>
+                    <legend>{premiumUi?.difficultyLegend ?? '난이도 선택 메뉴'}</legend>
                     {win98DifficultyRows}
                   </fieldset>
                   {win98UtilityButtons}
@@ -2730,7 +2744,7 @@ const App: React.FC = () => {
             }}
           >
             <div className="title-bar">
-              <div className="title-bar-text">블록 슬라이드 (Block Slide)</div>
+              <div className="title-bar-text">{premiumTopWindowTitleSingleLine}</div>
               <div className="title-bar-controls">
                 <button aria-label="Help" onClick={() => setShowHelpModal(true)} />
                 <button aria-label="Close" onClick={handleHomeButtonClick} disabled={isAnimating} />
@@ -2900,7 +2914,7 @@ const App: React.FC = () => {
             {isWin98ThemeActive ? (
               <div className="window win98-game-board-window w-full max-w-[520px]">
                 <div className="title-bar">
-                  <div className="title-bar-text">Game...</div>
+                  <div className="title-bar-text">{premiumUi?.gameWindowTitle ?? 'Game...'}</div>
                 </div>
                 <div className="window-body win98-board-body">
                   <Board

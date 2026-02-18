@@ -1757,3 +1757,24 @@ Original prompt: 게임 진행 화면(iPhone 포함)에서 광고 배너가 메�
 - 검증:
   - `npm run build` 성공.
   - 20개 swatch 대상 수학 검증: 1..524288 구간 명도 단조 감소 위반 0건.
+
+## 2026-02-18 작업 로그 (스킨 적용 시 타일 좌상단 고정 버그)
+- 사용자 재제보 반영: 스킨 적용 후 플레이 시 타일이 좌상단 한 칸(0,0)에 고정된 것처럼 보이는 현상 재점검.
+- 원인 확정: `services/blockCustomization.ts`의 mesh 계열 스타일이 `transform: translateZ(0)`를 주입했고, 보드 타일 위치 계산도 `transform: translate3d(...)`를 사용하여 스타일 충돌 발생.
+- 근본 조치:
+  - mesh 스타일에서 `transform` 주입 제거.
+  - `sanitizeTileAppearanceStyle` 추가로 타일 위치/입력에 영향을 주는 속성(`transform`, `position`, `top/left`, `pointerEvents`, `zIndex` 등)을 스킨 스타일에서 제거.
+  - `resolveSkinAppearance`/`resolveTileAppearance` 반환 경로 전체에 sanitize 적용.
+  - `applyStructuralCss` 차단 목록에도 레이아웃 교란 속성을 추가해 향후 스킨 정의에서 동일 회귀 방지.
+- 기대 효과: 모든 스킨(기존 + 향후 추가)에서 보드 타일의 위치/이동 로직이 스킨 스타일에 의해 오염되지 않음.
+
+## 2026-02-18 검증 로그 (스킨 좌상단 고정 버그)
+- `npm run build` 성공 (vite production build 통과).
+- `develop-web-game` 스킬 스크립트 실행 확인:
+  - `node "$WEB_GAME_CLIENT" --url http://127.0.0.1:5173 --actions-file "$WEB_GAME_ACTIONS" --iterations 1 --pause-ms 200`
+  - 산출물: `/Users/dj/Desktop/SlideMino/output/web-game/shot-0.png`
+- DevTools 기반 교차검증(강제 스킨 주입 + 동일 게임 상태 재로드):
+  - 대상 스킨: `skin_art_mesh`, `skin_mesh_swatch_1`, `skin_digital_win98`, `skin_0`.
+  - 각 케이스에서 `[data-tile-kind="tile"]`의 inline transform이 모두 `translate3d(...)`로 유지됨.
+  - `translateZ(...)` 단독 transform 케이스 0건 확인.
+- 결론: 스킨 스타일이 타일 위치 transform을 덮어써서 좌상단에 고정되던 회귀가 제거됨.

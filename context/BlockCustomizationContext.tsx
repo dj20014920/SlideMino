@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import type { BlockCustomizationSettingsV1, SkinItem, SkinSettings } from '../types';
+import type { BlockCustomizationSettingsV1, PremiumUiMicroOverrides, SkinItem, SkinSettings } from '../types';
 import {
   DEFAULT_BLOCK_CUSTOMIZATION_SETTINGS,
   loadBlockCustomizationSettings,
@@ -25,6 +25,8 @@ type BlockCustomizationContextValue = {
   // 스킨 시스템
   skinSettings: SkinSettings;
   activeSkin: SkinItem | null;
+  isPremiumUiThemeActive: boolean;
+  premiumUiOverrides: PremiumUiMicroOverrides | null;
   isWin98ThemeActive: boolean;
   addSkin: (skin: SkinItem) => void;
   setActiveSkin: (id: string | null) => void;
@@ -36,6 +38,17 @@ const BlockCustomizationContext = createContext<BlockCustomizationContextValue |
 const WIN98_THEME_CLASS = 'theme-win98';
 const WIN98_STYLESHEET_ID = 'slidemino-win98-theme-link';
 const WIN98_STYLESHEET_HREF = '/vendor/98css/style.css';
+const DEFAULT_PREMIUM_UI_OVERRIDES: PremiumUiMicroOverrides = {
+  topWindowTitle: '블록 슬라이드\n(Block Slide)',
+  menuWindowTitle: '난이도 선택',
+  difficultyLegend: '난이도 선택 메뉴',
+  utilityLegend: '메뉴',
+  languageLegend: '언어',
+  menuActionRadioGroupName: 'menu-action-win98',
+  difficultyRadioGroupName: 'difficulty-win98',
+  languageRadioGroupName: 'menu-language-win98',
+  gameWindowTitle: 'Game...',
+};
 
 export function BlockCustomizationProvider({ children }: { children: React.ReactNode }) {
   const gate = useMemo(() => getFeatureGateDecision('blockCustomization'), []);
@@ -118,18 +131,36 @@ export function BlockCustomizationProvider({ children }: { children: React.React
       acquiredAt: 0,
     };
   }, [skinSettings.activeSkinId, skinSettings.ownedSkins]);
-  const isWin98ThemeActive = skinSettings.activeSkinId === 'skin_digital_win98';
+
+  const activeSkinCatalogEntry = useMemo(() => {
+    if (!skinSettings.activeSkinId) return null;
+    return SKIN_CATALOG.find((skin) => skin.id === skinSettings.activeSkinId) ?? null;
+  }, [skinSettings.activeSkinId]);
+
+  // 기본 UI는 항상 일반 테마를 사용하고,
+  // 스킨별 개별 테마 오버라이드가 정의된 경우에만 특수 UI 테마를 활성화한다.
+  const isPremiumUiThemeActive = Boolean(activeSkinCatalogEntry?.premiumUiOverrides);
+  const premiumUiOverrides = useMemo<PremiumUiMicroOverrides | null>(() => {
+    if (!isPremiumUiThemeActive) return null;
+    return {
+      ...DEFAULT_PREMIUM_UI_OVERRIDES,
+      ...(activeSkinCatalogEntry?.premiumUiOverrides ?? {}),
+    };
+  }, [isPremiumUiThemeActive, activeSkinCatalogEntry]);
+
+  // 하위호환: 기존 컴포넌트 분기명을 유지한다.
+  const isWin98ThemeActive = isPremiumUiThemeActive;
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const htmlEl = document.documentElement;
     const bodyEl = document.body;
 
-    htmlEl.classList.toggle(WIN98_THEME_CLASS, isWin98ThemeActive);
-    bodyEl.classList.toggle(WIN98_THEME_CLASS, isWin98ThemeActive);
+    htmlEl.classList.toggle(WIN98_THEME_CLASS, isPremiumUiThemeActive);
+    bodyEl.classList.toggle(WIN98_THEME_CLASS, isPremiumUiThemeActive);
 
     const existingLink = document.getElementById(WIN98_STYLESHEET_ID) as HTMLLinkElement | null;
-    if (isWin98ThemeActive) {
+    if (isPremiumUiThemeActive) {
       if (!existingLink) {
         const linkEl = document.createElement('link');
         linkEl.id = WIN98_STYLESHEET_ID;
@@ -142,13 +173,13 @@ export function BlockCustomizationProvider({ children }: { children: React.React
     }
 
     return () => {
-      if (!isWin98ThemeActive) return;
+      if (!isPremiumUiThemeActive) return;
       htmlEl.classList.remove(WIN98_THEME_CLASS);
       bodyEl.classList.remove(WIN98_THEME_CLASS);
       const mountedLink = document.getElementById(WIN98_STYLESHEET_ID);
       if (mountedLink) mountedLink.remove();
     };
-  }, [isWin98ThemeActive]);
+  }, [isPremiumUiThemeActive]);
 
   const addSkin = useCallback((skin: SkinItem) => {
     setSkinSettings(prev => {
@@ -208,13 +239,15 @@ export function BlockCustomizationProvider({ children }: { children: React.React
       resolveTileAppearance: resolver,
       skinSettings,
       activeSkin,
+      isPremiumUiThemeActive,
+      premiumUiOverrides,
       isWin98ThemeActive,
       addSkin,
       setActiveSkin,
       addFragments,
       purchaseSkin,
     }),
-    [gate, settings, resetAll, resolver, skinSettings, activeSkin, isWin98ThemeActive, addSkin, setActiveSkin, addFragments, purchaseSkin]
+    [gate, settings, resetAll, resolver, skinSettings, activeSkin, isPremiumUiThemeActive, premiumUiOverrides, isWin98ThemeActive, addSkin, setActiveSkin, addFragments, purchaseSkin]
   );
 
   return (

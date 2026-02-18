@@ -94,6 +94,18 @@ export interface SkinStyle {
   customCss?: string; // Serialized CSS properties
 }
 
+export interface PremiumUiMicroOverrides {
+  topWindowTitle?: string;
+  menuWindowTitle?: string;
+  difficultyLegend?: string;
+  utilityLegend?: string;
+  languageLegend?: string;
+  menuActionRadioGroupName?: string;
+  difficultyRadioGroupName?: string;
+  languageRadioGroupName?: string;
+  gameWindowTitle?: string;
+}
+
 // 스킨 카탈로그 항목 (뽑기 가능한 스킨 정의, constants.ts에서 배열로 관리)
 export interface SkinCatalogEntry {
   id: string;   // "skin_0", "skin_1" ...
@@ -102,6 +114,7 @@ export interface SkinCatalogEntry {
   nameKey?: string; // i18n key suffix
   style?: SkinStyle; // Advanced styling
   premium?: boolean; // 프리미엄 스킨 (뽑기 확률 절반, 교환 비용 증가)
+  premiumUiOverrides?: PremiumUiMicroOverrides; // 프리미엄 공통 UI의 스킨별 미세 오버라이드
 }
 
 // 사용자가 획득한 스킨

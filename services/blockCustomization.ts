@@ -259,6 +259,34 @@ export type ResolvedTileAppearance = {
   style?: CSSProperties;
 };
 
+const DISALLOWED_TILE_STYLE_KEYS = [
+  'position',
+  'top',
+  'right',
+  'bottom',
+  'left',
+  'inset',
+  'zIndex',
+  'pointerEvents',
+  'touchAction',
+  'transform',
+  'translate',
+  'rotate',
+  'scale',
+  'transformOrigin',
+  'transformStyle',
+] as const;
+
+export const sanitizeTileAppearanceStyle = (style?: CSSProperties): CSSProperties | undefined => {
+  if (!style) return undefined;
+  const safeStyle: CSSProperties = { ...style };
+  for (const key of DISALLOWED_TILE_STYLE_KEYS) {
+    if ((safeStyle as any)[key] === undefined) continue;
+    delete (safeStyle as any)[key];
+  }
+  return safeStyle;
+};
+
 const getGlobalPaletteColorForValue = (value: number, palette: GlobalTilePaletteSettings): string => {
   const baseRgb = hexToRgb(palette.baseColor);
   const baseHsl = rgbToHsl(baseRgb);
@@ -416,7 +444,6 @@ const buildMeshLayerStyle = (baseHex: string, options?: { circular?: boolean, se
     border: 'none',
     boxShadow: 'inset 0 0 20px rgba(255,255,255,0.1), 0 2px 5px rgba(0,0,0,0.1)',
     fontWeight: 800,
-    transform: 'translateZ(0)',
     borderRadius: options?.circular ? '50%' : undefined,
   };
 
@@ -460,7 +487,7 @@ export const resolveSkinAppearance = (value: number, skin: { id?: string; hex: s
   if (skinId.startsWith(MESH_SWATCH_SKIN_PREFIX)) {
     return {
       className: getTileColor(value),
-      style: buildMeshSkinStyle(value, skin.hex),
+      style: sanitizeTileAppearanceStyle(buildMeshSkinStyle(value, skin.hex)),
     };
   }
 
@@ -469,11 +496,11 @@ export const resolveSkinAppearance = (value: number, skin: { id?: string; hex: s
   const { backgroundImage, baseRgb } = buildGradient(baseHex);
   return {
     className: getTileColor(value),
-    style: {
+    style: sanitizeTileAppearanceStyle({
       backgroundImage,
       backgroundColor: baseHex,
       ...getWhiteTextStyleForBackground(baseRgb),
-    },
+    }),
   };
 };
 
@@ -532,7 +559,7 @@ function resolveProgressionSkin(
     style.animation = anim;
   }
 
-  return { className: getTileColor(value), style };
+  return { className: getTileColor(value), style: sanitizeTileAppearanceStyle(style) };
 }
 
 // ==============================================
@@ -601,7 +628,7 @@ function resolveExplicitPaletteSkin(
     style.animation = anim;
   }
 
-  return { className: getTileColor(value), style };
+  return { className: getTileColor(value), style: sanitizeTileAppearanceStyle(style) };
 }
 
 const normalizeHueDelta = (delta: number): number => {
@@ -655,6 +682,26 @@ const SKIP_CSS_PROPS = new Set([
   'color',
   // 'background-color', 'backgroundColor', -- Allow background color override for glass/slime skins
   'background-image', 'backgroundImage',
+  'position',
+  'top',
+  'right',
+  'bottom',
+  'left',
+  'inset',
+  'z-index',
+  'zIndex',
+  'pointer-events',
+  'pointerEvents',
+  'touch-action',
+  'touchAction',
+  'transform',
+  'transform-origin',
+  'transformOrigin',
+  'transform-style',
+  'transformStyle',
+  'translate',
+  'rotate',
+  'scale',
 ]);
 
 function applyStructuralCss(style: CSSProperties, cssString: string): void {
@@ -721,7 +768,7 @@ export const resolveTileAppearance = (
   if (override?.kind === 'image' && override.imageDataUrl) {
     return {
       className: baseClassName,
-      style: {
+      style: sanitizeTileAppearanceStyle({
         backgroundImage: `linear-gradient(rgba(0,0,0,0.22), rgba(0,0,0,0.22)), url(${override.imageDataUrl})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
@@ -735,7 +782,7 @@ export const resolveTileAppearance = (
           '-1px 0 0 rgba(0,0,0,0.45)',
           '0 1px 2px rgba(0,0,0,0.35)',
         ].join(', '),
-      },
+      }),
     };
   }
 
@@ -743,11 +790,11 @@ export const resolveTileAppearance = (
     const { backgroundImage, baseRgb } = buildGradient(override.color);
     return {
       className: baseClassName,
-      style: {
+      style: sanitizeTileAppearanceStyle({
         backgroundImage,
         backgroundColor: override.color,
         ...getWhiteTextStyleForBackground(baseRgb),
-      },
+      }),
     };
   }
 
@@ -756,11 +803,11 @@ export const resolveTileAppearance = (
     const { backgroundImage, baseRgb } = buildGradient(baseHex);
     return {
       className: baseClassName,
-      style: {
+      style: sanitizeTileAppearanceStyle({
         backgroundImage,
         backgroundColor: baseHex,
         ...getWhiteTextStyleForBackground(baseRgb),
-      },
+      }),
     };
   }
 

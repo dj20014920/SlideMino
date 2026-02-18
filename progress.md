@@ -1670,3 +1670,59 @@ Original prompt: 게임 진행 화면(iPhone 포함)에서 광고 배너가 메�
   - `plutil -lint ios/App/App/Info.plist` -> `OK`
 - 비고:
   - 기존에 생성된 archive는 그대로 invalid이므로, 새로 Archive 생성 후 업로드해야 반영됨.
+
+## 2026-02-18 추가 작업 로그 (중간저장/종료 시 랭킹 등록 실패 원인 재검증)
+- 사용자 제보 증상:
+  - 진행 중 게임 종료 모달에서 `중간 저장` 또는 `랭킹 등록 후 게임 종료` 시 등록 실패.
+  - 스크린샷 기준 payload 표시값: `5x5 · 150582s · 27 moves`.
+
+- 실서버 재현 결과 (엔드포인트 장애 여부 확인):
+  - `POST https://slidemino.emozleep.space/api/submit`
+    - `duration=150582`로 요청 시 `400` + body: `{"error":"Duration too long (max 24 hours)"}`
+    - 동일 값에서 `duration=120`으로 요청 시 `201` + body: `{"success":true,"rank":4}`
+- 결론:
+  - 엔드포인트 다운/네트워크 오류가 아니라 **서버 검증(validateDuration)** 차단.
+  - 원인은 장시간 유지된 세션 duration 값(24시간 초과).
+
+- 코드 원인 지점:
+  - `/Users/dj/Desktop/SlideMino/App.tsx`
+    - 랭킹 스냅샷 duration을 `Date.now() - startedAt`으로 계산하므로 장시간 재개 세션에서 24h 초과 가능.
+  - `/Users/dj/Desktop/SlideMino/functions/utils/validation.ts`
+    - `duration > 86400`이면 invalid 처리.
+
+- 적용한 수정:
+  - `/Users/dj/Desktop/SlideMino/services/rankingService.ts`
+    - `normalizeDurationForSubmit()` 추가.
+    - submit payload 생성 시 duration을 `1..86400` 범위로 클램프.
+
+- 검증:
+  - `npm run build` 성공.
+  - Playwright 제출 payload 캡처:
+    - 장시간 세션(`startedAt` 기준 150582초 경과)에서도 실제 `/api/submit` 전송값 `duration=86400`으로 정규화됨 확인.
+
+## 2026-02-18 추가 작업 로그 (실플레이 시간만 측정하도록 타이머 로직 교체)
+- 사용자 요청:
+  - 화면 꺼짐/백그라운드 상태에서도 시간이 누적되어 실제 플레이 시간과 불일치.
+  - 실제 조작한 시간만 측정되도록 개선 필요.
+
+- 핵심 변경:
+  - `/Users/dj/Desktop/SlideMino/App.tsx`
+    - 기존 `Date.now() - startedAt` 기반 계산을 제거하고, `activePlayDurationMsRef`(누적) + `activePlayStartedAtRef`(재개 시각) 기반으로 교체.
+    - `document.visibilityState`와 `gameState`를 결합해 타이머 자동 정지/재개:
+      - `PLAYING && visible`일 때만 카운트.
+      - `hidden`, `MENU`, `GAME_OVER`에서는 즉시 정지.
+    - 저장 시점(`persistRecoverableGameState`)에 `activeDurationMs`를 함께 저장.
+    - 게임오버 모달/진행중 종료 모달의 `duration` 표시 및 제출값을 활성 플레이 누적 시간(초) 기준으로 통일.
+  - `/Users/dj/Desktop/SlideMino/services/gameStorage.ts`
+    - `SavedGameState`에 `activeDurationMs?: number` 추가.
+    - 로드 시 `activeDurationMs`가 있으면 사용, 없으면 구버전 데이터 호환용으로 `savedAt - startedAt`를 fallback으로 사용.
+
+- 기대 효과:
+  - 휴대폰 화면 끄기/앱 백그라운드/탭 비활성화 구간은 시간 누적에서 제외.
+  - 랭킹 등록 시 `duration`이 실제 플레이 시간에 더 근접하게 반영됨.
+
+- 검증:
+  - `npm run build` 성공.
+- 추가 비고:
+  - 로컬 `playwright` 패키지 부재(`require.resolve('playwright')` 실패)로 스킬의 웹 자동조작 검증은 이번 턴에서 실행하지 못함.
+  - 후속으로 실제 기기(iOS/Android)에서 `PLAYING -> 화면 끄기 30초 -> 복귀` 시 duration 증가 정지 여부를 확인 권장.

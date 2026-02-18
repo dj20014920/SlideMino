@@ -14,6 +14,7 @@ import {
 } from '../services/skinService';
 import { getFeatureGateDecision, type FeatureGateDecision } from '../services/featureGates';
 import { SKIN_CATALOG, FRAGMENT_COST_NORMAL, FRAGMENT_COST_PREMIUM } from '../constants';
+import { isDevDevice } from '../utils/deviceDetection';
 
 type BlockCustomizationContextValue = {
   gate: FeatureGateDecision;
@@ -42,6 +43,28 @@ export function BlockCustomizationProvider({ children }: { children: React.React
   const [skinSettings, setSkinSettings] = useState<SkinSettings>(() => loadSkinSettings());
   const saveTimeoutRef = useRef<number | null>(null);
   const skinSaveTimeoutRef = useRef<number | null>(null);
+
+  // 개발 디바이스: 모든 스킨 자동 해금
+  useEffect(() => {
+    let cancelled = false;
+    isDevDevice().then(isDev => {
+      if (cancelled || !isDev) return;
+      setSkinSettings(prev => {
+        const ownedIds = new Set(prev.ownedSkins.map(s => s.id));
+        const missing = SKIN_CATALOG.filter(e => !ownedIds.has(e.id));
+        if (missing.length === 0) return prev;
+        const now = Date.now();
+        return {
+          ...prev,
+          ownedSkins: [
+            ...prev.ownedSkins,
+            ...missing.map(e => ({ id: e.id, hex: e.hex, acquiredAt: now })),
+          ],
+        };
+      });
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   // 블록 커스터마이징 설정 자동 저장
   useEffect(() => {

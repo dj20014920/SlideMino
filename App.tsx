@@ -133,6 +133,21 @@ const loadInitialPlayerName = (): string => {
   }
 };
 
+const isDocumentVisible = (): boolean => {
+  if (typeof document === 'undefined') return true;
+  return document.visibilityState === 'visible';
+};
+
+const toDurationSeconds = (durationMs: number): number => Math.max(1, Math.floor(Math.max(0, durationMs) / 1000));
+
+const getSavedGameActiveDurationMs = (saved: SavedGameState): number => {
+  if (typeof saved.activeDurationMs === 'number' && Number.isFinite(saved.activeDurationMs)) {
+    return Math.max(0, Math.floor(saved.activeDurationMs));
+  }
+  const startedAt = typeof saved.startedAt === 'number' ? saved.startedAt : saved.savedAt;
+  return Math.max(0, saved.savedAt - startedAt);
+};
+
 interface BoardMetrics {
   rectLeft: number;
   rectTop: number;
@@ -509,7 +524,9 @@ const App: React.FC = () => {
   const boardRef = useRef<HTMLDivElement>(null);
   const boardHandleRef = useRef<BoardHandle | null>(null);
   const dragOverlayRef = useRef<HTMLDivElement>(null); // 드래그 오버레이 직접 제어용 Ref
-  const gameStartTimeRef = useRef<number>(Date.now()); // Anti-cheat timer
+  const gameStartTimeRef = useRef<number>(Date.now()); // Legacy start marker (migration compatibility)
+  const activePlayDurationMsRef = useRef<number>(0); // 실제 플레이 누적 시간 (백그라운드 제외)
+  const activePlayStartedAtRef = useRef<number | null>(null); // 플레이 타이머가 재개된 시각
   const moveCountRef = useRef<number>(0); // Anti-cheat move counter
   const sessionIdRef = useRef<string>(crypto.randomUUID()); // 게임 세션 ID
   const [liveRankEstimate, setLiveRankEstimate] = useState<LiveRankEstimate | null>(null); // 게임 중 예상 순위
@@ -548,6 +565,41 @@ const App: React.FC = () => {
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
+
+  const pauseActivePlayTimer = useCallback(() => {
+    const startedAt = activePlayStartedAtRef.current;
+    if (startedAt === null) return;
+    activePlayDurationMsRef.current += Math.max(0, Date.now() - startedAt);
+    activePlayStartedAtRef.current = null;
+  }, []);
+
+  const resumeActivePlayTimer = useCallback(() => {
+    if (activePlayStartedAtRef.current !== null) return;
+    activePlayStartedAtRef.current = Date.now();
+  }, []);
+
+  const syncActivePlayTimer = useCallback(() => {
+    const shouldRun = gameStateRef.current === GameState.PLAYING && isDocumentVisible();
+    if (shouldRun) {
+      resumeActivePlayTimer();
+      return;
+    }
+    pauseActivePlayTimer();
+  }, [pauseActivePlayTimer, resumeActivePlayTimer]);
+
+  const getCurrentActiveDurationMs = useCallback((): number => {
+    const startedAt = activePlayStartedAtRef.current;
+    if (startedAt === null) return activePlayDurationMsRef.current;
+    return activePlayDurationMsRef.current + Math.max(0, Date.now() - startedAt);
+  }, []);
+
+  const getCurrentActiveDurationSeconds = useCallback((): number => {
+    return toDurationSeconds(getCurrentActiveDurationMs());
+  }, [getCurrentActiveDurationMs]);
+
+  useEffect(() => {
+    syncActivePlayTimer();
+  }, [gameState, syncActivePlayTimer]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -646,6 +698,11 @@ const App: React.FC = () => {
     sessionIdRef.current = saved.sessionId ?? crypto.randomUUID();
     moveCountRef.current = typeof saved.moveCount === 'number' ? saved.moveCount : 0;
     gameStartTimeRef.current = typeof saved.startedAt === 'number' ? saved.startedAt : saved.savedAt;
+    activePlayDurationMsRef.current = getSavedGameActiveDurationMs(saved);
+    activePlayStartedAtRef.current =
+      saved.gameState === GameState.PLAYING && isDocumentVisible()
+        ? Date.now()
+        : null;
   }, []);
 
   // 앱 시작 시 저장된 게임 복원
@@ -659,6 +716,11 @@ const App: React.FC = () => {
 
   const persistRecoverableGameState = useCallback(() => {
     if (gameState !== GameState.PLAYING && gameState !== GameState.GAME_OVER) return;
+    if (gameState !== GameState.PLAYING) {
+      pauseActivePlayTimer();
+    }
+
+    const activeDurationMs = getCurrentActiveDurationMs();
 
     saveGameState({
       gameState,
@@ -679,6 +741,7 @@ const App: React.FC = () => {
       sessionId: sessionIdRef.current,
       moveCount: moveCountRef.current,
       startedAt: gameStartTimeRef.current,
+      activeDurationMs,
       playerName,
       sessionLockedPlayerName: sessionLockedPlayerName ?? undefined,
     });
@@ -700,6 +763,8 @@ const App: React.FC = () => {
     revivePendingTileId,
     playerName,
     sessionLockedPlayerName,
+    pauseActivePlayTimer,
+    getCurrentActiveDurationMs,
   ]);
 
   // 게임 상태 자동 저장 (debounce + 종료 직전 플러시)
@@ -721,13 +786,16 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const flushRecoverableState = () => {
+      pauseActivePlayTimer();
       persistRecoverableGameState();
     };
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
         flushRecoverableState();
+        return;
       }
+      syncActivePlayTimer();
     };
 
     window.addEventListener('pagehide', flushRecoverableState);
@@ -739,7 +807,7 @@ const App: React.FC = () => {
       window.removeEventListener('beforeunload', flushRecoverableState);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [persistRecoverableGameState]);
+  }, [persistRecoverableGameState, pauseActivePlayTimer, syncActivePlayTimer]);
 
   useEffect(() => {
     const shouldLockScroll = gameState !== GameState.MENU;
@@ -769,10 +837,8 @@ const App: React.FC = () => {
   }, []);
 
   const buildActiveGameRankingSnapshot = useCallback((): ActiveGameRankingSnapshot | null => {
-    const now = Date.now();
-
     if (gameState === GameState.PLAYING || gameState === GameState.GAME_OVER) {
-      const elapsedSeconds = Math.max(1, Math.floor((now - gameStartTimeRef.current) / 1000));
+      const elapsedSeconds = getCurrentActiveDurationSeconds();
       return {
         sessionId: sessionIdRef.current,
         score,
@@ -786,8 +852,7 @@ const App: React.FC = () => {
 
     const saved = loadGameState();
     if (!saved) return null;
-    const startedAt = typeof saved.startedAt === 'number' ? saved.startedAt : saved.savedAt;
-    const elapsedSeconds = Math.max(1, Math.floor((now - startedAt) / 1000));
+    const elapsedSeconds = toDurationSeconds(getSavedGameActiveDurationMs(saved));
 
     return {
       sessionId: saved.sessionId ?? sessionIdRef.current,
@@ -798,7 +863,7 @@ const App: React.FC = () => {
       playerName: saved.playerName ?? playerName,
       sessionLockedPlayerName: getReusablePlayerName(saved.sessionLockedPlayerName) ?? sessionLockedPlayerName,
     };
-  }, [gameState, score, boardSize, playerName, sessionLockedPlayerName]);
+  }, [gameState, score, boardSize, playerName, sessionLockedPlayerName, getCurrentActiveDurationSeconds]);
 
   const resolveReusablePlayerName = useCallback((): string | null => {
     return getReusablePlayerName(playerName) ?? getReusablePlayerName(rankingService.getSavedName());
@@ -995,7 +1060,10 @@ const App: React.FC = () => {
     setSessionLockedPlayerName(null);
 
     // Anti-cheat: Start Timer & Session ID
-    gameStartTimeRef.current = Date.now();
+    const now = Date.now();
+    gameStartTimeRef.current = now;
+    activePlayDurationMsRef.current = 0;
+    activePlayStartedAtRef.current = isDocumentVisible() ? now : null;
     moveCountRef.current = 0;
     sessionIdRef.current = crypto.randomUUID(); // 새 게임마다 고유 세션 ID 생성
     liveRankFailureCountRef.current = 0;
@@ -2995,7 +3063,7 @@ const App: React.FC = () => {
             sessionId={sessionIdRef.current}
             score={score}
             difficulty={`${boardSize}x${boardSize}`}
-            duration={Math.floor((Date.now() - gameStartTimeRef.current) / 1000)}
+            duration={getCurrentActiveDurationSeconds()}
             moves={moveCountRef.current}
             playerName={playerName}
             canOfferRevive={canOfferRevive}

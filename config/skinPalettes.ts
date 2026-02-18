@@ -28,28 +28,28 @@ export const SKIN_EXPLICIT_PALETTES: Record<string, string[]> = {
     '#515151', // 16384
     '#454545', // 32768
   ],
-  // Evervault: white → dark with increasing purple tint
-  skin_digital_evervault: [
-    '#ffffff', // 1   - pure white
-    '#f0eaf8', // 2   - very faint purple
-    '#e0d5f0', // 4   - light purple tint
-    '#cfc0e8', // 8   - soft lavender
-    '#bbaade', // 16  - medium lavender
-    '#a893d4', // 32  - purple-ish
-    '#9578c8', // 64  - deeper purple
-    '#825dbc', // 128 - rich purple
-    '#6f42b0', // 256 - dark purple
-    '#5c2da3', // 512 - deep purple
-    '#4a1a96', // 1024- very dark purple
-    '#3a0d88', // 2048- near black purple
-    '#2d0a6e', // 4096
-    '#220855', // 8192
-    '#18063d', // 16384
-    '#0f0428', // 32768 - almost black
+
+  skin_art_mesh: [
+    '#e0c3fc', // 1: Soft Purple
+    '#ff9a9e', // 2: Soft Pink
+    '#a18cd1', // 4: Deep Lavender
+    '#fad0c4', // 8: Peach
+    '#8fd3f4', // 16: Cyan
+    '#84fab0', // 32: Mint
+    '#fccb90', // 64: Orange
+    '#d299c2', // 128: Orchid
+    '#a6c0fe', // 256: Baby Blue
+    '#f68084', // 512: Salmon
+    '#667eea', // 1024: Royal Blue
+    '#764ba2', // 2048: Deep Purple
+    '#4facfe', // 4096: Bright Blue
+    '#00f2fe', // 8192: Neon Cyan
+    '#f093fb', // 16384: Neon Pink
+    '#f5576c', // 32768: Red Pink
   ],
+
 };
 export const SKIN_ANIMATIONS: Record<string, string> = {};
 export const SKIN_RENDER_MODES: Record<string, SkinRenderMode> = {
   skin_digital_win98: 'standard',
-  skin_digital_evervault: 'flat',
 };

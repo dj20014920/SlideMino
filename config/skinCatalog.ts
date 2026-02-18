@@ -1,5 +1,36 @@
 import { SkinCatalogEntry } from '../types';
 
+const MESH_STAGE_SWATCHES = [
+  '#E0C3FC', // 1
+  '#FF9A9E', // 2
+  '#A18CD1', // 4
+  '#FAD0C4', // 8
+  '#8FD3F4', // 16
+  '#84FAB0', // 32
+  '#FCCB90', // 64
+  '#D299C2', // 128
+  '#A6C0FE', // 256
+  '#F68084', // 512
+  '#667EEA', // 1024
+  '#764BA2', // 2048
+  '#4FACFE', // 4096
+  '#00F2FE', // 8192
+  '#F093FB', // 16384
+  '#F5576C', // 32768
+  '#ECCB1E', // 65536
+  '#32B513', // 131072
+  '#107660', // 262144
+  '#09153B', // 524288
+] as const;
+
+const MESH_STAGE_SINGLE_COLOR_SKINS: SkinCatalogEntry[] = MESH_STAGE_SWATCHES.map((hex, index) => ({
+  id: `skin_mesh_swatch_${index + 1}`,
+  hex,
+  category: 'art',
+  nameKey: `meshGradientHex${hex.slice(1)}`,
+  premium: false,
+}));
+
 // ==========================================
 // 🎨 스킨 스타일 정의 (Complex Skins)
 // ==========================================
@@ -31,22 +62,25 @@ export const ADDITIONAL_SKIN_CATALOG: SkinCatalogEntry[] = [
       ].join('; ') + ';',
     },
   },
+
   {
-    id: 'skin_digital_evervault',
-    hex: '#a855f7',
-    category: 'digital',
-    nameKey: 'evervaultCard',
+    id: 'skin_art_mesh',
+    hex: '#764ba2',
+    category: 'art',
+    nameKey: 'meshGradient',
     premium: true,
     style: {
       type: 'solid',
-      value: '#0a0a0a',
-      textColor: '#f0f0f0',
-      borderColor: 'rgba(255,255,255,0.12)',
+      value: '#ffffff',
+      textColor: '#ffffff',
+      // We will override borders in the renderer
       customCss: [
-        'border: 1px solid rgba(255,255,255,0.12)',
+        'border: none',
         'font-weight: 700',
-        'letter-spacing: 0.02em',
+        'letter-spacing: 0.01em',
+        'text-shadow: 0 1px 2px rgba(0,0,0,0.15)',
       ].join('; ') + ';',
     },
   },
+  ...MESH_STAGE_SINGLE_COLOR_SKINS,
 ];

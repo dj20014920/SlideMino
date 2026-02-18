@@ -295,6 +295,46 @@ export const resolveSkinAppearance = (value: number, skin: { id?: string; hex: s
 
   // ── 3. Legacy fallback (basic color skins: skin_0 through skin_23) ──
   const baseHex = getSkinColorForValue(value, skin.hex);
+  
+  if (skinId.startsWith('skin_mesh_swatch_')) {
+    const baseRgb = hexToRgb(baseHex);
+    // Mesh Gradient Logic: using the current base color as the anchor
+    const hsl = rgbToHsl(baseRgb);
+    
+    // Create richer variations for the mesh blobs
+    const h1 = (hsl.h + 25) % 360; 
+    const h2 = (hsl.h - 25 + 360) % 360;
+    const h3 = (hsl.h + 45) % 360; // Slightly more shift for center
+    
+    // Vary lightness/saturation significantly to create visible blobs
+    const c1 = rgbToHex(hslToRgb({ h: h1, s: Math.min(hsl.s + 10, 95), l: Math.min(hsl.l + 10, 85) }));
+    const c2 = rgbToHex(hslToRgb({ h: h2, s: Math.max(hsl.s - 5, 40), l: Math.max(hsl.l - 10, 40) }));
+    const c3 = rgbToHex(hslToRgb({ h: h3, s: hsl.s, l: Math.min(hsl.l + 20, 90) }));
+
+    const backgroundImage = `
+      radial-gradient(circle at 10% 20%, ${c1} 0%, transparent 60%),
+      radial-gradient(circle at 90% 80%, ${c2} 0%, transparent 60%),
+      radial-gradient(circle at 50% 50%, ${c3} 0%, transparent 70%),
+      linear-gradient(135deg, rgba(255,255,255,0.2) 0%, transparent 100%)
+    `;
+
+    return {
+      className: getTileColor(value),
+      style: {
+        backgroundColor: baseHex,
+        backgroundImage,
+        backgroundBlendMode: 'normal',
+        border: 'none',
+        fontWeight: 800,
+        textShadow: '0 1px 2px rgba(0,0,0,0.2)',
+        color: '#ffffff', // Force white text for cleaner look on mesh
+        boxShadow: 'inset 0 0 10px rgba(0,0,0,0.1), 0 2px 5px rgba(0,0,0,0.1)',
+        // Force hardware acceleration for smooth gradients
+        transform: 'translateZ(0)',
+      },
+    };
+  }
+
   const { backgroundImage, baseRgb } = buildGradient(baseHex);
   return {
     className: getTileColor(value),
@@ -411,6 +451,29 @@ function resolveExplicitPaletteSkin(
       style.borderColor = '#1a1a1a';
       style.boxShadow = `inset 0 0 8px rgba(0,0,0,0.45), ${getValueShadow(t)}`;
     }
+    
+    // Mesh Gradient Logic
+    if (skinId === 'skin_art_mesh') {
+      const hsl = rgbToHsl(paletteRgb);
+      const h1 = (hsl.h + 30) % 360; // Analogous 1
+      const h2 = (hsl.h - 30 + 360) % 360; // Analogous 2
+      const h3 = (hsl.h + 180) % 360; // Complementary
+
+      const c1 = rgbToHex(hslToRgb({ h: h1, s: 70, l: 65 }));
+      const c2 = rgbToHex(hslToRgb({ h: h2, s: 80, l: 75 }));
+      const c3 = rgbToHex(hslToRgb({ h: h3, s: 60, l: 85 })); // soft complementary
+
+      // Soft mesh using large radial gradients
+      style.backgroundImage = `
+        radial-gradient(at 0% 0%, ${c2} 0px, transparent 50%),
+        radial-gradient(at 100% 0%, ${c1} 0px, transparent 50%),
+        radial-gradient(at 100% 100%, ${c2} 0px, transparent 50%),
+        radial-gradient(at 0% 100%, ${c1} 0px, transparent 50%),
+        radial-gradient(at 50% 50%, ${c3} 0px, transparent 50%)
+      `;
+      style.backgroundColor = paletteHex;
+      style.borderColor = 'rgba(255,255,255,0.4)';
+    }
   }
 
   // Apply customCss if defined
@@ -486,8 +549,9 @@ function getAutoTextColor(bgRgb: Rgb): CSSProperties {
 // but skips color-related properties (handled by palette system).
 
 const SKIP_CSS_PROPS = new Set([
-  'background-color', 'backgroundColor',
-  'color', 'background-image', 'backgroundImage',
+  'color',
+  // 'background-color', 'backgroundColor', -- Allow background color override for glass/slime skins
+  'background-image', 'backgroundImage',
 ]);
 
 function applyStructuralCss(style: CSSProperties, cssString: string): void {

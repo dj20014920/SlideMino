@@ -64,6 +64,13 @@ const normalizeDifficultyForApi = (difficulty: string): string => {
     return match ? match[1] : trimmed;
 };
 
+const normalizeDurationForSubmit = (duration: number): number => {
+    if (!Number.isFinite(duration)) return 1;
+    // 서버 검증(validateDuration)과 동일한 범위로 클램프해
+    // 장시간 백그라운드/재개 세션에서 등록 실패를 방지한다.
+    return Math.max(1, Math.min(86400, Math.floor(duration)));
+};
+
 const isOnline = (): boolean => {
     if (typeof navigator === 'undefined') return true;
     return navigator.onLine;
@@ -209,7 +216,7 @@ const buildPayload = (
         name,
         score,
         difficulty: normalizeDifficultyForApi(difficulty),
-        duration,
+        duration: normalizeDurationForSubmit(duration),
         moves,
         timestamp: Date.now(),
     };

@@ -1658,3 +1658,15 @@ Original prompt: 게임 진행 화면(iPhone 포함)에서 광고 배너가 메�
   - `https://17bce769.slidemino.pages.dev/api/rankings?mode=live&difficulty=4&score=100`
     - 응답 200, `cache-control: no-store, no-cache, must-revalidate`, body에 `rank/pointsToNext` 확인.
   - 커스텀 도메인 `https://slidemino.emozleep.space/api/rankings?mode=live&difficulty=4&score=100`도 동일 응답 확인.
+
+## 2026-02-18 추가 작업 로그 (iOS 업로드 Validation 실패 수정)
+- 이슈: Xcode Organizer 업로드 시 `Invalid bundle` / `UISupportedInterfaceOrientations` 검증 실패.
+- 원인: iPad 전용 orientation 키(`UISupportedInterfaceOrientations~ipad`)에 `UIInterfaceOrientationLandscapeRight` 누락.
+- 수정 파일:
+  - `/Users/dj/Desktop/SlideMino/ios/App/App/Info.plist`
+- 조치:
+  - `UISupportedInterfaceOrientations~ipad` 배열에 `UIInterfaceOrientationLandscapeRight` 추가해 4방향 모두 선언.
+- 확인:
+  - `plutil -lint ios/App/App/Info.plist` -> `OK`
+- 비고:
+  - 기존에 생성된 archive는 그대로 invalid이므로, 새로 Archive 생성 후 업로드해야 반영됨.

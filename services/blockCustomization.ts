@@ -145,24 +145,47 @@ const relativeLuminance = (rgb: Rgb): number => {
 
 const WHITE_TEXT_COLOR = '#f9fafb';
 
+// Builds adaptive text shadow based on background luminance.
+// Instead of switching to dark text on light backgrounds, always uses white text
+// with progressively stronger soft shadows for legibility.
+// Avoids thick -webkit-text-stroke which looks harsh on pastel skins.
+const buildAdaptiveShadow = (lum: number): Pick<CSSProperties, 'WebkitTextStroke' | 'textShadow'> => {
+  if (lum <= 0.45) {
+    // Dark background: minimal shadow
+    return { textShadow: '0 1px 2px rgba(0,0,0,0.25)' };
+  }
+  if (lum <= 0.65) {
+    // Medium background: soft multi-layer shadow
+    const a = 0.3;
+    return {
+      textShadow: [
+        `0 0 3px rgba(0,0,0,${a})`,
+        `0 1px 2px rgba(0,0,0,${a})`,
+      ].join(', '),
+    };
+  }
+  // Bright background (lum > 0.65): stronger soft glow outline
+  // Use very thin stroke (0.4px) + soft blurred shadows instead of hard 1px stroke
+  const intensity = Math.min((lum - 0.65) / 0.35, 1); // 0→1 as lum goes 0.65→1.0
+  const a = 0.25 + intensity * 0.2; // 0.25→0.45
+  const blur = 2 + intensity * 2;   // 2px→4px
+  return {
+    WebkitTextStroke: `0.4px rgba(0,0,0,${(0.15 + intensity * 0.15).toFixed(2)})`,
+    textShadow: [
+      `0 0 ${blur}px rgba(0,0,0,${a.toFixed(2)})`,
+      `0 1px ${blur}px rgba(0,0,0,${(a * 0.8).toFixed(2)})`,
+      `0 0 ${blur + 2}px rgba(0,0,0,${(a * 0.5).toFixed(2)})`,
+    ].join(', '),
+  };
+};
+
 export const getWhiteTextStyleForBackground = (backgroundRgb: Rgb): CSSProperties => {
-  // White text is fixed per product requirement.
-  // On very bright tiles, add a thin black outline (stroke-like) to preserve legibility.
+  // Always white text with adaptive soft shadow for legibility.
+  // Uses multiple thin blur-shadows instead of hard stroke for a clean look.
   const lum = relativeLuminance(backgroundRgb);
-  const needsOutline = lum > 0.7;
   return {
     color: WHITE_TEXT_COLOR,
-    // WebKit stroke (works well on iOS Safari) + a small shadow as a non-webkit fallback.
-    WebkitTextStroke: needsOutline ? '1px rgba(0,0,0,0.55)' : undefined,
-    textShadow: needsOutline
-      ? [
-          '0 1px 0 rgba(0,0,0,0.45)',
-          '0 -1px 0 rgba(0,0,0,0.45)',
-          '1px 0 0 rgba(0,0,0,0.45)',
-          '-1px 0 0 rgba(0,0,0,0.45)',
-          '0 1px 2px rgba(0,0,0,0.35)',
-        ].join(', ')
-      : '0 1px 2px rgba(0,0,0,0.28)',
+    ...buildAdaptiveShadow(lum),
   };
 };
 
@@ -261,13 +284,153 @@ export const buildGradient = (baseHex: string): { backgroundImage: string; baseR
 
 // 흰색→스킨 색상 수렴: 타일 값이 클수록 스킨 색상에 가까워짐
 const WHITE_RGB: Rgb = { r: 255, g: 255, b: 255 };
+const MESH_SWATCH_SKIN_PREFIX = 'skin_mesh_swatch_';
 
-export const getSkinColorForValue = (value: number, skinHex: string): string => {
+// Simple seeded PRNG (mulberry32) for deterministic randomness per tile/skin.
+const pseudoRandom = (seed: string): (() => number) => {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) {
+    h = Math.imul(31, h) + seed.charCodeAt(i) | 0;
+  }
+  return () => {
+    h |= 0; h = h + 0x6D2B79F5 | 0;
+    let t = Math.imul(h ^ (h >>> 15), 1 | h);
+    t = t + Math.imul(t ^ (t >>> 7), 61 | t) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+};
+
+const getValueExponent = (value: number): number => {
+  return Math.max(0, Math.floor(Math.log2(Math.max(1, value))));
+};
+
+const toRgba = (rgb: Rgb, alpha: number): string => {
+  const a = clamp(alpha, 0, 1);
+  return `rgba(${Math.round(clamp(rgb.r, 0, 255))}, ${Math.round(clamp(rgb.g, 0, 255))}, ${Math.round(clamp(rgb.b, 0, 255))}, ${a})`;
+};
+
+export const getSkinColorForValue = (value: number, skinHex: string, maxExponent = 15): string => {
   const skinRgb = hexToRgb(skinHex);
   const exp = Math.log2(value);
-  const t = clamp(exp / 15, 0, 1); // 2^15=32768까지 커버
+  const t = clamp(exp / maxExponent, 0, 1);
   const mixed = mixRgb(WHITE_RGB, skinRgb, t);
   return rgbToHex(mixed);
+};
+
+const getMeshBaseColorForValue = (value: number, seedHex: string): string => {
+  // 요청사항: 값이 작을수록 흰색에 가깝고, 값이 클수록 원래 색을 되찾는 단계형 로직 유지.
+  return getSkinColorForValue(value, seedHex, 19);
+};
+
+const buildMeshLayerStyle = (baseHex: string, options?: { circular?: boolean, seed?: string }): CSSProperties => {
+  const baseRgb = hexToRgb(baseHex);
+  const baseHsl = rgbToHsl(baseRgb);
+
+  // Skin Seed: stable per skin → controls Color Strategy (Analogous/Complementary/etc.)
+  const skinSeedString = options?.seed || baseHex;
+  const skinRand = pseudoRandom(skinSeedString);
+
+  // Tile Seed: composite of (tileBaseHex + skinSeed) → unique per tile AND per skin
+  // Fix: prevents value=1 (baseHex=#ffffff) from producing identical patterns across all skins
+  const tileRand = pseudoRandom(baseHex + skinSeedString);
+
+  const genColor = (hShift: number, sShift: number, lShift: number) => {
+    return rgbToHex(hslToRgb({
+      h: (baseHsl.h + hShift + 360) % 360,
+      s: clamp(baseHsl.s + sShift, 40, 95), 
+      l: clamp(baseHsl.l + lShift, 40, 90),
+    }));
+  };
+
+  // Select a Color Strategy (Personality) for this skin
+  const strategyType = Math.floor(skinRand() * 6);
+  let c1, c2, c3, c4, c5;
+
+  // H-shifts, S-shifts, L-shifts presets
+  switch (strategyType) {
+    case 0: // Analogous (Dreamy, Soft)
+      c1 = genColor(30, 5, 5);
+      c2 = genColor(-30, 5, -5);
+      c3 = genColor(15, -5, 10);
+      c4 = genColor(-15, 5, -10);
+      c5 = genColor(0, -10, 20); // Highlight
+      break;
+    case 1: // Complementary (Bold, Two-Tone)
+      c1 = genColor(180, 0, -10);
+      c2 = genColor(0, 5, 5);
+      c3 = genColor(180, 5, 5);
+      c4 = genColor(0, -5, -5);
+      c5 = genColor(0, -10, 20);
+      break;
+    case 2: // Split Complementary (Rich, Dynamic)
+      c1 = genColor(150, 5, -5);
+      c2 = genColor(210, 5, -5);
+      c3 = genColor(0, -5, 10);
+      c4 = genColor(0, 5, -10);
+      c5 = genColor(0, -10, 20);
+      break;
+    case 3: // Triadic (Balanced, Colorful)
+      c1 = genColor(120, 0, 0);
+      c2 = genColor(240, 0, 0);
+      c3 = genColor(0, 5, 5);
+      c4 = genColor(120, 5, -5);
+      c5 = genColor(0, -10, 20);
+      break;
+    case 4: // Tetradic / Wild (The "Rainbow" look)
+      c1 = genColor(60, 5, 5);
+      c2 = genColor(-60, 5, -5);
+      c3 = genColor(90, -5, 5);
+      c4 = genColor(180, 0, -10);
+      c5 = genColor(0, -10, 15);
+      break;
+    default: // Monochromatic Deep (Subtle, professional)
+      c1 = genColor(10, 10, -10);
+      c2 = genColor(-10, 10, -10);
+      c3 = genColor(5, 5, 5);
+      c4 = genColor(-5, 5, 5);
+      c5 = genColor(0, -5, 15);
+      break;
+  }
+
+  // Shuffle colors to randomize positions based on TILE seed (Pattern variety)
+  // But keep strategy consistent (Color Palette variety)
+  const colors = [c1, c2, c3, c4, c5];
+  for (let i = colors.length - 1; i > 0; i--) {
+      const j = Math.floor(tileRand() * (i + 1));
+      [colors[i], colors[j]] = [colors[j], colors[i]];
+  }
+
+  // Randomized positions for organic "Mesh" feel
+  const pos = (min: number, max: number) => Math.floor(min + tileRand() * (max - min)) + '%';
+  
+  const style: CSSProperties = {
+    backgroundColor: baseHex,
+    backgroundImage: [
+      `radial-gradient(at ${pos(0, 45)} ${pos(0, 45)}, ${colors[0]} 0px, transparent 55%)`,
+      `radial-gradient(at ${pos(55, 100)} ${pos(0, 45)}, ${colors[1]} 0px, transparent 55%)`,
+      `radial-gradient(at ${pos(0, 45)} ${pos(55, 100)}, ${colors[2]} 0px, transparent 55%)`,
+      `radial-gradient(at ${pos(55, 100)} ${pos(55, 100)}, ${colors[3]} 0px, transparent 55%)`,
+      `radial-gradient(at ${pos(30, 70)} ${pos(30, 70)}, ${colors[4]} 0px, transparent 55%)`,
+    ].join(', '),
+    backgroundBlendMode: 'normal',
+    border: 'none',
+    boxShadow: 'inset 0 0 20px rgba(255,255,255,0.1), 0 2px 5px rgba(0,0,0,0.1)',
+    fontWeight: 800,
+    transform: 'translateZ(0)',
+    borderRadius: options?.circular ? '50%' : undefined,
+  };
+
+  Object.assign(style, getAutoTextColor(baseRgb));
+  style.textShadow = '0 1px 2px rgba(0,0,0,0.2)';
+  
+  return style;
+};
+
+const buildMeshSkinStyle = (value: number, seedHex: string, options?: { circular?: boolean }): CSSProperties => {
+  const baseHex = getMeshBaseColorForValue(value, seedHex);
+  // Pass seedHex (Original Skin Color) to lock the Color Strategy per skin
+  // baseHex (Current Tile Color) will be used inside as the Tile Seed for pattern variety
+  return buildMeshLayerStyle(baseHex, { ...options, seed: seedHex });
 };
 
 // --- New Helper for Previews ---
@@ -294,46 +457,14 @@ export const resolveSkinAppearance = (value: number, skin: { id?: string; hex: s
   }
 
   // ── 3. Legacy fallback (basic color skins: skin_0 through skin_23) ──
-  const baseHex = getSkinColorForValue(value, skin.hex);
-  
-  if (skinId.startsWith('skin_mesh_swatch_')) {
-    const baseRgb = hexToRgb(baseHex);
-    // Mesh Gradient Logic: using the current base color as the anchor
-    const hsl = rgbToHsl(baseRgb);
-    
-    // Create richer variations for the mesh blobs
-    const h1 = (hsl.h + 25) % 360; 
-    const h2 = (hsl.h - 25 + 360) % 360;
-    const h3 = (hsl.h + 45) % 360; // Slightly more shift for center
-    
-    // Vary lightness/saturation significantly to create visible blobs
-    const c1 = rgbToHex(hslToRgb({ h: h1, s: Math.min(hsl.s + 10, 95), l: Math.min(hsl.l + 10, 85) }));
-    const c2 = rgbToHex(hslToRgb({ h: h2, s: Math.max(hsl.s - 5, 40), l: Math.max(hsl.l - 10, 40) }));
-    const c3 = rgbToHex(hslToRgb({ h: h3, s: hsl.s, l: Math.min(hsl.l + 20, 90) }));
-
-    const backgroundImage = `
-      radial-gradient(circle at 10% 20%, ${c1} 0%, transparent 60%),
-      radial-gradient(circle at 90% 80%, ${c2} 0%, transparent 60%),
-      radial-gradient(circle at 50% 50%, ${c3} 0%, transparent 70%),
-      linear-gradient(135deg, rgba(255,255,255,0.2) 0%, transparent 100%)
-    `;
-
+  if (skinId.startsWith(MESH_SWATCH_SKIN_PREFIX)) {
     return {
       className: getTileColor(value),
-      style: {
-        backgroundColor: baseHex,
-        backgroundImage,
-        backgroundBlendMode: 'normal',
-        border: 'none',
-        fontWeight: 800,
-        textShadow: '0 1px 2px rgba(0,0,0,0.2)',
-        color: '#ffffff', // Force white text for cleaner look on mesh
-        boxShadow: 'inset 0 0 10px rgba(0,0,0,0.1), 0 2px 5px rgba(0,0,0,0.1)',
-        // Force hardware acceleration for smooth gradients
-        transform: 'translateZ(0)',
-      },
+      style: buildMeshSkinStyle(value, skin.hex),
     };
   }
+
+  const baseHex = getSkinColorForValue(value, skin.hex);
 
   const { backgroundImage, baseRgb } = buildGradient(baseHex);
   return {
@@ -416,7 +547,7 @@ function resolveExplicitPaletteSkin(
   palette: string[],
   styleData?: any,
 ): ResolvedTileAppearance {
-  const exponent = Math.max(0, Math.floor(Math.log2(Math.max(1, value))));
+  const exponent = getValueExponent(value);
   const paletteHex = resolveExtendedPaletteColor(exponent, palette);
   const paletteRgb = hexToRgb(paletteHex);
   const renderMode: SkinRenderMode = SKIN_RENDER_MODES[skinId] || 'standard';
@@ -452,27 +583,9 @@ function resolveExplicitPaletteSkin(
       style.boxShadow = `inset 0 0 8px rgba(0,0,0,0.45), ${getValueShadow(t)}`;
     }
     
-    // Mesh Gradient Logic
+    // Mesh Gradient: use the same stable renderer as mesh swatch skins.
     if (skinId === 'skin_art_mesh') {
-      const hsl = rgbToHsl(paletteRgb);
-      const h1 = (hsl.h + 30) % 360; // Analogous 1
-      const h2 = (hsl.h - 30 + 360) % 360; // Analogous 2
-      const h3 = (hsl.h + 180) % 360; // Complementary
-
-      const c1 = rgbToHex(hslToRgb({ h: h1, s: 70, l: 65 }));
-      const c2 = rgbToHex(hslToRgb({ h: h2, s: 80, l: 75 }));
-      const c3 = rgbToHex(hslToRgb({ h: h3, s: 60, l: 85 })); // soft complementary
-
-      // Soft mesh using large radial gradients
-      style.backgroundImage = `
-        radial-gradient(at 0% 0%, ${c2} 0px, transparent 50%),
-        radial-gradient(at 100% 0%, ${c1} 0px, transparent 50%),
-        radial-gradient(at 100% 100%, ${c2} 0px, transparent 50%),
-        radial-gradient(at 0% 100%, ${c1} 0px, transparent 50%),
-        radial-gradient(at 50% 50%, ${c3} 0px, transparent 50%)
-      `;
-      style.backgroundColor = paletteHex;
-      style.borderColor = 'rgba(255,255,255,0.4)';
+      Object.assign(style, buildMeshLayerStyle(paletteHex));
     }
   }
 
@@ -528,17 +641,7 @@ const resolveExtendedPaletteColor = (exponent: number, palette: string[]): strin
 // For light backgrounds, adds a subtle outline for legibility.
 
 function getAutoTextColor(bgRgb: Rgb): CSSProperties {
-  const lum = relativeLuminance(bgRgb);
-
-  if (lum > 0.55) {
-    // Light background: dark text with subtle shadow
-    return {
-      color: '#1a1a2e',
-      textShadow: '0 1px 1px rgba(255,255,255,0.3)',
-    };
-  }
-
-  // Dark background: white text
+  // Always white text – adaptive shadow handles legibility on all backgrounds.
   return getWhiteTextStyleForBackground(bgRgb);
 }
 

@@ -158,7 +158,10 @@
     "collectionComplete": "Collection Complete!",
     "purchaseButton": "🧩 Exchange for {{cost}} fragments",
     "insufficientFragments": "Not enough ({{current}}/{{cost}})",
-    "premium": "Premium"
+    "premium": "Premium",
+    "sectionNormal": "Standard Skins",
+    "sectionPremium": "Premium Skins",
+    "sectionMesh": "Mesh Gradient"
   },
   "skinAcquisition": {
     "title": "Skin Acquired!",

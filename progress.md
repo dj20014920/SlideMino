@@ -1726,3 +1726,34 @@ Original prompt: 게임 진행 화면(iPhone 포함)에서 광고 배너가 메�
 - 추가 비고:
   - 로컬 `playwright` 패키지 부재(`require.resolve('playwright')` 실패)로 스킬의 웹 자동조작 검증은 이번 턴에서 실행하지 못함.
   - 후속으로 실제 기기(iOS/Android)에서 `PLAYING -> 화면 끄기 30초 -> 복귀` 시 duration 증가 정지 여부를 확인 권장.
+
+## 2026-02-18 추가 작업 로그 (메쉬 그라디언트 20종 값 단계 색상 안정화)
+- 요청 이슈:
+  - 메쉬 그라디언트 계열에서 값(1→524288) 증가 시 색이 동일하게 보이거나, 반대로 보색으로 튀어 다른 색처럼 보이는 문제.
+- 수정 파일:
+  - `/Users/dj/Desktop/SlideMino/services/blockCustomization.ts`
+- 핵심 조치:
+  - `skin_mesh_swatch_*`와 `skin_art_mesh`를 공통 메쉬 렌더러로 통합.
+  - 값 단계별 베이스색 계산을 `log2(value)` 기반 단조 명도 감소 규칙으로 교체(`MAX_MESH_DARKEN_EXPONENT=19`, 1..524288 대응).
+  - 메쉬 레이어의 hue 편차를 ±10도 이내의 근접색으로 제한해 보색 튐 제거.
+- 검증:
+  - `npm run build` 성공.
+  - 수학 검증(Node 스크립트): 20개 메쉬 스와치 전체에서 명도 단조 감소 위반 0건, 인접 단계 중복색 0건.
+  - 메쉬 blob hue 편차 최대 10도 확인(과도한 색 이탈 방지).
+- 참고:
+  - 웹 메뉴에서 스킨 모달은 `isNativeApp()` 게이트로 노출되지 않아(웹 플랫폼) 실제 SkinModal UI 스냅샷 검증은 제한됨.
+  - `npx tsc --noEmit`는 기존 i18n 타입 오류(`components/SkinModal.tsx`, `components/SkinAcquisitionOverlay.tsx`)로 실패하며, 본 변경과 무관.
+
+## 2026-02-18 추가 작업 로그 (메쉬 스와치 감성 복원 요청 반영)
+- 사용자 피드백 반영:
+  - `skin_mesh_swatch_*`에서 기존 몽환형 메쉬(3중 radial) 감성이 사라졌다는 이슈.
+- 수정:
+  - `/Users/dj/Desktop/SlideMino/services/blockCustomization.ts`
+  - swatch 경로를 다음 규칙으로 복원:
+    - Base: `getSkinColorForValue(value, seedHex, 19)` (저값=화이트, 고값=원색 회복)
+    - Mesh: `+25°`, `-25°`, 하이라이트 변조색의 **radial-gradient 3개**
+    - 질감: `border: none`, `boxShadow` 유지, swatch 전용 `borderRadius: 50%`
+  - `skin_art_mesh`는 swatch와 동일 화이트 수렴이 아니라, explicit palette 색을 유지한 채 동일 메쉬 레이어 생성기로 렌더.
+- 검증:
+  - `npm run build` 성공.
+  - 20개 swatch 대상 수학 검증: 1..524288 구간 명도 단조 감소 위반 0건.

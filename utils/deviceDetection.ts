@@ -10,7 +10,7 @@ let cachedIsEmulator: boolean | null = null;
 
 // 테스트용 시뮬레이터 디바이스 ID (iPhone 13 Pro Max)
 const DEV_DEVICE_IDS = [
-  '31315303-0126-4AE3-808C-69E13BBAE0E7',
+  '68C93E0B-8569-49E9-87E9-E0847909932C',
 ];
 
 let cachedIsDevDevice: boolean | null = null;
@@ -26,13 +26,16 @@ export const isDevDevice = async (): Promise<boolean> => {
   try {
     // 시뮬레이터/에뮬레이터가 아니면 무조건 false (실기기 보호)
     const deviceInfo = await Device.getInfo();
+    console.log('[DevDevice] isVirtual:', deviceInfo.isVirtual, 'platform:', deviceInfo.platform);
     if (!deviceInfo.isVirtual) {
       cachedIsDevDevice = false;
       return false;
     }
     const idResult = await Device.getId();
     const deviceId = idResult.identifier?.toUpperCase() ?? '';
+    console.log('[DevDevice] identifier:', deviceId);
     cachedIsDevDevice = DEV_DEVICE_IDS.some(id => deviceId.includes(id.toUpperCase()));
+    console.log('[DevDevice] matched:', cachedIsDevDevice);
     return cachedIsDevDevice;
   } catch {
     cachedIsDevDevice = false;

@@ -158,7 +158,10 @@
     "collectionComplete": "收藏完成！",
     "purchaseButton": "🧩 {{cost}}个碎片兑换",
     "insufficientFragments": "碎片不足 ({{current}}/{{cost}})",
-    "premium": "高级"
+    "premium": "高级",
+    "sectionNormal": "普通皮肤",
+    "sectionPremium": "高级皮肤",
+    "sectionMesh": "网格渐变"
   },
   "skinAcquisition": {
     "title": "获得皮肤！",

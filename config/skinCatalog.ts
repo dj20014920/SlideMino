@@ -1,26 +1,26 @@
 import { SkinCatalogEntry } from '../types';
 
 const MESH_STAGE_SWATCHES = [
-  '#E0C3FC', // 1
-  '#FF9A9E', // 2
-  '#A18CD1', // 4
-  '#FAD0C4', // 8
-  '#8FD3F4', // 16
-  '#84FAB0', // 32
-  '#FCCB90', // 64
-  '#D299C2', // 128
-  '#A6C0FE', // 256
-  '#F68084', // 512
-  '#667EEA', // 1024
-  '#764BA2', // 2048
-  '#4FACFE', // 4096
-  '#00F2FE', // 8192
-  '#F093FB', // 16384
-  '#F5576C', // 32768
-  '#ECCB1E', // 65536
-  '#32B513', // 131072
-  '#107660', // 262144
-  '#09153B', // 524288
+  '#FF9A9E', // 1 (Warm Pink)
+  '#FECFEF', // 2 (Soft Pink)
+  '#F6D365', // 4 (Sunny Yellow)
+  '#84FAB0', // 8 (Mint)
+  '#8FD3F4', // 16 (Sky Blue)
+  '#A18CD1', // 32 (Soft Purple)
+  '#FFD1FF', // 64 (Pink White)
+  '#5EE7DF', // 128 (Aqua)
+  '#66A6FF', // 256 (Blue)
+  '#9FA5D5', // 512 (Lavender)
+  '#F11712', // 1024 (Bright Red)
+  '#00C9FF', // 2048 (Bright Cyan)
+  '#92FE9D', // 4096 (Light Green)
+  '#FC00FF', // 8192 (Neon Magenta)
+  '#00DBDE', // 16384 (Teal)
+  '#F9D423', // 32768 (Golden Yellow)
+  '#FF4E50', // 65536 (Sunset Red)
+  '#85FFBD', // 131072 (Lime)
+  '#CBB4D4', // 262144 (Muted Rose)
+  '#FA709A', // 524288 (Vibrant Pink - Replaces #09153B)
 ] as const;
 
 const MESH_STAGE_SINGLE_COLOR_SKINS: SkinCatalogEntry[] = MESH_STAGE_SWATCHES.map((hex, index) => ({

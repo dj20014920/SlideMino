@@ -158,7 +158,10 @@
     "collectionComplete": "コレクション完成！",
     "purchaseButton": "🧩 {{cost}}個のかけらで交換",
     "insufficientFragments": "かけら不足 ({{current}}/{{cost}})",
-    "premium": "プレミアム"
+    "premium": "プレミアム",
+    "sectionNormal": "通常スキン",
+    "sectionPremium": "プレミアムスキン",
+    "sectionMesh": "メッシュグラデーション"
   },
   "skinAcquisition": {
     "title": "スキン獲得！",

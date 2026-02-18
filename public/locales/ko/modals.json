@@ -158,7 +158,10 @@
     "collectionComplete": "컴렉션 완성!",
     "purchaseButton": "🧩 {{cost}}조각으로 교환",
     "insufficientFragments": "조각 부족 ({{current}}/{{cost}})",
-    "premium": "프리미엄"
+    "premium": "프리미엄",
+    "sectionNormal": "일반 스킨",
+    "sectionPremium": "프리미엄 스킨",
+    "sectionMesh": "메쉬 그라디언트"
   },
   "skinAcquisition": {
     "title": "스킨 획득!",

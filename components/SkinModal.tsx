@@ -65,22 +65,57 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
     [skinSettings]
   );
 
-  // 그리드를 행(row) 단위로 나누기 (6열)
-  const COLS = 6;
-  const skinRows = useMemo(() => {
-    const rows: typeof SKIN_CATALOG[] = [];
-    for (let i = 0; i < SKIN_CATALOG.length; i += COLS) {
-      rows.push(SKIN_CATALOG.slice(i, i + COLS) as any);
+  // 스킨 이름 표시 헬퍼 (메쉬 스킨은 M#XXXXXX 형태)
+  const getSkinDisplayName = useCallback((skin: { id?: string; hex: string; nameKey?: string }) => {
+    const isMeshSwatch = skin.id?.startsWith('skin_mesh_swatch');
+    if ('nameKey' in skin && skin.nameKey) {
+      return t(`skins:${skin.nameKey}`, skin.hex.toUpperCase());
     }
-    return rows;
+    return isMeshSwatch
+      ? `M${skin.hex.toUpperCase()}`
+      : skin.hex.toUpperCase();
+  }, [t]);
+
+  // 섹션별 그룹화 (일반 / 프리미엄 / 메쉬 그라디언트)
+  const COLS = 6;
+  type SkinSection = {
+    titleKey: string;
+    skins: typeof SKIN_CATALOG[number][];
+    rows: typeof SKIN_CATALOG[number][][];
+    rowOffset: number; // 전체 행 기준 offset (selectedRowIndex 계산용)
+  };
+  const skinSections = useMemo((): SkinSection[] => {
+    const normal = SKIN_CATALOG.filter(e => !e.premium && !e.id.startsWith('skin_mesh_swatch'));
+    const premium = SKIN_CATALOG.filter(e => e.premium);
+    const mesh = SKIN_CATALOG.filter(e => e.id.startsWith('skin_mesh_swatch'));
+
+    const toRows = (arr: typeof SKIN_CATALOG[number][]) => {
+      const r: typeof SKIN_CATALOG[number][][] = [];
+      for (let i = 0; i < arr.length; i += COLS) r.push(arr.slice(i, i + COLS));
+      return r;
+    };
+
+    const normalRows = toRows(normal);
+    const premiumRows = toRows(premium);
+    const meshRows = toRows(mesh);
+
+    return [
+      { titleKey: 'modals:skin.sectionPremium',  skins: premium, rows: premiumRows, rowOffset: 0 },
+      { titleKey: 'modals:skin.sectionMesh',     skins: mesh,    rows: meshRows,    rowOffset: premiumRows.length },
+      { titleKey: 'modals:skin.sectionNormal',   skins: normal,  rows: normalRows,  rowOffset: premiumRows.length + meshRows.length },
+    ];
   }, []);
 
-  // 선택된 스킨이 속한 행 인덱스 계산
-  const selectedRowIndex = useMemo(() => {
-    if (!selectedSkinId) return -1;
-    const idx = SKIN_CATALOG.findIndex(e => e.id === selectedSkinId);
-    return idx >= 0 ? Math.floor(idx / COLS) : -1;
-  }, [selectedSkinId]);
+  // 선택된 스킨이 속한 [섹션인덱스, 행인덱스] 계산
+  const selectedLocation = useMemo(() => {
+    if (!selectedSkinId) return null;
+    for (let si = 0; si < skinSections.length; si++) {
+      const sec = skinSections[si];
+      const idx = sec.skins.findIndex(e => e.id === selectedSkinId);
+      if (idx >= 0) return { sectionIdx: si, rowIdx: Math.floor(idx / COLS) };
+    }
+    return null;
+  }, [selectedSkinId, skinSections]);
 
   // 모달 열릴 때 광고 미리 로드
   useEffect(() => {
@@ -213,7 +248,13 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
 
               <div className="sunken-panel" style={{ height: '100%', minHeight: '180px', overflowY: 'scroll', padding: '6px', backgroundColor: '#c0c0c0' }}>
                 <div className="space-y-4">
-                  {skinRows.map((rowSkins, rowIndex) => (
+                  {skinSections.map((section, sectionIdx) => (
+                    <div key={sectionIdx}>
+                      <div style={{ fontSize: '10px', fontWeight: 'bold', marginBottom: '4px', borderBottom: '1px solid #808080', paddingBottom: '2px', color: '#000' }}>
+                        {t(section.titleKey)}{sectionIdx === 0 ? ' 💎' : sectionIdx === 1 ? ' ✦' : ''}
+                        <span style={{ marginLeft: '4px', fontWeight: 'normal' }}>({section.skins.length})</span>
+                      </div>
+                      {section.rows.map((rowSkins, rowIndex) => (
                     <React.Fragment key={rowIndex}>
                       <div className="grid grid-cols-6 gap-1">
                         {rowSkins.map((entry) => {
@@ -259,11 +300,9 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                       </div>
 
                       {/* Preview for Win98 */}
-                      {selectedRowIndex === rowIndex && selectedSkinId && (
+                      {selectedLocation?.sectionIdx === sectionIdx && selectedLocation?.rowIdx === rowIndex && selectedSkinId && (
                         <div className="field-row-stacked" style={{ padding: '8px', border: '1px dotted #808080', margin: '4px 0' }}>
-                          <label>{('nameKey' in previewSkin && previewSkin.nameKey) 
-                                ? t(`skins:${previewSkin.nameKey}`, previewSkin.hex.toUpperCase()) 
-                                : previewSkin.hex.toUpperCase()}</label>
+                          <label>{getSkinDisplayName(previewSkin as any)}</label>
                           <div className="flex gap-1 overflow-x-auto pb-2">
                              {SKIN_PREVIEW_VALUES.map((v) => (
                                <SkinPreviewTile key={v} value={v} skin={previewSkin} tilePx={40} />
@@ -294,6 +333,8 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                         </div>
                       )}
                     </React.Fragment>
+                  ))}
+                    </div>
                   ))}
                 </div>
               </div>
@@ -375,115 +416,121 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
 
           {/* 본문 */}
           <div className="p-5 overflow-y-auto min-h-0 flex-1 space-y-5">
-            {/* 컬렉션 그리드 (행 단위) */}
-            <div className="space-y-2.5">
-              {skinRows.map((rowSkins, rowIndex) => (
-                <React.Fragment key={rowIndex}>
-                  {/* 스킨 행 */}
-                  <div className="grid grid-cols-6 gap-2.5">
-                    {rowSkins.map((entry) => {
-                      const isOwned = ownedIds.has(entry.id);
-                      const isActive = skinSettings.activeSkinId === entry.id;
-                      const isSelected = selectedSkinId === entry.id;
-                      
-                      // For preview/thumbnail in grid, use resolved appearance of value 16
-                      const { className, style } = resolveSkinAppearance(16, entry);
-
-                      return (
-                        <button
-                          key={entry.id}
-                          type="button"
-                          onClick={() => handleSkinTap(entry.id, entry.hex)}
-                          className={`
-                            relative aspect-square rounded-2xl transition-all duration-150 overflow-hidden
-                            ${isSelected ? 'ring-2 ring-gray-900 ring-offset-2' : 'ring-1 ring-black/5'}
-                            ${!isOwned ? 'opacity-40 grayscale' : ''}
-                            ${className}
-                          `}
-                          style={style}
-                        >
-                          {/* 프리미엄 배지 */}
-                          {entry.premium && (
-                            <div className="absolute top-0.5 right-0.5 z-20 text-[8px] leading-none drop-shadow">💎</div>
-                          )}
-                          {/* 활성 스킨 체크마크 */}
-                          {isActive && (
-                            <div className="absolute inset-0 flex items-center justify-center z-10">
-                              <div className="w-6 h-6 rounded-full bg-white/90 flex items-center justify-center shadow-sm">
-                                <Check size={14} className="text-gray-900" />
-                              </div>
-                            </div>
-                          )}
-                          {/* 미보유 잠금 아이콘 */}
-                          {!isOwned && !isActive && (
-                            <div className="absolute inset-0 flex items-center justify-center z-10">
-                              <Lock size={12} className="text-white/70 drop-shadow-md" />
-                            </div>
-                          )}
-                        </button>
-                      );
-                    })}
+            {/* 섹션별 컬렉션 그리드 */}
+            <div className="space-y-5">
+              {skinSections.map((section, sectionIdx) => (
+                <div key={sectionIdx}>
+                  {/* 섹션 헤더 */}
+                  <div className="flex items-center gap-2 mb-2.5">
+                    <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+                      {t(section.titleKey)}{sectionIdx === 0 ? ' 💎' : sectionIdx === 1 ? ' ✦' : ''}
+                    </span>
+                    <div className="flex-1 h-px bg-gray-200" />
+                    <span className="text-xs text-gray-400">{section.skins.length}</span>
                   </div>
+                  <div className="space-y-2.5">
+                    {section.rows.map((rowSkins, rowIndex) => (
+                      <React.Fragment key={rowIndex}>
+                        {/* 스킨 행 */}
+                        <div className="grid grid-cols-6 gap-2.5">
+                          {rowSkins.map((entry) => {
+                            const isOwned = ownedIds.has(entry.id);
+                            const isActive = skinSettings.activeSkinId === entry.id;
+                            const isSelected = selectedSkinId === entry.id;
+                            const { className, style } = resolveSkinAppearance(16, entry);
 
-                  {/* 선택된 스킨의 행이면 바로 아래에 미리보기 드롭다운 */}
-                  <AnimatePresence>
-                    {selectedRowIndex === rowIndex && selectedSkinId && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
-                        className="overflow-hidden"
-                      >
-                        <div className="pt-3 pb-2 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-semibold text-gray-900">{t('modals:skin.preview')}</span>
-                            <span className="text-xs font-mono text-gray-500">
-                              {('nameKey' in previewSkin && previewSkin.nameKey) 
-                                ? t(`skins:${previewSkin.nameKey}`, previewSkin.hex.toUpperCase()) 
-                                : previewSkin.hex.toUpperCase()}
-                            </span>
-                          </div>
-                          <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 no-scrollbar">
-                            {SKIN_PREVIEW_VALUES.map((v) => (
-                              <SkinPreviewTile key={v} value={v} skin={previewSkin} tilePx={52} />
-                            ))}
-                          </div>
-                          {/* 선택 상태 안내 + 교환 버튼 */}
-                          <div className="text-xs text-center space-y-1.5">
-                            {ownedIds.has(selectedSkinId) ? (
-                              <span className="text-gray-500">{t('modals:skin.tapToApply')}</span>
-                            ) : (
-                              <>
-                                <div className="text-gray-500">{t('modals:skin.notOwned')}</div>
-                                {(() => {
-                                  const cost = getFragmentCost(selectedSkinId);
-                                  const canAfford = skinSettings.fragments >= cost;
-                                  return (
-                                    <button
-                                      type="button"
-                                      disabled={!canAfford}
-                                      onClick={(e) => { e.stopPropagation(); handlePurchase(selectedSkinId); }}
-                                      className={`w-full py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                                        canAfford
-                                          ? 'bg-gray-900 text-white hover:bg-gray-800 active:scale-[0.98]'
-                                          : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                      }`}
-                                    >
-                                      {canAfford
-                                        ? t('modals:skin.purchaseButton', { cost })
-                                        : t('modals:skin.insufficientFragments', { current: skinSettings.fragments, cost })}
-                                    </button>
-                                  );
-                                })()}
-                              </>
-                            )}
-                          </div>
+                            return (
+                              <button
+                                key={entry.id}
+                                type="button"
+                                onClick={() => handleSkinTap(entry.id, entry.hex)}
+                                className={`
+                                  relative aspect-square rounded-2xl transition-all duration-150 overflow-hidden
+                                  ${isSelected ? 'ring-2 ring-gray-900 ring-offset-2' : 'ring-1 ring-black/5'}
+                                  ${!isOwned ? 'opacity-40 grayscale' : ''}
+                                  ${className}
+                                `}
+                                style={style}
+                              >
+                                {entry.premium && (
+                                  <div className="absolute top-0.5 right-0.5 z-20 text-[8px] leading-none drop-shadow">💎</div>
+                                )}
+                                {isActive && (
+                                  <div className="absolute inset-0 flex items-center justify-center z-10">
+                                    <div className="w-6 h-6 rounded-full bg-white/90 flex items-center justify-center shadow-sm">
+                                      <Check size={14} className="text-gray-900" />
+                                    </div>
+                                  </div>
+                                )}
+                                {!isOwned && !isActive && (
+                                  <div className="absolute inset-0 flex items-center justify-center z-10">
+                                    <Lock size={12} className="text-white/70 drop-shadow-md" />
+                                  </div>
+                                )}
+                              </button>
+                            );
+                          })}
                         </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </React.Fragment>
+
+                        {/* 선택된 스킨의 행이면 바로 아래에 미리보기 드롭다운 */}
+                        <AnimatePresence>
+                          {selectedLocation?.sectionIdx === sectionIdx && selectedLocation?.rowIdx === rowIndex && selectedSkinId && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
+                              className="overflow-hidden"
+                            >
+                              <div className="pt-3 pb-2 space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm font-semibold text-gray-900">{t('modals:skin.preview')}</span>
+                                  <span className="text-xs font-mono text-gray-500">
+                                    {getSkinDisplayName(previewSkin as any)}
+                                  </span>
+                                </div>
+                                <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 no-scrollbar">
+                                  {SKIN_PREVIEW_VALUES.map((v) => (
+                                    <SkinPreviewTile key={v} value={v} skin={previewSkin} tilePx={52} />
+                                  ))}
+                                </div>
+                                <div className="text-xs text-center space-y-1.5">
+                                  {ownedIds.has(selectedSkinId) ? (
+                                    <span className="text-gray-500">{t('modals:skin.tapToApply')}</span>
+                                  ) : (
+                                    <>
+                                      <div className="text-gray-500">{t('modals:skin.notOwned')}</div>
+                                      {(() => {
+                                        const cost = getFragmentCost(selectedSkinId);
+                                        const canAfford = skinSettings.fragments >= cost;
+                                        return (
+                                          <button
+                                            type="button"
+                                            disabled={!canAfford}
+                                            onClick={(e) => { e.stopPropagation(); handlePurchase(selectedSkinId); }}
+                                            className={`w-full py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                                              canAfford
+                                                ? 'bg-gray-900 text-white hover:bg-gray-800 active:scale-[0.98]'
+                                                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                            }`}
+                                          >
+                                            {canAfford
+                                              ? t('modals:skin.purchaseButton', { cost })
+                                              : t('modals:skin.insufficientFragments', { current: skinSettings.fragments, cost })}
+                                          </button>
+                                        );
+                                      })()}
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </React.Fragment>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
 

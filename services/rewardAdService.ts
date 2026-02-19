@@ -10,8 +10,8 @@
 
 import { GoogleAdMob } from '@apps-in-toss/web-framework';
 import { AdMob, RewardAdOptions, RewardAdPluginEvents, AdMobRewardItem, AdLoadInfo } from '@capacitor-community/admob';
-import { getRewardAdId, isRewardAdSupported, CURRENT_AD_PLATFORM } from './adConfig';
-import { ensureAdMobReady } from './admob';
+import { getRewardAdId, isRewardAdSupported, CURRENT_AD_PLATFORM, ADMOB_TEST_AD_IDS } from './adConfig';
+import { ensureAdMobReady, isVirtualDevice } from './admob';
 import { CooldownGate, RetryBackoffScheduler, HourlyFrequencyCap, ClickAbuseGuard } from './adResilience';
 import { MAX_DAILY_AD_VIEWS, REWARD_UNDO_AMOUNT } from '../constants';
 
@@ -385,9 +385,13 @@ class RewardAdService {
       return;
     }
 
-    const options: RewardAdOptions = {
-      adId: this.adGroupId,
-    };
+    // 시뮬레이터/에뮬레이터에서는 Google 공식 테스트 광고 ID 사용 (fill 보장)
+    const virtual = await isVirtualDevice();
+    const adId = virtual
+      ? (CURRENT_AD_PLATFORM === 'admob-ios' ? ADMOB_TEST_AD_IDS.IOS.REWARD : ADMOB_TEST_AD_IDS.ANDROID.REWARD)
+      : this.adGroupId;
+
+    const options: RewardAdOptions = { adId };
 
     try {
       await AdMob.prepareRewardVideoAd(options);

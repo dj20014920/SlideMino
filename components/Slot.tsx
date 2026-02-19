@@ -82,14 +82,14 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
         <button
           type="button"
           className={`
-            absolute left-1.5 bottom-1.5 z-10
+            absolute left-1 bottom-1 z-10
             touch-manipulation
             inline-flex items-center justify-center
             transition-colors duration-150
             opacity-100
             ${isWin98ThemeActive
               ? 'win98-game-btn win98-slot-rotate-btn text-gray-700'
-              : 'w-7 h-7 rounded-full bg-white/80 text-gray-600 border border-white/40 shadow-md hover:bg-gray-800 hover:text-white hover:border-gray-700'
+              : 'w-6 h-6 rounded-full bg-white/80 text-gray-600 border border-white/40 shadow-md hover:bg-gray-800 hover:text-white hover:border-gray-700'
             }
           `}
           data-rotate-button
@@ -108,7 +108,7 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
           }}
           aria-label={t('common:aria.rotateBlock')}
         >
-          <RotateCw size={isWin98ThemeActive ? 11 : 13} />
+          <RotateCw size={isWin98ThemeActive ? 10 : 12} />
         </button>
       )}
 

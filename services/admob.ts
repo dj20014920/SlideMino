@@ -25,22 +25,26 @@ const ensureStarted = async (): Promise<void> => {
   if (startPromise) return startPromise;
 
   startPromise = (async () => {
-    await AdMob.initialize();
-
     let consentInfo: AdmobConsentInfo | null = null;
     let isVirtual = false;
 
-    try {
-      consentInfo = await AdMob.requestConsentInfo();
-    } catch {
-      consentInfo = null;
-    }
-
+    // Device 정보를 먼저 가져와야 initialize 옵션에 반영 가능
     try {
       const deviceInfo = await Device.getInfo();
       isVirtual = Boolean(deviceInfo.isVirtual);
     } catch {
       isVirtual = false;
+    }
+
+    await AdMob.initialize({
+      // 시뮬레이터/에뮬레이터에서는 자동으로 테스트 광고 사용 (fill 없음 오류 방지)
+      initializeForTesting: isVirtual,
+    });
+
+    try {
+      consentInfo = await AdMob.requestConsentInfo();
+    } catch {
+      consentInfo = null;
     }
 
     // iOS only: ATT status can affect ad personalization.

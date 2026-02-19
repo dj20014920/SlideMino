@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { AnimatePresence } from 'framer-motion';
 import { LoadingScreen } from './components/LoadingScreen';
 import { useTranslation } from 'react-i18next';
-import { App as CapacitorApp } from '@capacitor/app';
 import { SplashScreen } from '@capacitor/splash-screen';
 import {
   GameState,
@@ -81,7 +80,7 @@ import {
 
 const EMPTY_TILE_VALUE_OVERRIDES: Record<string, number> = {};
 const EMPTY_MERGING_TILES: MergingTile[] = [];
-const DRAG_OVERLAY_SCALE = 1;
+const DRAG_OVERLAY_SCALE = 0.65;
 const LIVE_RANK_POLL_INTERVAL_MS = 5000;
 const LIVE_RANK_SCORE_SYNC_DEBOUNCE_MS = 350;
 const LIVE_RANK_MIN_REQUEST_INTERVAL_MS = 1000;
@@ -445,17 +444,22 @@ const App: React.FC = () => {
 
     void runVersionCheck();
 
-    CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+    void import('@capacitor/app').then(({ App: CapacitorApp }) => {
+      if (isDisposed) return;
+      CapacitorApp.addListener('appStateChange', ({ isActive }) => {
       if (!isActive) return;
       void runVersionCheck();
-    }).then((handle) => {
-      if (isDisposed) {
-        void handle.remove();
-        return;
-      }
-      listenerHandle = handle;
+      }).then((handle) => {
+        if (isDisposed) {
+          void handle.remove();
+          return;
+        }
+        listenerHandle = handle;
+      }).catch(() => {
+        // ignore
+      });
     }).catch(() => {
-      // ignore
+      // ignore — web environment
     });
 
     return () => {
@@ -1570,7 +1574,7 @@ const App: React.FC = () => {
 
   const applyDragOverlayTransform = useCallback((pointerX: number, pointerY: number) => {
     if (!dragOverlayRef.current) return;
-    dragOverlayRef.current.style.transform = `translate3d(${pointerX}px, ${pointerY}px, 0) scale(${DRAG_OVERLAY_SCALE})`;
+    dragOverlayRef.current.style.transform = `translate3d(${pointerX}px, ${pointerY}px, 0)`;
   }, []);
 
   const rotateActivePiece = useCallback(() => {
@@ -2094,7 +2098,8 @@ const App: React.FC = () => {
     if (!draggingPiece) return null;
 
     const cells = draggingPiece.cells;
-    const cellSize = boardMetricsRef.current?.cell ?? 32;
+    const baseCellSize = boardMetricsRef.current?.cell ?? 32;
+    const cellSize = baseCellSize * DRAG_OVERLAY_SCALE;
     const cellAppearance = resolveTileAppearance(draggingPiece.value);
     const { minX, maxX, minY, maxY } = getPieceBounds(cells);
     const centerOffsetX = ((minX + maxX) / 2 + 0.5) * cellSize;

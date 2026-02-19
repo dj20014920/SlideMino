@@ -1,4 +1,4 @@
-import { App as CapacitorApp } from '@capacitor/app';
+
 import { BASE_URL } from '../config/constants';
 import { getNativePlatform, type NativePlatform } from '../utils/platform';
 
@@ -141,6 +141,7 @@ const fetchIosLiveUpdateInfo = async (): Promise<IosLiveUpdatePayload['ios'] | n
 
 const getCurrentNativeAppVersion = async (): Promise<string | null> => {
   try {
+    const { App: CapacitorApp } = await import('@capacitor/app');
     const appInfo = await CapacitorApp.getInfo();
     if (isNonEmptyString(appInfo.version)) {
       return appInfo.version.trim();

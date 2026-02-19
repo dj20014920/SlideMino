@@ -65,6 +65,26 @@ export const ADSENSE_AD_IDS = {
 } as const;
 
 /**
+ * Google 공식 테스트 광고 ID - 시뮬레이터/에뮬레이터 전용
+ * 이 ID들은 항상 테스트 광고를 반환합니다 (fill 보장)
+ * https://developers.google.com/admob/ios/test-ads
+ */
+export const ADMOB_TEST_AD_IDS = {
+  IOS: {
+    REWARD: 'ca-app-pub-3940256099942544/1712485313',
+    REWARD_INTERSTITIAL: 'ca-app-pub-3940256099942544/6978759866',
+    INTERSTITIAL: 'ca-app-pub-3940256099942544/4411468910',
+    BANNER: 'ca-app-pub-3940256099942544/2934735716',
+  },
+  ANDROID: {
+    REWARD: 'ca-app-pub-3940256099942544/5224354917',
+    REWARD_INTERSTITIAL: 'ca-app-pub-3940256099942544/5354046379',
+    INTERSTITIAL: 'ca-app-pub-3940256099942544/1033173712',
+    BANNER: 'ca-app-pub-3940256099942544/6300978111',
+  },
+} as const;
+
+/**
  * Google AdMob 광고 ID (네이티브 앱 환경)
  */
 export const ADMOB_AD_IDS = {

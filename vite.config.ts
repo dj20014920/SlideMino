@@ -22,8 +22,6 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       rollupOptions: {
-        // Capacitor 플러그인은 네이티브 앱에서만 사용되므로 웹 빌드에서 제외
-        external: ['@capacitor/app'],
       },
     },
   };

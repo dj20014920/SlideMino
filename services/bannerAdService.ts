@@ -6,9 +6,10 @@
  */
 
 import { GoogleAdMob } from '@apps-in-toss/web-framework';
-import { AdMob, BannerAdPosition, BannerAdSize, BannerAdOptions } from '@capacitor-community/admob';
+import { AdMob, BannerAdPosition, BannerAdSize, BannerAdOptions, BannerAdPluginEvents } from '@capacitor-community/admob';
 import { getBannerAdId, isBannerAdSupported, CURRENT_AD_PLATFORM } from './adConfig';
 import { ensureAdMobReady } from './admob';
+import { trackAnalyticsEvent } from './analyticsService';
 
 // ==========================================
 // 📌 타입 정의
@@ -27,6 +28,8 @@ class BannerAdService {
   private bannerUsers = 0;
   // show/hide 레이스 방지용 직렬 큐
   private syncQueue: Promise<void> = Promise.resolve();
+  private isAdMobListenersRegistered = false;
+  private hasTrackedAdMobImpressionForCurrentBanner = false;
 
   constructor() {
     this.adUnitId = getBannerAdId();
@@ -36,6 +39,10 @@ class BannerAdService {
       console.log('[BannerAdService] 플랫폼:', CURRENT_AD_PLATFORM);
       console.log('[BannerAdService] 광고 ID:', this.adUnitId);
       console.log('[BannerAdService] 지원 여부:', isBannerAdSupported());
+    }
+
+    if (CURRENT_AD_PLATFORM === 'admob-ios' || CURRENT_AD_PLATFORM === 'admob-android') {
+      this.setupAdMobBannerListeners();
     }
   }
 
@@ -88,10 +95,18 @@ class BannerAdService {
 
           case 'impression':
             console.log('[BannerAdService] 배너 노출');
+            trackAnalyticsEvent({
+              name: 'ad_banner_impression',
+              meta: { source: 'apps-in-toss' },
+            });
             break;
 
           case 'clicked':
             console.log('[BannerAdService] 배너 클릭');
+            trackAnalyticsEvent({
+              name: 'ad_banner_click',
+              meta: { source: 'apps-in-toss' },
+            });
             break;
 
           case 'dismissed':
@@ -132,12 +147,40 @@ class BannerAdService {
     try {
       await AdMob.showBanner(options);
       this.showStatus = 'showing';
+      if (!this.hasTrackedAdMobImpressionForCurrentBanner) {
+        trackAnalyticsEvent({
+          name: 'ad_banner_impression',
+          meta: { source: 'admob-show-fallback' },
+        });
+        this.hasTrackedAdMobImpressionForCurrentBanner = true;
+      }
       console.log('[BannerAdService] AdMob 배너 표시 완료');
     } catch (error) {
       this.showStatus = 'failed';
       console.error('[BannerAdService] AdMob 배너 표시 실패:', error);
       throw error;
     }
+  }
+
+  private setupAdMobBannerListeners(): void {
+    if (this.isAdMobListenersRegistered) return;
+    this.isAdMobListenersRegistered = true;
+
+    AdMob.addListener(BannerAdPluginEvents.AdImpression, () => {
+      if (this.hasTrackedAdMobImpressionForCurrentBanner) return;
+      trackAnalyticsEvent({
+        name: 'ad_banner_impression',
+        meta: { source: 'admob' },
+      });
+      this.hasTrackedAdMobImpressionForCurrentBanner = true;
+    });
+
+    AdMob.addListener(BannerAdPluginEvents.Opened, () => {
+      trackAnalyticsEvent({
+        name: 'ad_banner_click',
+        meta: { source: 'admob' },
+      });
+    });
   }
 
   // ==========================================
@@ -242,6 +285,7 @@ class BannerAdService {
       console.error('[BannerAdService] 배너 숨기기 실패:', error);
     } finally {
       this.showStatus = 'idle';
+      this.hasTrackedAdMobImpressionForCurrentBanner = false;
     }
   }
 }

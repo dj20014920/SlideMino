@@ -57,7 +57,7 @@ export const NativeUpdateModal: React.FC<NativeUpdateModalProps> = ({
         </div>
 
         <p className="mt-3 text-center text-xs text-gray-500">
-          {t('modals:updateRequired.storeHint', { store: storeLabel })}
+          {String(t('modals:updateRequired.storeHint', { store: storeLabel } as any))}
         </p>
 
         <button

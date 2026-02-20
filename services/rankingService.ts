@@ -25,11 +25,13 @@ export interface LeaderboardResponse {
 export interface LiveRankEstimate {
     rank: number;
     pointsToNext: number;
+    totalEntries: number;
 }
 
 interface LiveRankApiResponse {
     rank?: unknown;
     pointsToNext?: unknown;
+    totalEntries?: unknown;
 }
 
 interface PendingScore {
@@ -235,6 +237,7 @@ const estimateLiveRank = (score: number, difficulty: string, leaderboard: RankEn
         return {
             rank: 1,
             pointsToNext: 0,
+            totalEntries: 0,
         };
     }
 
@@ -244,7 +247,8 @@ const estimateLiveRank = (score: number, difficulty: string, leaderboard: RankEn
 
     return {
         rank,
-        pointsToNext: nextHigherScore === null ? 0 : Math.max(0, nextHigherScore - score + 1),
+        pointsToNext: nextHigherScore === null ? 0 : Math.max(0, nextHigherScore - score),
+        totalEntries: sameDifficultyScores.length,
     };
 };
 
@@ -253,6 +257,9 @@ const parseLiveRankEstimate = (payload: LiveRankApiResponse): LiveRankEstimate |
     const pointsToNext = typeof payload.pointsToNext === 'number'
         ? payload.pointsToNext
         : Number(payload.pointsToNext);
+    const totalEntries = typeof payload.totalEntries === 'number'
+        ? payload.totalEntries
+        : Number(payload.totalEntries ?? 0);
 
     if (!Number.isFinite(rank) || !Number.isFinite(pointsToNext)) {
         return null;
@@ -261,6 +268,7 @@ const parseLiveRankEstimate = (payload: LiveRankApiResponse): LiveRankEstimate |
     return {
         rank: Math.max(1, Math.floor(rank)),
         pointsToNext: Math.max(0, Math.floor(pointsToNext)),
+        totalEntries: Math.max(0, Math.floor(totalEntries)),
     };
 };
 

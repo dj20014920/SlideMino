@@ -351,13 +351,13 @@ export const SkinAcquisitionOverlay: React.FC<SkinAcquisitionOverlayProps> = ({
                 style={{ backgroundColor: colors.corona, textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}
             >
               {isDuplicate
-                ? t('modals:skinAcquisition.fragmentEarned', { count: fragmentsEarned })
+                ? String(t('modals:skinAcquisition.fragmentEarned', { count: fragmentsEarned } as any))
                 : skinHex.toUpperCase()}
             </div>
             
             <div className="text-base text-white/70 font-medium">
               {isDuplicate
-                ? t('modals:skinAcquisition.totalFragments', { total: totalFragments })
+                ? String(t('modals:skinAcquisition.totalFragments', { total: totalFragments } as any))
                 : t('modals:skinAcquisition.addedToCollection')}
             </div>
             
@@ -377,4 +377,3 @@ export const SkinAcquisitionOverlay: React.FC<SkinAcquisitionOverlayProps> = ({
     </motion.div>
   );
 };
-

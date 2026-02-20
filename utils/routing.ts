@@ -1,19 +1,30 @@
 /**
- * 라우팅 유틸리티 - 해시 기반 SPA 라우팅
+ * 라우팅 유틸리티 - Hash + Path 하이브리드 SPA 라우팅
  * React Router 없이 경량 라우팅 시스템 구현
  */
 
 import { BASE_URL } from '../config/constants';
 
-export type Route = '/' | '/privacy' | '/terms' | '/about' | '/contact';
+export type Route = '/' | '/privacy' | '/terms' | '/about' | '/contact' | '/admin-analytics';
+
+const VALID_ROUTES: Route[] = ['/', '/privacy', '/terms', '/about', '/contact', '/admin-analytics'];
+
+const resolvePathRoute = (): Route | null => {
+  const path = window.location.pathname || '/';
+  if (path.startsWith('/admin')) return '/admin-analytics';
+  if (VALID_ROUTES.includes(path as Route)) return path as Route;
+  return null;
+};
 
 /**
- * 현재 해시 기반 라우트 가져오기
+ * 현재 라우트 가져오기 (path 우선, hash fallback)
  */
 export const getCurrentRoute = (): Route => {
+  const pathRoute = resolvePathRoute();
+  if (pathRoute) return pathRoute;
+
   const hash = window.location.hash.slice(1) || '/';
-  const validRoutes: Route[] = ['/', '/privacy', '/terms', '/about', '/contact'];
-  return validRoutes.includes(hash as Route) ? (hash as Route) : '/';
+  return VALID_ROUTES.includes(hash as Route) ? (hash as Route) : '/';
 };
 
 /**
@@ -24,12 +35,16 @@ export const navigateTo = (route: Route): void => {
 };
 
 /**
- * 해시 변경 이벤트 리스너 등록
+ * 경로/해시 변경 이벤트 리스너 등록
  */
 export const onRouteChange = (callback: (route: Route) => void): (() => void) => {
   const handler = () => callback(getCurrentRoute());
   window.addEventListener('hashchange', handler);
-  return () => window.removeEventListener('hashchange', handler);
+  window.addEventListener('popstate', handler);
+  return () => {
+    window.removeEventListener('hashchange', handler);
+    window.removeEventListener('popstate', handler);
+  };
 };
 
 /**
@@ -56,6 +71,10 @@ export const updatePageMeta = (route: Route): void => {
     '/contact': {
       title: 'Contact Us - 블록 슬라이드 (Block Slide) Support',
       description: 'Get in touch with the 블록 슬라이드 (Block Slide) team. Report bugs, share feedback, or ask questions. We\'re here to help!'
+    },
+    '/admin-analytics': {
+      title: 'Admin Analytics - SlideMino',
+      description: 'SlideMino 관리자 전용 분석 콘솔 페이지.',
     }
   };
 

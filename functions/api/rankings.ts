@@ -6,47 +6,11 @@
 import { resetRankingsIfNewMonth } from '../utils/monthlyReset';
 import { checkRateLimit, getClientIp } from '../utils/rateLimit';
 import { validateDifficulty, validateScore } from '../utils/validation';
+import { buildCorsHeaders } from '../utils/cors';
 
 interface Env {
   DB: D1Database;
   RANKINGS_RATE_LIMITER?: RateLimit; // Rate Limiting 바인딩 (선택적)
-}
-
-/**
- * CORS 헤더 생성
- */
-function getCorsHeaders(request: Request): Record<string, string> {
-  const origin = request.headers.get('Origin') || '';
-
-  const allowedOrigins = new Set([
-    'https://slidemino.emozleep.space',
-    'https://www.slidemino.emozleep.space',
-    // Capacitor/Ionic native app origins (WebView)
-    'capacitor://localhost',
-    'ionic://localhost',
-    // Some WebView stacks may report as http(s) localhost
-    'http://localhost',
-    'https://localhost',
-  ]);
-
-  let isAllowed = false;
-  if (origin) {
-    try {
-      const parsed = new URL(origin);
-      const isLocalDevHost = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
-      const normalizedOrigin = `${parsed.protocol}//${parsed.host}`;
-      isAllowed = isLocalDevHost || allowedOrigins.has(normalizedOrigin);
-    } catch {
-      isAllowed = false;
-    }
-  }
-
-  return {
-    'Access-Control-Allow-Origin': isAllowed ? origin : 'https://slidemino.emozleep.space',
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Max-Age': '86400',
-  };
 }
 
 /**
@@ -71,7 +35,7 @@ function errorResponse(message: string, status: number, headers: Record<string, 
 export const onRequestOptions: PagesFunction<Env> = async (context) => {
   return new Response(null, {
     status: 204,
-    headers: getCorsHeaders(context.request),
+    headers: buildCorsHeaders(context.request, 'GET, OPTIONS'),
   });
 };
 
@@ -80,7 +44,7 @@ export const onRequestOptions: PagesFunction<Env> = async (context) => {
  */
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
-  const corsHeaders = getCorsHeaders(request);
+  const corsHeaders = buildCorsHeaders(request, 'GET, OPTIONS');
 
   try {
     // ========== Rate Limiting (Layer 2) ==========
@@ -131,30 +95,42 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       const score = scoreValidation.value!;
 
       try {
-        const higherCountResult = await env.DB.prepare(
-          `SELECT COUNT(*) as higher_count
-           FROM rankings
-           WHERE difficulty = ? AND score > ?`
-        ).bind(difficulty, score).first<{ higher_count: number | string }>();
+        // 3개의 쿼리를 병렬 실행: 상위 점수 수, 바로 윗 점수, 해당 난이도 총 엔트리 수
+        const [higherCountResult, nextHigherScoreResult, totalEntriesResult] = await Promise.all([
+          env.DB.prepare(
+            `SELECT COUNT(*) as higher_count
+             FROM rankings
+             WHERE difficulty = ? AND score > ?`
+          ).bind(difficulty, score).first<{ higher_count: number | string }>(),
 
-        const nextHigherScoreResult = await env.DB.prepare(
-          `SELECT MIN(score) as next_higher_score
-           FROM rankings
-           WHERE difficulty = ? AND score > ?`
-        ).bind(difficulty, score).first<{ next_higher_score: number | null }>();
+          env.DB.prepare(
+            `SELECT MIN(score) as next_higher_score
+             FROM rankings
+             WHERE difficulty = ? AND score > ?`
+          ).bind(difficulty, score).first<{ next_higher_score: number | null }>(),
+
+          env.DB.prepare(
+            `SELECT COUNT(*) as total
+             FROM rankings
+             WHERE difficulty = ?`
+          ).bind(difficulty).first<{ total: number | string }>(),
+        ]);
 
         const higherCount = Number(higherCountResult?.higher_count ?? 0);
         const nextHigherScore = typeof nextHigherScoreResult?.next_higher_score === 'number'
           ? nextHigherScoreResult.next_higher_score
           : null;
+        const totalEntries = Number(totalEntriesResult?.total ?? 0);
 
         const rank = Math.max(1, higherCount + 1);
-        const pointsToNext = nextHigherScore === null ? 0 : Math.max(0, nextHigherScore - score + 1);
+        // 동점이면 같은 순위이므로 nextHigherScore에 도달하면 순위 상승 (+1 불필요)
+        const pointsToNext = nextHigherScore === null ? 0 : Math.max(0, nextHigherScore - score);
 
         return new Response(
           JSON.stringify({
             rank,
             pointsToNext,
+            totalEntries,
             difficulty,
             score,
           }),

@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { loadAdSenseScript } from '../services/adsense';
 import { isNativeApp, isAppIntoS } from '../utils/platform';
 import { getCookieConsent, onCookieConsentChange } from '../services/adConsent';
 import { bannerAdService } from '../services/bannerAdService';
 import { isScreenshotMode } from '../services/adConfig';
 import { isVirtualDevice } from '../services/admob';
+import { trackAnalyticsEvent } from '../services/analyticsService';
 
 const AdBanner: React.FC = () => {
     if (isScreenshotMode()) return null;
@@ -22,6 +23,8 @@ const AdBanner: React.FC = () => {
 
     const [nativeBannerHeightPx, setNativeBannerHeightPx] = useState(() => getNativeBannerHeightPx());
     const [nativeBannerAllowed, setNativeBannerAllowed] = useState<boolean | null>(null);
+    const adSlotRef = useRef<HTMLElement | null>(null);
+    const webImpressionTrackedRef = useRef(false);
 
     useEffect(() => {
         if (!native) return;
@@ -82,6 +85,34 @@ const AdBanner: React.FC = () => {
         } catch (err) {
             console.error('AdSense error:', err);
         }
+        const slotElement = adSlotRef.current;
+        if (!slotElement || webImpressionTrackedRef.current) return;
+
+        if (typeof IntersectionObserver === 'undefined') {
+            webImpressionTrackedRef.current = true;
+            trackAnalyticsEvent({
+                name: 'ad_banner_impression',
+                meta: { source: 'adsense-web' },
+            });
+            return;
+        }
+
+        const observer = new IntersectionObserver((entries) => {
+            if (webImpressionTrackedRef.current) return;
+            for (const entry of entries) {
+                if (!entry.isIntersecting) continue;
+                webImpressionTrackedRef.current = true;
+                trackAnalyticsEvent({
+                    name: 'ad_banner_impression',
+                    meta: { source: 'adsense-web' },
+                });
+                observer.disconnect();
+                break;
+            }
+        }, { threshold: 0.2 });
+
+        observer.observe(slotElement);
+        return () => observer.disconnect();
     }, [consent, native, appIntoS]);
 
     // 네이티브(앱인토스 포함): 네이티브 SDK가 직접 배너를 그리므로 공간만 확보
@@ -104,6 +135,9 @@ const AdBanner: React.FC = () => {
             Replace YOUR_AD_SLOT_ID with your actual Ad Slot ID from Google AdSense dashboard 
         */}
             <ins
+                ref={(node) => {
+                    adSlotRef.current = node;
+                }}
                 className="adsbygoogle"
                 style={{ display: 'block', width: '100%' }}
                 data-ad-client="ca-pub-5319827978116991"

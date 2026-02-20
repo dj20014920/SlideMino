@@ -14,6 +14,7 @@ import {
 } from '../utils/validation';
 import { resetRankingsIfNewMonth } from '../utils/monthlyReset';
 import { checkRateLimit, getClientIp } from '../utils/rateLimit';
+import { buildCorsHeaders } from '../utils/cors';
 
 interface Env {
   DB: D1Database;
@@ -28,45 +29,6 @@ interface SubmitRequest {
   duration: unknown;
   moves: unknown;
   timestamp?: unknown;
-}
-
-/**
- * CORS 헤더 생성
- * 프로덕션: 특정 도메인만 허용
- */
-function getCorsHeaders(request: Request): Record<string, string> {
-  const origin = request.headers.get('Origin') || '';
-
-  // 허용된 도메인 목록
-  const allowedOrigins = new Set([
-    'https://slidemino.emozleep.space',
-    'https://www.slidemino.emozleep.space',
-    // Capacitor/Ionic native app origins (WebView)
-    'capacitor://localhost',
-    'ionic://localhost',
-    // Some WebView stacks may report as http(s) localhost
-    'http://localhost',
-    'https://localhost',
-  ]);
-
-  let isAllowed = false;
-  if (origin) {
-    try {
-      const parsed = new URL(origin);
-      const isLocalDevHost = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
-      const normalizedOrigin = `${parsed.protocol}//${parsed.host}`;
-      isAllowed = isLocalDevHost || allowedOrigins.has(normalizedOrigin);
-    } catch {
-      isAllowed = false;
-    }
-  }
-
-  return {
-    'Access-Control-Allow-Origin': isAllowed ? origin : 'https://slidemino.emozleep.space',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Max-Age': '86400',
-  };
 }
 
 /**
@@ -115,7 +77,7 @@ function alreadySubmittedResponse(headers: Record<string, string>): Response {
 export const onRequestOptions: PagesFunction<Env> = async (context) => {
   return new Response(null, {
     status: 204,
-    headers: getCorsHeaders(context.request),
+    headers: buildCorsHeaders(context.request, 'POST, OPTIONS'),
   });
 };
 
@@ -124,7 +86,7 @@ export const onRequestOptions: PagesFunction<Env> = async (context) => {
  */
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
-  const corsHeaders = getCorsHeaders(request);
+  const corsHeaders = buildCorsHeaders(request, 'POST, OPTIONS');
 
   try {
     // ========== Rate Limiting (Layer 2) ==========

@@ -46,10 +46,12 @@ import {
   BOARD_CELL_GAP_PX,
   SLIDE_UNLOCK_BUFFER_MS,
   getSlideAnimationDurationMs,
+  FRAGMENTS_PER_DUPLICATE,
   INITIAL_BLOCK_REFRESH_AMOUNT,
   INITIAL_UNDO_AMOUNT,
   REWARD_BLOCK_REFRESH_AMOUNT,
   REWARD_UNDO_AMOUNT,
+  SKIN_CATALOG,
 } from './constants';
 import { useBlockCustomization } from './context/BlockCustomizationContext';
 import { saveGameState, loadGameState, clearGameState, hasActiveGame, type SavedGameState } from './services/gameStorage';
@@ -63,9 +65,17 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import Terms from './pages/Terms';
 import About from './pages/About';
 import Contact from './pages/Contact';
+import AdminAnalytics from './pages/AdminAnalytics';
 import { rewardAdService } from './services/rewardAdService';
 import { rewardInterstitialAdService } from './services/rewardInterstitialAdService';
 import { blockRefreshRewardInterstitialAdService } from './services/blockRefreshRewardInterstitialAdService';
+import {
+  trackAnalyticsEvent,
+  trackAppLaunchOnce,
+  trackLegacyInstallDetectedOnce,
+  trackSessionEndOnce,
+} from './services/analyticsService';
+import { claimPendingSkinGifts } from './services/skinGiftService';
 import {
   isBlockRefreshRewardInterstitialAdSupported,
   isRewardAdSupported,
@@ -257,7 +267,8 @@ const getGameLayoutProfile = (
     1.04
   );
   const mainGapPx = Math.round(clamp(lerp(12, 22, tallProgress) * (isLandscape ? 0.58 : 1), 8, 24));
-  const whitespacePx = clamp(safeHeight * lerp(0.07, 0.14, tallProgress) * (isLandscape ? 0.34 : 1), 10, 96);
+  // 여백 기준 값: 화면 높이 비율로 계산하되 상한을 확장해 큰 폰에서도 충분한 숨통을 확보
+  const whitespacePx = clamp(safeHeight * lerp(0.08, 0.15, tallProgress) * (isLandscape ? 0.34 : 1), 10, 108);
   const columnMaxWidthPx = safeWidth >= 1440 ? 620 : safeWidth >= 1024 ? 560 : safeWidth >= 768 ? 500 : 448;
   const shouldHeightLimitColumn = isLandscape && safeHeight < 760;
   const heightLimitedColumnMaxPx = shouldHeightLimitColumn
@@ -269,13 +280,16 @@ const getGameLayoutProfile = (
   const slotHeightPx = shouldHeightLimitColumn
     ? Math.min(rawSlotHeightPx, safeHeight * 0.17)
     : rawSlotHeightPx;
-  const mainTopPaddingPx = Math.round(whitespacePx * 0.45);
-  const mainBottomPaddingPx = Math.round(whitespacePx * 0.55);
+  // 상단에 여백을 더 배분해 콘텐츠가 헤더에서 내려오도록 함 (엄지 편안 영역인 하단 40~60%에 슬롯·버튼 배치)
+  const mainTopPaddingPx = Math.round(whitespacePx * 0.58);
+  const mainBottomPaddingPx = Math.round(whitespacePx * 0.42);
   const measuredHeaderHeightPx = clamp(chromeHeights.header, 56, 180);
   const measuredBottomAdHeightPx = clamp(chromeHeights.banner, 0, 160);
   const availableMainHeightPx = Math.max(180, safeHeight - measuredHeaderHeightPx - measuredBottomAdHeightPx);
+  // 새로고침 버튼 행(min-h-10)과 두 번째 gap까지 포함해 정확하게 보드 높이 예산 계산
+  const REFRESH_ROW_HEIGHT_PX = 40;
   const boardHeightBudgetPx =
-    availableMainHeightPx - slotHeightPx - mainGapPx - mainTopPaddingPx - mainBottomPaddingPx;
+    availableMainHeightPx - slotHeightPx - mainGapPx * 2 - REFRESH_ROW_HEIGHT_PX - mainTopPaddingPx - mainBottomPaddingPx;
   const boardScaleCeiling = clamp(
     Math.min(contentWidthPx, boardHeightBudgetPx) / 420,
     0.42,
@@ -392,7 +406,15 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [nativeUpdateRequirement, setNativeUpdateRequirement] = useState<NativeUpdateRequirement | null>(null);
   const [isOpeningUpdateStore, setIsOpeningUpdateStore] = useState(false);
-  const { gate: customizationGate, resolveTileAppearance, isWin98ThemeActive, premiumUiOverrides } = useBlockCustomization();
+  const {
+    gate: customizationGate,
+    resolveTileAppearance,
+    skinSettings,
+    addSkin,
+    addFragments,
+    isWin98ThemeActive,
+    premiumUiOverrides,
+  } = useBlockCustomization();
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
 
   // Hide Capacitor Splash Screen immediately
@@ -487,12 +509,23 @@ const App: React.FC = () => {
   const [viewportSize, setViewportSize] = useState<ViewportSize>(getViewportSize);
   const [layoutChromeHeights, setLayoutChromeHeights] = useState<LayoutChromeHeights>(DEFAULT_LAYOUT_CHROME_HEIGHTS);
   const [comboMessage, setComboMessage] = useState<string | null>(null);
-  const isLandscapeViewport = viewportSize.width > viewportSize.height;
+  const isLandscapeViewport = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    // screen.orientation.type is the most reliable way to detect device orientation
+    if (screen?.orientation?.type) {
+      return screen.orientation.type.startsWith('landscape');
+    }
+    // Fallback: use matchMedia which respects actual device orientation
+    if (window.matchMedia) {
+      return window.matchMedia('(orientation: landscape)').matches;
+    }
+    return viewportSize.width > viewportSize.height;
+  }, [viewportSize.width, viewportSize.height]);
   const isTouchLikeWeb = useMemo(() => {
     if (typeof window === 'undefined') return false;
     return window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 1;
   }, [viewportSize.width, viewportSize.height]);
-  const shouldBlockLandscapeOnWeb = !isNative && isTouchLikeWeb;
+  const shouldBlockLandscapeOnWeb = !isNative && isTouchLikeWeb && currentRoute === '/';
   const shouldShowPortraitLockOverlay = shouldBlockLandscapeOnWeb && isLandscapeViewport;
   const orientationLockMessage = useMemo(
     () => getOrientationLockMessage(i18n.resolvedLanguage ?? i18n.language ?? 'en'),
@@ -617,6 +650,7 @@ const App: React.FC = () => {
   const liveRankRequestInFlightRef = useRef(false);
   const liveRankRequestQueuedRef = useRef(false);
   const liveRankRequestSequenceRef = useRef(0);
+  const skinGiftClaimOnceRef = useRef(false);
   const hoverGridPosRef = useRef<{ x: number; y: number } | null>(null);
   const swipeStartRef = useRef<{ x: number, y: number } | null>(null); // 스와이프 시작 좌표
   const slideLockRef = useRef(false); // state 반영 전에도 즉시 입력 차단
@@ -632,6 +666,7 @@ const App: React.FC = () => {
   const scoreRef = useRef<number>(score);
   const boardSizeRef = useRef<BoardSize>(boardSize);
   const gameStateRef = useRef<GameState>(gameState);
+  const previousGameStateRef = useRef<GameState>(gameState);
 
   useEffect(() => {
     scoreRef.current = score;
@@ -643,6 +678,26 @@ const App: React.FC = () => {
 
   useEffect(() => {
     gameStateRef.current = gameState;
+  }, [gameState]);
+
+  useEffect(() => {
+    const previous = previousGameStateRef.current;
+    if (previous !== GameState.GAME_OVER && gameState === GameState.GAME_OVER) {
+      const startedAt = activePlayStartedAtRef.current;
+      const activeDurationMs = startedAt === null
+        ? activePlayDurationMsRef.current
+        : activePlayDurationMsRef.current + Math.max(0, Date.now() - startedAt);
+      trackAnalyticsEvent({
+        name: 'game_end',
+        value: toDurationSeconds(activeDurationMs),
+        meta: {
+          score: scoreRef.current,
+          boardSize: boardSizeRef.current,
+          moves: moveCountRef.current,
+        },
+      });
+    }
+    previousGameStateRef.current = gameState;
   }, [gameState]);
 
   const pauseActivePlayTimer = useCallback(() => {
@@ -720,6 +775,25 @@ const App: React.FC = () => {
   }, [gameState]);
 
   // --- Initialization ---
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (getCurrentRoute() === '/admin-analytics') return;
+    trackLegacyInstallDetectedOnce();
+    trackAppLaunchOnce();
+
+    const handleSessionEnd = () => {
+      trackSessionEndOnce();
+    };
+
+    window.addEventListener('pagehide', handleSessionEnd);
+    window.addEventListener('beforeunload', handleSessionEnd);
+
+    return () => {
+      window.removeEventListener('pagehide', handleSessionEnd);
+      window.removeEventListener('beforeunload', handleSessionEnd);
+    };
+  }, []);
 
   // 라우팅 설정
   useEffect(() => {
@@ -1151,6 +1225,12 @@ const App: React.FC = () => {
     liveRankRequestInFlightRef.current = false;
     liveRankRequestQueuedRef.current = false;
     setLiveRankEstimate(null); // 순위 표시 초기화
+    trackAnalyticsEvent({
+      name: 'game_start',
+      meta: {
+        boardSize: size,
+      },
+    });
 
     // 온보딩: 튜토리얼 미완료 시 활성화
     const tutorialCompleted = localStorage.getItem('tutorial_completed');
@@ -1198,6 +1278,64 @@ const App: React.FC = () => {
     }, durationMs);
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (getCurrentRoute() === '/admin-analytics') return;
+    if (skinGiftClaimOnceRef.current) return;
+    skinGiftClaimOnceRef.current = true;
+
+    let cancelled = false;
+
+    const claimAdminGifts = async () => {
+      const claimed = await claimPendingSkinGifts(sessionIdRef.current);
+      if (cancelled || claimed.length === 0) return;
+
+      let grantedSkins = 0;
+      let grantedFragments = 0;
+      const ownedSkinIds = new Set(skinSettings.ownedSkins.map((skin) => skin.id));
+
+      for (const gift of claimed) {
+        if (gift.type === 'skin') {
+          const skinId = gift.skinId || '';
+          const catalogSkin = SKIN_CATALOG.find((entry) => entry.id === skinId);
+          if (!catalogSkin) continue;
+          if (ownedSkinIds.has(skinId)) {
+            grantedFragments += FRAGMENTS_PER_DUPLICATE;
+            continue;
+          }
+
+          addSkin({
+            id: catalogSkin.id,
+            hex: catalogSkin.hex,
+            acquiredAt: Date.now(),
+          });
+          ownedSkinIds.add(catalogSkin.id);
+          grantedSkins += 1;
+          continue;
+        }
+
+        grantedFragments += Math.max(0, gift.fragmentAmount ?? 0);
+      }
+
+      if (grantedFragments > 0) {
+        addFragments(grantedFragments);
+      }
+
+      if (grantedSkins > 0 || grantedFragments > 0) {
+        showComboMessage(
+          `운영자 선물 도착\\n스킨 ${grantedSkins}개 · 조각 ${grantedFragments}개`,
+          2600
+        );
+      }
+    };
+
+    void claimAdminGifts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [addFragments, addSkin, showComboMessage, skinSettings.ownedSkins]);
+
   // Undo 실행: 직전 스냅샷으로 복원
   const executeUndo = useCallback(() => {
     if (!lastSnapshot || undoRemaining <= 0 || isAnimating) return;
@@ -1225,11 +1363,16 @@ const App: React.FC = () => {
 
   // 🆕 리워드 광고 시청 핸들러
   const handleWatchRewardAd = useCallback(() => {
+    trackAnalyticsEvent({ name: 'ad_undo_request' });
     rewardAdService.showRewardAd({
       onRewardEarned: () => {
         // 🎯 보상 지급: 되돌리기 횟수 충전
         const actualAmount = REWARD_UNDO_AMOUNT;
         setUndoRemaining(prev => Math.min(prev + actualAmount, 99)); // 최대 99회 제한
+        trackAnalyticsEvent({
+          name: 'ad_undo_rewarded',
+          meta: { amount: actualAmount },
+        });
 
         // 사용자에게 알림 (다국어)
         showComboMessage(String(t('game:rewardAd.rewardEarned', { amount: actualAmount } as any)), 2000);
@@ -1272,6 +1415,7 @@ const App: React.FC = () => {
   ]);
 
   const handleWatchBlockRefreshAd = useCallback(() => {
+    trackAnalyticsEvent({ name: 'ad_block_refresh_request' });
     if (!isBlockRefreshRewardInterstitialAdSupported()) {
       showBlockRefreshNotice(String(t('game:blockRefresh.ad.notSupported')));
       return;
@@ -1285,6 +1429,10 @@ const App: React.FC = () => {
         setBlockRefreshRemaining((prev) => Math.min(prev + REWARD_BLOCK_REFRESH_AMOUNT, 99));
         setShowBlockRefreshAdButton(false);
         setIsBlockRefreshAdInProgress(false);
+        trackAnalyticsEvent({
+          name: 'ad_block_refresh_rewarded',
+          meta: { amount: REWARD_BLOCK_REFRESH_AMOUNT },
+        });
         showComboMessage(String(t('game:blockRefresh.ad.rewardEarned', { amount: REWARD_BLOCK_REFRESH_AMOUNT } as any)), 2000);
       },
       onAdClosed: () => {
@@ -1303,6 +1451,7 @@ const App: React.FC = () => {
   }, [isBlockRefreshAdInProgress, showBlockRefreshNotice, showComboMessage, t]);
 
   const handleWatchReviveAd = useCallback(() => {
+    trackAnalyticsEvent({ name: 'ad_revive_request' });
     if (isReviveAdInProgress) return;
     if (countOccupiedTiles(grid) <= 0) {
       showComboMessage(String(t('modals:gameOver.reviveUnavailable')), 1800);
@@ -1314,6 +1463,10 @@ const App: React.FC = () => {
     rewardInterstitialAdService.showReviveAd({
       onRewardEarned: () => {
         const destroyCount = REVIVE_DESTROY_COUNT_BY_BOARD_SIZE[boardSize];
+        trackAnalyticsEvent({
+          name: 'ad_revive_rewarded',
+          meta: { destroyCount },
+        });
 
         // ref를 state보다 먼저 동기적으로 설정하여
         // 네이티브 콜백 내 개별 setState 사이에 게임오버 체크가 끼어드는 것을 방지
@@ -2037,6 +2190,11 @@ const App: React.FC = () => {
       const backoffMs = Math.min(120_000, 5_000 * (2 ** (cappedFailures - 1)));
       liveRankRetryAfterRef.current = Date.now() + backoffMs;
 
+      // 연속 3회 이상 실패 시 stale 데이터 제거 (오래된 순위가 계속 보이는 것 방지)
+      if (liveRankFailureCountRef.current >= 3) {
+        setLiveRankEstimate(null);
+      }
+
       if (import.meta.env.DEV && liveRankFailureCountRef.current === 1) {
         console.warn('[랭킹 추정] 실시간 랭킹 조회 실패:', error);
       }
@@ -2214,6 +2372,14 @@ const App: React.FC = () => {
       <>
         <CookieConsent />
         <Contact />
+      </>
+    );
+  }
+  if (currentRoute === '/admin-analytics') {
+    return (
+      <>
+        <CookieConsent />
+        <AdminAnalytics />
       </>
     );
   }
@@ -2892,14 +3058,16 @@ const App: React.FC = () => {
             <div className="space-y-0.5">
               <h2 className="text-sm font-medium text-gray-400 uppercase tracking-wider">
                 {t('common:labels.score')}
-                {liveRankEstimate !== null && gameState === GameState.PLAYING && (
+                {liveRankEstimate !== null && gameState === GameState.PLAYING
+                  && score > 0 && liveRankEstimate.totalEntries >= 2 && (
                   <span className="ml-2 text-xs font-semibold text-blue-600">
                     {String(t('game:liveRank.estimatedRank', { rank: liveRankEstimate.rank } as any))}
                   </span>
                 )}
               </h2>
               <p className="text-3xl font-bold text-gray-900 tabular-nums">{score}</p>
-              {liveRankEstimate !== null && gameState === GameState.PLAYING && (
+              {liveRankEstimate !== null && gameState === GameState.PLAYING
+                && score > 0 && liveRankEstimate.totalEntries >= 2 && (
                 <p className="text-xs font-semibold text-blue-500">
                   {liveRankEstimate.pointsToNext > 0
                     ? String(t('game:liveRank.pointsToNext', { points: liveRankEstimate.pointsToNext } as any))

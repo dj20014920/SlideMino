@@ -7,13 +7,15 @@ import AppTrackingTransparency
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // TODO: IDFA 확인 후 AdMob 콘솔 등록 완료되면 아래 블록 삭제
+        #if DEBUG
+        // Debug build only: print IDFA to help register local test devices in AdMob console.
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
             let idfa = ASIdentifierManager.shared().advertisingIdentifier.uuidString
             print("========================================")
             print("📱 IDFA (AdMob 콘솔 등록용): \(idfa)")
             print("========================================")
         }
+        #endif
         return true
     }
 

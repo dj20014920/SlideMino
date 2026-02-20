@@ -17,9 +17,8 @@ import {
   CURRENT_AD_PLATFORM,
   getRewardInterstitialAdId,
   isRewardInterstitialAdSupported,
-  ADMOB_TEST_AD_IDS,
 } from './adConfig';
-import { ensureAdMobReady, isVirtualDevice } from './admob';
+import { ensureAdMobReady } from './admob';
 import { CooldownGate, RetryBackoffScheduler, HourlyFrequencyCap, ClickAbuseGuard } from './adResilience';
 import { MAX_DAILY_REVIVE_AD_VIEWS } from '../constants';
 
@@ -317,13 +316,7 @@ export class RewardInterstitialAdService {
       return;
     }
 
-    // 시뮬레이터/에뮬레이터에서는 Google 공식 테스트 광고 ID 사용 (fill 보장)
-    const virtual = await isVirtualDevice();
-    const adId = virtual
-      ? (CURRENT_AD_PLATFORM === 'admob-ios' ? ADMOB_TEST_AD_IDS.IOS.REWARD_INTERSTITIAL : ADMOB_TEST_AD_IDS.ANDROID.REWARD_INTERSTITIAL)
-      : this.adUnitId;
-
-    const options: RewardInterstitialAdOptions = { adId };
+    const options: RewardInterstitialAdOptions = { adId: this.adUnitId };
 
     try {
       await AdMob.prepareRewardInterstitialAd(options);

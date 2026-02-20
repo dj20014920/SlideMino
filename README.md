@@ -139,6 +139,44 @@ Fully optimized for mobile devices using:
 2. Build command: `npm run build`
 3. Output directory: `dist`
 
+### Admin Analytics Console (New)
+
+- Route: `/admin` (legacy fallback: `#/admin-analytics`)
+- Purpose: private dashboard for user/session/game/ad analytics
+- Data policy: stores only anonymized install hash + aggregate metrics
+
+#### Required Secrets (Cloudflare Pages > Settings > Environment variables)
+
+- `ADMIN_USERNAME`: admin login id
+- `ADMIN_PASSWORD`: admin login password
+- `ADMIN_JWT_SECRET`: strong random string for JWT signing
+- `ANALYTICS_HASH_SALT`: strong random string for install-id hashing
+
+Admin access is now based on app login (`ADMIN_USERNAME`/`ADMIN_PASSWORD`) plus short-lived session tokens.
+If you want an additional network gate later, you can still add Cloudflare Access in front of `/admin*` and `/api/admin/*`.
+
+#### Required D1 Migration
+
+The analytics tables must be created before using the console.
+
+```bash
+# local preview DB
+npx wrangler d1 execute slidemino-db --local --file=./schema.sql
+
+# remote production DB
+npx wrangler d1 execute slidemino-db --remote --file=./schema.sql
+```
+
+#### Deploy with Wrangler
+
+```bash
+# build + functions copy
+npm run build:cf
+
+# deploy to Cloudflare Pages
+npx wrangler pages deploy dist --project-name slidemino
+```
+
 ## 📞 Contact
 
 - **Email:** studio@emozleep.space

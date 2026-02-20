@@ -4,6 +4,8 @@
  * - 클라이언트(WebView)는 이 값을 현재 앱 버전과 비교해 업데이트 필요 여부를 판단한다.
  */
 
+import { buildCorsHeaders } from '../utils/cors';
+
 interface AppleLookupResponse {
   resultCount?: number;
   results?: Array<{
@@ -16,41 +18,6 @@ interface AppleLookupResponse {
 const IOS_APP_STORE_ID = '6757861065';
 const IOS_LOOKUP_URL = `https://itunes.apple.com/lookup?id=${IOS_APP_STORE_ID}&country=kr`;
 const IOS_DEFAULT_TRACK_URL = `https://apps.apple.com/app/id${IOS_APP_STORE_ID}`;
-
-/**
- * CORS 헤더 생성
- */
-function getCorsHeaders(request: Request): Record<string, string> {
-  const origin = request.headers.get('Origin') || '';
-
-  const allowedOrigins = new Set([
-    'https://slidemino.emozleep.space',
-    'https://www.slidemino.emozleep.space',
-    'capacitor://localhost',
-    'ionic://localhost',
-    'http://localhost',
-    'https://localhost',
-  ]);
-
-  let isAllowed = false;
-  if (origin) {
-    try {
-      const parsed = new URL(origin);
-      const isLocalDevHost = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
-      const normalizedOrigin = `${parsed.protocol}//${parsed.host}`;
-      isAllowed = isLocalDevHost || allowedOrigins.has(normalizedOrigin);
-    } catch {
-      isAllowed = false;
-    }
-  }
-
-  return {
-    'Access-Control-Allow-Origin': isAllowed ? origin : 'https://slidemino.emozleep.space',
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Max-Age': '86400',
-  };
-}
 
 const buildFallbackPayload = (): Record<string, unknown> => ({
   ios: {
@@ -66,7 +33,7 @@ const buildFallbackPayload = (): Record<string, unknown> => ({
 export const onRequestOptions: PagesFunction = async (context) => {
   return new Response(null, {
     status: 204,
-    headers: getCorsHeaders(context.request),
+    headers: buildCorsHeaders(context.request, 'GET, OPTIONS'),
   });
 };
 
@@ -74,7 +41,7 @@ export const onRequestOptions: PagesFunction = async (context) => {
  * GET 요청 처리: iOS 최신 버전 조회
  */
 export const onRequestGet: PagesFunction = async (context) => {
-  const corsHeaders = getCorsHeaders(context.request);
+  const corsHeaders = buildCorsHeaders(context.request, 'GET, OPTIONS');
 
   try {
     const response = await fetch(IOS_LOOKUP_URL, {

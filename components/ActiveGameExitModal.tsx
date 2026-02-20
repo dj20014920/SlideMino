@@ -185,28 +185,40 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                         </div>
 
                         <div className={isWin98 ? 'flex flex-col gap-2 pt-1' : 'flex flex-col gap-3 pt-1'}>
-                            <button
-                                type="button"
-                                onClick={onProceedWithoutRegister}
-                                className={isWin98
-                                    ? 'w-full py-2 px-3 win98-menu-btn text-sm font-semibold'
-                                    : 'w-full py-3.5 rounded-2xl bg-white border border-gray-200 text-gray-900 font-semibold shadow-sm hover:bg-gray-50 hover:border-gray-300 active:scale-[0.98] transition-all duration-200'}
-                            >
-                                {t(proceedWithoutKey)}
-                            </button>
+                            <div className="flex flex-col items-center gap-1">
+                                <button
+                                    type="button"
+                                    onClick={onProceedWithoutRegister}
+                                    className={isWin98
+                                        ? 'w-full py-2 px-3 win98-menu-btn text-sm font-semibold'
+                                        : 'w-full py-3.5 rounded-2xl bg-white border border-gray-200 text-gray-900 font-semibold shadow-sm hover:bg-gray-50 hover:border-gray-300 active:scale-[0.98] transition-all duration-200'}
+                                >
+                                    {t(proceedWithoutKey)}
+                                </button>
+                                {context === 'HOME' && (
+                                    <p className={isWin98 ? 'text-xs text-gray-500' : 'text-xs text-gray-400'}>
+                                        {t('modals:activeGameExit.homeProceedHint')}
+                                    </p>
+                                )}
+                            </div>
 
-                            <button
-                                type="button"
-                                onClick={handleIntermediateSaveClick}
-                                className={isWin98
-                                    ? 'w-full py-2 px-3 win98-menu-btn text-sm font-semibold'
-                                    : 'w-full py-4 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-bold text-lg shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/35 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200'}
-                            >
-                                <span className="flex items-center justify-center gap-2">
-                                    <Send size={isWin98 ? 14 : 18} className={isWin98 ? '' : 'text-emerald-100'} />
-                                    {t('modals:activeGameExit.midSaveButton')}
-                                </span>
-                            </button>
+                            <div className="flex flex-col items-center gap-1">
+                                <button
+                                    type="button"
+                                    onClick={handleIntermediateSaveClick}
+                                    className={isWin98
+                                        ? 'w-full py-2 px-3 win98-menu-btn text-sm font-semibold'
+                                        : 'w-full py-4 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-bold text-lg shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/35 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200'}
+                                >
+                                    <span className="flex items-center justify-center gap-2">
+                                        <Send size={isWin98 ? 14 : 18} className={isWin98 ? '' : 'text-emerald-100'} />
+                                        {t('modals:activeGameExit.midSaveButton')}
+                                    </span>
+                                </button>
+                                <p className={isWin98 ? 'text-xs text-gray-500' : 'text-xs text-gray-400'}>
+                                    {t('modals:activeGameExit.midSaveButtonHint')}
+                                </p>
+                            </div>
 
                             <button
                                 type="button"

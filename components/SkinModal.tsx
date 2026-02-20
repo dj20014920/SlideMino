@@ -11,6 +11,7 @@ import { buildGradient, getWhiteTextStyleForBackground, hexToRgb } from '../serv
 import { drawSkin, isCollectionComplete, getFragmentCost } from '../services/skinService';
 import { skinRewardAdService } from '../services/skinRewardAdService';
 import { isSkinRewardAdSupported } from '../services/adConfig';
+import { trackAnalyticsEvent } from '../services/analyticsService';
 import { SkinAcquisitionOverlay } from './SkinAcquisitionOverlay';
 
 type SkinModalProps = {
@@ -149,6 +150,7 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
   // 광고 시청 후 스킨 뽑기
   const handleDraw = useCallback(() => {
     setAdError(null);
+    trackAnalyticsEvent({ name: 'ad_skin_draw_request' });
 
     let drawResult: SkinDrawResult | null = null;
     let adClosed = false;
@@ -173,6 +175,7 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
 
     skinRewardAdService.showRewardAd({
       onRewardEarned: () => {
+        trackAnalyticsEvent({ name: 'ad_skin_draw_rewarded' });
         const result = drawSkin(skinSettings);
         if (!result) return;
 
@@ -251,7 +254,7 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                   {skinSections.map((section, sectionIdx) => (
                     <div key={sectionIdx}>
                       <div style={{ fontSize: '10px', fontWeight: 'bold', marginBottom: '4px', borderBottom: '1px solid #808080', paddingBottom: '2px', color: '#000' }}>
-                        {t(section.titleKey)}{sectionIdx === 0 ? ' 💎' : sectionIdx === 1 ? ' ✦' : ''}
+                        {t(section.titleKey as any)}{sectionIdx === 0 ? ' 💎' : sectionIdx === 1 ? ' ✦' : ''}
                         <span style={{ marginLeft: '4px', fontWeight: 'normal' }}>({section.skins.length})</span>
                       </div>
                       {section.rows.map((rowSkins, rowIndex) => (
@@ -322,8 +325,8 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                                       style={{ width: '100%', marginTop: '4px', fontWeight: canAfford ? 'bold' : 'normal' }}
                                     >
                                       {canAfford
-                                        ? t('modals:skin.purchaseButton', { cost })
-                                        : t('modals:skin.insufficientFragments', { current: skinSettings.fragments, cost })}
+                                        ? String(t('modals:skin.purchaseButton', { cost } as any))
+                                        : String(t('modals:skin.insufficientFragments', { current: skinSettings.fragments, cost } as any))}
                                     </button>
                                   );
                                 })()}
@@ -423,7 +426,7 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                   {/* 섹션 헤더 */}
                   <div className="flex items-center gap-2 mb-2.5">
                     <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">
-                      {t(section.titleKey)}{sectionIdx === 0 ? ' 💎' : sectionIdx === 1 ? ' ✦' : ''}
+                      {t(section.titleKey as any)}{sectionIdx === 0 ? ' 💎' : sectionIdx === 1 ? ' ✦' : ''}
                     </span>
                     <div className="flex-1 h-px bg-gray-200" />
                     <span className="text-xs text-gray-400">{section.skins.length}</span>
@@ -515,8 +518,8 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                                             }`}
                                           >
                                             {canAfford
-                                              ? t('modals:skin.purchaseButton', { cost })
-                                              : t('modals:skin.insufficientFragments', { current: skinSettings.fragments, cost })}
+                                              ? String(t('modals:skin.purchaseButton', { cost } as any))
+                                              : String(t('modals:skin.insufficientFragments', { current: skinSettings.fragments, cost } as any))}
                                           </button>
                                         );
                                       })()}

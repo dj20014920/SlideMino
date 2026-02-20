@@ -11,7 +11,7 @@ const PrivacyPolicy: React.FC = () => {
     <div className="policy-page">
       <header className="policy-header">
         <h1>Privacy Policy</h1>
-        <p className="last-updated">Last Updated: December 20, 2025</p>
+        <p className="last-updated">Last Updated: February 19, 2026</p>
       </header>
 
       <div className="policy-content">
@@ -36,8 +36,9 @@ const PrivacyPolicy: React.FC = () => {
           <h3>2.2 Automatically Collected Information</h3>
           <ul>
             <li><strong>Game Data:</strong> High scores, game progress, and settings stored locally on your device using browser local storage.</li>
-            <li><strong>Usage Data:</strong> Game interactions, play patterns, and feature usage for improving user experience.</li>
-            <li><strong>Technical Data:</strong> Browser type, device information, IP address, and operating system for compatibility and security.</li>
+            <li><strong>Usage Data:</strong> Aggregated event data such as game start/end counts, session duration, and ad feature usage for improving user experience.</li>
+            <li><strong>Analytics Identifiers:</strong> A random app install identifier and session identifier are generated for analytics. Install identifiers are hashed (salted SHA-256) before storage.</li>
+            <li><strong>Technical Data:</strong> Platform category (web/ios/android), broad device group (for example iPhone/Galaxy/Web), browser/OS compatibility signals, and security logs.</li>
           </ul>
 
           <h3>2.3 Cookies and Similar Technologies</h3>
@@ -97,6 +98,8 @@ const PrivacyPolicy: React.FC = () => {
             <li>Access controls and authentication for server data</li>
             <li>Regular security audits and updates</li>
             <li>Anti-cheat mechanisms to ensure fair play</li>
+            <li>Admin-only analytics access with short-lived authentication tokens</li>
+            <li>Rate limiting and request validation for analytics and admin APIs</li>
           </ul>
           <p>
             However, no method of transmission over the Internet is 100% secure. While we strive to protect 

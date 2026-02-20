@@ -28,7 +28,7 @@ const ensureStarted = async (): Promise<void> => {
     let consentInfo: AdmobConsentInfo | null = null;
     let isVirtual = false;
 
-    // Device 정보를 먼저 가져와야 initialize 옵션에 반영 가능
+    // Device 정보는 시뮬레이터에서 ATT 요청을 생략하기 위해 사용한다.
     try {
       const deviceInfo = await Device.getInfo();
       isVirtual = Boolean(deviceInfo.isVirtual);
@@ -37,8 +37,9 @@ const ensureStarted = async (): Promise<void> => {
     }
 
     await AdMob.initialize({
-      // 시뮬레이터/에뮬레이터에서는 자동으로 테스트 광고 사용 (fill 없음 오류 방지)
-      initializeForTesting: isVirtual,
+      // 테스트 모드는 앱 코드에서 강제하지 않는다.
+      // (실기기 테스트는 AdMob 콘솔 테스트 기기 설정으로만 제어)
+      initializeForTesting: false,
     });
 
     try {

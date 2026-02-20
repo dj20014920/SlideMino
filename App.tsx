@@ -963,7 +963,7 @@ const App: React.FC = () => {
   }, [persistRecoverableGameState, pauseActivePlayTimer, syncActivePlayTimer]);
 
   useEffect(() => {
-    const shouldLockScroll = gameState !== GameState.MENU;
+    const shouldLockScroll = currentRoute === '/' && gameState !== GameState.MENU;
     document.body.classList.toggle('scroll-locked', shouldLockScroll);
     if (shouldLockScroll) {
       window.scrollTo(0, 0);
@@ -971,7 +971,7 @@ const App: React.FC = () => {
     return () => {
       document.body.classList.remove('scroll-locked');
     };
-  }, [gameState]);
+  }, [currentRoute, gameState]);
 
   // 메인 화면으로 돌아가기 (게임 상태 유지)
   const goToMenu = useCallback(() => {

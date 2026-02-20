@@ -49,6 +49,8 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
   const appearance = resolveTileAppearance(previewValue);
   const fitByWidth = width >= height;
   const normalizedCells = cells.map((c) => ({ x: c.x - minX, y: c.y - minY }));
+  const rotateHitboxPx = isWin98ThemeActive ? 16 : 18;
+  const rotateIconPx = isWin98ThemeActive ? 8 : 10;
 
   return (
     <div
@@ -89,9 +91,15 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
             opacity-100
             ${isWin98ThemeActive
               ? 'win98-game-btn win98-slot-rotate-btn text-gray-700'
-              : 'w-6 h-6 rounded-full bg-white/80 text-gray-600 border border-white/40 shadow-md hover:bg-gray-800 hover:text-white hover:border-gray-700'
+              : 'rounded-full bg-white/80 text-gray-600 border border-white/40 shadow-md hover:bg-gray-800 hover:text-white hover:border-gray-700'
             }
           `}
+          style={{
+            width: `${rotateHitboxPx}px`,
+            height: `${rotateHitboxPx}px`,
+            minWidth: `${rotateHitboxPx}px`,
+            minHeight: `${rotateHitboxPx}px`,
+          }}
           data-rotate-button
           onPointerDown={(e) => {
             e.preventDefault();
@@ -108,7 +116,7 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
           }}
           aria-label={t('common:aria.rotateBlock')}
         >
-          <RotateCw size={isWin98ThemeActive ? 10 : 12} />
+          <RotateCw size={rotateIconPx} />
         </button>
       )}
 

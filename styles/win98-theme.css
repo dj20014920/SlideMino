@@ -328,9 +328,9 @@ body.theme-win98 .win98-slot-mini-cell {
 }
 
 body.theme-win98 .win98-slot-rotate-btn {
-  width: 20px;
+  width: 16px;
   height: 16px;
-  min-width: 20px !important;
+  min-width: 16px !important;
   min-height: 16px !important;
   padding: 0 !important;
   line-height: 1 !important;

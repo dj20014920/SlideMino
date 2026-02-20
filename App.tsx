@@ -91,6 +91,9 @@ import {
 const EMPTY_TILE_VALUE_OVERRIDES: Record<string, number> = {};
 const EMPTY_MERGING_TILES: MergingTile[] = [];
 const DRAG_OVERLAY_SCALE = 0.65;
+// 손가락 위로 올릴 높이 = 보드 셀 pitch 기준 배수
+// → 기기 크기(폰/태블릿)에 관계없이 항상 적절한 비율 유지
+const DRAG_LIFT_CELLS = 1.5;
 const LIVE_RANK_POLL_INTERVAL_MS = 5000;
 const LIVE_RANK_SCORE_SYNC_DEBOUNCE_MS = 350;
 const LIVE_RANK_MIN_REQUEST_INTERVAL_MS = 1000;
@@ -1727,7 +1730,8 @@ const App: React.FC = () => {
 
   const applyDragOverlayTransform = useCallback((pointerX: number, pointerY: number) => {
     if (!dragOverlayRef.current) return;
-    dragOverlayRef.current.style.transform = `translate3d(${pointerX}px, ${pointerY}px, 0)`;
+    const fingerYOffset = (boardMetricsRef.current?.pitch ?? 60) * DRAG_LIFT_CELLS;
+    dragOverlayRef.current.style.transform = `translate3d(${pointerX}px, ${pointerY - fingerYOffset}px, 0)`;
   }, []);
 
   const rotateActivePiece = useCallback(() => {
@@ -1855,7 +1859,14 @@ const App: React.FC = () => {
       currentPointerPosRef.current = pointer;
 
       applyDragOverlayTransform(pointer.x, pointer.y);
-      const next = getGridPosFromPointer(pointer.x, pointer.y);
+      // ghost 앵커: 시각적 블럭의 (0,0) 셀 중심 위치 기준
+      // → ghost 상단 행이 시각적 블럭 상단 행과 정렬됨
+      const dragCellSize = metrics.cell * DRAG_OVERLAY_SCALE;
+      const { minX, maxX, minY, maxY } = getPieceBounds(draggingPiece.cells);
+      const ghostAnchorX = pointer.x - (minX + maxX) / 2 * dragCellSize;
+      const fingerYOffset = metrics.pitch * DRAG_LIFT_CELLS;
+      const ghostAnchorY = pointer.y - fingerYOffset - (minY + maxY) / 2 * dragCellSize;
+      const next = getGridPosFromPointer(ghostAnchorX, ghostAnchorY);
       if (!next) {
         if (hoverGridPosRef.current) {
           hoverGridPosRef.current = null;
@@ -1907,7 +1918,13 @@ const App: React.FC = () => {
       if (dragPointerIdRef.current !== null && e.pointerId !== dragPointerIdRef.current) return;
       // 드래그 종료 시 스와이프 시작 좌표가 남아있으면 다음 입력에서 오동작 가능
       swipeStartRef.current = null;
-      const hover = hoverGridPosRef.current ?? getGridPosFromPointer(e.clientX, e.clientY);
+      // 빠른 탭(이동 없음) 시 fallback: handlePointerMove와 동일한 (0,0) 앵커 사용
+      const fallbackCellSize = (boardMetricsRef.current?.cell ?? 32) * DRAG_OVERLAY_SCALE;
+      const { minX: fbMinX, maxX: fbMaxX, minY: fbMinY, maxY: fbMaxY } = getPieceBounds(draggingPiece.cells);
+      const hover = hoverGridPosRef.current ?? getGridPosFromPointer(
+        e.clientX - (fbMinX + fbMaxX) / 2 * fallbackCellSize,
+        e.clientY - (boardMetricsRef.current?.pitch ?? 60) * DRAG_LIFT_CELLS - (fbMinY + fbMaxY) / 2 * fallbackCellSize
+      );
 
       if (hover && boardRef.current) {
         if (canPlacePiece(grid, draggingPiece, hover.x, hover.y)) {

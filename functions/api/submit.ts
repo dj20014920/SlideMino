@@ -1,6 +1,7 @@
 /**
  * 점수 제출 API
- * Defense in Depth - Layer 3: 입력 검증, 안티-치트, 중복 방지
+ * Defense in Depth - Layer 3: 입력 검증, 안티-치트
+ * 중간 저장 지원: 같은 세션에서 더 높은 점수로 재제출 시 UPDATE
  */
 
 import {
@@ -47,22 +48,6 @@ function errorResponse(
     JSON.stringify({ error: safeMessage }),
     {
       status,
-      headers: {
-        ...headers,
-        'Content-Type': 'application/json',
-      },
-    }
-  );
-}
-
-function alreadySubmittedResponse(headers: Record<string, string>): Response {
-  return new Response(
-    JSON.stringify({
-      error: 'This game has already been submitted.',
-      code: 'SESSION_ALREADY_SUBMITTED',
-    }),
-    {
-      status: 409,
       headers: {
         ...headers,
         'Content-Type': 'application/json',
@@ -166,22 +151,23 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     await resetRankingsIfNewMonth(env);
 
-    // ========== 데이터베이스 저장 (한 세션 1회 등록) ==========
+    // ========== 데이터베이스 저장 (UPSERT: 더 높은 점수일 때만 UPDATE) ==========
     try {
       const now = Date.now();
 
-      // 한 세션당 1회 등록만 허용
-      const existing = await env.DB.prepare(
-        `SELECT id FROM rankings WHERE session_id = ? LIMIT 1`
-      ).bind(sessionId).first<{ id: number }>();
-
-      if (existing) {
-        return alreadySubmittedResponse(corsHeaders);
-      }
-
+      // 중간 저장 지원:
+      //   - 처음 제출이면 INSERT
+      //   - 같은 session_id가 이미 있고 새 점수가 더 높으면 UPDATE
+      //   - 같거나 낮은 점수면 기존 레코드 유지 (no-op)
       await env.DB.prepare(
         `INSERT INTO rankings (session_id, name, score, difficulty, duration, moves, timestamp, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(session_id) DO UPDATE SET
+           score      = CASE WHEN excluded.score > score      THEN excluded.score      ELSE score      END,
+           name       = CASE WHEN excluded.score > score      THEN excluded.name       ELSE name       END,
+           moves      = CASE WHEN excluded.score > score      THEN excluded.moves      ELSE moves      END,
+           duration   = CASE WHEN excluded.score > score      THEN excluded.duration   ELSE duration   END,
+           updated_at = CASE WHEN excluded.score > score      THEN excluded.updated_at ELSE updated_at END`
       ).bind(
         sessionId,
         sanitizedName,
@@ -199,32 +185,19 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         `SELECT COUNT(*) + 1 as rank
          FROM rankings
          WHERE difficulty = ? AND score > ?`
-      ).bind(difficulty, score).first<{ rank: number }>();
+      ).bind(difficulty, score).first();
 
-      const currentRank = rankResult?.rank || 1;
+      const currentRank = (rankResult as { rank: number } | null)?.rank ?? 1;
 
       return new Response(
-        JSON.stringify({
-          success: true,
-          rank: currentRank
-        }),
+        JSON.stringify({ success: true, rank: currentRank }),
         {
-          status: 201,
-          headers: {
-            ...corsHeaders,
-            'Content-Type': 'application/json',
-          },
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
       );
 
     } catch (dbError) {
-      const dbErrorText = String(dbError ?? '');
-      // 동시 요청 경쟁 상태에서도 세션당 1회 규칙을 유지한다.
-      if (dbErrorText.includes('UNIQUE') && dbErrorText.includes('session_id')) {
-        return alreadySubmittedResponse(corsHeaders);
-      }
-
-      // DB 에러는 로그만 하고 일반적인 메시지 반환
       console.error('Database error:', dbError);
       return errorResponse('Failed to save score', 500, corsHeaders, dbError);
     }

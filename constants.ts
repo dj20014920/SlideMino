@@ -1,4 +1,4 @@
-import { ShapeType, Coordinate, SkinCatalogEntry } from './types';
+import { ShapeType, Coordinate, SkinCatalogEntry, BoardSize } from './types';
 import { ADDITIONAL_SKIN_CATALOG } from './config/skinCatalog';
 
 // Board slide animation (one swipe)
@@ -256,6 +256,18 @@ export const MAX_DAILY_REVIVE_AD_VIEWS = 5;
  * 하루 최대 블록 새로고침 보상형 전면 광고 시청 횟수
  */
 export const MAX_DAILY_BLOCK_REFRESH_AD_VIEWS = 5;
+
+/**
+ * 보드 크기별 스킨 조각 지급 점수 간격
+ * - 누적 점수가 interval을 넘을 때마다 조각 1개 지급
+ */
+export const SCORE_FRAGMENT_INTERVAL_BY_BOARD_SIZE: Record<BoardSize, number> = {
+  4: 5000,
+  5: 7000,
+  7: 10000,
+  8: 13000,
+  10: 15000,
+};
 
 // ==========================================
 // 📌 스킨 시스템 상수

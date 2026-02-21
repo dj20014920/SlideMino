@@ -13,6 +13,9 @@ import { INITIAL_BLOCK_REFRESH_AMOUNT, INITIAL_UNDO_AMOUNT } from '../constants'
 // 로컬 스토리지 키
 const GAME_STATE_STORAGE_KEY = 'slidemino_game_state_v1';
 const GAME_STATE_BACKUP_STORAGE_KEY = 'slidemino_game_state_backup_v1';
+const LEGACY_SCORE_FRAGMENT_MIGRATION_STORAGE_KEY = 'slidemino_legacy_score_fragment_migration_v1';
+const LEGACY_SCORE_FRAGMENT_MIGRATION_VERSION = 1;
+const LEGACY_SCORE_FRAGMENT_MIGRATION_MAX_KEYS = 128;
 const VALID_BOARD_SIZES: BoardSize[] = [4, 5, 7, 8, 10];
 
 export interface StoredUndoSnapshot {
@@ -47,9 +50,95 @@ export interface SavedGameState {
     moveCount?: number;
     startedAt?: number;
     activeDurationMs?: number;
+    maxScoreThisRun?: number;
+    scoreFragmentMilestonesGranted?: number;
     playerName?: string;
     sessionLockedPlayerName?: string;
     savedAt: number; // timestamp
+}
+
+interface LegacyScoreFragmentMigrationState {
+    version: 1;
+    claimedSessionKeys: string[];
+}
+
+const getLegacyScoreFragmentMigrationSessionKey = (saved: SavedGameState): string => {
+    const sessionId = typeof saved.sessionId === 'string' ? saved.sessionId.trim() : '';
+    if (sessionId) return `session:${sessionId}`;
+
+    const startedAt = typeof saved.startedAt === 'number' && Number.isFinite(saved.startedAt)
+        ? Math.floor(saved.startedAt)
+        : 0;
+    const savedAt = typeof saved.savedAt === 'number' && Number.isFinite(saved.savedAt)
+        ? Math.floor(saved.savedAt)
+        : 0;
+    const moveCount = typeof saved.moveCount === 'number' && Number.isFinite(saved.moveCount)
+        ? Math.max(0, Math.floor(saved.moveCount))
+        : 0;
+    const score = typeof saved.score === 'number' && Number.isFinite(saved.score)
+        ? Math.max(0, Math.floor(saved.score))
+        : 0;
+
+    return `legacy:${saved.boardSize}:${startedAt}:${savedAt}:${moveCount}:${score}`;
+};
+
+const loadLegacyScoreFragmentMigrationState = (): LegacyScoreFragmentMigrationState => {
+    try {
+        const raw = localStorage.getItem(LEGACY_SCORE_FRAGMENT_MIGRATION_STORAGE_KEY);
+        if (!raw) {
+            return { version: LEGACY_SCORE_FRAGMENT_MIGRATION_VERSION, claimedSessionKeys: [] };
+        }
+
+        const parsed = JSON.parse(raw) as Partial<LegacyScoreFragmentMigrationState>;
+        if (
+            parsed?.version !== LEGACY_SCORE_FRAGMENT_MIGRATION_VERSION ||
+            !Array.isArray(parsed.claimedSessionKeys)
+        ) {
+            return { version: LEGACY_SCORE_FRAGMENT_MIGRATION_VERSION, claimedSessionKeys: [] };
+        }
+
+        const claimedSessionKeys = parsed.claimedSessionKeys
+            .filter((entry): entry is string => typeof entry === 'string' && entry.length > 0)
+            .slice(-LEGACY_SCORE_FRAGMENT_MIGRATION_MAX_KEYS);
+
+        return { version: LEGACY_SCORE_FRAGMENT_MIGRATION_VERSION, claimedSessionKeys };
+    } catch {
+        return { version: LEGACY_SCORE_FRAGMENT_MIGRATION_VERSION, claimedSessionKeys: [] };
+    }
+};
+
+const saveLegacyScoreFragmentMigrationState = (state: LegacyScoreFragmentMigrationState): void => {
+    try {
+        localStorage.setItem(LEGACY_SCORE_FRAGMENT_MIGRATION_STORAGE_KEY, JSON.stringify(state));
+    } catch {
+        // 스토리지 실패 시에도 게임 진행을 막지 않는다.
+    }
+};
+
+export function hasLegacyInProgressScoreFragmentMigrationClaim(saved: SavedGameState): boolean {
+    try {
+        const sessionKey = getLegacyScoreFragmentMigrationSessionKey(saved);
+        const state = loadLegacyScoreFragmentMigrationState();
+        return state.claimedSessionKeys.includes(sessionKey);
+    } catch {
+        return false;
+    }
+}
+
+export function markLegacyInProgressScoreFragmentMigrationClaim(saved: SavedGameState): void {
+    try {
+        const sessionKey = getLegacyScoreFragmentMigrationSessionKey(saved);
+        const state = loadLegacyScoreFragmentMigrationState();
+        if (state.claimedSessionKeys.includes(sessionKey)) return;
+
+        state.claimedSessionKeys.push(sessionKey);
+        if (state.claimedSessionKeys.length > LEGACY_SCORE_FRAGMENT_MIGRATION_MAX_KEYS) {
+            state.claimedSessionKeys = state.claimedSessionKeys.slice(-LEGACY_SCORE_FRAGMENT_MIGRATION_MAX_KEYS);
+        }
+        saveLegacyScoreFragmentMigrationState(state);
+    } catch {
+        // 스토리지 실패 시에도 게임 진행을 막지 않는다.
+    }
 }
 
 const parseSavedGameState = (raw: string | null): SavedGameState | null => {
@@ -96,6 +185,13 @@ const parseSavedGameState = (raw: string | null): SavedGameState | null => {
     const activeDurationMs = typeof parsed.activeDurationMs === 'number' && Number.isFinite(parsed.activeDurationMs)
         ? Math.max(0, Math.floor(parsed.activeDurationMs))
         : Math.max(0, savedAt - startedAt);
+    const maxScoreThisRun = typeof parsed.maxScoreThisRun === 'number' && Number.isFinite(parsed.maxScoreThisRun)
+        ? Math.max(0, Math.floor(parsed.maxScoreThisRun))
+        : undefined;
+    const scoreFragmentMilestonesGranted =
+        typeof parsed.scoreFragmentMilestonesGranted === 'number' && Number.isFinite(parsed.scoreFragmentMilestonesGranted)
+            ? Math.max(0, Math.floor(parsed.scoreFragmentMilestonesGranted))
+            : undefined;
     const playerName = typeof parsed.playerName === 'string' ? parsed.playerName : undefined;
     const sessionLockedPlayerName = typeof parsed.sessionLockedPlayerName === 'string'
         ? parsed.sessionLockedPlayerName
@@ -138,6 +234,8 @@ const parseSavedGameState = (raw: string | null): SavedGameState | null => {
         moveCount,
         startedAt,
         activeDurationMs,
+        maxScoreThisRun,
+        scoreFragmentMilestonesGranted,
         playerName,
         sessionLockedPlayerName,
         hasUsedRevive,

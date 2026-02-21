@@ -31,6 +31,7 @@ type BlockCustomizationContextValue = {
   addSkin: (skin: SkinItem) => void;
   setActiveSkin: (id: string | null) => void;
   addFragments: (amount: number) => void;
+  addScoreMilestoneFragments: (amount: number) => void;
   purchaseSkin: (skinId: string) => void;
 };
 
@@ -194,9 +195,21 @@ export function BlockCustomizationProvider({ children }: { children: React.React
   }, []);
 
   const addFragments = useCallback((amount: number) => {
+    const safeAmount = Number.isFinite(amount) ? Math.max(0, Math.floor(amount)) : 0;
+    if (safeAmount <= 0) return;
     setSkinSettings(prev => ({
       ...prev,
-      fragments: prev.fragments + amount,
+      fragments: prev.fragments + safeAmount,
+    }));
+  }, []);
+
+  const addScoreMilestoneFragments = useCallback((amount: number) => {
+    const safeAmount = Number.isFinite(amount) ? Math.max(0, Math.floor(amount)) : 0;
+    if (safeAmount <= 0) return;
+    setSkinSettings(prev => ({
+      ...prev,
+      fragments: prev.fragments + safeAmount,
+      scoreMilestoneCredits: prev.scoreMilestoneCredits + safeAmount,
     }));
   }, []);
 
@@ -245,9 +258,10 @@ export function BlockCustomizationProvider({ children }: { children: React.React
       addSkin,
       setActiveSkin,
       addFragments,
+      addScoreMilestoneFragments,
       purchaseSkin,
     }),
-    [gate, settings, resetAll, resolver, skinSettings, activeSkin, isPremiumUiThemeActive, premiumUiOverrides, isWin98ThemeActive, addSkin, setActiveSkin, addFragments, purchaseSkin]
+    [gate, settings, resetAll, resolver, skinSettings, activeSkin, isPremiumUiThemeActive, premiumUiOverrides, isWin98ThemeActive, addSkin, setActiveSkin, addFragments, addScoreMilestoneFragments, purchaseSkin]
   );
 
   return (

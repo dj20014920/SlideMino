@@ -5,7 +5,14 @@
  * - prepareRewardVideoAd / showRewardVideoAd 사용 (표준 reward ad)
  */
 
-import { AdMob, RewardAdOptions, RewardAdPluginEvents, AdMobRewardItem, AdLoadInfo } from '@capacitor-community/admob';
+import {
+  AdMob,
+  RewardAdOptions,
+  RewardAdPluginEvents,
+  AdMobRewardItem,
+  AdLoadInfo,
+  type AdMobError,
+} from '@capacitor-community/admob';
 import { getSkinRewardAdId, isSkinRewardAdSupported, CURRENT_AD_PLATFORM } from './adConfig';
 import { ensureAdMobReady } from './admob';
 import { CooldownGate, RetryBackoffScheduler, HourlyFrequencyCap, ClickAbuseGuard } from './adResilience';
@@ -74,6 +81,7 @@ class SkinDailyAdLimiter {
 class SkinRewardAdService {
   private adUnitId: string;
   private loadStatus: AdLoadStatus = 'not_loaded';
+  private lastLoadError: AdMobError | null = null;
   private isProcessingShow = false;
   private rewardIssuedForCurrentShow = false;
   private admobCallbacks: SkinRewardAdCallbacks | null = null;
@@ -94,13 +102,20 @@ class SkinRewardAdService {
   }
 
   private setupListeners(): void {
-    AdMob.addListener(RewardAdPluginEvents.Loaded, (_info: AdLoadInfo) => {
+    AdMob.addListener(RewardAdPluginEvents.Loaded, (info: AdLoadInfo) => {
+      // 동일 이벤트 채널을 공유하는 다른 리워드 광고 요청의 이벤트를 무시한다.
+      if (info.adUnitId !== this.adUnitId) return;
+      if (this.loadStatus !== 'loading') return;
       this.loadStatus = 'loaded';
+      this.lastLoadError = null;
       this.loadRetryBackoff.reset();
     });
 
-    AdMob.addListener(RewardAdPluginEvents.FailedToLoad, () => {
+    AdMob.addListener(RewardAdPluginEvents.FailedToLoad, (error: AdMobError) => {
+      if (this.loadStatus !== 'loading') return;
       this.loadStatus = 'failed';
+      this.lastLoadError = error;
+      console.warn('[SkinRewardAdService] AdMob 광고 로드 실패:', error.code, error.message);
       this.loadRetryBackoff.schedule(() => {
         if (this.loadStatus === 'failed') this.preloadAd();
       });
@@ -111,6 +126,7 @@ class SkinRewardAdService {
     });
 
     AdMob.addListener(RewardAdPluginEvents.FailedToShow, () => {
+      if (!this.isHandlingActiveShow()) return;
       this.loadStatus = 'failed';
       this.isProcessingShow = false;
       this.rewardIssuedForCurrentShow = false;
@@ -132,6 +148,7 @@ class SkinRewardAdService {
     });
 
     AdMob.addListener(RewardAdPluginEvents.Dismissed, () => {
+      if (!this.isHandlingActiveShow()) return;
       this.isProcessingShow = false;
       this.rewardIssuedForCurrentShow = false;
       if (this.admobCallbacks) {
@@ -152,6 +169,7 @@ class SkinRewardAdService {
 
   private async loadAdMobAd(): Promise<void> {
     this.loadStatus = 'loading';
+    this.lastLoadError = null;
 
     const canRequest = await ensureAdMobReady();
     if (!canRequest) { this.loadStatus = 'failed'; return; }
@@ -159,9 +177,29 @@ class SkinRewardAdService {
     const options: RewardAdOptions = { adId: this.adUnitId };
 
     try {
-      await AdMob.prepareRewardVideoAd(options);
-    } catch {
+      const info = await AdMob.prepareRewardVideoAd(options);
+      if (info.adUnitId !== this.adUnitId) {
+        this.loadStatus = 'failed';
+        this.lastLoadError = {
+          code: -1,
+          message: `Unexpected adUnitId loaded: ${info.adUnitId}`,
+        };
+        this.loadRetryBackoff.schedule(() => {
+          if (this.loadStatus === 'failed') this.preloadAd();
+        });
+        return;
+      }
+      this.loadStatus = 'loaded';
+      this.lastLoadError = null;
+      this.loadRetryBackoff.reset();
+    } catch (error) {
+      const normalizedError = this.normalizeAdMobError(error);
       this.loadStatus = 'failed';
+      this.lastLoadError = normalizedError;
+      console.warn('[SkinRewardAdService] AdMob 광고 로드 실패(예외):', normalizedError.code, normalizedError.message);
+      this.loadRetryBackoff.schedule(() => {
+        if (this.loadStatus === 'failed') this.preloadAd();
+      });
     }
   }
 
@@ -197,6 +235,10 @@ class SkinRewardAdService {
 
     if (this.loadStatus !== 'loaded') {
       if (this.loadStatus === 'not_loaded' || this.loadStatus === 'failed') this.preloadAd();
+      if (this.loadStatus === 'failed' && this.lastLoadError?.code === 3) {
+        callbacks.onError(new Error('현재 광고 재고가 부족합니다. 잠시 후 다시 시도해주세요.'));
+        return;
+      }
       callbacks.onError(new Error('광고를 준비 중입니다. 잠시 후 다시 시도해주세요.'));
       return;
     }
@@ -228,6 +270,23 @@ class SkinRewardAdService {
 
   public getRemainingDailyViews(): number {
     return this.dailyLimiter.getRemainingCount();
+  }
+
+  private isHandlingActiveShow(): boolean {
+    return this.isProcessingShow || this.admobCallbacks !== null;
+  }
+
+  private normalizeAdMobError(error: unknown): AdMobError {
+    if (typeof error === 'object' && error !== null) {
+      const maybe = error as Partial<AdMobError>;
+      if (typeof maybe.code === 'number' && typeof maybe.message === 'string') {
+        return { code: maybe.code, message: maybe.message };
+      }
+    }
+    if (error instanceof Error) {
+      return { code: -1, message: error.message };
+    }
+    return { code: -1, message: 'Unknown AdMob error' };
   }
 }
 

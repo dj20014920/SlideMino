@@ -16,6 +16,7 @@ export const DEFAULT_SKIN_SETTINGS: SkinSettings = {
   ownedSkins: [],
   activeSkinId: null,
   fragments: 0,
+  scoreMilestoneCredits: 0,
 };
 
 // 유효한 hex 색상인지 검증
@@ -66,7 +67,12 @@ export const loadSkinSettings = (): SkinSettings => {
         ? Math.max(0, Math.floor(obj.fragments))
         : 0;
 
-    return { version: 2, ownedSkins, activeSkinId, fragments };
+    const scoreMilestoneCredits =
+      typeof obj.scoreMilestoneCredits === 'number' && Number.isFinite(obj.scoreMilestoneCredits)
+        ? Math.max(0, Math.floor(obj.scoreMilestoneCredits))
+        : 0;
+
+    return { version: 2, ownedSkins, activeSkinId, fragments, scoreMilestoneCredits };
   } catch {
     return DEFAULT_SKIN_SETTINGS;
   }

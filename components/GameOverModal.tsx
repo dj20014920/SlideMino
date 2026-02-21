@@ -40,21 +40,18 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [nameError, setNameError] = useState<string | null>(null);
     const [submitError, setSubmitError] = useState<string | null>(null);
-    const [submitInfo, setSubmitInfo] = useState<string | null>(null);
 
     useEffect(() => {
         // Load saved name or use provided playerName
         setName(playerName || rankingService.getSavedName());
         setNameError(null);
         setSubmitError(null);
-        setSubmitInfo(null);
     }, [playerName]);
 
     useEffect(() => {
         if (step === 'REGISTER') {
             setNameError(null);
             setSubmitError(null);
-            setSubmitInfo(null);
         }
     }, [step]);
 
@@ -62,7 +59,6 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         setIsSubmitting(true);
         setNameError(null);
         setSubmitError(null);
-        setSubmitInfo(null);
 
         // Submit score with anti-cheat metadata and session ID
         const result = await rankingService.submitScore(
@@ -75,10 +71,6 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         );
         setIsSubmitting(false);
         if (result.success) {
-            setSubmitInfo(null);
-            setStep('SUBMITTED');
-        } else if (result.alreadySubmitted) {
-            setSubmitInfo(t('modals:rankingRegister.alreadySubmittedMessage'));
             setStep('SUBMITTED');
         } else if (result.offline) {
             setSubmitError(t('modals:leaderboard.offline'));
@@ -262,7 +254,6 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                                         setName(e.target.value);
                                         setNameError(null);
                                         setSubmitError(null);
-                                        setSubmitInfo(null);
                                     }}
                                     placeholder={t('modals:nameInput.placeholder')}
                                     maxLength={PLAYER_NAME_MAX_LENGTH}
@@ -287,11 +278,6 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                         {submitError && (
                             <div className="w-full text-center text-sm text-red-500">
                                 {submitError}
-                            </div>
-                        )}
-                        {submitInfo && (
-                            <div className="w-full text-center text-sm text-amber-600">
-                                {submitInfo}
                             </div>
                         )}
 
@@ -351,7 +337,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                         <div className="text-center space-y-2">
                             <h3 className="text-2xl font-bold text-gray-900">{t('modals:rankingRegister.success')}</h3>
                             <p className="text-gray-500">
-                                {submitInfo ?? t('modals:rankingRegister.successMessage')}
+                                {t('modals:rankingRegister.successMessage')}
                             </p>
                         </div>
 

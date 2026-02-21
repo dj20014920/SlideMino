@@ -9,7 +9,14 @@
  */
 
 import { GoogleAdMob } from '@apps-in-toss/web-framework';
-import { AdMob, RewardAdOptions, RewardAdPluginEvents, AdMobRewardItem, AdLoadInfo } from '@capacitor-community/admob';
+import {
+  AdMob,
+  RewardAdOptions,
+  RewardAdPluginEvents,
+  AdMobRewardItem,
+  AdLoadInfo,
+  type AdMobError,
+} from '@capacitor-community/admob';
 import { getRewardAdId, isRewardAdSupported, CURRENT_AD_PLATFORM } from './adConfig';
 import { ensureAdMobReady } from './admob';
 import { CooldownGate, RetryBackoffScheduler, HourlyFrequencyCap, ClickAbuseGuard } from './adResilience';
@@ -255,13 +262,16 @@ class RewardAdService {
   private setupAdMobListeners(): void {
     // 광고 로드 성공
     AdMob.addListener(RewardAdPluginEvents.Loaded, (info: AdLoadInfo) => {
+      if (info.adUnitId !== this.adGroupId) return;
+      if (this.loadStatus !== 'loading') return;
       this.loadStatus = 'loaded';
       this.loadRetryBackoff.reset();
       console.log('[RewardAdService] AdMob 광고 로드 완료:', info);
     });
 
     // 광고 로드 실패
-    AdMob.addListener(RewardAdPluginEvents.FailedToLoad, (error) => {
+    AdMob.addListener(RewardAdPluginEvents.FailedToLoad, (error: AdMobError) => {
+      if (this.loadStatus !== 'loading') return;
       this.loadStatus = 'failed';
       console.error('[RewardAdService] AdMob 광고 로드 실패:', error);
       this.scheduleLoadRetry();
@@ -269,12 +279,14 @@ class RewardAdService {
 
     // 광고 표시됨
     AdMob.addListener(RewardAdPluginEvents.Showed, () => {
+      if (!this.isHandlingActiveShow()) return;
       console.log('[RewardAdService] AdMob 광고 표시됨');
       this.showStatus = 'showing';
     });
 
     // 광고 표시 실패
     AdMob.addListener(RewardAdPluginEvents.FailedToShow, (error) => {
+      if (!this.isHandlingActiveShow()) return;
       console.error('[RewardAdService] AdMob 광고 표시 실패:', error);
       this.showStatus = 'idle';
       this.isProcessingShow = false;
@@ -289,6 +301,7 @@ class RewardAdService {
 
     // 🎯 핵심: 보상 획득
     AdMob.addListener(RewardAdPluginEvents.Rewarded, (reward: AdMobRewardItem) => {
+      if (!this.isHandlingActiveShow()) return;
       console.log('[RewardAdService] AdMob 보상 획득:', reward);
       this.showStatus = 'rewarded';
 
@@ -299,6 +312,7 @@ class RewardAdService {
 
     // 광고 닫힘
     AdMob.addListener(RewardAdPluginEvents.Dismissed, () => {
+      if (!this.isHandlingActiveShow()) return;
       console.log('[RewardAdService] AdMob 광고 닫힘');
       this.showStatus = 'closed';
       this.isProcessingShow = false;
@@ -388,9 +402,15 @@ class RewardAdService {
     const options: RewardAdOptions = { adId: this.adGroupId };
 
     try {
-      await AdMob.prepareRewardVideoAd(options);
-      // AdMob은 이벤트 리스너에서 loaded 상태를 설정
-      // 로드 완료 리스너는 constructor에서 설정됨
+      const info = await AdMob.prepareRewardVideoAd(options);
+      if (info.adUnitId !== this.adGroupId) {
+        this.loadStatus = 'failed';
+        console.error('[RewardAdService] AdMob 광고 로드 mismatch:', info.adUnitId, this.adGroupId);
+        this.scheduleLoadRetry();
+        return;
+      }
+      this.loadStatus = 'loaded';
+      this.loadRetryBackoff.reset();
     } catch (error) {
       this.loadStatus = 'failed';
       console.error('[RewardAdService] AdMob 광고 로드 실패:', error);
@@ -620,6 +640,10 @@ class RewardAdService {
     this.sessionManager.clearSession();
 
     console.log('[RewardAdService] 리소스 정리');
+  }
+
+  private isHandlingActiveShow(): boolean {
+    return this.isProcessingShow || this.admobCallbacks !== null;
   }
 }
 

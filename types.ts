@@ -130,6 +130,7 @@ export interface SkinSettings {
   ownedSkins: SkinItem[];
   activeSkinId: string | null;
   fragments: number; // 스킨 조각 (중복 뽑기 시 획득, 교환에 사용)
+  scoreMilestoneCredits: number; // 점수 마일스톤으로 지급된 누적 조각 수(복구 정합성용)
 }
 
 // 스킨 뽑기 결과

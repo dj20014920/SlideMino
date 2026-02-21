@@ -13,7 +13,6 @@ export interface SubmitScoreResponse {
     rank?: number;
     queued?: boolean;
     offline?: boolean;
-    alreadySubmitted?: boolean;
 }
 
 export interface LeaderboardResponse {
@@ -332,10 +331,6 @@ export const rankingService = {
         const result = await postScore(payload);
         if (result.success) {
             return { success: true, rank: result.rank };
-        }
-
-        if (result.status === 409 || result.code === 'SESSION_ALREADY_SUBMITTED') {
-            return { success: false, alreadySubmitted: true };
         }
 
         if (!REALTIME_RANKING_ONLY && shouldQueue(result.status)) {

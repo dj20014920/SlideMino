@@ -294,6 +294,16 @@ body.theme-win98 .win98-menu-btn {
   min-height: 32px;
 }
 
+body.theme-win98 .win98-menu-btn.win98-exit-home-btn {
+  background: #fff3cc !important;
+  color: #4a3200 !important;
+}
+
+body.theme-win98 .win98-menu-btn.win98-exit-cancel-btn {
+  background: #ffffff !important;
+  color: var(--win98-text-color) !important;
+}
+
 body.theme-win98 .win98-muted {
   color: #6b7280 !important;
 }

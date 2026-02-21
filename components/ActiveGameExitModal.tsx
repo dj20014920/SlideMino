@@ -48,7 +48,6 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [nameError, setNameError] = useState<string | null>(null);
     const [submitError, setSubmitError] = useState<string | null>(null);
-    const [submitInfo, setSubmitInfo] = useState<string | null>(null);
 
     useEffect(() => {
         if (!open) return;
@@ -58,7 +57,6 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
         setIsSubmitting(false);
         setNameError(null);
         setSubmitError(null);
-        setSubmitInfo(null);
     }, [open, context, playerName, lockedPlayerName]);
 
     if (!open) return null;
@@ -67,7 +65,6 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
         setIsSubmitting(true);
         setNameError(null);
         setSubmitError(null);
-        setSubmitInfo(null);
         setSubmitIntent(intent);
 
         const result = await rankingService.submitScore(
@@ -82,13 +79,6 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
         setIsSubmitting(false);
         if (result.success) {
             onSessionNameLocked?.(trimmedName);
-            setStep('SUBMITTED');
-            return;
-        }
-
-        if (result.alreadySubmitted) {
-            onSessionNameLocked?.(trimmedName);
-            setSubmitInfo(t('modals:rankingRegister.alreadySubmittedMessage'));
             setStep('SUBMITTED');
             return;
         }
@@ -190,8 +180,8 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                                     type="button"
                                     onClick={onProceedWithoutRegister}
                                     className={isWin98
-                                        ? 'w-full py-2 px-3 win98-menu-btn text-sm font-semibold'
-                                        : 'w-full py-3.5 rounded-2xl bg-white border border-gray-200 text-gray-900 font-semibold shadow-sm hover:bg-gray-50 hover:border-gray-300 active:scale-[0.98] transition-all duration-200'}
+                                        ? 'w-full py-2 px-3 win98-menu-btn win98-exit-home-btn text-sm font-semibold'
+                                        : 'w-full py-3.5 rounded-2xl border border-amber-300 bg-gradient-to-br from-amber-50 to-orange-100 text-amber-900 font-semibold shadow-sm shadow-amber-100/70 hover:from-amber-100 hover:to-orange-200 hover:border-amber-400 active:scale-[0.98] transition-all duration-200'}
                                 >
                                     {t(proceedWithoutKey)}
                                 </button>
@@ -237,8 +227,8 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                                 type="button"
                                 onClick={onCancel}
                                 className={isWin98
-                                    ? 'w-full py-2 px-3 win98-menu-btn text-sm font-semibold'
-                                    : 'w-full py-2 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors'}
+                                    ? 'w-full py-2 px-3 win98-menu-btn win98-exit-cancel-btn text-sm font-semibold'
+                                    : 'w-full py-3.5 rounded-2xl border border-slate-300 bg-white text-slate-800 text-base font-semibold shadow-sm hover:bg-slate-50 hover:border-slate-400 active:scale-[0.98] transition-all duration-200'}
                             >
                                 {t(cancelKey)}
                             </button>
@@ -327,11 +317,6 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                                 {submitError}
                             </div>
                         )}
-                        {submitInfo && (
-                            <div className="w-full text-center text-sm text-amber-600">
-                                {submitInfo}
-                            </div>
-                        )}
 
                         <div className="flex flex-col gap-3">
                             <button
@@ -375,7 +360,7 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                         <div className="space-y-2">
                             <h3 className={isWin98 ? 'text-xl font-bold text-gray-900' : 'text-2xl font-bold text-gray-900'}>{t('modals:rankingRegister.success')}</h3>
                             <p className={isWin98 ? 'text-sm text-gray-700 whitespace-pre-line' : 'text-sm text-gray-500 whitespace-pre-line'}>
-                                {submitInfo ?? submittedMessage}
+                                {submittedMessage}
                             </p>
                         </div>
                         <button

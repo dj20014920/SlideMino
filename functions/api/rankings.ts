@@ -151,13 +151,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     // ========== 데이터베이스 조회 (Layer 4) ==========
     // Prepared statement로 SQL Injection 방어
-    // 최신 50개 랭킹만 반환 (성능 최적화)
     try {
       const { results } = await env.DB.prepare(
-        `SELECT name, score, difficulty
+        `SELECT name, score, difficulty, timestamp
          FROM rankings
          ORDER BY score DESC
-         LIMIT 50`
+         LIMIT 100`
       ).all();
 
       return new Response(

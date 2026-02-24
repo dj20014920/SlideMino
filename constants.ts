@@ -257,18 +257,6 @@ export const MAX_DAILY_REVIVE_AD_VIEWS = 5;
  */
 export const MAX_DAILY_BLOCK_REFRESH_AD_VIEWS = 5;
 
-/**
- * 보드 크기별 스킨 조각 지급 점수 간격
- * - 누적 점수가 interval을 넘을 때마다 조각 1개 지급
- */
-export const SCORE_FRAGMENT_INTERVAL_BY_BOARD_SIZE: Record<BoardSize, number> = {
-  4: 5000,
-  5: 7000,
-  7: 10000,
-  8: 13000,
-  10: 15000,
-};
-
 // ==========================================
 // 📌 스킨 시스템 상수
 // ==========================================

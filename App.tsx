@@ -51,7 +51,6 @@ import {
   INITIAL_UNDO_AMOUNT,
   REWARD_BLOCK_REFRESH_AMOUNT,
   REWARD_UNDO_AMOUNT,
-  SCORE_FRAGMENT_INTERVAL_BY_BOARD_SIZE,
   SKIN_CATALOG,
 } from './constants';
 import { useBlockCustomization } from './context/BlockCustomizationContext';
@@ -60,8 +59,6 @@ import {
   loadGameState,
   clearGameState,
   hasActiveGame,
-  hasLegacyInProgressScoreFragmentMigrationClaim,
-  markLegacyInProgressScoreFragmentMigrationClaim,
   type SavedGameState,
 } from './services/gameStorage';
 import { rankingService, type LiveRankEstimate } from './services/rankingService';
@@ -178,11 +175,6 @@ const getSavedGameActiveDurationMs = (saved: SavedGameState): number => {
   return Math.max(0, saved.savedAt - startedAt);
 };
 
-const getScoreFragmentMilestoneCount = (score: number, size: BoardSize): number => {
-  const interval = SCORE_FRAGMENT_INTERVAL_BY_BOARD_SIZE[size];
-  if (!Number.isFinite(score) || score <= 0 || !Number.isFinite(interval) || interval <= 0) return 0;
-  return Math.floor(score / interval);
-};
 
 interface BoardMetrics {
   rectLeft: number;
@@ -523,7 +515,6 @@ const App: React.FC = () => {
   const [slots, setSlots] = useState<(Piece | null)[]>([null, null, null]);
   const [score, setScore] = useState(0);
   const [maxScoreThisRun, setMaxScoreThisRun] = useState(0);
-  const [scoreFragmentMilestonesGranted, setScoreFragmentMilestonesGranted] = useState(0);
   const [highScore, setHighScore] = useState(0);
   const [phase, setPhase] = useState<Phase>(Phase.PLACE);
   const [boardSize, setBoardSize] = useState<BoardSize>(8);
@@ -686,8 +677,6 @@ const App: React.FC = () => {
   const currentPointerPosRef = useRef<{ x: number, y: number } | null>(null);
   const scoreRef = useRef<number>(score);
   const maxScoreThisRunRef = useRef<number>(maxScoreThisRun);
-  const scoreFragmentMilestonesGrantedRef = useRef<number>(scoreFragmentMilestonesGranted);
-  const scoreMilestoneCreditsRef = useRef<number>(Math.max(0, Math.floor(skinSettings.scoreMilestoneCredits ?? 0)));
   const boardSizeRef = useRef<BoardSize>(boardSize);
   const gameStateRef = useRef<GameState>(gameState);
   const previousGameStateRef = useRef<GameState>(gameState);
@@ -699,14 +688,6 @@ const App: React.FC = () => {
   useEffect(() => {
     maxScoreThisRunRef.current = maxScoreThisRun;
   }, [maxScoreThisRun]);
-
-  useEffect(() => {
-    scoreFragmentMilestonesGrantedRef.current = scoreFragmentMilestonesGranted;
-  }, [scoreFragmentMilestonesGranted]);
-
-  useEffect(() => {
-    scoreMilestoneCreditsRef.current = Math.max(0, Math.floor(skinSettings.scoreMilestoneCredits ?? 0));
-  }, [skinSettings.scoreMilestoneCredits]);
 
   useEffect(() => {
     boardSizeRef.current = boardSize;
@@ -850,65 +831,17 @@ const App: React.FC = () => {
   }, []);
 
   const restoreSavedGame = useCallback((saved: SavedGameState) => {
-    const hasSavedMaxScore = typeof saved.maxScoreThisRun === 'number' && Number.isFinite(saved.maxScoreThisRun);
-    const hasSavedMilestones = typeof saved.scoreFragmentMilestonesGranted === 'number' && Number.isFinite(saved.scoreFragmentMilestonesGranted);
-    const savedMaxScore = hasSavedMaxScore ? saved.maxScoreThisRun : null;
-    const savedGrantedMilestones = hasSavedMilestones ? saved.scoreFragmentMilestonesGranted : null;
-    const isLegacySaveWithoutMilestones = !hasSavedMaxScore || !hasSavedMilestones;
-    const isLegacyInProgressSave = isLegacySaveWithoutMilestones && saved.gameState === GameState.PLAYING;
-    const shouldGrantLegacyInProgressMigration = isLegacyInProgressSave &&
-      !hasLegacyInProgressScoreFragmentMigrationClaim(saved);
-
-    // 업데이트 이전에 진행 중이던 게임은 점수 기반 누적 보상을 딱 1회만 마이그레이션한다.
-    if (shouldGrantLegacyInProgressMigration) {
-      markLegacyInProgressScoreFragmentMigrationClaim(saved);
-    }
-
-    const restoredMaxScore = (() => {
-      if (savedMaxScore !== null) {
-        return Math.max(0, Math.floor(savedMaxScore), saved.score);
-      }
-      return Math.max(0, saved.score);
-    })();
-    const maxReachableMilestones = getScoreFragmentMilestoneCount(restoredMaxScore, saved.boardSize);
-    const savedMilestones = (() => {
-      if (savedGrantedMilestones !== null) {
-        const parsed = Math.max(0, Math.floor(savedGrantedMilestones));
-        return Math.min(parsed, maxReachableMilestones);
-      }
-      // 레거시 저장본은 복원 시점 기준으로 이미 도달한 마일스톤으로 정규화한다.
-      return maxReachableMilestones;
-    })();
-    const persistedSkinMilestoneCredits = scoreMilestoneCreditsRef.current;
-    const restoredMilestones = Math.min(
-      Math.max(savedMilestones, persistedSkinMilestoneCredits),
-      maxReachableMilestones
-    );
-    const missingMilestoneCredits = (() => {
-      if (saved.gameState !== GameState.PLAYING) {
-        // 진행 중 게임이 아닐 때는 복원 보상을 지급하지 않는다.
-        return 0;
-      }
-      if (isLegacyInProgressSave) {
-        // 진행 중이던 레거시 게임은 최초 1회에 한해 점수 구간 전체를 일괄 지급.
-        return shouldGrantLegacyInProgressMigration ? maxReachableMilestones : 0;
-      }
-      return restoredMilestones - persistedSkinMilestoneCredits;
-    })();
+    // maxScoreThisRun: 저장값과 현재 score 중 큰 값으로 복원
+    const restoredMaxScore = typeof saved.maxScoreThisRun === 'number' && Number.isFinite(saved.maxScoreThisRun)
+      ? Math.max(0, Math.floor(saved.maxScoreThisRun), saved.score)
+      : Math.max(0, saved.score);
 
     setGameState(saved.gameState);
     setGrid(saved.grid);
     setSlots(saved.slots);
     setScore(saved.score);
     maxScoreThisRunRef.current = restoredMaxScore;
-    scoreFragmentMilestonesGrantedRef.current = restoredMilestones;
-    scoreMilestoneCreditsRef.current = restoredMilestones;
     setMaxScoreThisRun(restoredMaxScore);
-    setScoreFragmentMilestonesGranted(restoredMilestones);
-    if (missingMilestoneCredits > 0) {
-      // 강제 종료/복구 시 저장 타이밍이 엇갈려 조각이 누락된 경우 보정한다.
-      addScoreMilestoneFragments(missingMilestoneCredits);
-    }
     setPhase(saved.phase);
     setBoardSize(saved.boardSize);
     // 구버전 저장 데이터 정규화: 이어하기/자동복원 모두 동일한 규칙 적용.
@@ -942,12 +875,17 @@ const App: React.FC = () => {
     sessionIdRef.current = saved.sessionId ?? crypto.randomUUID();
     moveCountRef.current = typeof saved.moveCount === 'number' ? saved.moveCount : 0;
     gameStartTimeRef.current = typeof saved.startedAt === 'number' ? saved.startedAt : saved.savedAt;
-    activePlayDurationMsRef.current = getSavedGameActiveDurationMs(saved);
+    const savedActiveDurationMs = getSavedGameActiveDurationMs(saved);
+    // 구버전 데이터 호환: activeDurationMs가 없으면 저장 시점까지 경과 시간으로 보정
+    // (PLAYING 브랜치도 이 ref를 기준으로 duration을 계산하므로 anti-cheat 오탐 방지)
+    activePlayDurationMsRef.current = savedActiveDurationMs > 0
+      ? savedActiveDurationMs
+      : Math.max(0, Date.now() - saved.savedAt);
     activePlayStartedAtRef.current =
       saved.gameState === GameState.PLAYING && isDocumentVisible()
         ? Date.now()
         : null;
-  }, [addScoreMilestoneFragments]);
+  }, []);
 
   // 앱 시작 시 저장된 게임 복원
   useEffect(() => {
@@ -987,7 +925,6 @@ const App: React.FC = () => {
       startedAt: gameStartTimeRef.current,
       activeDurationMs,
       maxScoreThisRun,
-      scoreFragmentMilestonesGranted,
       playerName,
       sessionLockedPlayerName: sessionLockedPlayerName ?? undefined,
     });
@@ -1008,7 +945,6 @@ const App: React.FC = () => {
     reviveBreakRemaining,
     revivePendingTileId,
     maxScoreThisRun,
-    scoreFragmentMilestonesGranted,
     playerName,
     sessionLockedPlayerName,
     pauseActivePlayTimer,
@@ -1290,9 +1226,7 @@ const App: React.FC = () => {
     setSlots([generateRandomPiece(), generateRandomPiece(), generateRandomPiece()]);
     setScore(0);
     maxScoreThisRunRef.current = 0;
-    scoreFragmentMilestonesGrantedRef.current = 0;
     setMaxScoreThisRun(0);
-    setScoreFragmentMilestonesGranted(0);
     setMergingTiles(EMPTY_MERGING_TILES);
     setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
     slideLockRef.current = false;
@@ -1371,36 +1305,16 @@ const App: React.FC = () => {
     }, durationMs);
   }, []);
 
+  // 게임 중 최고 점수 추적 (저장 및 복원용)
   useEffect(() => {
     if (gameState !== GameState.PLAYING) return;
-
     const normalizedScore = Math.max(0, Math.floor(score));
     const nextMaxScore = Math.max(maxScoreThisRunRef.current, normalizedScore);
-
     if (nextMaxScore !== maxScoreThisRunRef.current) {
       maxScoreThisRunRef.current = nextMaxScore;
       setMaxScoreThisRun(nextMaxScore);
     }
-
-    const maxReachableMilestones = getScoreFragmentMilestoneCount(nextMaxScore, boardSize);
-    const normalizedGranted = Math.min(
-      Math.max(0, scoreFragmentMilestonesGrantedRef.current),
-      maxReachableMilestones
-    );
-
-    if (normalizedGranted !== scoreFragmentMilestonesGrantedRef.current) {
-      scoreFragmentMilestonesGrantedRef.current = normalizedGranted;
-      setScoreFragmentMilestonesGranted(normalizedGranted);
-    }
-
-    const newlyReachedMilestones = maxReachableMilestones - normalizedGranted;
-    if (newlyReachedMilestones <= 0) return;
-
-    scoreFragmentMilestonesGrantedRef.current = maxReachableMilestones;
-    setScoreFragmentMilestonesGranted(maxReachableMilestones);
-    addScoreMilestoneFragments(newlyReachedMilestones);
-    showComboMessage('스킨 조각을 획득했습니다! \n스킨 창에서 확인해보세요!', 2200);
-  }, [addScoreMilestoneFragments, boardSize, gameState, score, showComboMessage]);
+  }, [gameState, score]);
 
   const showBlockRefreshNotice = useCallback((message: string, durationMs = 1600) => {
     setBlockRefreshNotice(message);
@@ -2246,6 +2160,14 @@ const App: React.FC = () => {
       mergeFinalizeTimeoutRef.current = window.setTimeout(() => {
         setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
         setScore(prev => prev + scoreAdded);
+
+        // 1024 블럭이 새로 만들어질 때마다 스킨 조각 1개씩 지급
+        const new1024Count = mergedTiles.filter(mt => mt.toValue === 1024).length;
+        if (new1024Count > 0) {
+          addScoreMilestoneFragments(new1024Count);
+          showComboMessage('✦ 스킨 조각 획득!\n스킨 창에서 확인하세요', 2200);
+        }
+
         mergeFinalizeTimeoutRef.current = null;
       }, lockMs + 16);
     }
@@ -2918,7 +2840,7 @@ const App: React.FC = () => {
           <div
             role="status"
             aria-live="polite"
-            className="pointer-events-none fixed left-1/2 top-[calc(12px+var(--app-safe-top))] z-[120] w-max max-w-[92vw] -translate-x-1/2 rounded-full bg-gray-900/92 px-4 py-2 text-center text-[12px] font-medium text-white shadow-xl backdrop-blur-sm whitespace-pre-line"
+            className="pointer-events-none fixed left-1/2 top-[calc(12px+var(--app-safe-top))] z-[120] w-max max-w-[92vw] -translate-x-1/2 rounded-2xl bg-stone-900 px-5 py-2.5 text-center text-[12px] font-semibold text-stone-100 shadow-2xl ring-1 ring-stone-600/70 whitespace-pre-line"
           >
             {comboMessage}
           </div>
@@ -3146,7 +3068,7 @@ const App: React.FC = () => {
         <div
           role="status"
           aria-live="polite"
-          className="pointer-events-none fixed left-1/2 top-[calc(12px+var(--app-safe-top))] z-[120] w-max max-w-[92vw] -translate-x-1/2 rounded-full bg-gray-900/92 px-4 py-2 text-center text-[12px] font-medium text-white shadow-xl backdrop-blur-sm whitespace-pre-line"
+          className="pointer-events-none fixed left-1/2 top-[calc(12px+var(--app-safe-top))] z-[120] w-max max-w-[92vw] -translate-x-1/2 rounded-2xl bg-stone-900 px-5 py-2.5 text-center text-[12px] font-semibold text-stone-100 shadow-2xl ring-1 ring-stone-600/70 whitespace-pre-line"
         >
           {comboMessage}
         </div>

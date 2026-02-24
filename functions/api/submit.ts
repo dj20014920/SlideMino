@@ -151,33 +151,28 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     await resetRankingsIfNewMonth(env);
 
-    // ========== 데이터베이스 저장 (UPSERT: 더 높은 점수일 때만 UPDATE) ==========
+    // ========== 데이터베이스 저장 (D1 batch: UNIQUE 제약 없이 원자적 동작) ==========
+    // D1 batch()는 단일 트랜잭션으로 실행되어 레이스 컨디션을 방지한다.
+    // UPSERT(ON CONFLICT)를 사용하지 않아 session_id UNIQUE 인덱스가 없어도 동작한다.
     try {
       const now = Date.now();
 
-      // 중간 저장 지원:
-      //   - 처음 제출이면 INSERT
-      //   - 같은 session_id가 이미 있고 새 점수가 더 높으면 UPDATE
-      //   - 같거나 낮은 점수면 기존 레코드 유지 (no-op)
-      await env.DB.prepare(
-        `INSERT INTO rankings (session_id, name, score, difficulty, duration, moves, timestamp, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(session_id) DO UPDATE SET
-           score      = CASE WHEN excluded.score > score      THEN excluded.score      ELSE score      END,
-           name       = CASE WHEN excluded.score > score      THEN excluded.name       ELSE name       END,
-           moves      = CASE WHEN excluded.score > score      THEN excluded.moves      ELSE moves      END,
-           duration   = CASE WHEN excluded.score > score      THEN excluded.duration   ELSE duration   END,
-           updated_at = CASE WHEN excluded.score > score      THEN excluded.updated_at ELSE updated_at END`
-      ).bind(
-        sessionId,
-        sanitizedName,
-        score,
-        difficulty,
-        duration,
-        moves,
-        now,
-        now
-      ).run();
+      // 중간 저장 지원 (원자적):
+      //   1) session_id 미존재 → INSERT (WHERE NOT EXISTS로 중복 방지)
+      //   2) session_id 존재 + 새 점수 > 기존 점수 → UPDATE
+      //   3) 같거나 낮은 점수 → no-op
+      await env.DB.batch([
+        env.DB.prepare(
+          `INSERT INTO rankings (session_id, name, score, difficulty, duration, moves, timestamp, updated_at)
+           SELECT ?, ?, ?, ?, ?, ?, ?, ?
+           WHERE NOT EXISTS (SELECT 1 FROM rankings WHERE session_id = ?)`
+        ).bind(sessionId, sanitizedName, score, difficulty, duration, moves, now, now, sessionId),
+        env.DB.prepare(
+          `UPDATE rankings
+           SET score = ?, name = ?, moves = ?, duration = ?, updated_at = ?
+           WHERE session_id = ? AND ? > score`
+        ).bind(score, sanitizedName, moves, duration, now, sessionId, score),
+      ]);
 
       // ========== 순위 조회 ==========
       // 같은 난이도 내에서 현재 점수보다 높은 점수의 개수 + 1

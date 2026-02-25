@@ -50,6 +50,8 @@
     "submitting": "Submitting...",
     "failure": "Submission failed",
     "failureMessage": "We couldn't submit your score. Check your connection or nickname and try again.",
+    "rejectedMessage": "This score did not pass verification yet. Play a bit longer and try again.",
+    "rateLimitedMessage": "Too many requests. Please try again shortly.",
     "success": "Registered!",
     "successMessage": "Your score has been successfully added to the leaderboard.",
     "queuedMessage": "You are offline. Your score will be submitted automatically when you reconnect.",
@@ -74,6 +76,8 @@
     "lockedNameNotice": "This run is locked to the first registered name.",
     "submittedMessage": "Score registration has been completed.",
     "midSaveSubmittedMessage": "Your current score has been mid-saved.",
+    "alreadySubmittedMidSaveMessage": "This session is already registered. On older server versions, re-registering mid-save in the same session may be blocked, so the previous entry is kept.",
+    "alreadySubmittedExitMessage": "This session is already registered. Keeping the existing entry and moving to the next step.",
     "continueAfterMidSave": "Keep Playing",
     "confirmHome": "Go To Menu",
     "confirmNewGame": "Start New Game"

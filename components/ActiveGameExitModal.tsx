@@ -48,6 +48,7 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [nameError, setNameError] = useState<string | null>(null);
     const [submitError, setSubmitError] = useState<string | null>(null);
+    const [submittedMessageOverride, setSubmittedMessageOverride] = useState<string | null>(null);
 
     useEffect(() => {
         if (!open) return;
@@ -57,6 +58,7 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
         setIsSubmitting(false);
         setNameError(null);
         setSubmitError(null);
+        setSubmittedMessageOverride(null);
     }, [open, context, playerName, lockedPlayerName]);
 
     if (!open) return null;
@@ -79,6 +81,20 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
         setIsSubmitting(false);
         if (result.success) {
             onSessionNameLocked?.(trimmedName);
+            setSubmittedMessageOverride(null);
+            setStep('SUBMITTED');
+            return;
+        }
+
+        if (result.code === 'SESSION_ALREADY_SUBMITTED') {
+            // 구버전 서버(세션당 1회 등록 제한)와의 호환:
+            // 이미 등록된 세션은 실패로 막지 않고 다음 단계로 진행시킨다.
+            onSessionNameLocked?.(trimmedName);
+            setSubmittedMessageOverride(
+                intent === 'MID_SAVE'
+                    ? t('modals:activeGameExit.alreadySubmittedMidSaveMessage')
+                    : t('modals:activeGameExit.alreadySubmittedExitMessage')
+            );
             setStep('SUBMITTED');
             return;
         }
@@ -88,6 +104,22 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
             return;
         }
 
+        if (result.status === 403) {
+            setSubmitError(t('modals:rankingRegister.rejectedMessage'));
+            return;
+        }
+
+        if (result.status === 429) {
+            setSubmitError(t('modals:rankingRegister.rateLimitedMessage'));
+            return;
+        }
+
+        console.error('[ActiveGameExitModal] submit failed', {
+            status: result.status,
+            code: result.code,
+            errorMessage: result.errorMessage,
+            intent,
+        });
         setSubmitError(t('modals:rankingRegister.failureMessage'));
     };
 
@@ -134,9 +166,9 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
     const confirmKey = context === 'HOME'
         ? 'modals:activeGameExit.confirmHome'
         : 'modals:activeGameExit.confirmNewGame';
-    const submittedMessage = submitIntent === 'MID_SAVE'
+    const submittedMessage = submittedMessageOverride ?? (submitIntent === 'MID_SAVE'
         ? t('modals:activeGameExit.midSaveSubmittedMessage')
-        : t('modals:activeGameExit.submittedMessage');
+        : t('modals:activeGameExit.submittedMessage'));
     const isWin98 = Boolean(isWin98ThemeActive);
 
     return (

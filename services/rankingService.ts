@@ -13,6 +13,9 @@ export interface SubmitScoreResponse {
     rank?: number;
     queued?: boolean;
     offline?: boolean;
+    status?: number;
+    code?: string;
+    errorMessage?: string;
 }
 
 export interface LeaderboardResponse {
@@ -48,14 +51,19 @@ const STORAGE_KEY_NAME = 'slidemino_player_name';
 const STORAGE_KEY_QUEUE = 'slidemino_pending_scores_v1';
 const LEADERBOARD_ERROR_LOG_COOLDOWN_MS = 60_000;
 const REALTIME_RANKING_ONLY = true;
+const API_BASE_URL = (() => {
+    const fromEnv = (import.meta.env.VITE_API_BASE_URL || '').trim();
+    if (!fromEnv) return BASE_URL;
+    return fromEnv.replace(/\/+$/, '');
+})();
 
 let lastLeaderboardErrorLogAt = 0;
 
 const getApiUrl = (path: string): string => {
     // In native (Capacitor) builds the app is served from a local origin
     // (e.g. capacitor://localhost), so relative `/api/*` calls won't hit Cloudflare.
-    // Use the production origin explicitly for API calls.
-    if (isNativeApp()) return `${BASE_URL}${path}`;
+    // Use a fixed origin for API calls (default: production, override: VITE_API_BASE_URL).
+    if (isNativeApp()) return `${API_BASE_URL}${path}`;
     return path;
 };
 
@@ -134,7 +142,7 @@ const shouldQueue = (status?: number): boolean => {
 
 const postScore = async (
     payload: Omit<PendingScore, 'updatedAt'>
-): Promise<{ success: boolean; rank?: number; status?: number; code?: string }> => {
+): Promise<{ success: boolean; rank?: number; status?: number; code?: string; errorMessage?: string }> => {
     try {
         const response = await fetch(getApiUrl('/api/submit'), {
             method: 'POST',
@@ -146,22 +154,46 @@ const postScore = async (
 
         if (!response.ok) {
             let code: string | undefined;
+            let errorMessage: string | undefined;
             try {
-                const errorBody = await response.json() as { code?: unknown };
+                const errorBody = await response.json() as { code?: unknown; error?: unknown; message?: unknown };
                 if (typeof errorBody?.code === 'string') {
                     code = errorBody.code;
+                }
+                if (typeof errorBody?.error === 'string') {
+                    errorMessage = errorBody.error;
+                } else if (typeof errorBody?.message === 'string') {
+                    errorMessage = errorBody.message;
                 }
             } catch {
                 // ignore non-json error body
             }
-            return { success: false, status: response.status, code };
+            console.error('[RankingService] submit failed', {
+                status: response.status,
+                code,
+                errorMessage,
+                difficulty: payload.difficulty,
+                score: payload.score,
+                duration: payload.duration,
+                moves: payload.moves,
+                isNative: isNativeApp(),
+            });
+            return { success: false, status: response.status, code, errorMessage };
         }
 
         const data = await response.json();
         return { success: true, rank: data.rank };
     } catch (error) {
-        console.error('Failed to submit score:', error);
-        return { success: false, status: 0 };
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error('[RankingService] submit network error', {
+            errorMessage,
+            difficulty: payload.difficulty,
+            score: payload.score,
+            duration: payload.duration,
+            moves: payload.moves,
+            isNative: isNativeApp(),
+        });
+        return { success: false, status: 0, errorMessage };
     }
 };
 
@@ -335,14 +367,33 @@ export const rankingService = {
 
         if (!REALTIME_RANKING_ONLY && shouldQueue(result.status)) {
             enqueueScore(payload);
-            return { success: false, queued: true, offline: !isOnline() };
+            return {
+                success: false,
+                queued: true,
+                offline: !isOnline(),
+                status: result.status,
+                code: result.code,
+                errorMessage: result.errorMessage,
+            };
         }
 
         if (result.status === 0 && !isOnline()) {
-            return { success: false, offline: true };
+            return {
+                success: false,
+                offline: true,
+                status: result.status,
+                code: result.code,
+                errorMessage: result.errorMessage,
+            };
         }
 
-        return { success: false, offline: !isOnline() };
+        return {
+            success: false,
+            offline: !isOnline(),
+            status: result.status,
+            code: result.code,
+            errorMessage: result.errorMessage,
+        };
     },
 
     /**

@@ -50,6 +50,8 @@
     "submitting": "提交中...",
     "failure": "提交失败",
     "failureMessage": "无法提交分数，请检查网络或昵称后重试。",
+    "rejectedMessage": "当前分数未通过校验，暂时无法登记。请继续游戏一段时间后重试。",
+    "rateLimitedMessage": "请求过于频繁，请稍后再试。",
     "success": "注册成功！",
     "successMessage": "您的分数已成功添加到排行榜。",
     "queuedMessage": "当前离线，恢复连接后会自动提交你的分数。",
@@ -74,6 +76,8 @@
     "lockedNameNotice": "本局会固定使用首次登记的名称。",
     "submittedMessage": "排行榜登记处理已完成。",
     "midSaveSubmittedMessage": "当前分数已完成中途保存。",
+    "alreadySubmittedMidSaveMessage": "该会话已登记。旧版服务器可能会限制同一会话的中途重复登记，因此保留已有记录。",
+    "alreadySubmittedExitMessage": "该会话已登记。将保留已有记录并进入下一步。",
     "continueAfterMidSave": "继续游戏",
     "confirmHome": "前往菜单",
     "confirmNewGame": "开始新游戏"

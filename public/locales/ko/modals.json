@@ -50,6 +50,8 @@
     "submitting": "등록 중...",
     "failure": "등록 실패",
     "failureMessage": "등록에 실패했습니다. 네트워크 상태와 이름을 확인한 뒤 다시 시도해주세요.",
+    "rejectedMessage": "현재 기록은 검증 규칙에 맞지 않아 등록되지 않았습니다. 잠시 더 플레이한 뒤 다시 시도해주세요.",
+    "rateLimitedMessage": "요청이 너무 많습니다. 잠시 후 다시 시도해주세요.",
     "success": "등록되었습니다!",
     "successMessage": "랭킹에 점수가 성공적으로 반영되었습니다.",
     "queuedMessage": "오프라인 상태입니다. 연결되면 자동으로 랭킹에 등록됩니다.",
@@ -74,6 +76,8 @@
     "lockedNameNotice": "이 게임 세션에서는 첫 등록 이름으로 고정됩니다.",
     "submittedMessage": "랭킹 등록 처리가 완료되었습니다.",
     "midSaveSubmittedMessage": "현재 점수가 중간 저장되었습니다.",
+    "alreadySubmittedMidSaveMessage": "이미 등록된 세션입니다. 현재 서버에서는 같은 세션의 중간 저장 재등록이 제한될 수 있어 기존 기록을 유지합니다.",
+    "alreadySubmittedExitMessage": "이미 등록된 세션입니다. 기존 기록을 유지한 상태로 다음 단계로 이동합니다.",
     "continueAfterMidSave": "계속 플레이",
     "confirmHome": "메뉴로 이동",
     "confirmNewGame": "새 게임 시작"

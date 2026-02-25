@@ -239,18 +239,39 @@ const ORIENTATION_LOCK_MESSAGES: Record<string, OrientationLockMessage> = {
 
 const LEGACY_PORTRAIT_ASPECT = 16 / 9;
 const MODERN_PHONE_PORTRAIT_ASPECT = 19.5 / 9;
+const APP_RESUME_EVENT = 'slidemino:app-resume';
+const VIEWPORT_RECOVERY_DELAYS_MS = [120, 320] as const;
 
 const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value));
 
 const lerp = (from: number, to: number, t: number): number => from + (to - from) * t;
 
+const isEditableElementFocused = (): boolean => {
+  if (typeof document === 'undefined') return false;
+  const active = document.activeElement;
+  if (!(active instanceof HTMLElement)) return false;
+  if (active.isContentEditable) return true;
+  const tagName = active.tagName;
+  if (tagName === 'TEXTAREA') return true;
+  if (tagName !== 'INPUT') return false;
+  const inputType = (active as HTMLInputElement).type.toLowerCase();
+  return !['button', 'checkbox', 'color', 'file', 'hidden', 'image', 'radio', 'range', 'reset', 'submit'].includes(inputType);
+};
+
 const getViewportSize = (): ViewportSize => {
   if (typeof window === 'undefined') {
     return { width: 390, height: 844 };
   }
+  const layoutWidth = window.innerWidth;
+  const layoutHeight = window.innerHeight;
+  const visualWidth = window.visualViewport?.width ?? layoutWidth;
+  const visualHeight = window.visualViewport?.height ?? layoutHeight;
+  const hasFocusedEditable = isEditableElementFocused();
+  const shouldStabilizeForNative = isNativeApp() && !hasFocusedEditable;
+
   return {
-    width: window.visualViewport?.width ?? window.innerWidth,
-    height: window.visualViewport?.height ?? window.innerHeight,
+    width: shouldStabilizeForNative ? Math.max(layoutWidth, visualWidth) : visualWidth,
+    height: shouldStabilizeForNative ? Math.max(layoutHeight, visualHeight) : visualHeight,
   };
 };
 
@@ -355,6 +376,7 @@ const App: React.FC = () => {
     const root = document.documentElement;
     const isAndroid = isAndroidApp();
     const minTopPx = isAndroid ? 16 : 8;
+    const retryTimerIds: number[] = [];
 
     const readSafeTopPx = () => {
       const raw = getComputedStyle(root).getPropertyValue('--app-safe-top');
@@ -362,26 +384,53 @@ const App: React.FC = () => {
       return Number.isFinite(parsed) ? parsed : 0;
     };
 
+    const clearRetryTimers = () => {
+      retryTimerIds.forEach((timerId) => window.clearTimeout(timerId));
+      retryTimerIds.length = 0;
+    };
+
     const updateGameSafeTop = () => {
       const safeTop = readSafeTopPx();
-      const visualTop = window.visualViewport?.offsetTop ?? 0;
-      const nextTop = Math.max(minTopPx, safeTop, visualTop);
+      const nextTop = Math.max(minTopPx, safeTop);
       root.style.setProperty('--game-safe-top', `${nextTop}px`);
     };
 
-    updateGameSafeTop();
+    const scheduleSafeTopSync = () => {
+      clearRetryTimers();
+      updateGameSafeTop();
+      VIEWPORT_RECOVERY_DELAYS_MS.forEach((delayMs) => {
+        retryTimerIds.push(window.setTimeout(updateGameSafeTop, delayMs));
+      });
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      scheduleSafeTopSync();
+    };
+
+    scheduleSafeTopSync();
     window.addEventListener('resize', updateGameSafeTop);
-    window.addEventListener('orientationchange', updateGameSafeTop);
+    window.addEventListener('orientationchange', scheduleSafeTopSync);
+    window.addEventListener('focus', scheduleSafeTopSync);
+    window.addEventListener('pageshow', scheduleSafeTopSync);
+    window.addEventListener(APP_RESUME_EVENT, scheduleSafeTopSync);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     window.visualViewport?.addEventListener('resize', updateGameSafeTop);
     return () => {
+      clearRetryTimers();
       window.removeEventListener('resize', updateGameSafeTop);
-      window.removeEventListener('orientationchange', updateGameSafeTop);
+      window.removeEventListener('orientationchange', scheduleSafeTopSync);
+      window.removeEventListener('focus', scheduleSafeTopSync);
+      window.removeEventListener('pageshow', scheduleSafeTopSync);
+      window.removeEventListener(APP_RESUME_EVENT, scheduleSafeTopSync);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.visualViewport?.removeEventListener('resize', updateGameSafeTop);
     };
   }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    const retryTimerIds: number[] = [];
 
     const updateViewportSize = () => {
       setViewportSize((prev) => {
@@ -393,20 +442,43 @@ const App: React.FC = () => {
       });
     };
 
-    updateViewportSize();
+    const clearRetryTimers = () => {
+      retryTimerIds.forEach((timerId) => window.clearTimeout(timerId));
+      retryTimerIds.length = 0;
+    };
 
-    // iOS WKWebView 콜드스타트: 초기 뷰포트가 0×0 일 수 있어 지연 재측정으로 보정
-    const retryId = setTimeout(updateViewportSize, 120);
+    const scheduleViewportSync = () => {
+      clearRetryTimers();
+      updateViewportSize();
+      VIEWPORT_RECOVERY_DELAYS_MS.forEach((delayMs) => {
+        retryTimerIds.push(window.setTimeout(updateViewportSize, delayMs));
+      });
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      scheduleViewportSync();
+    };
+
+    scheduleViewportSync();
 
     window.addEventListener('resize', updateViewportSize);
-    window.addEventListener('orientationchange', updateViewportSize);
+    window.addEventListener('orientationchange', scheduleViewportSync);
+    window.addEventListener('focus', scheduleViewportSync);
+    window.addEventListener('pageshow', scheduleViewportSync);
+    window.addEventListener(APP_RESUME_EVENT, scheduleViewportSync);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     window.visualViewport?.addEventListener('resize', updateViewportSize);
     window.visualViewport?.addEventListener('scroll', updateViewportSize);
 
     return () => {
-      clearTimeout(retryId);
+      clearRetryTimers();
       window.removeEventListener('resize', updateViewportSize);
-      window.removeEventListener('orientationchange', updateViewportSize);
+      window.removeEventListener('orientationchange', scheduleViewportSync);
+      window.removeEventListener('focus', scheduleViewportSync);
+      window.removeEventListener('pageshow', scheduleViewportSync);
+      window.removeEventListener(APP_RESUME_EVENT, scheduleViewportSync);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.visualViewport?.removeEventListener('resize', updateViewportSize);
       window.visualViewport?.removeEventListener('scroll', updateViewportSize);
     };
@@ -480,8 +552,9 @@ const App: React.FC = () => {
     void import('@capacitor/app').then(({ App: CapacitorApp }) => {
       if (isDisposed) return;
       CapacitorApp.addListener('appStateChange', ({ isActive }) => {
-      if (!isActive) return;
-      void runVersionCheck();
+        if (!isActive) return;
+        window.dispatchEvent(new Event(APP_RESUME_EVENT));
+        void runVersionCheck();
       }).then((handle) => {
         if (isDisposed) {
           void handle.remove();

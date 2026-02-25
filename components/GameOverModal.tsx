@@ -40,12 +40,14 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [nameError, setNameError] = useState<string | null>(null);
     const [submitError, setSubmitError] = useState<string | null>(null);
+    const [submittedMessageOverride, setSubmittedMessageOverride] = useState<string | null>(null);
 
     useEffect(() => {
         // Load saved name or use provided playerName
         setName(playerName || rankingService.getSavedName());
         setNameError(null);
         setSubmitError(null);
+        setSubmittedMessageOverride(null);
     }, [playerName]);
 
     useEffect(() => {
@@ -71,10 +73,24 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         );
         setIsSubmitting(false);
         if (result.success) {
+            setSubmittedMessageOverride(null);
+            setStep('SUBMITTED');
+        } else if (result.code === 'SESSION_ALREADY_SUBMITTED') {
+            // 이미 등록된 세션이면 실패로 막지 않고 완료 단계로 전환한다.
+            setSubmittedMessageOverride(t('modals:rankingRegister.alreadySubmittedMessage'));
             setStep('SUBMITTED');
         } else if (result.offline) {
             setSubmitError(t('modals:leaderboard.offline'));
+        } else if (result.status === 403) {
+            setSubmitError(t('modals:rankingRegister.rejectedMessage'));
+        } else if (result.status === 429) {
+            setSubmitError(t('modals:rankingRegister.rateLimitedMessage'));
         } else {
+            console.error('[GameOverModal] submit failed', {
+                status: result.status,
+                code: result.code,
+                errorMessage: result.errorMessage,
+            });
             setSubmitError(t('modals:rankingRegister.failureMessage'));
         }
     };
@@ -95,6 +111,8 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         // 랭킹 등록은 항상 이름 입력/확인 단계를 거친다.
         setStep('REGISTER');
     };
+
+    const submittedMessage = submittedMessageOverride ?? t('modals:rankingRegister.successMessage');
 
     return (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6">
@@ -337,7 +355,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                         <div className="text-center space-y-2">
                             <h3 className="text-2xl font-bold text-gray-900">{t('modals:rankingRegister.success')}</h3>
                             <p className="text-gray-500">
-                                {t('modals:rankingRegister.successMessage')}
+                                {submittedMessage}
                             </p>
                         </div>
 

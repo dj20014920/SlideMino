@@ -50,6 +50,8 @@
     "submitting": "送信中...",
     "failure": "登録に失敗しました",
     "failureMessage": "スコアの登録に失敗しました。通信状態や名前を確認して再試行してください。",
+    "rejectedMessage": "このスコアは検証条件を満たさなかったため登録できませんでした。少しプレイしてから再試行してください。",
+    "rateLimitedMessage": "リクエストが多すぎます。しばらくしてから再試行してください。",
     "success": "登録されました！",
     "successMessage": "ランキングにスコアが正常に反映されました。",
     "queuedMessage": "オフラインのため、再接続後にスコアが自動的に送信されます。",
@@ -74,6 +76,8 @@
     "lockedNameNotice": "このゲームセッションでは最初に登録した名前で固定されます。",
     "submittedMessage": "ランキング登録処理が完了しました。",
     "midSaveSubmittedMessage": "現在のスコアを途中保存しました。",
+    "alreadySubmittedMidSaveMessage": "このセッションは既に登録済みです。旧サーバーバージョンでは同一セッションの途中保存再登録が制限されるため、既存記録を維持します。",
+    "alreadySubmittedExitMessage": "このセッションは既に登録済みです。既存記録を維持したまま次のステップへ進みます。",
     "continueAfterMidSave": "プレイを続ける",
     "confirmHome": "メニューへ移動",
     "confirmNewGame": "新しいゲーム開始"

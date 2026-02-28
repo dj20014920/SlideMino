@@ -8,8 +8,30 @@ export const getValueShadow = (level: number, mode: SkinRenderMode = 'standard')
 export const getAutoBorderColor = (h: number, s: number, l: number, mode: SkinRenderMode = 'standard'): string | undefined => undefined;
 
 export const SKIN_PROGRESSIONS: Record<string, HSLProgression> = {
+  // 대리석: 밝은 청회색(hue 200, 연한) → 짙은 슬레이트(hue 215, 어두운)
+  skin_material_marble: [200, 8, 94, 215, 12, 18],
 };
 export const SKIN_EXPLICIT_PALETTES: Record<string, string[]> = {
+  // 수채화: 파스텔 16색 팔레트 (분홍→보라→파랑→초록→노랑→주황 순환)
+  skin_art_watercolor: [
+    '#fce4ec', // 1: 연핑크
+    '#f8bbd0', // 2: 핑크
+    '#e1bee7', // 4: 라벤더
+    '#d1c4e9', // 8: 연보라
+    '#c5cae9', // 16: 연인디고
+    '#b3e5fc', // 32: 하늘
+    '#b2ebf2', // 64: 민트
+    '#c8e6c9', // 128: 연초록
+    '#f0f4c3', // 256: 라임
+    '#fff9c4', // 512: 레몬
+    '#ffe0b2', // 1024: 복숭아
+    '#ffccbc', // 2048: 살구
+    '#ffcdd2', // 4096: 연산호
+    '#fce4ec', // 8192: 연핑크 (순환)
+    '#e8eaf6', // 16384: 연보라-블루
+    '#f3e5f5', // 32768: 연라벤더
+  ],
+
   skin_digital_win98: [
     '#ffffff', // 1
     '#f5f5f5', // 2

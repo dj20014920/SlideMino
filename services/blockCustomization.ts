@@ -567,6 +567,15 @@ function resolveProgressionSkin(
     applySkinStyleOverrides(style, styleData);
   }
 
+  // 대리석: 교차 줄무늬 오버레이로 대리석 결 표현
+  if (skinId === 'skin_material_marble') {
+    const marbleLine = [
+      'repeating-linear-gradient(45deg, transparent 0px, transparent 12px, rgba(255,255,255,0.08) 12px, rgba(255,255,255,0.08) 13px)',
+      'repeating-linear-gradient(135deg, transparent 0px, transparent 18px, rgba(0,0,0,0.05) 18px, rgba(0,0,0,0.05) 19px)',
+    ].join(', ');
+    style.backgroundImage = `${marbleLine}, ${style.backgroundImage || 'none'}`;
+  }
+
   // Apply animation if defined
   const anim = SKIN_ANIMATIONS[skinId];
   if (anim) {

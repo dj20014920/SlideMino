@@ -3,7 +3,7 @@ export interface RateLimitResult {
   count: number;
 }
 
-const RATE_LIMIT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+const RATE_LIMIT_RETENTION_MS = 2 * 24 * 60 * 60 * 1000;
 
 const getHeaderValue = (request: Request, name: string): string => {
   return request.headers.get(name) || '';
@@ -31,13 +31,13 @@ export const checkRateLimit = async (
   const windowStart = bucket * periodMs;
   const bucketKey = `${key}:${bucket}`;
 
-  if (bucket % 120 === 0) {
+  if (bucket % 30 === 0) {
     try {
       await db.prepare(
         'DELETE FROM rate_limits WHERE window_start < ?'
       ).bind(now - RATE_LIMIT_RETENTION_MS).run();
-    } catch {
-      // cleanup failure should not block request handling
+    } catch (error) {
+      console.error('[rateLimit] cleanup failed:', error);
     }
   }
 

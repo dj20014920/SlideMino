@@ -78,8 +78,11 @@ import { blockRefreshRewardInterstitialAdService } from './services/blockRefresh
 import {
   trackAnalyticsEvent,
   trackAppLaunchOnce,
+  getAnalyticsSessionId,
   trackLegacyInstallDetectedOnce,
   trackSessionEndOnce,
+  startHeartbeat,
+  stopHeartbeat,
 } from './services/analyticsService';
 import { claimPendingSkinGifts } from './services/skinGiftService';
 import {
@@ -103,6 +106,8 @@ const DRAG_LIFT_CELLS = 1.5;
 const LIVE_RANK_POLL_INTERVAL_MS = 5000;
 const LIVE_RANK_SCORE_SYNC_DEBOUNCE_MS = 350;
 const LIVE_RANK_MIN_REQUEST_INTERVAL_MS = 1000;
+const SKIN_GIFT_CLAIM_RETRY_DELAYS_MS = [0, 2000, 10000, 30000] as const;
+const SKIN_GIFT_CLAIM_POLL_INTERVAL_MS = 3 * 60 * 1000;
 
 // Undo 시스템: 직전 상태를 저장하기 위한 스냅샷 인터페이스
 interface GameSnapshot {
@@ -240,7 +245,7 @@ const ORIENTATION_LOCK_MESSAGES: Record<string, OrientationLockMessage> = {
 const LEGACY_PORTRAIT_ASPECT = 16 / 9;
 const MODERN_PHONE_PORTRAIT_ASPECT = 19.5 / 9;
 const APP_RESUME_EVENT = 'slidemino:app-resume';
-const VIEWPORT_RECOVERY_DELAYS_MS = [120, 320] as const;
+const VIEWPORT_RECOVERY_DELAYS_MS = [120, 320, 600] as const;
 
 const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value));
 
@@ -447,11 +452,21 @@ const App: React.FC = () => {
       retryTimerIds.length = 0;
     };
 
+    const resetScrollPosition = () => {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    };
+
     const scheduleViewportSync = () => {
       clearRetryTimers();
+      resetScrollPosition();
       updateViewportSize();
       VIEWPORT_RECOVERY_DELAYS_MS.forEach((delayMs) => {
-        retryTimerIds.push(window.setTimeout(updateViewportSize, delayMs));
+        retryTimerIds.push(window.setTimeout(() => {
+          resetScrollPosition();
+          updateViewportSize();
+        }, delayMs));
       });
     };
 
@@ -735,7 +750,6 @@ const App: React.FC = () => {
   const liveRankRequestInFlightRef = useRef(false);
   const liveRankRequestQueuedRef = useRef(false);
   const liveRankRequestSequenceRef = useRef(0);
-  const skinGiftClaimOnceRef = useRef(false);
   const hoverGridPosRef = useRef<{ x: number; y: number } | null>(null);
   const swipeStartRef = useRef<{ x: number, y: number } | null>(null); // 스와이프 시작 좌표
   const slideLockRef = useRef(false); // state 반영 전에도 즉시 입력 차단
@@ -852,13 +866,29 @@ const App: React.FC = () => {
       if (bottomBannerRef.current) observer.observe(bottomBannerRef.current);
     }
 
+    const scheduleChromeSync = () => {
+      updateChromeHeights();
+      VIEWPORT_RECOVERY_DELAYS_MS.forEach((delayMs) => {
+        window.setTimeout(updateChromeHeights, delayMs);
+      });
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      scheduleChromeSync();
+    };
+
     window.addEventListener('resize', updateChromeHeights);
+    window.addEventListener(APP_RESUME_EVENT, scheduleChromeSync);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     window.visualViewport?.addEventListener('resize', updateChromeHeights);
     window.visualViewport?.addEventListener('scroll', updateChromeHeights);
 
     return () => {
       observer?.disconnect();
       window.removeEventListener('resize', updateChromeHeights);
+      window.removeEventListener(APP_RESUME_EVENT, scheduleChromeSync);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.visualViewport?.removeEventListener('resize', updateChromeHeights);
       window.visualViewport?.removeEventListener('scroll', updateChromeHeights);
     };
@@ -871,6 +901,7 @@ const App: React.FC = () => {
     if (getCurrentRoute() === '/admin-analytics') return;
     trackLegacyInstallDetectedOnce();
     trackAppLaunchOnce();
+    startHeartbeat();
 
     const handleSessionEnd = () => {
       trackSessionEndOnce();
@@ -880,6 +911,7 @@ const App: React.FC = () => {
     window.addEventListener('beforeunload', handleSessionEnd);
 
     return () => {
+      stopHeartbeat();
       window.removeEventListener('pagehide', handleSessionEnd);
       window.removeEventListener('beforeunload', handleSessionEnd);
     };
@@ -1401,63 +1433,114 @@ const App: React.FC = () => {
     }, durationMs);
   }, []);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (getCurrentRoute() === '/admin-analytics') return;
-    if (skinGiftClaimOnceRef.current) return;
-    skinGiftClaimOnceRef.current = true;
+  const claimAdminGifts = useCallback(async (): Promise<{ grantedSkins: number; grantedFragments: number }> => {
+    const analyticsSessionId = getAnalyticsSessionId();
+    const claimed = await claimPendingSkinGifts(analyticsSessionId || sessionIdRef.current);
+    if (claimed.length === 0) {
+      return { grantedSkins: 0, grantedFragments: 0 };
+    }
 
-    let cancelled = false;
+    let grantedSkins = 0;
+    let grantedFragments = 0;
+    const ownedSkinIds = new Set(skinSettings.ownedSkins.map((skin) => skin.id));
+    const grantedSkinLabels: string[] = [];
 
-    const claimAdminGifts = async () => {
-      const claimed = await claimPendingSkinGifts(sessionIdRef.current);
-      if (cancelled || claimed.length === 0) return;
-
-      let grantedSkins = 0;
-      let grantedFragments = 0;
-      const ownedSkinIds = new Set(skinSettings.ownedSkins.map((skin) => skin.id));
-
-      for (const gift of claimed) {
-        if (gift.type === 'skin') {
-          const skinId = gift.skinId || '';
-          const catalogSkin = SKIN_CATALOG.find((entry) => entry.id === skinId);
-          if (!catalogSkin) continue;
-          if (ownedSkinIds.has(skinId)) {
-            grantedFragments += FRAGMENTS_PER_DUPLICATE;
-            continue;
-          }
-
-          addSkin({
-            id: catalogSkin.id,
-            hex: catalogSkin.hex,
-            acquiredAt: Date.now(),
-          });
-          ownedSkinIds.add(catalogSkin.id);
-          grantedSkins += 1;
+    for (const gift of claimed) {
+      if (gift.type === 'skin') {
+        const skinId = gift.skinId || '';
+        const catalogSkin = SKIN_CATALOG.find((entry) => entry.id === skinId);
+        if (!catalogSkin) continue;
+        if (ownedSkinIds.has(skinId)) {
+          grantedFragments += FRAGMENTS_PER_DUPLICATE;
           continue;
         }
 
-        grantedFragments += Math.max(0, gift.fragmentAmount ?? 0);
+        addSkin({
+          id: catalogSkin.id,
+          hex: catalogSkin.hex,
+          acquiredAt: Date.now(),
+        });
+        ownedSkinIds.add(catalogSkin.id);
+        grantedSkins += 1;
+        const fallbackLabel = (() => {
+          const basicSkinMatch = catalogSkin.id.match(/^skin_(\d+)$/);
+          if (basicSkinMatch) {
+            return `기본 스킨 ${basicSkinMatch[1]}`;
+          }
+          return catalogSkin.hex.toUpperCase();
+        })();
+        const skinLabel = catalogSkin.nameKey
+          ? String(t(`skins:${catalogSkin.nameKey}`, fallbackLabel))
+          : fallbackLabel;
+        grantedSkinLabels.push(skinLabel);
+        continue;
       }
 
-      if (grantedFragments > 0) {
-        addFragments(grantedFragments);
-      }
+      grantedFragments += Math.max(0, gift.fragmentAmount ?? 0);
+    }
 
-      if (grantedSkins > 0 || grantedFragments > 0) {
-        showComboMessage(
-          `운영자 선물 도착\\n스킨 ${grantedSkins}개 · 조각 ${grantedFragments}개`,
-          2600
-        );
+    if (grantedFragments > 0) {
+      addFragments(grantedFragments);
+    }
+
+    if (grantedSkins > 0 || grantedFragments > 0) {
+      const skinDetail = grantedSkinLabels.length > 0
+        ? `\n${grantedSkinLabels.slice(0, 2).join(', ')}${grantedSkinLabels.length > 2 ? ` 외 ${grantedSkinLabels.length - 2}개` : ''}`
+        : '';
+
+      showComboMessage(
+        `운영자 선물 도착\\n스킨 ${grantedSkins}개 · 조각 ${grantedFragments}개${skinDetail}`,
+        3200
+      );
+    }
+
+    return { grantedSkins, grantedFragments };
+  }, [addFragments, addSkin, showComboMessage, skinSettings.ownedSkins, t]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (currentRoute === '/admin-analytics') return;
+
+    let cancelled = false;
+    const timeoutIds: number[] = [];
+
+    const runClaim = async () => {
+      if (cancelled) return;
+      const { grantedSkins } = await claimAdminGifts();
+      if (cancelled) return;
+
+      if (grantedSkins > 0 && gameStateRef.current === GameState.MENU) {
+        setIsSkinOpen(true);
       }
     };
 
-    void claimAdminGifts();
+    for (const delay of SKIN_GIFT_CLAIM_RETRY_DELAYS_MS) {
+      const timeoutId = window.setTimeout(() => {
+        void runClaim();
+      }, delay);
+      timeoutIds.push(timeoutId);
+    }
+
+    const intervalId = window.setInterval(() => {
+      void runClaim();
+    }, SKIN_GIFT_CLAIM_POLL_INTERVAL_MS);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      void runClaim();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       cancelled = true;
+      for (const timeoutId of timeoutIds) {
+        window.clearTimeout(timeoutId);
+      }
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [addFragments, addSkin, showComboMessage, skinSettings.ownedSkins]);
+  }, [claimAdminGifts, currentRoute]);
 
   // Undo 실행: 직전 스냅샷으로 복원
   const executeUndo = useCallback(() => {

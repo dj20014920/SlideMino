@@ -36,6 +36,32 @@ const MESH_STAGE_SINGLE_COLOR_SKINS: SkinCatalogEntry[] = MESH_STAGE_SWATCHES.ma
 // ==========================================
 
 export const ADDITIONAL_SKIN_CATALOG: SkinCatalogEntry[] = [
+  // 대리석: HSL Progression(light grey → dark grey) + 교차 라이닝 오버레이
+  {
+    id: 'skin_material_marble',
+    hex: '#c8c8d8',
+    category: 'material',
+    nameKey: 'mineralMarble',
+    style: {
+      type: 'solid',
+      value: '#e8e8ef',
+    },
+  },
+
+  // 수채화: Explicit 16색 파스텔 팔레트 + 부드러운 번짐 효과
+  {
+    id: 'skin_art_watercolor',
+    hex: '#f8bbd0',
+    category: 'art',
+    nameKey: 'watercolor',
+    style: {
+      type: 'solid',
+      value: '#fce4ec',
+      shadow: '0 4px 15px rgba(0,0,0,0.07), inset 0 0 20px rgba(255,255,255,0.3)',
+      customCss: 'border-style: none; border-width: 0px;',
+    },
+  },
+
   // Visual recipe mirrors 98.css button surface tokens (MIT):
   // https://github.com/jdan/98.css/blob/master/style.css
   {

@@ -161,38 +161,42 @@ export function validateMoves(moves: unknown): { valid: boolean; value?: number;
 
 /**
  * 안티-치트 검증: 게임 데이터의 일관성 확인
+ * @param scoreMultiplier 이벤트 보정 배율 (예: BURNING=1.5). 점수를 나누어 정상 범위로 보정한다.
  */
 export function validateGameConsistency(
   score: number,
   difficulty: Difficulty,
   duration: number,
-  moves: number
+  moves: number,
+  scoreMultiplier: number = 1
 ): { valid: boolean; error?: string } {
+  // 이벤트 보정: 배율이 적용된 점수를 원래 범위로 환산
+  const normalizedScore = scoreMultiplier > 1 ? Math.floor(score / scoreMultiplier) : score;
 
   // 1. 최소 게임 시간 체크
   // 의미 있는 점수(10점 이상)일 때 최소 시간 적용 - 치팅 방지
   const minDuration = MIN_DURATION_BY_DIFFICULTY[difficulty];
-  if (score > 10 && duration < minDuration) {
+  if (normalizedScore > 10 && duration < minDuration) {
     return { valid: false, error: `Game too fast for ${difficulty} difficulty` };
   }
 
   // 2. 점수/시간 비율 체크
   const maxScorePerSec = MAX_SCORE_PER_SECOND[difficulty];
-  const scorePerSecond = duration > 0 ? score / duration : Infinity;
+  const scorePerSecond = duration > 0 ? normalizedScore / duration : Infinity;
   if (scorePerSecond > maxScorePerSec) {
     return { valid: false, error: 'Score rate too high' };
   }
 
   // 3. 움직임 대비 점수 체크 (점수는 움직임에 비례해야 함)
   if (moves > 0) {
-    const scorePerMove = score / moves;
+    const scorePerMove = normalizedScore / moves;
     if (scorePerMove > 5000) { // 한 움직임당 평균 5000점 이상은 비정상
       return { valid: false, error: 'Score per move suspiciously high' };
     }
   }
 
   // 4. 0점이면 움직임도 적어야 함
-  if (score === 0 && moves > 10) {
+  if (normalizedScore === 0 && moves > 10) {
     return { valid: false, error: 'Inconsistent: zero score with many moves' };
   }
 

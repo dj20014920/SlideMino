@@ -11,6 +11,7 @@ const createPiece = (type: ShapeType, rotation: number): Piece => ({
   id: Math.random().toString(36).substr(2, 9),
   type,
   rotation,
+  initialRotation: rotation,
   cells: getRotatedCells(type, rotation),
   value: 1,
 });
@@ -353,7 +354,7 @@ export const hasPossibleMoves = (grid: Grid): boolean => {
 
 // --- Game Over Logic ---
 
-const hasPlaceableSlotMove = (grid: Grid, slots: (Piece | null)[]): boolean => {
+const hasPlaceableSlotMove = (grid: Grid, slots: (Piece | null)[], disableRotation = false): boolean => {
   // PLACE 단계에서 슬롯 조각 중 하나라도 보드에 둘 수 있으면 생존
   const size = grid.length;
 
@@ -361,9 +362,10 @@ const hasPlaceableSlotMove = (grid: Grid, slots: (Piece | null)[]): boolean => {
   const availablePieces = slots.filter((s): s is Piece => s !== null);
   if (availablePieces.length === 0) return true;
 
+  const maxRotations = disableRotation ? 1 : 4;
   for (const piece of availablePieces) {
-    // Check all 4 rotations
-    for (let r = 0; r < 4; r++) {
+    // Check rotations (only r=0 when rotation is disabled)
+    for (let r = 0; r < maxRotations; r++) {
       const tempCells = getRotatedCells(piece.type, r);
       const tempPiece = { ...piece, cells: tempCells, rotation: r };
 
@@ -387,15 +389,16 @@ export interface TurnActionAvailability {
   isGameOver: boolean;
 }
 
-export const checkGameOver = (grid: Grid, slots: (Piece | null)[]): boolean => {
-  return !hasPlaceableSlotMove(grid, slots);
+export const checkGameOver = (grid: Grid, slots: (Piece | null)[], disableRotation = false): boolean => {
+  return !hasPlaceableSlotMove(grid, slots, disableRotation);
 };
 
 export const getTurnActionAvailability = (
   grid: Grid,
-  slots: (Piece | null)[]
+  slots: (Piece | null)[],
+  disableRotation = false
 ): TurnActionAvailability => {
-  const canPlace = hasPlaceableSlotMove(grid, slots);
+  const canPlace = hasPlaceableSlotMove(grid, slots, disableRotation);
   const canSwipe = hasPossibleMoves(grid);
 
   return {

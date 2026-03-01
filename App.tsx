@@ -53,8 +53,14 @@ import {
   REWARD_BLOCK_REFRESH_AMOUNT,
   REWARD_UNDO_AMOUNT,
   SKIN_CATALOG,
+  FRAGMENT_COST_NORMAL,
+  FRAGMENT_COST_PREMIUM,
 } from './constants';
 import { useBlockCustomization } from './context/BlockCustomizationContext';
+import {
+  drawSkin,
+  loadSkinSettings,
+} from './services/skinService';
 import {
   saveGameState,
   loadGameState,
@@ -166,6 +172,7 @@ import {
 } from './services/onboardingService';
 import { XpLevelModal } from './components/XpLevelModal';
 import { CalendarModal, CalendarCard } from './components/CalendarModal';
+import { rescheduleNotifications } from './services/notificationService';
 
 const EMPTY_TILE_VALUE_OVERRIDES: Record<string, number> = {};
 const EMPTY_MERGING_TILES: MergingTile[] = [];
@@ -649,6 +656,11 @@ const App: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ===== 로컬 푸시 알림 스케줄링 (앱 시작 시) =====
+  useEffect(() => {
+    void rescheduleNotifications();
+  }, []);
+
   // ===== XP/레벨 시스템 초기화 =====
   useEffect(() => {
     initXpTracking();
@@ -656,7 +668,7 @@ const App: React.FC = () => {
     const refreshXpUI = () => {
       const p = getXpProgress();
       setXpLevel(p.level);
-      setXpPercent(p.requiredXp > 0 ? Math.floor((p.currentXpInLevel / p.requiredXp) * 100) : 0);
+      setXpPercent(p.xpRequired > 0 ? Math.floor((p.xp / p.xpRequired) * 100) : 0);
     };
 
     const unsubXp = gameEventBus.on('XP_GAINED', () => {
@@ -724,6 +736,7 @@ const App: React.FC = () => {
         if (!isActive) return;
         window.dispatchEvent(new Event(APP_RESUME_EVENT));
         void runVersionCheck();
+        void rescheduleNotifications();
       }).then((handle) => {
         if (isDisposed) {
           void handle.remove();
@@ -846,7 +859,7 @@ const App: React.FC = () => {
   const [xpLevel, setXpLevel] = useState(() => loadXpData().level);
   const [xpPercent, setXpPercent] = useState(() => {
     const p = getXpProgress();
-    return p.requiredXp > 0 ? Math.floor((p.currentXpInLevel / p.requiredXp) * 100) : 0;
+    return p.xpRequired > 0 ? Math.floor((p.xp / p.xpRequired) * 100) : 0;
   });
 
   // ===== 데일리 챌린지 상태 =====
@@ -2048,6 +2061,9 @@ const App: React.FC = () => {
         setTodayAttended(true);
         showComboMessage(String(t('common:streak.todayComplete', { count: result.currentStreak } as any)), 3000);
 
+        // 출석 완료 → 스트릭 알림 취소 (재스케줄)
+        void rescheduleNotifications();
+
         // 출석 XP 지급
         grantXpStreak(result.currentStreak);
         // 온보딩: 게임 완료 기록
@@ -2223,6 +2239,8 @@ const App: React.FC = () => {
 
   // 🆕 리워드 광고 시청 핸들러
   const handleWatchRewardAd = useCallback(() => {
+    // 데일리 챌린지/주간 이벤트에서는 광고 Undo 차단 (공정성)
+    if (gameMode === 'daily_challenge' || gameMode === 'weekly_event') return;
     trackAnalyticsEvent({ name: 'ad_undo_request' });
     rewardAdService.showRewardAd({
       onRewardEarned: () => {
@@ -2252,10 +2270,12 @@ const App: React.FC = () => {
         showComboMessage(String(t('game:rewardAd.dailyLimitReached')), 2200);
       },
     });
-  }, [t, showComboMessage]);
+  }, [t, showComboMessage, gameMode]);
 
   const handleRefreshPreviewBlocks = useCallback(() => {
     if (isAnimating || isReviveSelectionMode || draggingPiece) return;
+    // 데일리 챌린지/주간 이벤트에서는 블록 새로고침 차단 (공정성)
+    if (gameMode === 'daily_challenge' || gameMode === 'weekly_event') return;
 
     if (blockRefreshRemaining <= 0) {
       showBlockRefreshNotice(String(t('game:blockRefresh.limitExceeded')));
@@ -2271,6 +2291,7 @@ const App: React.FC = () => {
   }, [
     blockRefreshRemaining,
     draggingPiece,
+    gameMode,
     isAnimating,
     isReviveSelectionMode,
     showBlockRefreshNotice,
@@ -2802,6 +2823,7 @@ const App: React.FC = () => {
           gameEventBus.emit('BLOCK_PLACED', {
             pieceType: draggingPiece.type,
             rotation: draggingPiece.rotation,
+            initialRotation: draggingPiece.initialRotation,
             value: draggingPiece.value,
           });
           setCanSkipSlide(false);
@@ -3058,7 +3080,7 @@ const App: React.FC = () => {
     // state가 아직 반영되지 않은 중간 렌더에서도 게임오버 판정을 방지
     if (isReviveSelectionMode || isReviveSelectionModeRef.current) return;
 
-    const availability = getTurnActionAvailability(grid, slots);
+    const availability = getTurnActionAvailability(grid, slots, eventRuleRef.current?.disableRotation ?? false);
 
     if (phase === Phase.SLIDE && !availability.canSwipe) {
       finishSlideTurn();
@@ -3393,19 +3415,23 @@ const App: React.FC = () => {
           <label htmlFor="menu-action-leaderboard">{t('game:actions.leaderboard')}</label>
         </div>
 
+        {isFeatureUnlocked('streak') && (
         <div className="field-row">
           <input id="menu-action-streak" type="radio" name={premiumMenuActionRadioGroupName} onClick={() => setIsStreakInfoOpen(true)} readOnly />
           <label htmlFor="menu-action-streak">
             {todayAttended ? '🔥' : '🔥'} {t('common:streak.title')} ({streakCount})
           </label>
         </div>
+        )}
 
+        {isFeatureUnlocked('daily_mission') && (
         <div className="field-row">
           <input id="menu-action-mission" type="radio" name={premiumMenuActionRadioGroupName} onClick={() => { setIsMissionModalOpen(true); setDailyMissionCompleted(getDailyCompletedCount()); }} readOnly />
           <label htmlFor="menu-action-mission">
             📋 {t('game:missions.title')} ({dailyMissionCompleted}/3)
           </label>
         </div>
+        )}
 
         <div className="field-row">
           <input id="menu-action-xplevel" type="radio" name={premiumMenuActionRadioGroupName} onClick={() => setIsXpModalOpen(true)} readOnly />
@@ -3414,12 +3440,14 @@ const App: React.FC = () => {
           </label>
         </div>
 
+        {isFeatureUnlocked('calendar') && (
         <div className="field-row">
           <input id="menu-action-calendar" type="radio" name={premiumMenuActionRadioGroupName} onClick={() => setIsCalendarOpen(true)} readOnly />
           <label htmlFor="menu-action-calendar">
             📅 {t('common:calendar.title')}
           </label>
         </div>
+        )}
 
         <div className="field-row">
           <input id="menu-action-replay" type="radio" name={premiumMenuActionRadioGroupName} onClick={handleReplayTutorial} readOnly />
@@ -3531,6 +3559,7 @@ const App: React.FC = () => {
         )}
 
         {/* 데일리 챌린지 버튼 */}
+        {isFeatureUnlocked('daily_challenge') && (
         <button
           onClick={startDailyChallenge}
           disabled={isDailyChallengeLoading}
@@ -3554,8 +3583,10 @@ const App: React.FC = () => {
             <span className={`${isWin98ThemeActive ? 'win98-muted' : 'text-amber-200/70'} font-normal text-sm`}>5×5</span>
           </span>
         </button>
+        )}
 
         {/* 주간 이벤트 버튼 */}
+        {isFeatureUnlocked('weekly_event') && (
         <button
           onClick={() => setIsWeeklyEventModalOpen(true)}
           className="
@@ -3577,6 +3608,7 @@ const App: React.FC = () => {
             <span className={`${isWin98ThemeActive ? 'win98-muted' : 'text-purple-200/70'} font-normal text-sm`}>{t('game:weeklyEvent.menuTag')}</span>
           </span>
         </button>
+        )}
 
         <button
           onClick={() => tryStartGame(4)}
@@ -3751,6 +3783,7 @@ const App: React.FC = () => {
           </span>
         </button>
 
+        {isFeatureUnlocked('daily_mission') && (
         <button
           onClick={() => { setIsMissionModalOpen(true); setDailyMissionCompleted(getDailyCompletedCount()); }}
           className={`
@@ -3770,6 +3803,7 @@ const App: React.FC = () => {
           </span>
           <span className="text-gray-400 font-normal text-sm">{dailyMissionCompleted}/3</span>
         </button>
+        )}
 
         {/* XP/레벨 버튼 */}
         <button
@@ -3798,6 +3832,7 @@ const App: React.FC = () => {
         </button>
 
         {/* 캘린더 버튼 */}
+        {isFeatureUnlocked('calendar') && (
         <button
           onClick={() => setIsCalendarOpen(true)}
           className={`
@@ -3823,6 +3858,7 @@ const App: React.FC = () => {
             )}
           </span>
         </button>
+        )}
 
         {!isWin98ThemeActive && <LanguageSwitcher />}
 
@@ -4065,7 +4101,42 @@ const App: React.FC = () => {
             open={isXpModalOpen}
             onClose={() => setIsXpModalOpen(false)}
             onSpecialRewardClaim={(reward) => {
-              showComboMessage(`🎁 ${t('common:xp.rewardClaimed' as any)}`, 2500);
+              // FREE_DRAW: 무료 스킨 뽑기 수행 후 SkinModal 표시
+              if (reward.startsWith('FREE_DRAW')) {
+                const drawCount = reward === 'FREE_DRAW_5' ? 5 : 1;
+                let newSkins = 0;
+                let dupFragments = 0;
+                for (let i = 0; i < drawCount; i++) {
+                  const settings = loadSkinSettings();
+                  const result = drawSkin(settings);
+                  if (!result) continue;
+                  if (result.type === 'new') {
+                    addSkin(result.skin);
+                    newSkins++;
+                  } else {
+                    addFragments(result.fragmentsEarned);
+                    dupFragments += result.fragmentsEarned;
+                  }
+                }
+                const msg = newSkins > 0
+                  ? `🎰 ${t('common:xp.rewardClaimed' as any)} (+${newSkins} skin${newSkins > 1 ? 's' : ''})`
+                  : `🎰 ${t('common:xp.rewardClaimed' as any)} (+${dupFragments} ✦)`;
+                showComboMessage(msg, 2500);
+                setIsSkinOpen(true);
+                return;
+              }
+              // SELECT_*: 교환용 조각 지급 후 SkinModal 오픈
+              if (reward === 'SELECT_NORMAL_SKIN') {
+                addFragments(FRAGMENT_COST_NORMAL);
+                showComboMessage(`🎁 +${FRAGMENT_COST_NORMAL} ✦ — ${t('common:xp.rewardClaimed' as any)}`, 2500);
+                setIsSkinOpen(true);
+              } else if (reward === 'SELECT_PREMIUM_SKIN' || reward === 'SELECT_PREMIUM_SKIN_AND_TITLE') {
+                addFragments(FRAGMENT_COST_PREMIUM);
+                showComboMessage(`🎁 +${FRAGMENT_COST_PREMIUM} ✦ — ${t('common:xp.rewardClaimed' as any)}`, 2500);
+                setIsSkinOpen(true);
+              } else {
+                showComboMessage(`🎁 ${t('common:xp.rewardClaimed' as any)}`, 2500);
+              }
             }}
           />
 
@@ -4534,7 +4605,9 @@ const App: React.FC = () => {
             score={score}
             difficulty={`${boardSize}x${boardSize}`}
             boardSize={boardSize}
-            duration={getCurrentActiveDurationSeconds()}
+            duration={gameMode === 'weekly_event'
+              ? toDurationSeconds(getCurrentEventPlayedMs())
+              : getCurrentActiveDurationSeconds()}
             moves={moveCountRef.current}
             playerName={playerName}
             canOfferRevive={canOfferRevive}

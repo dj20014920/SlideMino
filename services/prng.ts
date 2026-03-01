@@ -52,6 +52,7 @@ export function createPieceFromData(data: { type: ShapeType; rotation: number },
     id: `challenge-${index}-${data.type}-${data.rotation}`,
     type: data.type,
     rotation: data.rotation,
+    initialRotation: data.rotation,
     cells: getRotatedCells(data.type, data.rotation),
     value: 1,
   };

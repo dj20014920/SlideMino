@@ -1,7 +1,194 @@
 {
+  "gameOver": {
+    "title": "游戏结束",
+    "reviveTitle": "再来一次",
+    "reviveDescription": "观看广告后，可选择并摧毁你想要的{{count}}个方块。",
+    "reviveButton": "看广告继续",
+    "reviveLoading": "正在打开广告...",
+    "reviveReadyHint": "每局仅可使用一次 · 最多摧毁{{count}}个方块",
+    "revivePreparingHint": "广告准备中，请稍候。",
+    "reviveUnavailable": "当前无法使用复活功能。",
+    "reviveError": "广告加载失败，请稍后重试。",
+    "reviveDailyLimitReached": "今日复活广告次数已用完。",
+    "reviveSuccess": "复活成功！已进入方块摧毁模式（{{count}}次）。",
+    "reviveSelectionStatus": "剩余可摧毁: {{remaining}}",
+    "reviveSelectionHint": "先点一次方块进行选择，再点同一方块一次即可摧毁。",
+    "reviveSelectionConfirmHint": "已选中：再点一次同一方块将立即摧毁。",
+    "reviveSelectionComplete": "方块摧毁阶段结束，继续游戏吧。",
+    "reviveNoTargets": "当前没有可摧毁方块，已直接返回游戏。",
+    "registerRanking": "注册排名",
+    "backToMenu": "返回菜单",
+    "challengeSubmitted": "每日挑战 第{{rank}}名 / 共{{total}}人"
+  },
+  "leaderboard": {
+    "title": "Leaderboard",
+    "tabs": {
+      "all": "全部"
+    },
+    "empty": "暂无排名记录。\n成为第一个冠军吧！",
+    "error": "排行榜加载失败。",
+    "offline": "当前离线，恢复连接后将刷新排行榜。",
+    "cached": "正在显示最近保存的排行榜。"
+  },
+  "nameInput": {
+    "title": "开始{{difficulty}}×{{difficulty}}游戏",
+    "label": "您的昵称（最多20个字符）",
+    "placeholder": "输入您的昵称",
+    "submit": "开始游戏",
+    "activeGameWarning": "⚠️ 有正在进行的游戏",
+    "activeGameMessage": "开始新游戏将删除当前游戏。",
+    "errors": {
+      "required": "请输入名称。",
+      "tooLong": "名称最多20个字符。",
+      "invalidChars": "不允许使用特殊字符。"
+    },
+    "privacyNotice": "该名称会公开显示在排行榜。请勿输入真实姓名、手机号、邮箱等个人信息。"
+  },
+  "rankingRegister": {
+    "title": "注册排名",
+    "description": "输入名称记录您的分数。\n下次将记住您的名称。",
+    "submit": "注册完成",
+    "submitting": "提交中...",
+    "failure": "提交失败",
+    "failureMessage": "无法提交分数，请检查网络或昵称后重试。",
+    "rejectedMessage": "当前分数未通过校验，暂时无法登记。请继续游戏一段时间后重试。",
+    "rateLimitedMessage": "请求过于频繁，请稍后再试。",
+    "success": "注册成功！",
+    "successMessage": "您的分数已成功添加到排行榜。",
+    "queuedMessage": "当前离线，恢复连接后会自动提交你的分数。",
+    "alreadySubmittedMessage": "本局已完成排行榜登记。每局仅可登记一次。开始下一局，挑战你的最佳成绩吧！"
+  },
+  "activeGameExit": {
+    "homeTitle": "要结束当前对局吗？",
+    "homeDescription": "返回菜单前，您可以先把当前分数登记到排行榜。",
+    "newGameTitle": "开始新游戏前先登记",
+    "newGameDescription": "如果要保留当前对局分数，请在开始新游戏前先进行排行榜登记。",
+    "scoreLabel": "当前分数",
+    "registerButton": "登记后结束本局",
+    "homeProceed": "返回首页",
+    "homeProceedHint": "随时可以继续游戏",
+    "midSaveButton": "中途保存",
+    "midSaveButtonHint": "分数记入排行榜，还能继续游戏",
+    "newGameProceed": "不登记，直接新开一局",
+    "cancelHome": "继续游戏",
+    "cancelNewGame": "取消",
+    "registerTitle": "登记当前对局分数",
+    "registerDescription": "即使尚未游戏结束，也可以记录当前分数。\n登记完成后将进入下一步。",
+    "lockedNameNotice": "本局会固定使用首次登记的名称。",
+    "submittedMessage": "排行榜登记处理已完成。",
+    "midSaveSubmittedMessage": "当前分数已完成中途保存。",
+    "alreadySubmittedMidSaveMessage": "该会话已登记。旧版服务器可能会限制同一会话的中途重复登记，因此保留已有记录。",
+    "alreadySubmittedExitMessage": "该会话已登记。将保留已有记录并进入下一步。",
+    "continueAfterMidSave": "继续游戏",
+    "confirmHome": "前往菜单",
+    "confirmNewGame": "开始新游戏"
+  },
+  "updateRequired": {
+    "title": "需要更新到新版本",
+    "description": "为确保稳定游戏体验，请更新到最新版本。",
+    "currentVersionLabel": "当前版本",
+    "latestVersionLabel": "最新版本",
+    "storeHint": "可前往 {{store}} 完成更新。",
+    "updateButton": "立即更新",
+    "openingButton": "正在打开商店...",
+    "store": {
+      "apple": "App Store",
+      "google": "Google Play"
+    }
+  },
+  "tutorial": {
+    "drag": "将方块拖到棋盘！",
+    "swipe": "滑动屏幕/按键进行合并！"
+  },
+  "cookie": {
+    "title": "Cookie与广告提示",
+    "message": "블록 슬라이드 (Block Slide)使用游戏所需的基本Cookie。接受将允许个性化广告，拒绝将收到非个性化广告。",
+    "learnMore": "了解更多"
+  },
+  "help": {
+    "alreadyImplemented": "HelpModal已实现多语言支持。"
+  },
+  "blockCustomization": {
+    "title": "方块自定义",
+    "description": "可以用照片/颜色设置全局色调（自动渐变）或单个方块（1,2,4,8…）。",
+    "resetConfirm": "重置所有方块自定义？",
+    "tabs": {
+      "global": "全局色调",
+      "perValue": "单个方块"
+    },
+    "global": {
+      "title": "更改全局色调",
+      "note": "如果设置了单个方块，则优先使用该值。",
+      "enable": "启用",
+      "baseColor": "基础颜色",
+      "saturation": "饱和度",
+      "brightness": "亮度",
+      "depth": "对比度深度",
+      "preview": "预览",
+      "previewNote": "根据当前设置显示关键值。",
+      "description": "全局色调通过自动渐变统一所有方块。可以单独自定义单个方块。"
+    },
+    "perValue": {
+      "title": "选择方块",
+      "note": "点击值进行编辑。",
+      "jumpPlaceholder": "值（例如8192）",
+      "jumpButton": "跳转",
+      "selectedBlock": "选中的方块",
+      "mode": "模式",
+      "modes": {
+        "default": "默认",
+        "color": "颜色",
+        "image": "图像"
+      },
+      "colorPicker": "选择颜色",
+      "colorNote": "自动应用3D渐变（高光/阴影）。",
+      "imageLabel": "图像",
+      "imageReplace": "替换",
+      "imageNote": "图像会裁剪为正方形，保存时优化为256×256。",
+      "resetToDefault": "重置为默认",
+      "defaultNote": "\"默认\"使用游戏的基本UI或全局色调设置。切换到颜色/图像以自定义特定值。",
+      "autoSave": "设置自动保存。",
+      "status": {
+        "default": "默认（游戏UI）",
+        "defaultWithGlobal": "默认（应用全局色调）",
+        "color": "自定义颜色",
+        "image": "自定义图像"
+      }
+    },
+    "cropper": {
+      "title": "正方形裁剪",
+      "description": "拖动移动位置，并通过缩放对齐区域。",
+      "apply": "应用",
+      "zoom": "缩放",
+      "center": "居中",
+      "optimize": "保存时优化为{{size}}×{{size}}。",
+      "alt": "裁剪源图"
+    }
+  },
+  "skin": {
+    "title": "皮肤",
+    "ownedCount": "{{owned}} / {{total}}",
+    "preview": "预览",
+    "drawButton": "看广告抽皮肤",
+    "dailyLimit": "今天的抽取次数已用完",
+    "acquired": "获得成功！",
+    "addedToCollection": "已添加到收藏",
+    "notOwned": "未拥有",
+    "tapToApply": "点击应用/取消",
+    "collectionComplete": "收藏完成！",
+    "purchaseButton": "🧩 {{cost}}个碎片兑换",
+    "insufficientFragments": "碎片不足 ({{current}}/{{cost}})",
+    "premium": "高级",
+    "sectionNormal": "普通皮肤",
+    "sectionPremium": "高级皮肤",
+    "sectionMesh": "网格渐变"
+  },
   "skinAcquisition": {
     "title": "获得皮肤！",
     "addedToCollection": "已添加到收藏！",
-    "tapToClose": "点击关闭"
+    "tapToClose": "点击关闭",
+    "duplicateTitle": "获得皮肤碎片！",
+    "fragmentEarned": "+{{count}} 碎片",
+    "totalFragments": "持有: {{total}}个"
   }
 }

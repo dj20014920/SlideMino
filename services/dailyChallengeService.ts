@@ -13,6 +13,7 @@ import { Piece } from '../types';
 import { mulberry32, generateSeededPieceData, createPieceFromData } from './prng';
 import { isNativeApp } from '../utils/platform';
 import { BASE_URL } from '../config/constants';
+import { updateServerTimeOffset } from './serverTimeService';
 import { getAnalyticsInstallId } from './analyticsService';
 
 // ==========================================
@@ -169,6 +170,7 @@ export async function fetchDailyChallengeSeed(): Promise<DailyChallengeSeed | nu
     const url = new URL(getApiUrl('/api/daily-challenge/seed'), window.location.origin);
     url.searchParams.set('_ts', String(Date.now()));
     const response = await fetch(url.toString(), { cache: 'no-store' });
+    updateServerTimeOffset(response);
     if (!response.ok) {
       console.error('[DailyChallenge] seed fetch failed:', response.status);
       return null;

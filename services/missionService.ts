@@ -455,8 +455,9 @@ export function initMissionTracking(): void {
       // 2) 전체 블록 배치 카운트
       const completed2 = processUpdate('BLOCK_PLACE_COUNT', 1);
 
-      // 3) 회전 연속 추적
-      if (data.rotation === 0) {
+      // 3) 회전 연속 추적 (initialRotation과 비교하여 유저가 실제 회전했는지 판정)
+      const wasRotated = data.rotation !== data.initialRotation;
+      if (!wasRotated) {
         state.consecutiveNoRotation += 1;
       } else {
         state.consecutiveNoRotation = 0;

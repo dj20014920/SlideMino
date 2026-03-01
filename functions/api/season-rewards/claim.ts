@@ -16,6 +16,7 @@ interface ClaimRequest {
   installId?: unknown;
   seasonId?: unknown;
   difficulty?: unknown;
+  platform?: unknown;  // 웹 유저 보상 차단용
 }
 
 export const onRequestOptions: PagesFunction<Env> = async (context) => {
@@ -66,6 +67,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     if (typeof data.difficulty !== 'string' || !['4', '5', '7', '8', '10'].includes(data.difficulty)) {
       return new Response(JSON.stringify({ error: 'Invalid difficulty' }), {
         status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // 웹 유저는 스킨 조각 보상 수령 불가 (2중 방어)
+    if (data.platform === 'web') {
+      return new Response(JSON.stringify({ error: 'Web users cannot claim skin fragment rewards' }), {
+        status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

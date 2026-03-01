@@ -4,6 +4,7 @@ import { Check, Medal, Send, Share2 } from 'lucide-react';
 import { rankingService } from '../services/rankingService';
 import { getAnalyticsInstallId } from '../services/analyticsService';
 import { shareGameResult, type ShareResult } from '../services/shareCardService';
+import { gameEventBus } from '../services/gameEventBus';
 import { PLAYER_NAME_MAX_LENGTH, normalizePlayerName, validatePlayerName } from '../utils/playerName';
 import type { BoardSize } from '../types';
 
@@ -116,6 +117,10 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
             onSessionNameLocked?.(trimmedName);
             setSubmittedMessageOverride(null);
             setStep('SUBMITTED');
+            // 미션 추적: 랭킹 제출 이벤트 (중간저장/나가기)
+            gameEventBus.emit('SCORE_SUBMITTED', {
+                score, boardSize, mode: 'normal' as const,
+            });
             return;
         }
 
@@ -129,6 +134,10 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                     : t('modals:activeGameExit.alreadySubmittedExitMessage')
             );
             setStep('SUBMITTED');
+            // 이미 제출된 경우에도 미션 추적
+            gameEventBus.emit('SCORE_SUBMITTED', {
+                score, boardSize, mode: 'normal' as const,
+            });
             return;
         }
 

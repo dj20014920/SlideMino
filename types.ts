@@ -35,6 +35,7 @@ export interface Piece {
   id: string; // Unique ID for keying
   type: ShapeType;
   rotation: number; // 0, 1, 2, 3
+  initialRotation: number; // 생성 시 최초 회전값 (회전 추적용)
   cells: Coordinate[]; // Relative coordinates
   value: number; // Default 1
 }

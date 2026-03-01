@@ -33,6 +33,7 @@ interface SubmitRequest {
   moves: unknown;
   timestamp?: unknown;
   installId?: unknown;             // 시즌 보상 지급을 위한 install ID (선택적)
+  platform?: unknown;              // 플랫폼 ('android', 'ios', 'web')
 }
 
 /**
@@ -159,6 +160,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       ? await hashInstallId(data.installId, env.ANALYTICS_HASH_SALT)
       : null;
 
+    // ========== 플랫폼 식별 (웹 유저 보상 차단용) ==========
+    const VALID_PLATFORMS = ['android', 'ios', 'web'];
+    const platform = typeof data.platform === 'string' && VALID_PLATFORMS.includes(data.platform)
+      ? data.platform
+      : null;
+
     // ========== 데이터베이스 저장 (D1 batch: UNIQUE 제약 없이 원자적 동작) ==========
     // D1 batch()는 단일 트랜잭션으로 실행되어 레이스 컨디션을 방지한다.
     // UPSERT(ON CONFLICT)를 사용하지 않아 session_id UNIQUE 인덱스가 없어도 동작한다.
@@ -171,15 +178,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       //   3) 같거나 낮은 점수 → no-op
       await env.DB.batch([
         env.DB.prepare(
-          `INSERT INTO rankings (session_id, name, score, difficulty, duration, moves, timestamp, updated_at, install_id_hash)
-           SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?
+          `INSERT INTO rankings (session_id, name, score, difficulty, duration, moves, timestamp, updated_at, install_id_hash, platform)
+           SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
            WHERE NOT EXISTS (SELECT 1 FROM rankings WHERE session_id = ?)`
-        ).bind(sessionId, sanitizedName, score, difficulty, duration, moves, now, now, installIdHash, sessionId),
+        ).bind(sessionId, sanitizedName, score, difficulty, duration, moves, now, now, installIdHash, platform, sessionId),
         env.DB.prepare(
           `UPDATE rankings
-           SET score = ?, name = ?, moves = ?, duration = ?, updated_at = ?, install_id_hash = COALESCE(?, install_id_hash)
+           SET score = ?, name = ?, moves = ?, duration = ?, updated_at = ?, install_id_hash = COALESCE(?, install_id_hash), platform = COALESCE(?, platform)
            WHERE session_id = ? AND ? > score`
-        ).bind(score, sanitizedName, moves, duration, now, installIdHash, sessionId, score),
+        ).bind(score, sanitizedName, moves, duration, now, installIdHash, platform, sessionId, score),
       ]);
 
       // ========== 순위 조회 ==========

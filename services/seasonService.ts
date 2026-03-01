@@ -9,6 +9,7 @@ import { isNativeApp } from '../utils/platform';
 import { BASE_URL } from '../config/constants';
 import { getAnalyticsInstallId } from './analyticsService';
 import { loadSkinSettings, saveSkinSettings } from './skinService';
+import { updateServerTimeOffset } from './serverTimeService';
 
 // 서버와 동일한 KST 오프셋
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
@@ -119,6 +120,7 @@ export async function checkSeasonRewards(): Promise<{
     url.searchParams.set('installId', installId);
 
     const response = await fetch(url.toString(), { cache: 'no-store' });
+    updateServerTimeOffset(response);
     if (!response.ok) return { rewards: [], seasonInfo: null };
 
     const data = await response.json() as {

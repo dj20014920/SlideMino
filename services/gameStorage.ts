@@ -164,8 +164,17 @@ const parseSavedGameState = (raw: string | null): SavedGameState | null => {
     const eventPlayedMs = typeof parsed.eventPlayedMs === 'number'
         ? Math.max(0, Math.floor(parsed.eventPlayedMs)) : undefined;
 
+    // slots 내 Piece에 initialRotation 폴백 (구버전 데이터 호환)
+    const normalizedSlots = Array.isArray(parsed.slots)
+        ? parsed.slots.map((s: any) => s && typeof s === 'object' && typeof s.rotation === 'number'
+            ? { ...s, initialRotation: typeof s.initialRotation === 'number' ? s.initialRotation : s.rotation }
+            : s
+        )
+        : parsed.slots;
+
     return {
         ...parsed,
+        slots: normalizedSlots,
         savedAt,
         sessionId,
         moveCount,

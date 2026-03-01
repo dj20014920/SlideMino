@@ -33,6 +33,11 @@ const config: CapacitorConfig = {
     Keyboard: {
       resize: 'body',
       resizeOnFullScreen: true
+    },
+    LocalNotifications: {
+      // Android 알림 아이콘 (res/drawable에 ic_stat_notification 추가 시 활성화)
+      // smallIcon: 'ic_stat_notification',
+      iconColor: '#4A90D9',
     }
   },
   ios: {

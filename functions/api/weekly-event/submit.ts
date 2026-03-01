@@ -11,6 +11,7 @@ import {
   validateScore,
   validateDuration,
   validateMoves,
+  validateGameConsistency,
 } from '../../utils/validation';
 import { hashInstallId } from '../../utils/hash';
 import { checkRateLimit, getClientIp } from '../../utils/rateLimit';
@@ -27,6 +28,12 @@ const EVENT_TIME_LIMITS: Record<string, number> = {
 };
 const DEFAULT_TIME_LIMIT = 1800; // 30분
 const TIMER_TOLERANCE_SEC = 30;  // 네트워크 지연 여유
+
+/** 이벤트 타입별 점수 배율 (BURNING=1.5x, TRIPLE_KILL=~1.3x 보정) */
+const EVENT_SCORE_MULTIPLIER: Record<string, number> = {
+  BURNING: 1.5,
+  TRIPLE_KILL: 1.5,  // +333 보너스 고려하여 여유 배율
+};
 
 function errorResponse(message: string, status: number, headers: Record<string, string>): Response {
   const safe = status === 500 ? 'Internal server error' : message;
@@ -103,6 +110,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const timeLimit = (EVENT_TIME_LIMITS[eventType] ?? DEFAULT_TIME_LIMIT) + TIMER_TOLERANCE_SEC;
     if (duration > timeLimit) {
       return errorResponse('Time limit exceeded', 403, corsHeaders);
+    }
+
+    // 이벤트 타입별 점수 일관성 검증
+    const multiplier = EVENT_SCORE_MULTIPLIER[eventType] ?? 1;
+    const consistencyCheck = validateGameConsistency(score, '5', duration, moves, multiplier);
+    if (!consistencyCheck.valid) {
+      return errorResponse(consistencyCheck.error ?? 'Inconsistent game data', 403, corsHeaders);
     }
 
     // 3회 도전 제한 서버 검증

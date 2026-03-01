@@ -7,6 +7,8 @@ import { submitDailyChallengeScore, hasClaimedTodayReward, markTodayRewardClaime
 import { submitEventScore, incrementLocalAttemptCount } from '../services/weeklyEventService';
 import { addFragments } from '../services/skinService';
 import { shareGameResult, type ShareCardOptions, type ShareResult } from '../services/shareCardService';
+import { gameEventBus } from '../services/gameEventBus';
+import { isFeatureUnlocked } from '../services/onboardingService';
 import { PLAYER_NAME_MAX_LENGTH, normalizePlayerName, validatePlayerName } from '../utils/playerName';
 import type { GameMode, BoardSize } from '../types';
 import AdBanner from './AdBanner';
@@ -132,7 +134,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                 duration,
             );
             setIsSubmitting(false);
-            if (challengeResult) {
+            if (challengeResult?.success) {
                 // 첫 완료 보상: 스킨 조각
                 if (!hasClaimedTodayReward(challengeDate)) {
                     const fragments = getFirstCompletionFragments();
@@ -149,6 +151,11 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                     } as any))
                 );
                 setStep('SUBMITTED');
+                // 미션 추적: 랭킹 제출 이벤트 (daily_challenge)
+                gameEventBus.emit('SCORE_SUBMITTED', {
+                    score, boardSize, mode: gameMode ?? 'normal',
+                    rank: challengeResult.rank, total: challengeResult.total,
+                });
             } else {
                 setSubmitError(t('modals:rankingRegister.failureMessage'));
             }
@@ -177,6 +184,11 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                         : null
                 );
                 setStep('SUBMITTED');
+                // 미션 추적: 랭킹 제출 이벤트 (weekly_event)
+                gameEventBus.emit('SCORE_SUBMITTED', {
+                    score, boardSize, mode: gameMode ?? 'normal',
+                    rank: eventResult.rank, total: eventResult.total,
+                });
             } else {
                 setSubmitError(t('modals:rankingRegister.failureMessage'));
             }
@@ -197,10 +209,18 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         if (result.success) {
             setSubmittedMessageOverride(null);
             setStep('SUBMITTED');
+            // 미션 추적: 랭킹 제출 이벤트 (normal)
+            gameEventBus.emit('SCORE_SUBMITTED', {
+                score, boardSize, mode: gameMode ?? 'normal',
+            });
         } else if (result.code === 'SESSION_ALREADY_SUBMITTED') {
             // 이미 등록된 세션이면 실패로 막지 않고 완료 단계로 전환한다.
             setSubmittedMessageOverride(t('modals:rankingRegister.alreadySubmittedMessage'));
             setStep('SUBMITTED');
+            // 이미 제출된 경우에도 미션 추적 (중간저장 등)
+            gameEventBus.emit('SCORE_SUBMITTED', {
+                score, boardSize, mode: gameMode ?? 'normal',
+            });
         } else if (result.offline) {
             setSubmitError(t('modals:leaderboard.offline'));
         } else if (result.status === 403) {
@@ -276,6 +296,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                         </div>
 
                         {/* 공유 버튼 (점수 아래) */}
+                        {isFeatureUnlocked('share_card') && (
                         <button
                             onClick={handleShare}
                             disabled={isSharing}
@@ -294,6 +315,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                             <Share2 size={16} />
                             {isSharing ? t('common:share.sharing') : t('common:share.button')}
                         </button>
+                        )}
 
                         {/* 공유 토스트 */}
                         {shareToast && (
@@ -507,6 +529,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                         </div>
 
                         {/* 공유 버튼 (강조) */}
+                        {isFeatureUnlocked('share_card') && (
                         <button
                             onClick={handleShare}
                             disabled={isSharing}
@@ -527,6 +550,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                                 {isSharing ? t('common:share.sharing') : t('common:share.brag')}
                             </span>
                         </button>
+                        )}
 
                         {shareToast && (
                             <p className="text-xs text-green-600 font-medium animate-fade-in">{shareToast}</p>

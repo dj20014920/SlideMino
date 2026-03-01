@@ -19,6 +19,7 @@
     "@capacitor/core": "^8.0.0",
     "@capacitor/device": "^8.0.0",
     "@capacitor/ios": "^8.0.0",
+    "@capacitor/local-notifications": "^8.0.1",
     "@capacitor/splash-screen": "^8.0.0",
     "framer-motion": "^12.23.26",
     "i18next": "^25.7.3",

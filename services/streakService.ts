@@ -8,6 +8,7 @@
  */
 
 import { loadSkinSettings, saveSkinSettings } from './skinService';
+import { getServerAdjustedNow } from './serverTimeService';
 
 const STORAGE_KEY = 'slidemino.streak.v1';
 
@@ -70,7 +71,7 @@ export interface AttendanceResult {
 // ====== 유틸 ======
 
 /** KST 기준 "YYYY-MM-DD" 문자열 */
-export function getKstDateString(now: Date = new Date()): string {
+export function getKstDateString(now: Date = getServerAdjustedNow()): string {
   const kst = new Date(now.getTime() + KST_OFFSET_MS);
   const y = kst.getUTCFullYear();
   const m = String(kst.getUTCMonth() + 1).padStart(2, '0');
@@ -139,7 +140,7 @@ export function saveStreakData(data: StreakData): void {
  * 앱 접속 시 호출: 스트릭 상태 확인 + 프리즈 소모/리셋 처리
  * (출석 인정과는 별개 — 여기서는 빠진 날 처리만)
  */
-export function checkAndUpdateStreak(now: Date = new Date()): StreakUpdateResult {
+export function checkAndUpdateStreak(now: Date = getServerAdjustedNow()): StreakUpdateResult {
   const data = loadStreakData();
   const today = getKstDateString(now);
 
@@ -186,7 +187,7 @@ export function checkAndUpdateStreak(now: Date = new Date()): StreakUpdateResult
 /**
  * 게임 중 점수 달성 시 호출: 출석 인정 + 배지 체크 + 프리즈 지급
  */
-export function recordAttendance(score: number, now: Date = new Date()): AttendanceResult {
+export function recordAttendance(score: number, now: Date = getServerAdjustedNow()): AttendanceResult {
   const data = loadStreakData();
   const today = getKstDateString(now);
 
@@ -268,7 +269,7 @@ export function recordAttendance(score: number, now: Date = new Date()): Attenda
 }
 
 /** 오늘 출석 완료 여부 (빠른 캐시 조회) */
-export function isTodayAttended(now: Date = new Date()): boolean {
+export function isTodayAttended(now: Date = getServerAdjustedNow()): boolean {
   const data = loadStreakData();
   const today = getKstDateString(now);
   return data.todayAttended && data.todayDate === today;

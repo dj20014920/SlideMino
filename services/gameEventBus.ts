@@ -26,6 +26,7 @@ export interface GameEventMap {
   BLOCK_PLACED: {
     pieceType: ShapeType;
     rotation: number;
+    initialRotation: number;
     value: number;
   };
 

@@ -1,52 +1,45 @@
 {
+  "actions": {
+    "replayTutorial": "튜토리얼 다시보기",
+    "resetDone": "리셋 완료!"
+  },
+  "buttons": {
+    "confirm": "확인",
+    "cancel": "취소",
+    "close": "닫기",
+    "submit": "제출",
+    "decline": "거부",
+    "accept": "수락",
+    "home": "홈으로",
+    "backToMenu": "메뉴로 돌아가기",
+    "backToGame": "게임으로 돌아가기",
+    "resetAll": "전체 초기화",
+    "reset": "초기화",
+    "retry": "다시 시도"
+  },
   "labels": {
-    "loading": "로딩 중...",
-    "pts": "점"
+    "score": "점수",
+    "finalScore": "최종 점수",
+    "rank": "순위",
+    "name": "이름",
+    "loading": "불러오는 중...",
+    "pts": "점",
+    "premiumFeature": "프리미엄 기능"
   },
-  "streak": {
-    "title": "연속 출석",
-    "days": "{{count}}일째",
-    "todayComplete": "오늘 출석 완료! 🔥 연속 {{count}}일째",
-    "attendanceHint": "출석 인정까지 {{points}}점 남았어요!",
-    "freezeUsed": "프리즈 {{count}}개가 사용되어 출석이 유지되었어요!",
-    "freezeAutoOff": "프리즈가 있었지만 자동 사용이 꺼져있어서 스트릭이 리셋되었어요",
-    "streakReset": "연속 출석이 리셋되었어요",
-    "freezeHelp": "프리즈는 출석을 빠뜨렸을 때 자동으로 사용되어 연속 출석을 유지시켜줍니다. 3일마다 1개씩 지급됩니다.",
-    "autoFreeze": "프리즈 자동 사용",
-    "freezeCount": "보유 프리즈",
-    "freezeMax": "최대",
-    "freezeGranted": "프리즈 1개가 지급되었어요! ({{count}}/3)",
-    "notAttendedYet": "아직 미완료",
-    "attended": "완료",
-    "badgeCollection": "배지 컬렉션",
-    "noBadges": "아직 획득한 배지가 없어요",
-    "totalDays": "누적 출석",
-    "condition": "하루 100점 이상 획득 시 출석 인정"
+  "footer": {
+    "about": "소개",
+    "privacy": "개인정보",
+    "adPrivacy": "광고 개인정보",
+    "terms": "약관",
+    "contact": "문의",
+    "copyright": "© 2025 블록 슬라이드 (Block Slide). All rights reserved."
   },
-  "season": {
-    "countdown": "시즌 종료까지 {{days}}일 {{hours}}시간",
-    "countdownUrgent": "시즌 종료까지 {{hours}}시간 {{minutes}}분",
-    "countdownDone": "시즌 종료!",
-    "rewardTitle": "시즌 보상 도착!",
-    "rewardDesc": "지난 시즌 랭킹 보상이 있습니다",
-    "rewardClaim": "보상 수령하기",
-    "rewardClaimAll": "전체 수령",
-    "rewardClaimed": "수령 완료!",
-    "rewardWebOnly": "앱을 설치하면 스킨 조각 보상을 수령할 수 있어요!",
-    "rewardFragments": "스킨 조각 {{count}}개",
-    "top1": "🥇 1위",
-    "top2": "🥈 2위",
-    "top3": "🥉 3위",
-    "participant": "참여 보상",
-    "difficulty": "{{size}}×{{size}}"
-  },
-  "badges": {
-    "newbie": "뉴비 🌱",
-    "bronze": "브론즈 🥉",
-    "silver": "실버 🥈",
-    "gold": "골드 🥇",
-    "diamond": "다이아 💎",
-    "legend": "전설 🏆"
+  "aria": {
+    "home": "홈으로",
+    "help": "도움말",
+    "close": "닫기",
+    "selectTile": "타일 {{value}} 선택",
+    "rotateBlock": "블럭 회전"
   },
   "share": {
     "button": "공유하기",
@@ -97,5 +90,57 @@
     "seasonEnd": "시즌 종료 임박",
     "seasonEndDesc": "시즌이 곷 종료됩니다",
     "weeklyMission": "주간 미션"
+  },
+  "streak": {
+    "title": "연속 출석",
+    "days": "{{count}}일째",
+    "todayComplete": "오늘 출석 완료! 🔥 연속 {{count}}일째",
+    "attendanceHint": "출석 인정까지 {{points}}점 남았어요!",
+    "freezeUsed": "프리즈 {{count}}개가 사용되어 출석이 유지되었어요!",
+    "freezeAutoOff": "프리즈가 있었지만 자동 사용이 꺼져있어서 스트릭이 리셋되었어요",
+    "streakReset": "연속 출석이 리셋되었어요",
+    "freezeHelp": "프리즈는 출석을 빠뜨렸을 때 자동으로 사용되어 연속 출석을 유지시켜줍니다. 3일마다 1개씩 지급됩니다.",
+    "autoFreeze": "프리즈 자동 사용",
+    "freezeCount": "보유 프리즈",
+    "freezeMax": "최대",
+    "freezeGranted": "프리즈 1개가 지급되었어요! ({{count}}/3)",
+    "notAttendedYet": "아직 미완료",
+    "attended": "완료",
+    "badgeCollection": "배지 컬렉션",
+    "noBadges": "아직 획득한 배지가 없어요",
+    "totalDays": "누적 출석",
+    "condition": "하루 100점 이상 획득 시 출석 인정"
+  },
+  "season": {
+    "countdown": "시즌 종료까지 {{days}}일 {{hours}}시간",
+    "countdownUrgent": "시즌 종료까지 {{hours}}시간 {{minutes}}분",
+    "countdownDone": "시즌 종료!",
+    "rewardTitle": "시즌 보상 도착!",
+    "rewardDesc": "지난 시즌 랭킹 보상이 있습니다",
+    "rewardClaim": "보상 수령하기",
+    "rewardClaimAll": "전체 수령",
+    "rewardClaimed": "수령 완료!",
+    "rewardWebOnly": "앱을 설치하면 스킨 조각 보상을 수령할 수 있어요!",
+    "rewardFragments": "스킨 조각 {{count}}개",
+    "top1": "🥇 1위",
+    "top2": "🥈 2위",
+    "top3": "🥉 3위",
+    "participant": "참여 보상",
+    "difficulty": "{{size}}×{{size}}"
+  },
+  "badges": {
+    "newbie": "뉴비 🌱",
+    "bronze": "브론즈 🥉",
+    "silver": "실버 🥈",
+    "gold": "골드 🥇",
+    "diamond": "다이아 💎",
+    "legend": "전설 🏆"
+  },
+  "notifications": {
+    "streakReminder": "출석이 끊길 것 같아요! 오늘의 게임을 플레이해보세요",
+    "missionMorning": "오늘의 새로운 미션을 확인해보세요!",
+    "missionEvening": "오늘의 미션이 아직 완료되지 않았어요!",
+    "settingsTitle": "알림 설정",
+    "enabled": "푸시 알림 활성화"
   }
 }

@@ -283,6 +283,7 @@ export function generateEventPiece(rule: WeeklyEventRule): Piece {
     id: Math.random().toString(36).substr(2, 9),
     type,
     rotation,
+    initialRotation: rotation,
     cells: getRotatedCells(type, rotation),
     value: 1,
   };

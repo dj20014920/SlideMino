@@ -1,5 +1,7 @@
 import { isNativeApp } from '../utils/platform';
+import { Capacitor } from '@capacitor/core';
 import { BASE_URL } from '../config/constants';
+import { updateServerTimeOffset } from './serverTimeService';
 
 export interface RankEntry {
     name: string;
@@ -47,6 +49,7 @@ interface PendingScore {
     timestamp: number;
     updatedAt: number;
     installId?: string;
+    platform?: string;
 }
 
 const STORAGE_KEY_NAME = 'slidemino_player_name';
@@ -154,6 +157,8 @@ const postScore = async (
             body: JSON.stringify(payload),
         });
 
+        updateServerTimeOffset(response);
+
         if (!response.ok) {
             let code: string | undefined;
             let errorMessage: string | undefined;
@@ -256,6 +261,7 @@ const buildPayload = (
         moves,
         timestamp: Date.now(),
         installId,
+        platform: Capacitor.getPlatform(),
     };
 };
 
@@ -417,6 +423,7 @@ export const rankingService = {
             const url = new URL(getApiUrl('/api/rankings'), typeof window !== 'undefined' ? window.location.origin : 'https://slidemino.emozleep.space');
             url.searchParams.set('_ts', String(Date.now()));
             const response = await fetch(url.toString(), { cache: 'no-store' });
+            updateServerTimeOffset(response);
             if (!response.ok) throw new Error('Network response was not ok');
             const data = await response.json();
             // 새 형식: { rankings: [...], seasonInfo: {...} } / 이전 형식: 배열 직접 반환

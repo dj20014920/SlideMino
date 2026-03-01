@@ -147,15 +147,14 @@ export async function resetSeasonIfNeeded(env: Env, now: Date = new Date()): Pro
           `INSERT OR IGNORE INTO season_rewards (season_id, difficulty, install_id_hash, reward_type, fragment_amount, created_at, expires_at)
            SELECT ?, ?, install_id_hash, ?, ?, ?, ?
            FROM rankings
-           WHERE difficulty = ? AND install_id_hash IS NOT NULL
+           WHERE difficulty = ? AND install_id_hash IS NOT NULL AND COALESCE(platform, '') != 'web'
            ORDER BY score DESC, updated_at ASC
            LIMIT 1 OFFSET ?`
         ).bind(seasonId, difficulty, reward.type, reward.amount, archivedAt, rewardExpiresAt, difficulty, reward.rank)
       );
     }
 
-    // 3) 참여자 보상 (TOP 3 제외, install_id_hash가 있는 모든 유저)
-    // TOP 3의 install_id_hash를 서브쿼리로 제외
+    // 3) 참여자 보상 (TOP 3 제외, 웹 유저 제외, install_id_hash가 있는 모든 유저)
     statements.push(
       env.DB.prepare(
         `INSERT OR IGNORE INTO season_rewards (season_id, difficulty, install_id_hash, reward_type, fragment_amount, created_at, expires_at)
@@ -163,6 +162,7 @@ export async function resetSeasonIfNeeded(env: Env, now: Date = new Date()): Pro
          FROM rankings
          WHERE difficulty = ?
            AND install_id_hash IS NOT NULL
+           AND COALESCE(platform, '') != 'web'
            AND install_id_hash NOT IN (
              SELECT install_id_hash FROM rankings
              WHERE difficulty = ? AND install_id_hash IS NOT NULL

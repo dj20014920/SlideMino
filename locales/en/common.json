@@ -1,52 +1,45 @@
 {
+  "actions": {
+    "replayTutorial": "Replay Tutorial",
+    "resetDone": "Reset Done!"
+  },
+  "buttons": {
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "close": "Close",
+    "submit": "Submit",
+    "decline": "Decline",
+    "accept": "Accept",
+    "home": "Home",
+    "backToMenu": "Back to Menu",
+    "backToGame": "Back to Game",
+    "resetAll": "Reset All",
+    "reset": "Reset",
+    "retry": "Retry"
+  },
   "labels": {
-    "loading": "Loading...",
-    "pts": "pts"
+    "score": "Score",
+    "finalScore": "Final Score",
+    "rank": "Rank",
+    "name": "Name",
+    "loading": "LOADING...",
+    "pts": "pts",
+    "premiumFeature": "Premium feature"
   },
-  "streak": {
-    "title": "Daily Streak",
-    "days": "Day {{count}}",
-    "todayComplete": "Attendance complete! 🔥 Day {{count}}",
-    "attendanceHint": "{{points}} more points for attendance!",
-    "freezeUsed": "{{count}} freeze(s) used to keep your streak!",
-    "freezeAutoOff": "You had freeze(s) but auto-use was off, so your streak was reset",
-    "streakReset": "Your streak has been reset",
-    "freezeHelp": "Freezes are automatically used when you miss a day to keep your streak alive. You get 1 every 3 consecutive days.",
-    "autoFreeze": "Auto-use Freeze",
-    "freezeCount": "Freezes",
-    "freezeMax": "Max",
-    "freezeGranted": "Freeze earned! ({{count}}/3)",
-    "notAttendedYet": "Not yet",
-    "attended": "Done",
-    "badgeCollection": "Badge Collection",
-    "noBadges": "No badges earned yet",
-    "totalDays": "Total days",
-    "condition": "Score 100+ to check in"
+  "footer": {
+    "about": "About",
+    "privacy": "Privacy",
+    "adPrivacy": "Ad privacy",
+    "terms": "Terms",
+    "contact": "Contact",
+    "copyright": "© 2025 블록 슬라이드 (Block Slide). All rights reserved."
   },
-  "season": {
-    "countdown": "{{days}}d {{hours}}h until season ends",
-    "countdownUrgent": "{{hours}}h {{minutes}}m until season ends",
-    "countdownDone": "Season ended!",
-    "rewardTitle": "Season Rewards!",
-    "rewardDesc": "You have rewards from last season",
-    "rewardClaim": "Claim Reward",
-    "rewardClaimAll": "Claim All",
-    "rewardClaimed": "Claimed!",
-    "rewardWebOnly": "Install the app to claim skin fragment rewards!",
-    "rewardFragments": "{{count}} skin fragments",
-    "top1": "🥇 1st",
-    "top2": "🥈 2nd",
-    "top3": "🥉 3rd",
-    "participant": "Participation",
-    "difficulty": "{{size}}×{{size}}"
-  },
-  "badges": {
-    "newbie": "Newbie 🌱",
-    "bronze": "Bronze 🥉",
-    "silver": "Silver 🥈",
-    "gold": "Gold 🥇",
-    "diamond": "Diamond 💎",
-    "legend": "Legend 🏆"
+  "aria": {
+    "home": "Home",
+    "help": "Help",
+    "close": "Close",
+    "selectTile": "Select tile {{value}}",
+    "rotateBlock": "Rotate block"
   },
   "share": {
     "button": "Share",
@@ -97,5 +90,57 @@
     "seasonEnd": "Season Ending Soon",
     "seasonEndDesc": "Season is about to end",
     "weeklyMission": "Weekly Missions"
+  },
+  "streak": {
+    "title": "Daily Streak",
+    "days": "Day {{count}}",
+    "todayComplete": "Attendance complete! 🔥 Day {{count}}",
+    "attendanceHint": "{{points}} more points for attendance!",
+    "freezeUsed": "{{count}} freeze(s) used to keep your streak!",
+    "freezeAutoOff": "You had freeze(s) but auto-use was off, so your streak was reset",
+    "streakReset": "Your streak has been reset",
+    "freezeHelp": "Freezes are automatically used when you miss a day to keep your streak alive. You get 1 every 3 consecutive days.",
+    "autoFreeze": "Auto-use Freeze",
+    "freezeCount": "Freezes",
+    "freezeMax": "Max",
+    "freezeGranted": "Freeze earned! ({{count}}/3)",
+    "notAttendedYet": "Not yet",
+    "attended": "Done",
+    "badgeCollection": "Badge Collection",
+    "noBadges": "No badges earned yet",
+    "totalDays": "Total days",
+    "condition": "Score 100+ to check in"
+  },
+  "season": {
+    "countdown": "{{days}}d {{hours}}h until season ends",
+    "countdownUrgent": "{{hours}}h {{minutes}}m until season ends",
+    "countdownDone": "Season ended!",
+    "rewardTitle": "Season Rewards!",
+    "rewardDesc": "You have rewards from last season",
+    "rewardClaim": "Claim Reward",
+    "rewardClaimAll": "Claim All",
+    "rewardClaimed": "Claimed!",
+    "rewardWebOnly": "Install the app to claim skin fragment rewards!",
+    "rewardFragments": "{{count}} skin fragments",
+    "top1": "🥇 1st",
+    "top2": "🥈 2nd",
+    "top3": "🥉 3rd",
+    "participant": "Participation",
+    "difficulty": "{{size}}×{{size}}"
+  },
+  "badges": {
+    "newbie": "Newbie 🌱",
+    "bronze": "Bronze 🥉",
+    "silver": "Silver 🥈",
+    "gold": "Gold 🥇",
+    "diamond": "Diamond 💎",
+    "legend": "Legend 🏆"
+  },
+  "notifications": {
+    "streakReminder": "Your streak is about to break! Play a game today",
+    "missionMorning": "Check out today's new missions!",
+    "missionEvening": "Today's missions are not completed yet!",
+    "settingsTitle": "Notification Settings",
+    "enabled": "Enable push notifications"
   }
 }

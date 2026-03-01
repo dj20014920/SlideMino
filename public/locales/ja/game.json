@@ -82,5 +82,9 @@
     "modeGuideExpert": "エキスパート 4×4: 盤面が詰まりやすい高難度。",
     "tapToDismissMode": "この吹き出しをタップすると閉じます。",
     "close": "閉じる"
+  },
+  "dailyChallenge": {
+    "menuButton": "今日のチャレンジ",
+    "banner": "デイリーチャレンジ"
   }
 }

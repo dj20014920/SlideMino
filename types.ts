@@ -44,6 +44,9 @@ export enum GameState {
   GAME_OVER = 'GAME_OVER',
 }
 
+/** 게임 모드: 일반 or 데일리 챌린지 */
+export type GameMode = 'normal' | 'daily_challenge';
+
 export enum Phase {
   PLACE = 'PLACE',
   SLIDE = 'SLIDE',

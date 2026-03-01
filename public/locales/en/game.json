@@ -82,5 +82,9 @@
     "modeGuideExpert": "Expert 4×4: tight space and high-pressure difficulty.",
     "tapToDismissMode": "Tap this bubble to dismiss.",
     "close": "Close"
+  },
+  "dailyChallenge": {
+    "menuButton": "Daily Challenge",
+    "banner": "Daily Challenge"
   }
 }

@@ -3,7 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { Trophy, Send, Check, Medal, RotateCcw } from 'lucide-react';
 import { rankingService } from '../services/rankingService';
 import { getAnalyticsInstallId } from '../services/analyticsService';
+import { submitDailyChallengeScore, hasClaimedTodayReward, markTodayRewardClaimed, getFirstCompletionFragments } from '../services/dailyChallengeService';
+import { addFragments } from '../services/skinService';
 import { PLAYER_NAME_MAX_LENGTH, normalizePlayerName, validatePlayerName } from '../utils/playerName';
+import type { GameMode } from '../types';
 import AdBanner from './AdBanner';
 
 interface GameOverModalProps {
@@ -19,6 +22,8 @@ interface GameOverModalProps {
     isReviveInProgress: boolean;
     onWatchReviveAd: () => void;
     onClose: () => void;
+    gameMode?: GameMode;
+    challengeDate?: string;
 }
 
 export const GameOverModal: React.FC<GameOverModalProps> = ({
@@ -34,6 +39,8 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
     isReviveInProgress,
     onWatchReviveAd,
     onClose,
+    gameMode = 'normal',
+    challengeDate,
 }) => {
     const { t } = useTranslation();
     const [step, setStep] = useState<'INITIAL' | 'REGISTER' | 'SUBMITTED'>('INITIAL');
@@ -62,6 +69,36 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         setIsSubmitting(true);
         setNameError(null);
         setSubmitError(null);
+
+        if (gameMode === 'daily_challenge' && challengeDate) {
+            // 데일리 챌린지 전용 제출
+            const challengeResult = await submitDailyChallengeScore({
+                name: trimmedName,
+                score,
+                duration,
+                moves,
+                challengeDate,
+            });
+            setIsSubmitting(false);
+            if (challengeResult) {
+                // 첫 완료 보상: 스킨 조각
+                if (!hasClaimedTodayReward()) {
+                    const fragments = getFirstCompletionFragments();
+                    addFragments(fragments);
+                    markTodayRewardClaimed();
+                }
+                setSubmittedMessageOverride(
+                    String(t('modals:gameOver.challengeSubmitted', {
+                        rank: challengeResult.rank,
+                        total: challengeResult.total,
+                    } as any))
+                );
+                setStep('SUBMITTED');
+            } else {
+                setSubmitError(t('modals:rankingRegister.failureMessage'));
+            }
+            return;
+        }
 
         // Submit score with anti-cheat metadata and session ID
         const result = await rankingService.submitScore(

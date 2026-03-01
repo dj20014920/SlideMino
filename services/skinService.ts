@@ -134,3 +134,12 @@ export const getFragmentCost = (skinId: string): number => {
 export const isCollectionComplete = (settings: SkinSettings): boolean => {
   return settings.ownedSkins.length >= SKIN_CATALOG.length;
 };
+
+/**
+ * 스킨 조각 추가 (데일리 챌린지 보상 등)
+ */
+export const addFragments = (amount: number): void => {
+  const settings = loadSkinSettings();
+  settings.fragments += Math.max(0, Math.floor(amount));
+  saveSkinSettings(settings);
+};

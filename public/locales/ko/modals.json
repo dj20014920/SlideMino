@@ -17,7 +17,8 @@
     "reviveSelectionComplete": "선택 파괴가 끝났습니다. 이어서 플레이하세요.",
     "reviveNoTargets": "파괴할 블럭이 없어 바로 플레이로 복귀합니다.",
     "registerRanking": "랭킹 등록하기",
-    "backToMenu": "메뉴로 돌아가기"
+    "backToMenu": "메뉴로 돌아가기",
+    "challengeSubmitted": "오늘의 챌린지 {{rank}}위 / {{total}}명"
   },
   "leaderboard": {
     "title": "Leaderboard",

@@ -7,7 +7,7 @@
  * - 앱을 껐다 켜도, 홈화면에 갔다 와도 게임 이어하기 가능
  */
 
-import { Grid, Piece, Phase, BoardSize, GameState } from '../types';
+import { Grid, Piece, Phase, BoardSize, GameState, GameMode } from '../types';
 import { INITIAL_BLOCK_REFRESH_AMOUNT, INITIAL_UNDO_AMOUNT } from '../constants';
 
 // 로컬 스토리지 키
@@ -50,6 +50,14 @@ export interface SavedGameState {
     maxScoreThisRun?: number;
     playerName?: string;
     sessionLockedPlayerName?: string;
+    /** 게임 모드 (미지정 시 'normal') */
+    gameMode?: GameMode;
+    /** 데일리 챌린지 전용: 챌린지 날짜 YYYYMMDD */
+    challengeDate?: string;
+    /** 데일리 챌린지 전용: PRNG 시드 */
+    challengeSeed?: number;
+    /** 데일리 챌린지 전용: 다음 생성할 피스 인덱스 */
+    challengePieceIndex?: number;
     savedAt: number; // timestamp
 }
 
@@ -135,6 +143,13 @@ const parseSavedGameState = (raw: string | null): SavedGameState | null => {
         ? parsed.showBlockRefreshAdButton
         : false;
 
+    // 데일리 챌린지 모드 필드
+    const gameMode: GameMode = parsed.gameMode === 'daily_challenge' ? 'daily_challenge' : 'normal';
+    const challengeDate = typeof parsed.challengeDate === 'string' ? parsed.challengeDate : undefined;
+    const challengeSeed = typeof parsed.challengeSeed === 'number' ? parsed.challengeSeed : undefined;
+    const challengePieceIndex = typeof parsed.challengePieceIndex === 'number'
+        ? Math.max(0, Math.floor(parsed.challengePieceIndex)) : undefined;
+
     return {
         ...parsed,
         savedAt,
@@ -153,6 +168,10 @@ const parseSavedGameState = (raw: string | null): SavedGameState | null => {
         undoRemaining,
         blockRefreshRemaining,
         showBlockRefreshAdButton,
+        gameMode,
+        challengeDate,
+        challengeSeed,
+        challengePieceIndex,
     };
 };
 

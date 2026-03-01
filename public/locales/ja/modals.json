@@ -17,7 +17,8 @@
     "reviveSelectionComplete": "ブロック破壊が完了しました。プレイを続けてください。",
     "reviveNoTargets": "破壊できるブロックがないため、すぐにプレイへ戻ります。",
     "registerRanking": "ランキング登録",
-    "backToMenu": "メニューに戻る"
+    "backToMenu": "メニューに戻る",
+    "challengeSubmitted": "デイリーチャレンジ {{rank}}位 / {{total}}人"
   },
   "leaderboard": {
     "title": "Leaderboard",

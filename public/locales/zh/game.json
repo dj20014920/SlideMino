@@ -82,5 +82,9 @@
     "modeGuideExpert": "专家 4×4：空间紧张，难度更高。",
     "tapToDismissMode": "点击此气泡可关闭。",
     "close": "关闭"
+  },
+  "dailyChallenge": {
+    "menuButton": "今日挑战",
+    "banner": "每日挑战"
   }
 }

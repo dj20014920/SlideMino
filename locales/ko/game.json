@@ -80,5 +80,9 @@
     "modeGuideExpert": "고수 4×4: 공간이 빨리 막히는 고난도 모드입니다.",
     "tapToDismissMode": "말풍선을 터치하면 닫힙니다.",
     "close": "닫기"
+  },
+  "dailyChallenge": {
+    "menuButton": "오늘의 챌린지",
+    "banner": "데일리 챌린지"
   }
 }

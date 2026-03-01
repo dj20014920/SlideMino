@@ -13,13 +13,15 @@ import {
   validateGameConsistency,
   validateSessionId,
 } from '../utils/validation';
-import { resetRankingsIfNewMonth } from '../utils/monthlyReset';
+import { resetSeasonIfNeeded } from '../utils/seasonReset';
+import { hashInstallId } from '../utils/hash';
 import { checkRateLimit, getClientIp } from '../utils/rateLimit';
 import { buildCorsHeaders } from '../utils/cors';
 
 interface Env {
   DB: D1Database;
   SUBMIT_RATE_LIMITER?: RateLimit; // Rate Limiting 바인딩 (선택적)
+  ANALYTICS_HASH_SALT?: string;    // install_id 해싱용 솔트
 }
 
 interface SubmitRequest {
@@ -30,6 +32,7 @@ interface SubmitRequest {
   duration: unknown;
   moves: unknown;
   timestamp?: unknown;
+  installId?: unknown;             // 시즌 보상 지급을 위한 install ID (선택적)
 }
 
 /**
@@ -149,7 +152,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       return errorResponse('Your score could not be saved. Please play normally and try again.', 403, corsHeaders);
     }
 
-    await resetRankingsIfNewMonth(env);
+    await resetSeasonIfNeeded(env);
+
+    // ========== install_id 해싱 (시즌 보상용) ==========
+    const installIdHash = typeof data.installId === 'string' && data.installId.length > 0
+      ? await hashInstallId(data.installId, env.ANALYTICS_HASH_SALT)
+      : null;
 
     // ========== 데이터베이스 저장 (D1 batch: UNIQUE 제약 없이 원자적 동작) ==========
     // D1 batch()는 단일 트랜잭션으로 실행되어 레이스 컨디션을 방지한다.
@@ -163,15 +171,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       //   3) 같거나 낮은 점수 → no-op
       await env.DB.batch([
         env.DB.prepare(
-          `INSERT INTO rankings (session_id, name, score, difficulty, duration, moves, timestamp, updated_at)
-           SELECT ?, ?, ?, ?, ?, ?, ?, ?
+          `INSERT INTO rankings (session_id, name, score, difficulty, duration, moves, timestamp, updated_at, install_id_hash)
+           SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?
            WHERE NOT EXISTS (SELECT 1 FROM rankings WHERE session_id = ?)`
-        ).bind(sessionId, sanitizedName, score, difficulty, duration, moves, now, now, sessionId),
+        ).bind(sessionId, sanitizedName, score, difficulty, duration, moves, now, now, installIdHash, sessionId),
         env.DB.prepare(
           `UPDATE rankings
-           SET score = ?, name = ?, moves = ?, duration = ?, updated_at = ?
+           SET score = ?, name = ?, moves = ?, duration = ?, updated_at = ?, install_id_hash = COALESCE(?, install_id_hash)
            WHERE session_id = ? AND ? > score`
-        ).bind(score, sanitizedName, moves, duration, now, sessionId, score),
+        ).bind(score, sanitizedName, moves, duration, now, installIdHash, sessionId, score),
       ]);
 
       // ========== 순위 조회 ==========

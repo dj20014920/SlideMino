@@ -1,1 +1,51 @@
-{}
+{
+  "labels": {
+    "loading": "加载中...",
+    "pts": "分"
+  },
+  "streak": {
+    "title": "连续签到",
+    "days": "第{{count}}天",
+    "todayComplete": "签到完成！🔥 连续第{{count}}天",
+    "attendanceHint": "还差{{points}}分即可签到！",
+    "freezeUsed": "使用了{{count}}个冻结卡，连续签到已保持！",
+    "freezeAutoOff": "有冻结卡但自动使用已关闭，连续签到已重置",
+    "streakReset": "连续签到已重置",
+    "freezeHelp": "冻结卡在缺席时自动使用以保持连续签到。每连续3天获得1个。",
+    "autoFreeze": "自动使用冻结卡",
+    "freezeCount": "冻结卡",
+    "freezeMax": "上限",
+    "freezeGranted": "获得1个冻结卡！({{count}}/3)",
+    "notAttendedYet": "未完成",
+    "attended": "已完成",
+    "badgeCollection": "徽章收藏",
+    "noBadges": "还没有获得徽章",
+    "totalDays": "累计签到",
+    "condition": "获得100分以上即可签到"
+  },
+  "season": {
+    "countdown": "赛季结束还有{{days}}天{{hours}}小时",
+    "countdownUrgent": "赛季结束还有{{hours}}小时{{minutes}}分",
+    "countdownDone": "赛季已结束！",
+    "rewardTitle": "赛季奖励！",
+    "rewardDesc": "您有上赛季的排名奖励",
+    "rewardClaim": "领取奖励",
+    "rewardClaimAll": "全部领取",
+    "rewardClaimed": "已领取！",
+    "rewardWebOnly": "安装应用即可领取皮肤碎片奖励！",
+    "rewardFragments": "{{count}}个皮肤碎片",
+    "top1": "🥇 第1名",
+    "top2": "🥈 第2名",
+    "top3": "🥉 第3名",
+    "participant": "参与奖励",
+    "difficulty": "{{size}}×{{size}}"
+  },
+  "badges": {
+    "newbie": "新手 🌱",
+    "bronze": "青铜 🥉",
+    "silver": "白银 🥈",
+    "gold": "黄金 🥇",
+    "diamond": "钻石 💎",
+    "legend": "传说 🏆"
+  }
+}

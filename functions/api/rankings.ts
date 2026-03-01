@@ -3,7 +3,7 @@
  * Defense in Depth - Layer 3: SQL Injection 방어, Rate Limiting
  */
 
-import { resetRankingsIfNewMonth } from '../utils/monthlyReset';
+import { resetSeasonIfNeeded, getSeasonBoundaries } from '../utils/seasonReset';
 import { checkRateLimit, getClientIp } from '../utils/rateLimit';
 import { validateDifficulty, validateScore } from '../utils/validation';
 import { buildCorsHeaders } from '../utils/cors';
@@ -62,7 +62,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       }
     }
 
-    await resetRankingsIfNewMonth(env);
+    await resetSeasonIfNeeded(env);
 
     const requestUrl = new URL(request.url);
     const mode = requestUrl.searchParams.get('mode');
@@ -152,21 +152,29 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     // ========== 데이터베이스 조회 (Layer 4) ==========
     // Prepared statement로 SQL Injection 방어
     try {
+      // 시즌 정보 계산
+      const seasonInfo = getSeasonBoundaries(new Date());
+
       const { results } = await env.DB.prepare(
         `SELECT name, score, difficulty, timestamp
          FROM rankings
-         ORDER BY score DESC
+         ORDER BY score DESC, updated_at ASC
          LIMIT 100`
       ).all();
 
       return new Response(
-        JSON.stringify(results),
+        JSON.stringify({
+          rankings: results,
+          seasonInfo: {
+            seasonId: seasonInfo.seasonId,
+            endsAt: seasonInfo.seasonEndMs,
+          },
+        }),
         {
           status: 200,
           headers: {
               ...corsHeaders,
               'Content-Type': 'application/json',
-              // 랭킹은 실시간 우선 정책으로 항상 최신값을 전달한다.
               'Cache-Control': 'no-store, no-cache, must-revalidate',
             },
           }

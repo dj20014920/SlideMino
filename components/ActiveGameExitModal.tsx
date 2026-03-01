@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Check, Medal, Send } from 'lucide-react';
 import { rankingService } from '../services/rankingService';
+import { getAnalyticsInstallId } from '../services/analyticsService';
 import { PLAYER_NAME_MAX_LENGTH, normalizePlayerName, validatePlayerName } from '../utils/playerName';
 
 export type ActiveGameExitContext = 'HOME' | 'NEW_GAME';
@@ -75,7 +76,8 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
             score,
             difficulty,
             duration,
-            moves
+            moves,
+            getAnalyticsInstallId()
         );
 
         setIsSubmitting(false);

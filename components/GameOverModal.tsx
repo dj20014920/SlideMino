@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Trophy, Send, Check, Medal, RotateCcw } from 'lucide-react';
 import { rankingService } from '../services/rankingService';
+import { getAnalyticsInstallId } from '../services/analyticsService';
 import { PLAYER_NAME_MAX_LENGTH, normalizePlayerName, validatePlayerName } from '../utils/playerName';
 import AdBanner from './AdBanner';
 
@@ -69,7 +70,8 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
             score,
             difficulty,
             duration,
-            moves
+            moves,
+            getAnalyticsInstallId()
         );
         setIsSubmitting(false);
         if (result.success) {

@@ -96,6 +96,21 @@ import {
   openNativeMarketForUpdate,
   type NativeUpdateRequirement,
 } from './services/nativeUpdate';
+import { SeasonRewardModal } from './components/SeasonRewardModal';
+import { StreakInfoModal } from './components/StreakInfoModal';
+import {
+  checkAndUpdateStreak,
+  recordAttendance,
+  isTodayAttended,
+  loadStreakData,
+  getPointsToAttendance,
+  type StreakUpdateResult,
+} from './services/streakService';
+import {
+  checkSeasonRewards,
+  claimAllSeasonRewards,
+  type SeasonReward,
+} from './services/seasonService';
 
 const EMPTY_TILE_VALUE_OVERRIDES: Record<string, number> = {};
 const EMPTY_MERGING_TILES: MergingTile[] = [];
@@ -527,6 +542,37 @@ const App: React.FC = () => {
     rankingService.initSync();
   }, []);
 
+  // 스트릭 상태 확인 + 시즌 보상 체크 (앱 시작 시 1회)
+  useEffect(() => {
+    // 1) 스트릭: 빠진 날 프리즈 소모 또는 리셋 처리
+    const result = checkAndUpdateStreak();
+    setStreakCount(result.currentStreak);
+    setTodayAttended(isTodayAttended());
+
+    if (result.freezeUsed > 0) {
+      showComboMessage(String(t('common:streak.freezeUsed', { count: result.freezeUsed } as any)), 3000);
+    } else if (result.streakBroken) {
+      // 프리즈 자동 사용 OFF인데 프리즈가 있었으면 구분 안내
+      const data = loadStreakData();
+      if (data.freezeCount > 0 && !data.autoFreezeEnabled) {
+        showComboMessage(t('common:streak.freezeAutoOff'), 3000);
+      } else {
+        showComboMessage(t('common:streak.streakReset'), 2500);
+      }
+    }
+
+    // 2) 시즌 보상 체크 (네이티브 앱에서만 의미 있지만, 웹에서도 안내 표시)
+    checkSeasonRewards().then(result => {
+      if (result.rewards.length > 0) {
+        setSeasonRewards(result.rewards);
+        setIsSeasonRewardOpen(true);
+      }
+    }).catch(() => {
+      // 오프라인 등 실패 시 무시
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Fake loading delay for the premium feel
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -671,6 +717,15 @@ const App: React.FC = () => {
   const [isCustomizationOpen, setIsCustomizationOpen] = useState(false);
   const [isSkinOpen, setIsSkinOpen] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
+
+  // 스트릭 + 시즌 보상 상태
+  const [isStreakInfoOpen, setIsStreakInfoOpen] = useState(false);
+  const [isSeasonRewardOpen, setIsSeasonRewardOpen] = useState(false);
+  const [seasonRewards, setSeasonRewards] = useState<SeasonReward[]>([]);
+  const [streakCount, setStreakCount] = useState(() => loadStreakData().currentStreak);
+  const [todayAttended, setTodayAttended] = useState(() => isTodayAttended());
+  const attendanceToastShownRef = useRef(false);
+  const attendanceHintShownRef = useRef(false);
 
   // Name Input State
   const [isNameInputOpen, setIsNameInputOpen] = useState(false);
@@ -1355,6 +1410,9 @@ const App: React.FC = () => {
     setIsReviveAdReady(false);
     setIsBlockRefreshAdInProgress(false);
     setSessionLockedPlayerName(null);
+    // 출석 토스트 ref 초기화 (게임마다 새로)
+    attendanceToastShownRef.current = false;
+    attendanceHintShownRef.current = false;
 
     // Anti-cheat: Start Timer & Session ID
     const now = Date.now();
@@ -1419,6 +1477,39 @@ const App: React.FC = () => {
       maxScoreThisRunRef.current = nextMaxScore;
       setMaxScoreThisRun(nextMaxScore);
     }
+  }, [gameState, score]);
+
+  // 게임 중 출석 인정 + 힌트 토스트
+  useEffect(() => {
+    if (gameState !== GameState.PLAYING) return;
+
+    // 출석 힌트: 50점 이상 & 100점 미만일 때 1회 표시
+    const remaining = getPointsToAttendance(score);
+    if (!attendanceHintShownRef.current && remaining > 0 && remaining <= 50 && !isTodayAttended()) {
+      attendanceHintShownRef.current = true;
+      showComboMessage(String(t('common:streak.attendanceHint', { points: remaining } as any)), 2500);
+    }
+
+    // 출석 인정: 100점 이상 달성 시 1회
+    if (!attendanceToastShownRef.current && score >= 100) {
+      const result = recordAttendance(score);
+      if (result.newlyAttended) {
+        attendanceToastShownRef.current = true;
+        setStreakCount(result.currentStreak);
+        setTodayAttended(true);
+        showComboMessage(String(t('common:streak.todayComplete', { count: result.currentStreak } as any)), 3000);
+
+        // 프리즈 지급 안내
+        if (result.freezeGranted) {
+          setTimeout(() => {
+            showComboMessage(String(t('common:streak.freezeGranted', { count: loadStreakData().freezeCount } as any)), 2500);
+          }, 3200);
+        }
+      } else if (result.alreadyAttended) {
+        attendanceToastShownRef.current = true;
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState, score]);
 
   const showBlockRefreshNotice = useCallback((message: string, durationMs = 1600) => {
@@ -2684,6 +2775,13 @@ const App: React.FC = () => {
         </div>
 
         <div className="field-row">
+          <input id="menu-action-streak" type="radio" name={premiumMenuActionRadioGroupName} onClick={() => setIsStreakInfoOpen(true)} readOnly />
+          <label htmlFor="menu-action-streak">
+            {todayAttended ? '🔥' : '🔥'} {t('common:streak.title')} ({streakCount})
+          </label>
+        </div>
+
+        <div className="field-row">
           <input id="menu-action-replay" type="radio" name={premiumMenuActionRadioGroupName} onClick={handleReplayTutorial} readOnly />
           <label htmlFor="menu-action-replay">{t('common:actions.replayTutorial', '튜토리얼 다시보기')}</label>
         </div>
@@ -3171,6 +3269,26 @@ const App: React.FC = () => {
             suppressed={shouldSuppressGameModeTutorial}
           />
           <SkinFeatureTutorial isMenuVisible={true} />
+
+          <StreakInfoModal
+            open={isStreakInfoOpen}
+            onClose={() => setIsStreakInfoOpen(false)}
+          />
+
+          <SeasonRewardModal
+            open={isSeasonRewardOpen}
+            rewards={seasonRewards}
+            onClose={() => setIsSeasonRewardOpen(false)}
+            onClaimAll={async () => {
+              const total = await claimAllSeasonRewards(seasonRewards);
+              if (total > 0) {
+                showComboMessage(String(t('common:season.rewardClaimed' as any)), 2500);
+              }
+              setSeasonRewards([]);
+              setIsSeasonRewardOpen(false);
+              return total;
+            }}
+          />
         </div>
       </>
     );

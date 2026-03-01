@@ -22,6 +22,7 @@ export interface LeaderboardResponse {
     data: RankEntry[];
     offline: boolean;
     fromCache: boolean;
+    seasonInfo?: { seasonId: string; endsAt: number } | null;
 }
 
 export interface LiveRankEstimate {
@@ -45,6 +46,7 @@ interface PendingScore {
     moves: number;
     timestamp: number;
     updatedAt: number;
+    installId?: string;
 }
 
 const STORAGE_KEY_NAME = 'slidemino_player_name';
@@ -242,7 +244,8 @@ const buildPayload = (
     score: number,
     difficulty: string,
     duration: number,
-    moves: number
+    moves: number,
+    installId?: string
 ): Omit<PendingScore, 'updatedAt'> => {
     return {
         sessionId,
@@ -252,6 +255,7 @@ const buildPayload = (
         duration: normalizeDurationForSubmit(duration),
         moves,
         timestamp: Date.now(),
+        installId,
     };
 };
 
@@ -352,11 +356,12 @@ export const rankingService = {
         score: number,
         difficulty: string,
         duration: number,
-        moves: number
+        moves: number,
+        installId?: string
     ): Promise<SubmitScoreResponse> => {
         // Save name locally first
         rankingService.saveName(name);
-        const payload = buildPayload(sessionId, name, score, difficulty, duration, moves);
+        const payload = buildPayload(sessionId, name, score, difficulty, duration, moves, installId);
 
         if (!isOnline()) return { success: false, offline: true };
 
@@ -414,6 +419,11 @@ export const rankingService = {
             const response = await fetch(url.toString(), { cache: 'no-store' });
             if (!response.ok) throw new Error('Network response was not ok');
             const data = await response.json();
+            // 새 형식: { rankings: [...], seasonInfo: {...} } / 이전 형식: 배열 직접 반환
+            if (data && typeof data === 'object' && 'rankings' in data) {
+                const typed = data as { rankings: RankEntry[]; seasonInfo?: { seasonId: string; endsAt: number } };
+                return { data: typed.rankings, offline: false, fromCache: false, seasonInfo: typed.seasonInfo };
+            }
             return { data: data as RankEntry[], offline: false, fromCache: false };
         } catch (error) {
             logLeaderboardFetchFailure(error);

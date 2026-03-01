@@ -1,1 +1,51 @@
-{}
+{
+  "labels": {
+    "loading": "読み込み中...",
+    "pts": "点"
+  },
+  "streak": {
+    "title": "連続出席",
+    "days": "{{count}}日目",
+    "todayComplete": "出席完了！🔥 連続{{count}}日目",
+    "attendanceHint": "出席まであと{{points}}点！",
+    "freezeUsed": "フリーズ{{count}}個を使用して出席が維持されました！",
+    "freezeAutoOff": "フリーズがありましたが自動使用がオフのため、ストリークがリセットされました",
+    "streakReset": "連続出席がリセットされました",
+    "freezeHelp": "フリーズは出席を逃した時に自動で使用され、連続出席を維持します。3日ごとに1個付与されます。",
+    "autoFreeze": "フリーズ自動使用",
+    "freezeCount": "保有フリーズ",
+    "freezeMax": "最大",
+    "freezeGranted": "フリーズ1個獲得！({{count}}/3)",
+    "notAttendedYet": "未完了",
+    "attended": "完了",
+    "badgeCollection": "バッジコレクション",
+    "noBadges": "まだバッジがありません",
+    "totalDays": "累計出席",
+    "condition": "100点以上で出席認定"
+  },
+  "season": {
+    "countdown": "シーズン終了まで{{days}}日{{hours}}時間",
+    "countdownUrgent": "シーズン終了まで{{hours}}時間{{minutes}}分",
+    "countdownDone": "シーズン終了！",
+    "rewardTitle": "シーズン報酬！",
+    "rewardDesc": "前シーズンのランキング報酬があります",
+    "rewardClaim": "報酬を受け取る",
+    "rewardClaimAll": "全て受け取る",
+    "rewardClaimed": "受取完了！",
+    "rewardWebOnly": "アプリをインストールするとスキンのかけら報酬を受け取れます！",
+    "rewardFragments": "スキンのかけら{{count}}個",
+    "top1": "🥇 1位",
+    "top2": "🥈 2位",
+    "top3": "🥉 3位",
+    "participant": "参加報酬",
+    "difficulty": "{{size}}×{{size}}"
+  },
+  "badges": {
+    "newbie": "ニュービー 🌱",
+    "bronze": "ブロンズ 🥉",
+    "silver": "シルバー 🥈",
+    "gold": "ゴールド 🥇",
+    "diamond": "ダイヤ 💎",
+    "legend": "レジェンド 🏆"
+  }
+}

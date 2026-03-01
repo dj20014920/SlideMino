@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Trophy } from 'lucide-react';
 import { rankingService, RankEntry } from '../services/rankingService';
+import { getSeasonCountdown } from '../services/seasonService';
+import { getHighestBadge } from '../services/streakService';
 
 interface LeaderboardModalProps {
     open: boolean;
@@ -18,6 +20,10 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
     const [isOffline, setIsOffline] = useState(false);
     const [fromCache, setFromCache] = useState(false);
     const [activeTab, setActiveTab] = useState<'ALL' | '4x4' | '5x5' | '7x7' | '8x8' | '10x10'>('ALL');
+    const [countdown, setCountdown] = useState(() => getSeasonCountdown());
+
+    // 내 최고 배지 (로컬 유저 것만)
+    const myBadge = getHighestBadge();
 
     const formatDifficultyLabel = (difficulty?: string): string | null => {
         if (!difficulty) return null;
@@ -25,6 +31,16 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
         const match = trimmed.match(/^(\d+)(?:x\1)?$/i);
         return match ? `${match[1]}x${match[1]}` : trimmed;
     };
+
+    // 시즌 카운트다운 1분마다 갱신
+    useEffect(() => {
+        if (!open) return;
+        setCountdown(getSeasonCountdown());
+        const intervalId = window.setInterval(() => {
+            setCountdown(getSeasonCountdown());
+        }, 60_000);
+        return () => window.clearInterval(intervalId);
+    }, [open]);
 
     useEffect(() => {
         if (!open) return;
@@ -76,6 +92,13 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
         return label === activeTab;
     });
 
+    // 시즌 카운트다운 텍스트
+    const countdownText = countdown.totalMs <= 0
+        ? t('common:season.countdownDone')
+        : countdown.isUrgent
+            ? t('common:season.countdownUrgent', { hours: countdown.hours, minutes: countdown.minutes })
+            : t('common:season.countdown', { days: countdown.days, hours: countdown.hours });
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             {/* Backdrop */}
@@ -98,6 +121,15 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
                     >
                         <X size={20} />
                     </button>
+                </div>
+
+                {/* 시즌 카운트다운 */}
+                <div className={`px-4 py-2 text-center text-xs font-semibold ${
+                    countdown.isUrgent
+                        ? 'bg-red-50 text-red-600 border-b border-red-100'
+                        : 'bg-blue-50 text-blue-600 border-b border-blue-100'
+                }`}>
+                    {countdownText}
                 </div>
 
                 {/* Tabs */}
@@ -154,11 +186,11 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
                                             className="font-bold text-gray-800 max-w-[160px] truncate"
                                             title={entry.name}
                                         >
+                                            {/* 내 배지는 로컬에서만 자기 이름 옆에 표시 */}
                                             {entry.name}
                                         </div>
                                         <div className="text-xs text-gray-400 flex items-center gap-2">
                                             <span>{formatDifficultyLabel(entry.difficulty) || '8x8'}</span>
-                                            {/* Date optional */}
                                         </div>
                                     </div>
                                 </div>

@@ -290,7 +290,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                             <p className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-2">
                                 {t('common:labels.finalScore')}
                             </p>
-                            <p className="text-6xl font-black text-gray-900 tabular-nums tracking-tighter loading-none">
+                            <p className="text-6xl font-black text-gray-900 tabular-nums tracking-tighter leading-none">
                                 {score}
                             </p>
                         </div>

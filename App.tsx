@@ -108,7 +108,6 @@ import { MissionModal } from './components/MissionModal';
 import {
   initMissionTracking,
   getDailyCompletedCount,
-  refreshMissions,
   type MissionCompleteInfo,
   type MissionProgressInfo,
 } from './services/missionService';
@@ -120,7 +119,6 @@ import {
   isTodayAttended,
   loadStreakData,
   getPointsToAttendance,
-  type StreakUpdateResult,
 } from './services/streakService';
 import {
   checkSeasonRewards,
@@ -129,12 +127,7 @@ import {
 } from './services/seasonService';
 import {
   fetchDailyChallengeSeed,
-  submitDailyChallengeScore,
   generateChallengeSlots,
-  hasClaimedTodayReward,
-  markTodayRewardClaimed,
-  getFirstCompletionFragments,
-  type DailyChallengeSeed,
 } from './services/dailyChallengeService';
 import { WeeklyEventModal } from './components/WeeklyEventModal';
 import {
@@ -142,8 +135,6 @@ import {
   generateEventPiece,
   getEventTimerRemainingMs,
   formatTimerMmSs,
-  submitEventScore,
-  incrementLocalAttemptCount,
   getLocalAttemptCount,
   clearEventGameState,
   saveEventGameState,
@@ -155,23 +146,18 @@ import {
   initXpTracking,
   getXpProgress,
   grantXpStreak,
-  grantXpWeeklyEvent,
-  grantXpSkinAcquired,
   loadXpData,
-  type XpGainResult,
-  type LevelUpReward,
 } from './services/xpLevelService';
 import { getCalendarItems } from './services/calendarService';
 import {
   recordGameCompleted as recordOnboardingGame,
   checkLevelUnlocks,
   isFeatureUnlocked,
-  getUnnotifiedFeatures,
   markFeatureNotified,
   type FeatureId,
 } from './services/onboardingService';
 import { XpLevelModal } from './components/XpLevelModal';
-import { CalendarModal, CalendarCard } from './components/CalendarModal';
+import { CalendarModal } from './components/CalendarModal';
 import { rescheduleNotifications } from './services/notificationService';
 
 const EMPTY_TILE_VALUE_OVERRIDES: Record<string, number> = {};
@@ -975,6 +961,7 @@ const App: React.FC = () => {
   const scoreRef = useRef<number>(score);
   const maxScoreThisRunRef = useRef<number>(maxScoreThisRun);
   const boardSizeRef = useRef<BoardSize>(boardSize);
+  const gameModeRef = useRef<GameMode>(gameMode);
   const gameStateRef = useRef<GameState>(gameState);
   const previousGameStateRef = useRef<GameState>(gameState);
 
@@ -989,6 +976,10 @@ const App: React.FC = () => {
   useEffect(() => {
     boardSizeRef.current = boardSize;
   }, [boardSize]);
+
+  useEffect(() => {
+    gameModeRef.current = gameMode;
+  }, [gameMode]);
 
   useEffect(() => {
     gameStateRef.current = gameState;
@@ -1143,6 +1134,74 @@ const App: React.FC = () => {
     });
 
     return unsubscribe;
+  }, []);
+
+  // ===== 주간 이벤트 타이머 관리 =====
+
+  /** 이벤트 타이머 시작 (게임 플레이 중에만 진행) */
+  const startEventTimer = useCallback(() => {
+    if (eventTimerStartedAtRef.current !== null) return; // 이미 실행 중
+    eventTimerStartedAtRef.current = Date.now();
+    // 1초마다 표시 갱신
+    if (eventTimerIntervalRef.current) clearInterval(eventTimerIntervalRef.current);
+    eventTimerIntervalRef.current = setInterval(() => {
+      const rule = eventRuleRef.current;
+      if (!rule || eventTimerStartedAtRef.current === null) return;
+      const elapsed = Date.now() - eventTimerStartedAtRef.current;
+      const totalPlayed = eventPlayedMsRef.current + elapsed;
+      const remaining = getEventTimerRemainingMs(rule.timeLimitSeconds, totalPlayed);
+      setEventTimerDisplay(formatTimerMmSs(remaining));
+      // 타이머 만료 → 게임오버
+      if (remaining <= 0) {
+        eventPlayedMsRef.current = totalPlayed;
+        eventTimerStartedAtRef.current = null;
+        if (eventTimerIntervalRef.current) {
+          clearInterval(eventTimerIntervalRef.current);
+          eventTimerIntervalRef.current = null;
+        }
+        // 강제 게임오버
+        setGameState(GameState.GAME_OVER);
+        gameEventBus.emit('GAME_OVER', {
+          score: scoreRef.current,
+          mode: 'weekly_event',
+          boardSize: boardSizeRef.current,
+          moves: moveCountRef.current,
+          duration: Math.floor(totalPlayed / 1000),
+        });
+      }
+    }, 1000);
+  }, []);
+
+  /** 이벤트 타이머 일시정지 */
+  const pauseEventTimer = useCallback(() => {
+    if (eventTimerStartedAtRef.current !== null) {
+      const elapsed = Date.now() - eventTimerStartedAtRef.current;
+      eventPlayedMsRef.current += elapsed;
+      eventTimerStartedAtRef.current = null;
+    }
+    if (eventTimerIntervalRef.current) {
+      clearInterval(eventTimerIntervalRef.current);
+      eventTimerIntervalRef.current = null;
+    }
+  }, []);
+
+  /** 이벤트 타이머 리셋 */
+  const resetEventTimer = useCallback(() => {
+    pauseEventTimer();
+    eventPlayedMsRef.current = 0;
+    setEventTimerDisplay(null);
+    eventRuleRef.current = null;
+    eventIdRef.current = null;
+    eventAttemptNumberRef.current = 1;
+  }, [pauseEventTimer]);
+
+  /** 현재 이벤트 누적 플레이 시간(ms) 정확 계산 */
+  const getCurrentEventPlayedMs = useCallback((): number => {
+    const base = eventPlayedMsRef.current;
+    if (eventTimerStartedAtRef.current !== null) {
+      return base + (Date.now() - eventTimerStartedAtRef.current);
+    }
+    return base;
   }, []);
 
   const restoreSavedGame = useCallback((saved: SavedGameState) => {
@@ -1579,74 +1638,6 @@ const App: React.FC = () => {
       setShowActiveGameWarning(false);
     }
   };
-
-  // ===== 주간 이벤트 타이머 관리 =====
-
-  /** 이벤트 타이머 시작 (게임 플레이 중에만 진행) */
-  const startEventTimer = useCallback(() => {
-    if (eventTimerStartedAtRef.current !== null) return; // 이미 실행 중
-    eventTimerStartedAtRef.current = Date.now();
-    // 1초마다 표시 갱신
-    if (eventTimerIntervalRef.current) clearInterval(eventTimerIntervalRef.current);
-    eventTimerIntervalRef.current = setInterval(() => {
-      const rule = eventRuleRef.current;
-      if (!rule || eventTimerStartedAtRef.current === null) return;
-      const elapsed = Date.now() - eventTimerStartedAtRef.current;
-      const totalPlayed = eventPlayedMsRef.current + elapsed;
-      const remaining = getEventTimerRemainingMs(rule.timeLimitSeconds, totalPlayed);
-      setEventTimerDisplay(formatTimerMmSs(remaining));
-      // 타이머 만료 → 게임오버
-      if (remaining <= 0) {
-        eventPlayedMsRef.current = totalPlayed;
-        eventTimerStartedAtRef.current = null;
-        if (eventTimerIntervalRef.current) {
-          clearInterval(eventTimerIntervalRef.current);
-          eventTimerIntervalRef.current = null;
-        }
-        // 강제 게임오버
-        setGameState(GameState.GAME_OVER);
-        gameEventBus.emit('GAME_OVER', {
-          score: scoreRef.current,
-          mode: 'weekly_event',
-          boardSize: boardSizeRef.current,
-          moves: moveCountRef.current,
-          duration: Math.floor(totalPlayed / 1000),
-        });
-      }
-    }, 1000);
-  }, []);
-
-  /** 이벤트 타이머 일시정지 */
-  const pauseEventTimer = useCallback(() => {
-    if (eventTimerStartedAtRef.current !== null) {
-      const elapsed = Date.now() - eventTimerStartedAtRef.current;
-      eventPlayedMsRef.current += elapsed;
-      eventTimerStartedAtRef.current = null;
-    }
-    if (eventTimerIntervalRef.current) {
-      clearInterval(eventTimerIntervalRef.current);
-      eventTimerIntervalRef.current = null;
-    }
-  }, []);
-
-  /** 이벤트 타이머 리셋 */
-  const resetEventTimer = useCallback(() => {
-    pauseEventTimer();
-    eventPlayedMsRef.current = 0;
-    setEventTimerDisplay(null);
-    eventRuleRef.current = null;
-    eventIdRef.current = null;
-    eventAttemptNumberRef.current = 1;
-  }, [pauseEventTimer]);
-
-  /** 현재 이벤트 누적 플레이 시간(ms) 정확 계산 */
-  const getCurrentEventPlayedMs = useCallback((): number => {
-    const base = eventPlayedMsRef.current;
-    if (eventTimerStartedAtRef.current !== null) {
-      return base + (Date.now() - eventTimerStartedAtRef.current);
-    }
-    return base;
-  }, []);
 
   function startGame(size: BoardSize) {
     // 새 게임 시작 시 이전 게임 복구 데이터는 폐기한다.
@@ -3097,22 +3088,26 @@ const App: React.FC = () => {
         rewardInterstitialAdService.preloadAd();
       }
       // 이벤트 모드: 타이머 정지 & 이벤트 세이브 삭제
-      if (gameMode === 'weekly_event') {
+      if (gameModeRef.current === 'weekly_event') {
         pauseEventTimer();
         clearEventGameState();
       }
       setGameState(GameState.GAME_OVER);
-      // 이벤트 버스: 게임 오버
+      // 이벤트 버스: 게임 오버 (activePlayDuration 사용 — 일시정지 시간 제외)
+      const startedAt = activePlayStartedAtRef.current;
+      const activeDurationMs = startedAt === null
+        ? activePlayDurationMsRef.current
+        : activePlayDurationMsRef.current + Math.max(0, Date.now() - startedAt);
       gameEventBus.emit('GAME_OVER', {
         score,
-        mode: gameMode,
-        boardSize,
+        mode: gameModeRef.current,
+        boardSize: boardSizeRef.current,
         moves: moveCountRef.current,
-        duration: Date.now() - (gameStartTimeRef.current ?? Date.now()),
+        duration: Math.floor(activeDurationMs / 1000),
       });
       if (score > highScore) setHighScore(score);
     }
-  }, [phase, grid, slots, gameState, score, highScore, isAnimating, finishSlideTurn, isReviveSelectionMode]);
+  }, [phase, grid, slots, gameState, score, highScore, isAnimating, finishSlideTurn, isReviveSelectionMode, pauseEventTimer]);
 
   const refreshLiveRankEstimate = useCallback(async (force = false) => {
     if (gameStateRef.current !== GameState.PLAYING) return;

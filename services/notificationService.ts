@@ -14,10 +14,9 @@ import { isNativeApp } from '../utils/platform';
 import { isTodayAttended } from './streakService';
 import { getDailyCompletedCount } from './missionService';
 import { isFeatureUnlocked } from './onboardingService';
+import { KST_OFFSET_MS } from '../config/constants';
 
 // ====== 상수 ======
-
-const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const STORAGE_KEY = 'slidemino.notifications.v1';
 
 /** 알림 ID */

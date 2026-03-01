@@ -12,6 +12,7 @@ import { getCurrentEvent } from './weeklyEventService';
 import { getSeasonRemainingMs } from './xpLevelService';
 import { getDailyCompletedCount } from './missionService';
 import { getServerAdjustedNow } from './serverTimeService';
+import { KST_OFFSET_MS } from '../config/constants';
 
 // ====== 캘린더 항목 타입 ======
 
@@ -29,8 +30,6 @@ export interface CalendarItem {
 }
 
 // ====== KST 유틸 ======
-
-const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 /** 오늘 KST 자정의 UTC 타임스탬프 */
 function getTodayKstMidnightMs(): number {
@@ -110,7 +109,7 @@ export function getCalendarItems(): CalendarItem[] {
     items.push({
       type: 'weekly_event',
       titleKey: 'calendar.weeklyEvent',
-      descKey: `game:weeklyEvent.events.${event.type}.name`,
+      descKey: `game:weeklyEvent.events.${event.eventType}.name`,
       endsAt: weekEndMs,
       isUrgent: isEventUrgent,
       isCompleted: false,

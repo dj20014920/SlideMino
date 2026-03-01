@@ -50,8 +50,10 @@ class DailyAdLimiter {
   private readonly STORAGE_KEY = 'slidemino_daily_ad_data';
 
   private getTodayString(): string {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    // KST 기준 날짜 (게임의 날짜 경계는 KST 자정)
+    const kstMs = Date.now() + 9 * 60 * 60 * 1000;
+    const kst = new Date(kstMs);
+    return `${kst.getUTCFullYear()}-${String(kst.getUTCMonth() + 1).padStart(2, '0')}-${String(kst.getUTCDate()).padStart(2, '0')}`;
   }
 
   private getData(): DailyAdData {

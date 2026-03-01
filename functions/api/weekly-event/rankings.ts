@@ -4,6 +4,7 @@
  */
 import { hashInstallId } from '../../utils/hash';
 import { buildCorsHeaders } from '../../utils/cors';
+import { checkRateLimit, getClientIp } from '../../utils/rateLimit';
 
 interface Env {
   DB: D1Database;
@@ -22,6 +23,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const corsHeaders = buildCorsHeaders(request, 'GET, OPTIONS');
 
   try {
+    const clientIP = getClientIp(request);
+    const { allowed } = await checkRateLimit(env.DB, `event-rank:${clientIP}`, 120, 60);
+    if (!allowed) {
+      return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const url = new URL(request.url);
     const eventId = url.searchParams.get('eventId');
     const installId = url.searchParams.get('installId');
@@ -97,8 +107,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     });
   } catch (error) {
     console.error('[WeeklyEvent/rankings] error:', error);
-    return new Response(JSON.stringify({ rankings: [], total: 0 }), {
-      status: 200,
+    return new Response(JSON.stringify({ error: 'Internal server error', rankings: [], total: 0 }), {
+      status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

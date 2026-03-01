@@ -9,11 +9,9 @@
 
 import { loadSkinSettings, saveSkinSettings } from './skinService';
 import { getServerAdjustedNow } from './serverTimeService';
+import { KST_OFFSET_MS } from '../config/constants';
 
 const STORAGE_KEY = 'slidemino.streak.v1';
-
-// KST 오프셋
-const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 // 출석 인정 최소 점수
 const ATTENDANCE_MIN_SCORE = 100;

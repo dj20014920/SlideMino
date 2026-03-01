@@ -13,6 +13,7 @@ import { STANDARD_SHAPES } from '../constants';
 import { getRotatedCells } from './gameLogic';
 import { getAnalyticsInstallId } from './analyticsService';
 import { getServerAdjustedNow } from './serverTimeService';
+import { KST_OFFSET_MS } from '../config/constants';
 
 // ============================================
 // 이벤트 정의 & 스케줄
@@ -167,11 +168,8 @@ const EVENT_ROTATION_ORDER: WeeklyEventType[] = [
   'SPEED_RUN', 'TRIPLE_KILL', 'I_BLOCK_RUSH', 'PLAINS_10X10',
 ];
 
-const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
-
 /** 기준 에포크: 2026-01-05 (월요일) KST → UTC ms */
-const EPOCH_MONDAY_KST = Date.UTC(2025, 11, 28, 15, 0, 0); // 2026-01-05 00:00 KST = 2025-12-28 15:00 UTC 아님
-// 실제: 2026-01-05 00:00 KST = 2026-01-04 15:00 UTC
+// 2026-01-05 00:00 KST = 2026-01-04 15:00 UTC
 const EPOCH_MONDAY_UTC = Date.UTC(2026, 0, 4, 15, 0, 0);
 
 /** KST 기준 현재 시각 ms */
@@ -416,20 +414,6 @@ export function markEventRewardClaimed(): void {
 // ============================================
 
 const API_BASE = '/api/weekly-event';
-
-/** 서버에서 현재 도전 횟수 확인 */
-export async function fetchServerAttemptCount(): Promise<number> {
-  try {
-    const current = getCurrentEvent();
-    const installId = getAnalyticsInstallId();
-    const res = await fetch(`${API_BASE}/attempts?eventId=${encodeURIComponent(current.eventId)}&installId=${encodeURIComponent(installId)}`);
-    if (!res.ok) return getLocalAttemptCount();
-    const data = await res.json() as { count: number };
-    return data.count;
-  } catch {
-    return getLocalAttemptCount();
-  }
-}
 
 export interface EventSubmitResult {
   success: boolean;

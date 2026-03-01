@@ -15,11 +15,11 @@ import { addFragments } from './skinService';
 import { mulberry32 } from './prng';
 import { getKstDateString } from './streakService';
 import { getServerAdjustedNow } from './serverTimeService';
+import { KST_OFFSET_MS } from '../config/constants';
 
 // ====== 상수 ======
 
 const STORAGE_KEY = 'slidemino.missions.v1';
-const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 // 미션 보상 조각 수
 const DAILY_REWARD_EASY = 1;
@@ -406,7 +406,7 @@ function processUpdate(
 }
 
 /** 난이도별 보상 조각 수 반환 */
-function getReward(difficulty: MissionDifficulty, isDaily: boolean): number {
+export function getReward(difficulty: MissionDifficulty, isDaily: boolean): number {
   if (isDaily) {
     switch (difficulty) {
       case 'easy': return DAILY_REWARD_EASY;

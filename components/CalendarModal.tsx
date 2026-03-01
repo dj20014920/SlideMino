@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Calendar, X, ChevronDown, ChevronUp, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Calendar, X, ChevronDown, ChevronUp, Clock, CheckCircle2 } from 'lucide-react';
 import {
   getCalendarItems,
   formatTimeRemaining,

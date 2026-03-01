@@ -159,11 +159,16 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const now = Date.now();
 
     try {
-      // 도전 기록 저장
-      await env.DB.prepare(
-        `INSERT INTO event_attempts (event_id, install_id_hash, attempt_number, score, moves, duration, started_at, submitted_at)
+      // 도전 기록 저장 (INSERT OR IGNORE: 동시 요청으로 인한 UNIQUE 충돌 방지)
+      const insertResult = await env.DB.prepare(
+        `INSERT OR IGNORE INTO event_attempts (event_id, install_id_hash, attempt_number, score, moves, duration, started_at, submitted_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
       ).bind(eventId, installIdHash, serverAttemptNumber, score, moves, duration, now - (duration * 1000), now).run();
+
+      // INSERT OR IGNORE로 인해 실제 삽입이 안 된 경우 (동시 요청 충돌)
+      if (!insertResult.meta?.changes) {
+        return errorResponse('Concurrent submission detected, please retry', 409, corsHeaders);
+      }
 
       // 랭킹 UPSERT: 최고점만 반영
       await env.DB.batch([

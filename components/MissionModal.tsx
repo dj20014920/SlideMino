@@ -16,6 +16,7 @@ import {
   rerollDailyMission,
   getDailyTimeRemainingMs,
   getWeeklyTimeRemainingMs,
+  getReward,
   type ActiveMission,
   type MissionDifficulty,
 } from '../services/missionService';
@@ -44,14 +45,9 @@ function getDifficultyInfo(d: MissionDifficulty): { label: string; color: string
   }
 }
 
-/** 보상 조각 수 */
+/** 보상 조각 수 — 서비스의 단일 소스 사용 */
 function getRewardAmount(d: MissionDifficulty, isDaily: boolean): number {
-  if (isDaily) return 1;
-  switch (d) {
-    case 'easy': return 3;
-    case 'medium': return 5;
-    case 'hard': return 8;
-  }
+  return getReward(d, isDaily);
 }
 
 const MissionRow: React.FC<{

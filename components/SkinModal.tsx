@@ -197,17 +197,22 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
   }, [skinSettings, addSkin, addFragments]);
 
   // 조각으로 스킨 교환
+  const [isPurchasing, setIsPurchasing] = useState(false);
   const handlePurchase = useCallback((skinId: string) => {
+    if (isPurchasing) return; // 더블클릭 방지
     const entry = SKIN_CATALOG.find(e => e.id === skinId);
     if (!entry) return;
     // 방어 코드: UI가 이미 막고 있지만, 이중 확인
     if (ownedIds.has(skinId)) return;
     const cost = getFragmentCost(skinId);
     if (skinSettings.fragments < cost) return;
+    setIsPurchasing(true);
     purchaseSkin(skinId);
     setAcquisitionSkin({ id: entry.id, hex: entry.hex, style: entry.style });
     setAcquisitionIsDuplicate(false);
-  }, [purchaseSkin, ownedIds, skinSettings.fragments]);
+    // 다음 렌더 사이클에서 isPurchasing 해제 (React state 업데이트 후)
+    requestAnimationFrame(() => setIsPurchasing(false));
+  }, [isPurchasing, purchaseSkin, ownedIds, skinSettings.fragments]);
 
   // 미리보기 표시할 스킨: 선택된 스킨 > 활성 스킨 > 첫 번째 카탈로그
   const previewSkin = useMemo(() => {

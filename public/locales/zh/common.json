@@ -36,5 +36,13 @@
     "close": "关闭",
     "selectTile": "选择方块 {{value}}",
     "rotateBlock": "旋转方块"
+  },
+  "share": {
+    "button": "分享",
+    "sharing": "分享中...",
+    "brag": "向朋友炫耀",
+    "shared": "已分享！",
+    "downloaded": "图片已保存！",
+    "copied": "文本已复制！"
   }
 }

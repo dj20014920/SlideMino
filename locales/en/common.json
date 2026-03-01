@@ -47,5 +47,13 @@
     "gold": "Gold 🥇",
     "diamond": "Diamond 💎",
     "legend": "Legend 🏆"
+  },
+  "share": {
+    "button": "Share",
+    "sharing": "Sharing...",
+    "brag": "Brag to friends",
+    "shared": "Shared!",
+    "downloaded": "Image saved!",
+    "copied": "Text copied!"
   }
 }

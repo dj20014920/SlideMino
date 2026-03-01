@@ -168,7 +168,15 @@ export const SHAPES: Record<ShapeType, Coordinate[]> = {
   [ShapeType.Z]: [{ x: -1, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }],
   [ShapeType.J]: [{ x: -1, y: 0 }, { x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }],
   [ShapeType.L]: [{ x: -1, y: 0 }, { x: 0, y: 0 }, { x: 1, y: 0 }, { x: -1, y: 1 }],
+  // + 모양 (십자형, 5칸) — 주간 이벤트 "+블록 러시" 전용. O 블록처럼 회전 무변화.
+  [ShapeType.PLUS]: [{ x: 0, y: 0 }, { x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }],
 };
+
+/** 일반 모드에서 사용하는 기본 ShapeType 목록 (PLUS 제외) */
+export const STANDARD_SHAPES: ShapeType[] = [
+  ShapeType.I, ShapeType.O, ShapeType.T, ShapeType.S,
+  ShapeType.Z, ShapeType.J, ShapeType.L,
+];
 
 /**
  * 최적화된 타일 색상 시스템

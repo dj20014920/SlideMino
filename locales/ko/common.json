@@ -47,5 +47,13 @@
     "gold": "골드 🥇",
     "diamond": "다이아 💎",
     "legend": "전설 🏆"
+  },
+  "share": {
+    "button": "공유하기",
+    "sharing": "공유 중...",
+    "brag": "친구에게 자랑하기",
+    "shared": "공유되었어요!",
+    "downloaded": "이미지가 저장되었어요!",
+    "copied": "텍스트가 복사되었어요!"
   }
 }

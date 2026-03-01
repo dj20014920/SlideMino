@@ -86,5 +86,144 @@
   "dailyChallenge": {
     "menuButton": "Daily Challenge",
     "banner": "Daily Challenge"
+  },
+  "weeklyEvent": {
+    "menuButton": "Weekly Event",
+    "menuTag": "EVENT",
+    "remaining": "left",
+    "myBest": "My Best",
+    "myRank": "My Rank",
+    "rankings": "Event Rankings",
+    "start": "Start",
+    "continueGame": "Continue",
+    "newAttempt": "New Attempt",
+    "maxAttempts": "All 3 attempts used",
+    "claimReward": "Claim Participation Reward",
+    "tags": {
+      "noRotation": "No Rotation",
+      "scoreBoost": "Score Boost",
+      "tripleKill": "Triple Kill",
+      "minutes": "min",
+      "attempts": "{{current}}/{{max}}"
+    },
+    "rewards": {
+      "participation": "Participation",
+      "top10": "TOP 10",
+      "first": "1st Place",
+      "fragments": "{{count}} Skin Fragments",
+      "title": "Title",
+      "specialTitle": "Special Title"
+    },
+    "events": {
+      "NO_ROTATION": {
+        "name": "🔒 No Rotation",
+        "desc": "Block rotation is disabled. Place blocks exactly as given!"
+      },
+      "BURNING": {
+        "name": "🔥 Burning Event",
+        "desc": "1.5× score multiplier! Compete for the hottest scores."
+      },
+      "PLUS_RUSH": {
+        "name": "➕ Plus Rush",
+        "desc": "Plus-shaped blocks appear more frequently. Use them strategically!"
+      },
+      "EXPERT_4X4": {
+        "name": "💀 Expert 4×4",
+        "desc": "Aim for the highest score on a tight 4×4 board."
+      },
+      "SPEED_RUN": {
+        "name": "⚡ Speed Run",
+        "desc": "Achieve the highest score in 15 minutes!"
+      },
+      "TRIPLE_KILL": {
+        "name": "💥 Triple Kill",
+        "desc": "+333 bonus for merging 3+ tiles at once!"
+      },
+      "I_BLOCK_RUSH": {
+        "name": "📏 I-Block Rush",
+        "desc": "I-blocks appear 3× more often. Master the I-block!"
+      },
+      "PLAINS_10X10": {
+        "name": "🌾 Plains 10×10",
+        "desc": "Go big on the vast 10×10 board."
+      }
+    }
+  },
+  "missions": {
+    "title": "Missions",
+    "daily": "Daily",
+    "weekly": "Weekly",
+    "dailyReset": "Resets in {{time}}",
+    "weeklyReset": "Resets in {{time}}",
+    "claim": "Claim",
+    "reroll": "Reroll",
+    "rerollHint": "1 free reroll per day",
+    "allComplete": "All missions complete!",
+    "claimBonus": "Claim Bonus",
+    "bonusClaimed": "Bonus claimed",
+    "completed": "Complete!",
+    "rewardToast": "Earned {{amount}} skin fragments!",
+    "pool": {
+      "e_score_300": "Score 300 points",
+      "e_score_500": "Score 500 points",
+      "e_score_1000": "Score 1,000 points",
+      "e_block_i_3": "Place I block 3 times",
+      "e_block_o_3": "Place O block 3 times",
+      "e_block_t_3": "Place T block 3 times",
+      "e_block_s_3": "Place S block 3 times",
+      "e_block_z_3": "Place Z block 3 times",
+      "e_block_j_3": "Place J block 3 times",
+      "e_block_l_3": "Place L block 3 times",
+      "e_slide_10": "Slide 10 times",
+      "e_slide_15": "Slide 15 times",
+      "e_submit": "Submit ranking",
+      "e_share": "Share your score",
+      "e_game_1": "Complete 1 game",
+      "e_game_2": "Complete 2 games",
+      "e_place_10": "Place 10 blocks",
+      "e_place_15": "Place 15 blocks",
+      "e_all_dirs": "Slide in all 4 directions",
+      "e_tile_16": "Create a 16 tile",
+      "m_tile_256": "Create a 256 tile",
+      "m_tile_128": "Create a 128 tile",
+      "m_tile_64": "Create a 64 tile",
+      "m_merge_2": "Merge 2 tiles in one slide",
+      "m_score_3000": "Score 3,000 points",
+      "m_score_5000": "Score 5,000 points",
+      "m_score_7000": "Score 7,000 points",
+      "m_no_rot_3": "Place 3 blocks without rotating",
+      "m_no_rot_5": "Place 5 blocks without rotating",
+      "m_block_t_5": "Place T block 5 times",
+      "m_block_i_5": "Place I block 5 times",
+      "m_block_o_5": "Place O block 5 times",
+      "m_block_s_5": "Place S block 5 times",
+      "m_block_j_5": "Place J block 5 times",
+      "m_block_l_5": "Place L block 5 times",
+      "m_place_30": "Place 30 blocks",
+      "m_place_40": "Place 40 blocks",
+      "m_slide_30": "Slide 30 times",
+      "m_slide_50": "Slide 50 times",
+      "m_game_3": "Complete 3 games",
+      "h_tile_512": "Create a 512 tile",
+      "h_tile_1024": "Create a 1024 tile",
+      "h_tile_2048": "Create a 2048 tile",
+      "h_merge_3": "Merge 3 tiles in one slide",
+      "h_merge_4": "Merge 4 tiles in one slide",
+      "h_score_10000": "Score 10,000 points",
+      "h_score_15000": "Score 15,000 points",
+      "h_score_20000": "Score 20,000 points",
+      "h_score_25000": "Score 25,000 points",
+      "h_score_30000": "Score 30,000 points",
+      "h_no_tools_5000": "Score 5,000 without tools",
+      "h_no_tools_10000": "Score 10,000 without tools",
+      "h_no_tools_15000": "Score 15,000 without tools",
+      "h_no_rot_10": "Place 10 blocks without rotating",
+      "h_place_50": "Place 50 blocks",
+      "h_slide_80": "Slide 80 times",
+      "h_slide_100": "Slide 100 times",
+      "h_game_5": "Complete 5 games",
+      "h_block_i_10": "Place I block 10 times",
+      "h_block_t_10": "Place T block 10 times"
+    }
   }
 }

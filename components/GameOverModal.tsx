@@ -1,18 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Trophy, Send, Check, Medal, RotateCcw } from 'lucide-react';
+import { Trophy, Send, Check, Medal, RotateCcw, Share2 } from 'lucide-react';
 import { rankingService } from '../services/rankingService';
 import { getAnalyticsInstallId } from '../services/analyticsService';
 import { submitDailyChallengeScore, hasClaimedTodayReward, markTodayRewardClaimed, getFirstCompletionFragments } from '../services/dailyChallengeService';
+import { submitEventScore, incrementLocalAttemptCount } from '../services/weeklyEventService';
 import { addFragments } from '../services/skinService';
+import { shareGameResult, type ShareCardOptions, type ShareResult } from '../services/shareCardService';
 import { PLAYER_NAME_MAX_LENGTH, normalizePlayerName, validatePlayerName } from '../utils/playerName';
-import type { GameMode } from '../types';
+import type { GameMode, BoardSize } from '../types';
 import AdBanner from './AdBanner';
 
 interface GameOverModalProps {
     sessionId: string;
     score: number;
     difficulty: string;
+    boardSize: BoardSize;
     duration: number;
     moves: number;
     playerName?: string;
@@ -24,12 +27,18 @@ interface GameOverModalProps {
     onClose: () => void;
     gameMode?: GameMode;
     challengeDate?: string;
+    /** 주간 이벤트 전용: 도전 회차 */
+    eventAttemptNumber?: number;
+    /** 랭킹 제출 후 반환된 순위/총인원 (공유 카드에 표시) */
+    submittedRank?: number;
+    submittedTotal?: number;
 }
 
 export const GameOverModal: React.FC<GameOverModalProps> = ({
     sessionId,
     score,
     difficulty,
+    boardSize,
     duration,
     moves,
     playerName,
@@ -41,6 +50,9 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
     onClose,
     gameMode = 'normal',
     challengeDate,
+    eventAttemptNumber,
+    submittedRank,
+    submittedTotal,
 }) => {
     const { t } = useTranslation();
     const [step, setStep] = useState<'INITIAL' | 'REGISTER' | 'SUBMITTED'>('INITIAL');
@@ -49,6 +61,11 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
     const [nameError, setNameError] = useState<string | null>(null);
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [submittedMessageOverride, setSubmittedMessageOverride] = useState<string | null>(null);
+    const [isSharing, setIsSharing] = useState(false);
+    const [shareToast, setShareToast] = useState<string | null>(null);
+    // 랭킹 제출 후 순위 (챌린지 결과에서도 사용)
+    const [localRank, setLocalRank] = useState<number | undefined>(submittedRank);
+    const [localTotal, setLocalTotal] = useState<number | undefined>(submittedTotal);
 
     useEffect(() => {
         // Load saved name or use provided playerName
@@ -56,7 +73,10 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         setNameError(null);
         setSubmitError(null);
         setSubmittedMessageOverride(null);
-    }, [playerName]);
+        setShareToast(null);
+        setLocalRank(submittedRank);
+        setLocalTotal(submittedTotal);
+    }, [playerName, submittedRank, submittedTotal]);
 
     useEffect(() => {
         if (step === 'REGISTER') {
@@ -65,6 +85,38 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         }
     }, [step]);
 
+    // 공유 핸들러
+    const handleShare = useCallback(async () => {
+        if (isSharing) return;
+        setIsSharing(true);
+        setShareToast(null);
+        try {
+            const opts: ShareCardOptions = {
+                score,
+                boardSize,
+                mode: gameMode,
+                rank: localRank,
+                total: localTotal,
+                playerName,
+                challengeDate,
+            };
+            const result: ShareResult = await shareGameResult(opts);
+            if (result === 'shared') {
+                setShareToast(t('common:share.shared'));
+            } else if (result === 'downloaded') {
+                setShareToast(t('common:share.downloaded'));
+            } else if (result === 'copied') {
+                setShareToast(t('common:share.copied'));
+            }
+        } catch {
+            // 무시
+        } finally {
+            setIsSharing(false);
+            // 토스트 3초 후 자동 제거
+            setTimeout(() => setShareToast(null), 3000);
+        }
+    }, [isSharing, score, boardSize, gameMode, localRank, localTotal, playerName, challengeDate, t]);
+
     const submitScoreWithName = async (trimmedName: string) => {
         setIsSubmitting(true);
         setNameError(null);
@@ -72,26 +124,57 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
 
         if (gameMode === 'daily_challenge' && challengeDate) {
             // 데일리 챌린지 전용 제출
-            const challengeResult = await submitDailyChallengeScore({
-                name: trimmedName,
-                score,
-                duration,
-                moves,
+            const challengeResult = await submitDailyChallengeScore(
                 challengeDate,
-            });
+                trimmedName,
+                score,
+                moves,
+                duration,
+            );
             setIsSubmitting(false);
             if (challengeResult) {
                 // 첫 완료 보상: 스킨 조각
-                if (!hasClaimedTodayReward()) {
+                if (!hasClaimedTodayReward(challengeDate)) {
                     const fragments = getFirstCompletionFragments();
                     addFragments(fragments);
-                    markTodayRewardClaimed();
+                    markTodayRewardClaimed(challengeDate);
                 }
+                // 순위 정보 저장 (공유 카드용)
+                setLocalRank(challengeResult.rank);
+                setLocalTotal(challengeResult.total);
                 setSubmittedMessageOverride(
                     String(t('modals:gameOver.challengeSubmitted', {
                         rank: challengeResult.rank,
                         total: challengeResult.total,
                     } as any))
+                );
+                setStep('SUBMITTED');
+            } else {
+                setSubmitError(t('modals:rankingRegister.failureMessage'));
+            }
+            return;
+        }
+
+        if (gameMode === 'weekly_event') {
+            // 주간 이벤트 전용 제출
+            const eventResult = await submitEventScore({
+                name: trimmedName,
+                score,
+                moves,
+                duration,
+                attemptNumber: eventAttemptNumber ?? 1,
+            });
+            setIsSubmitting(false);
+            if (eventResult.success) {
+                setLocalRank(eventResult.rank);
+                setLocalTotal(eventResult.total);
+                setSubmittedMessageOverride(
+                    eventResult.rank
+                        ? String(t('modals:gameOver.challengeSubmitted', {
+                            rank: eventResult.rank,
+                            total: eventResult.total,
+                        } as any))
+                        : null
                 );
                 setStep('SUBMITTED');
             } else {
@@ -191,6 +274,31 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                                 {score}
                             </p>
                         </div>
+
+                        {/* 공유 버튼 (점수 아래) */}
+                        <button
+                            onClick={handleShare}
+                            disabled={isSharing}
+                            aria-label={t('common:share.button')}
+                            className="
+                flex items-center justify-center gap-2
+                px-6 py-2.5 rounded-full
+                bg-gray-100 text-gray-600 text-sm font-semibold
+                border border-gray-200
+                hover:bg-gray-200 hover:text-gray-900
+                disabled:opacity-50
+                active:scale-[0.97]
+                transition-all duration-150
+              "
+                        >
+                            <Share2 size={16} />
+                            {isSharing ? t('common:share.sharing') : t('common:share.button')}
+                        </button>
+
+                        {/* 공유 토스트 */}
+                        {shareToast && (
+                            <p className="text-xs text-green-600 font-medium animate-fade-in">{shareToast}</p>
+                        )}
 
                         {/* Actions */}
                         <div className="flex flex-col gap-3 w-full pt-2">
@@ -397,6 +505,32 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                                 {submittedMessage}
                             </p>
                         </div>
+
+                        {/* 공유 버튼 (강조) */}
+                        <button
+                            onClick={handleShare}
+                            disabled={isSharing}
+                            aria-label={t('common:share.button')}
+                            className="
+                w-full py-4 rounded-2xl
+                bg-gradient-to-r from-indigo-500 to-purple-500
+                text-white font-bold text-lg
+                shadow-lg shadow-indigo-500/25
+                hover:shadow-xl hover:-translate-y-0.5
+                disabled:opacity-50
+                active:scale-[0.98]
+                transition-all duration-200
+              "
+                        >
+                            <span className="flex items-center justify-center gap-2">
+                                <Share2 size={20} />
+                                {isSharing ? t('common:share.sharing') : t('common:share.brag')}
+                            </span>
+                        </button>
+
+                        {shareToast && (
+                            <p className="text-xs text-green-600 font-medium animate-fade-in">{shareToast}</p>
+                        )}
 
                         <button
                             onClick={onClose}

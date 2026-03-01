@@ -4,7 +4,7 @@
  */
 
 import { ShapeType, Piece, Coordinate } from '../types';
-import { SHAPES } from '../constants';
+import { SHAPES, STANDARD_SHAPES } from '../constants';
 
 /**
  * mulberry32: 32비트 시드 기반 결정론적 난수 생성기
@@ -27,7 +27,7 @@ export function mulberry32(seed: number): () => number {
  */
 function getRotatedCells(type: ShapeType, rotation: number): Coordinate[] {
   let cells = [...SHAPES[type]];
-  if (type === ShapeType.O) return cells;
+  if (type === ShapeType.O || type === ShapeType.PLUS) return cells;
   for (let i = 0; i < rotation; i++) {
     cells = cells.map(({ x, y }) => ({ x: -y, y: x }));
   }
@@ -37,8 +37,8 @@ function getRotatedCells(type: ShapeType, rotation: number): Coordinate[] {
 /**
  * PRNG로 단일 피스 생성 (서버/클라이언트 공용 시퀀스 생성용)
  */
-export function generateSeededPieceData(rng: () => number): { type: ShapeType; rotation: number } {
-  const shapes = Object.values(ShapeType);
+export function generateSeededPieceData(rng: () => number, allowedShapes?: ShapeType[]): { type: ShapeType; rotation: number } {
+  const shapes = allowedShapes ?? STANDARD_SHAPES;
   const type = shapes[Math.floor(rng() * shapes.length)];
   const rotation = Math.floor(rng() * 4);
   return { type, rotation };

@@ -40,5 +40,13 @@
     "close": "Close",
     "selectTile": "Select tile {{value}}",
     "rotateBlock": "Rotate block"
+  },
+  "share": {
+    "button": "Share",
+    "sharing": "Sharing...",
+    "brag": "Brag to friends",
+    "shared": "Shared!",
+    "downloaded": "Image saved!",
+    "copied": "Text copied!"
   }
 }

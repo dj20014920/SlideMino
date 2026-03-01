@@ -58,6 +58,11 @@ export interface SavedGameState {
     challengeSeed?: number;
     /** 데일리 챌린지 전용: 다음 생성할 피스 인덱스 */
     challengePieceIndex?: number;
+    /** 주간 이벤트 전용 */
+    eventId?: string;
+    eventType?: string;
+    eventAttemptNumber?: number;
+    eventPlayedMs?: number;
     savedAt: number; // timestamp
 }
 
@@ -143,12 +148,21 @@ const parseSavedGameState = (raw: string | null): SavedGameState | null => {
         ? parsed.showBlockRefreshAdButton
         : false;
 
-    // 데일리 챌린지 모드 필드
-    const gameMode: GameMode = parsed.gameMode === 'daily_challenge' ? 'daily_challenge' : 'normal';
+    // 데일리 챌린지 / 주간 이벤트 모드 필드
+    const gm = parsed.gameMode;
+    const gameMode: GameMode = (gm === 'daily_challenge' || gm === 'weekly_event') ? gm : 'normal';
     const challengeDate = typeof parsed.challengeDate === 'string' ? parsed.challengeDate : undefined;
     const challengeSeed = typeof parsed.challengeSeed === 'number' ? parsed.challengeSeed : undefined;
     const challengePieceIndex = typeof parsed.challengePieceIndex === 'number'
         ? Math.max(0, Math.floor(parsed.challengePieceIndex)) : undefined;
+
+    // 주간 이벤트 필드
+    const eventId = typeof parsed.eventId === 'string' ? parsed.eventId : undefined;
+    const eventType = typeof parsed.eventType === 'string' ? parsed.eventType : undefined;
+    const eventAttemptNumber = typeof parsed.eventAttemptNumber === 'number'
+        ? Math.max(1, Math.min(3, Math.floor(parsed.eventAttemptNumber))) : undefined;
+    const eventPlayedMs = typeof parsed.eventPlayedMs === 'number'
+        ? Math.max(0, Math.floor(parsed.eventPlayedMs)) : undefined;
 
     return {
         ...parsed,
@@ -172,6 +186,10 @@ const parseSavedGameState = (raw: string | null): SavedGameState | null => {
         challengeDate,
         challengeSeed,
         challengePieceIndex,
+        eventId,
+        eventType,
+        eventAttemptNumber,
+        eventPlayedMs,
     };
 };
 

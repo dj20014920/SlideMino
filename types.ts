@@ -23,6 +23,7 @@ export enum ShapeType {
   Z = 'Z',
   J = 'J',
   L = 'L',
+  PLUS = 'PLUS', // + 모양 (십자형, 5칸) — 주간 이벤트 전용
 }
 
 export interface Coordinate {
@@ -44,8 +45,19 @@ export enum GameState {
   GAME_OVER = 'GAME_OVER',
 }
 
-/** 게임 모드: 일반 or 데일리 챌린지 */
-export type GameMode = 'normal' | 'daily_challenge';
+/** 게임 모드: 일반 / 데일리 챌린지 / 주간 이벤트 */
+export type GameMode = 'normal' | 'daily_challenge' | 'weekly_event';
+
+/** 주간 이벤트 종류 (8종 순환) */
+export type WeeklyEventType =
+  | 'NO_ROTATION'     // 뭐야 내 블럭 돌려줘요
+  | 'BURNING'         // 버닝이벤트!
+  | 'PLUS_RUSH'       // +블록 러시
+  | 'EXPERT_4X4'      // 고수체험하기
+  | 'SPEED_RUN'       // 스피드런!
+  | 'TRIPLE_KILL'     // 트리플킬!
+  | 'I_BLOCK_RUSH'    // I블록 러쉬
+  | 'PLAINS_10X10';   // 평야달리기
 
 export enum Phase {
   PLACE = 'PLACE',

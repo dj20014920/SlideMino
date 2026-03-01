@@ -98,6 +98,15 @@ import {
   type NativeUpdateRequirement,
 } from './services/nativeUpdate';
 import { SeasonRewardModal } from './components/SeasonRewardModal';
+import { MissionModal } from './components/MissionModal';
+import {
+  initMissionTracking,
+  getDailyCompletedCount,
+  refreshMissions,
+  type MissionCompleteInfo,
+  type MissionProgressInfo,
+} from './services/missionService';
+import { gameEventBus } from './services/gameEventBus';
 import { StreakInfoModal } from './components/StreakInfoModal';
 import {
   checkAndUpdateStreak,
@@ -121,6 +130,21 @@ import {
   getFirstCompletionFragments,
   type DailyChallengeSeed,
 } from './services/dailyChallengeService';
+import { WeeklyEventModal } from './components/WeeklyEventModal';
+import {
+  getCurrentEvent,
+  generateEventPiece,
+  getEventTimerRemainingMs,
+  formatTimerMmSs,
+  submitEventScore,
+  incrementLocalAttemptCount,
+  getLocalAttemptCount,
+  clearEventGameState,
+  saveEventGameState,
+  loadEventGameState,
+  type WeeklyEventRule,
+  EVENT_RULES,
+} from './services/weeklyEventService';
 
 const EMPTY_TILE_VALUE_OVERRIDES: Record<string, number> = {};
 const EMPTY_MERGING_TILES: MergingTile[] = [];
@@ -155,6 +179,7 @@ interface ActiveGameRankingSnapshot {
   sessionId: string;
   score: number;
   difficulty: string;
+  boardSize: BoardSize;
   duration: number;
   moves: number;
   playerName: string;
@@ -583,6 +608,26 @@ const App: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ===== 미션 시스템 초기화 =====
+  useEffect(() => {
+    initMissionTracking();
+
+    const unsubComplete = gameEventBus.on('MISSION_COMPLETED', (info: MissionCompleteInfo) => {
+      setDailyMissionCompleted(getDailyCompletedCount());
+      showComboMessage(`🎯 ${t(info.nameKey as any)} ${t('game:missions.completed' as any)}`, 3000);
+    });
+
+    const unsubProgress = gameEventBus.on('MISSION_PROGRESS', (info: MissionProgressInfo) => {
+      const now = Date.now();
+      if (now - missionProgressThrottleRef.current < 3000) return;
+      missionProgressThrottleRef.current = now;
+      showComboMessage(`📋 ${t(info.nameKey as any)} (${info.current}/${info.target})`, 2000);
+    });
+
+    return () => { unsubComplete(); unsubProgress(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Fake loading delay for the premium feel
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -737,12 +782,29 @@ const App: React.FC = () => {
   const attendanceToastShownRef = useRef(false);
   const attendanceHintShownRef = useRef(false);
 
+  // ===== 미션 시스템 상태 =====
+  const [isMissionModalOpen, setIsMissionModalOpen] = useState(false);
+  const [dailyMissionCompleted, setDailyMissionCompleted] = useState(() => getDailyCompletedCount());
+  const missionProgressThrottleRef = useRef(0);
+
   // ===== 데일리 챌린지 상태 =====
   const [gameMode, setGameMode] = useState<GameMode>('normal');
   const challengeDateRef = useRef<string | null>(null);
   const challengeSeedRef = useRef<number | null>(null);
   const challengePieceIndexRef = useRef<number>(0);
   const [isDailyChallengeLoading, setIsDailyChallengeLoading] = useState(false);
+
+  // ===== 주간 이벤트 상태 =====
+  const [isWeeklyEventModalOpen, setIsWeeklyEventModalOpen] = useState(false);
+  const eventRuleRef = useRef<WeeklyEventRule | null>(null);
+  const eventIdRef = useRef<string | null>(null);
+  const eventAttemptNumberRef = useRef<number>(1);
+  /** 이벤트 누적 플레이 시간(ms) — 일시정지/백그라운드에서는 멈춤 */
+  const eventPlayedMsRef = useRef<number>(0);
+  /** 이벤트 타이머 시작 시점 (null이면 일시정지 중) */
+  const eventTimerStartedAtRef = useRef<number | null>(null);
+  const eventTimerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [eventTimerDisplay, setEventTimerDisplay] = useState<string | null>(null);
 
   // Name Input State
   const [isNameInputOpen, setIsNameInputOpen] = useState(false);
@@ -1068,7 +1130,25 @@ const App: React.FC = () => {
     challengeDateRef.current = saved.challengeDate ?? null;
     challengeSeedRef.current = saved.challengeSeed ?? null;
     challengePieceIndexRef.current = saved.challengePieceIndex ?? 0;
-  }, []);
+
+    // 주간 이벤트 상태 복원
+    if (saved.gameMode === 'weekly_event' && saved.eventId && saved.eventType) {
+      const evRule = EVENT_RULES[saved.eventType as keyof typeof EVENT_RULES];
+      if (evRule) {
+        eventRuleRef.current = evRule;
+        eventIdRef.current = saved.eventId;
+        eventAttemptNumberRef.current = saved.eventAttemptNumber ?? 1;
+        eventPlayedMsRef.current = saved.eventPlayedMs ?? 0;
+        const remaining = getEventTimerRemainingMs(evRule.timeLimitSeconds, eventPlayedMsRef.current);
+        setEventTimerDisplay(formatTimerMmSs(remaining));
+        if (saved.gameState === GameState.PLAYING) {
+          startEventTimer();
+        }
+      }
+    } else {
+      resetEventTimer();
+    }
+  }, [startEventTimer, resetEventTimer]);
 
   // 앱 시작 시 저장된 게임 복원
   useEffect(() => {
@@ -1114,7 +1194,30 @@ const App: React.FC = () => {
       challengeDate: challengeDateRef.current ?? undefined,
       challengeSeed: challengeSeedRef.current ?? undefined,
       challengePieceIndex: challengePieceIndexRef.current,
+      eventId: eventIdRef.current ?? undefined,
+      eventType: eventRuleRef.current?.type ?? undefined,
+      eventAttemptNumber: eventAttemptNumberRef.current,
+      eventPlayedMs: getCurrentEventPlayedMs(),
     });
+
+    // 이벤트 모드일 때 이벤트 전용 저장도 동시 수행
+    if (gameMode === 'weekly_event' && eventIdRef.current && eventRuleRef.current) {
+      saveEventGameState({
+        eventId: eventIdRef.current,
+        eventType: eventRuleRef.current.type,
+        grid,
+        slots,
+        score,
+        phase,
+        boardSize,
+        moveCount: moveCountRef.current,
+        eventPlayedMs: getCurrentEventPlayedMs(),
+        attemptNumber: eventAttemptNumberRef.current,
+        sessionId: sessionIdRef.current,
+        startedAt: gameStartTimeRef.current ?? Date.now(),
+        savedAt: Date.now(),
+      });
+    }
   }, [
     gameState,
     grid,
@@ -1137,6 +1240,7 @@ const App: React.FC = () => {
     gameMode,
     pauseActivePlayTimer,
     getCurrentActiveDurationMs,
+    getCurrentEventPlayedMs,
   ]);
 
   // 게임 상태 자동 저장 (debounce + 종료 직전 플러시)
@@ -1159,6 +1263,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const flushRecoverableState = () => {
       pauseActivePlayTimer();
+      pauseEventTimer();
       persistRecoverableGameState();
     };
 
@@ -1168,6 +1273,10 @@ const App: React.FC = () => {
         return;
       }
       syncActivePlayTimer();
+      // 이벤트 타이머 복원
+      if (gameStateRef.current === GameState.PLAYING && eventRuleRef.current) {
+        startEventTimer();
+      }
     };
 
     window.addEventListener('pagehide', flushRecoverableState);
@@ -1215,6 +1324,7 @@ const App: React.FC = () => {
         sessionId: sessionIdRef.current,
         score,
         difficulty: `${boardSize}x${boardSize}`,
+        boardSize,
         duration: elapsedSeconds,
         moves: moveCountRef.current,
         playerName,
@@ -1236,6 +1346,7 @@ const App: React.FC = () => {
       sessionId: saved.sessionId ?? sessionIdRef.current,
       score: saved.score,
       difficulty: `${saved.boardSize}x${saved.boardSize}`,
+      boardSize: saved.boardSize as BoardSize,
       duration: elapsedSeconds,
       moves: typeof saved.moveCount === 'number' ? saved.moveCount : 0,
       playerName: saved.playerName ?? playerName,
@@ -1295,13 +1406,15 @@ const App: React.FC = () => {
     setReviveBreakRemaining(0);
     setRevivePendingTileId(null);
     setReviveDestroyEffects([]);
-    // 챌린지 모드 초기화
+    // 이벤트 / 챌린지 모드 초기화
+    resetEventTimer();
+    clearEventGameState();
     setGameMode('normal');
     challengeDateRef.current = null;
     challengeSeedRef.current = null;
     challengePieceIndexRef.current = 0;
     setGameState(GameState.MENU);
-  }, []);
+  }, [resetEventTimer]);
 
   const handleHomeButtonClick = useCallback(() => {
     if (gameState === GameState.PLAYING) {
@@ -1391,6 +1504,74 @@ const App: React.FC = () => {
     }
   };
 
+  // ===== 주간 이벤트 타이머 관리 =====
+
+  /** 이벤트 타이머 시작 (게임 플레이 중에만 진행) */
+  const startEventTimer = useCallback(() => {
+    if (eventTimerStartedAtRef.current !== null) return; // 이미 실행 중
+    eventTimerStartedAtRef.current = Date.now();
+    // 1초마다 표시 갱신
+    if (eventTimerIntervalRef.current) clearInterval(eventTimerIntervalRef.current);
+    eventTimerIntervalRef.current = setInterval(() => {
+      const rule = eventRuleRef.current;
+      if (!rule || eventTimerStartedAtRef.current === null) return;
+      const elapsed = Date.now() - eventTimerStartedAtRef.current;
+      const totalPlayed = eventPlayedMsRef.current + elapsed;
+      const remaining = getEventTimerRemainingMs(rule.timeLimitSeconds, totalPlayed);
+      setEventTimerDisplay(formatTimerMmSs(remaining));
+      // 타이머 만료 → 게임오버
+      if (remaining <= 0) {
+        eventPlayedMsRef.current = totalPlayed;
+        eventTimerStartedAtRef.current = null;
+        if (eventTimerIntervalRef.current) {
+          clearInterval(eventTimerIntervalRef.current);
+          eventTimerIntervalRef.current = null;
+        }
+        // 강제 게임오버
+        setGameState(GameState.GAME_OVER);
+        gameEventBus.emit('GAME_OVER', {
+          score: scoreRef.current,
+          mode: 'weekly_event',
+          boardSize: boardSizeRef.current,
+          moves: moveCountRef.current,
+          duration: Math.floor(totalPlayed / 1000),
+        });
+      }
+    }, 1000);
+  }, []);
+
+  /** 이벤트 타이머 일시정지 */
+  const pauseEventTimer = useCallback(() => {
+    if (eventTimerStartedAtRef.current !== null) {
+      const elapsed = Date.now() - eventTimerStartedAtRef.current;
+      eventPlayedMsRef.current += elapsed;
+      eventTimerStartedAtRef.current = null;
+    }
+    if (eventTimerIntervalRef.current) {
+      clearInterval(eventTimerIntervalRef.current);
+      eventTimerIntervalRef.current = null;
+    }
+  }, []);
+
+  /** 이벤트 타이머 리셋 */
+  const resetEventTimer = useCallback(() => {
+    pauseEventTimer();
+    eventPlayedMsRef.current = 0;
+    setEventTimerDisplay(null);
+    eventRuleRef.current = null;
+    eventIdRef.current = null;
+    eventAttemptNumberRef.current = 1;
+  }, [pauseEventTimer]);
+
+  /** 현재 이벤트 누적 플레이 시간(ms) 정확 계산 */
+  const getCurrentEventPlayedMs = useCallback((): number => {
+    const base = eventPlayedMsRef.current;
+    if (eventTimerStartedAtRef.current !== null) {
+      return base + (Date.now() - eventTimerStartedAtRef.current);
+    }
+    return base;
+  }, []);
+
   function startGame(size: BoardSize) {
     // 새 게임 시작 시 이전 게임 복구 데이터는 폐기한다.
     clearGameState();
@@ -1399,6 +1580,8 @@ const App: React.FC = () => {
     challengeDateRef.current = null;
     challengeSeedRef.current = null;
     challengePieceIndexRef.current = 0;
+    // 이벤트 상태 리셋
+    resetEventTimer();
 
     if (mergeClearTimeoutRef.current) {
       window.clearTimeout(mergeClearTimeoutRef.current);
@@ -1472,6 +1655,9 @@ const App: React.FC = () => {
       },
     });
 
+    // 이벤트 버스: 게임 시작 알림
+    gameEventBus.emit('GAME_STARTED', { mode: 'normal', boardSize: size });
+
     // 온보딩: 튜토리얼 미완료 시 활성화
     const tutorialCompleted = localStorage.getItem('tutorial_completed');
     if (!tutorialCompleted) {
@@ -1494,6 +1680,7 @@ const App: React.FC = () => {
 
       // 기존 게임 상태 정리
       clearGameState();
+      resetEventTimer();
       if (mergeClearTimeoutRef.current) { window.clearTimeout(mergeClearTimeoutRef.current); mergeClearTimeoutRef.current = null; }
       if (mergeFinalizeTimeoutRef.current) { window.clearTimeout(mergeFinalizeTimeoutRef.current); mergeFinalizeTimeoutRef.current = null; }
       if (unlockTimeoutRef.current) { window.clearTimeout(unlockTimeoutRef.current); unlockTimeoutRef.current = null; }
@@ -1561,11 +1748,186 @@ const App: React.FC = () => {
         name: 'game_start',
         meta: { boardSize: challengeSize, gameMode: 'daily_challenge' },
       });
+
+      // 이벤트 버스: 데일리 챌린지 시작
+      gameEventBus.emit('GAME_STARTED', { mode: 'daily_challenge', boardSize: challengeSize });
     } catch (e) {
       console.error('[DailyChallenge] start failed:', e);
     } finally {
       setIsDailyChallengeLoading(false);
     }
+  }
+
+  // --- 주간 이벤트 시작 ---
+
+  function startWeeklyEvent() {
+    const current = getCurrentEvent();
+    const rule = current.rule;
+    const localAttempts = getLocalAttemptCount();
+    if (localAttempts >= 3) return;
+
+    // 기존 게임 상태 정리
+    clearGameState();
+    clearEventGameState();
+    if (mergeClearTimeoutRef.current) { window.clearTimeout(mergeClearTimeoutRef.current); mergeClearTimeoutRef.current = null; }
+    if (mergeFinalizeTimeoutRef.current) { window.clearTimeout(mergeFinalizeTimeoutRef.current); mergeFinalizeTimeoutRef.current = null; }
+    if (unlockTimeoutRef.current) { window.clearTimeout(unlockTimeoutRef.current); unlockTimeoutRef.current = null; }
+    if (comboMessageTimeoutRef.current) { window.clearTimeout(comboMessageTimeoutRef.current); comboMessageTimeoutRef.current = null; }
+    reviveDestroyEffectTimeoutsRef.current.forEach((tid) => window.clearTimeout(tid));
+    reviveDestroyEffectTimeoutsRef.current = [];
+
+    const eventSize = rule.boardSize;
+    const initialSlots: Piece[] = [
+      generateEventPiece(rule),
+      generateEventPiece(rule),
+      generateEventPiece(rule),
+    ];
+
+    setGameMode('weekly_event');
+    eventRuleRef.current = rule;
+    eventIdRef.current = current.eventId;
+    eventAttemptNumberRef.current = localAttempts + 1;
+    eventPlayedMsRef.current = 0;
+    challengeDateRef.current = null;
+    challengeSeedRef.current = null;
+    challengePieceIndexRef.current = 0;
+
+    setBoardSize(eventSize);
+    setGrid(createEmptyGrid(eventSize));
+    setSlots(initialSlots);
+    setScore(0);
+    maxScoreThisRunRef.current = 0;
+    setMaxScoreThisRun(0);
+    setMergingTiles(EMPTY_MERGING_TILES);
+    setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
+    slideLockRef.current = false;
+    setIsAnimating(false);
+    setPhase(Phase.PLACE);
+    setGameState(GameState.PLAYING);
+    setComboMessage(null);
+    setCanSkipSlide(false);
+    setLastSnapshot(null);
+    // 이벤트 모드: undo/blockRefresh/revive 비활성화
+    setUndoRemaining(rule.disableUndo ? 0 : INITIAL_UNDO_AMOUNT);
+    setBlockRefreshRemaining(rule.disableBlockRefresh ? 0 : INITIAL_BLOCK_REFRESH_AMOUNT);
+    setShowBlockRefreshAdButton(false);
+    setHasUsedReviveThisRun(rule.disableRevive);
+    isReviveSelectionModeRef.current = false;
+    setIsReviveSelectionMode(false);
+    setReviveBreakRemaining(0);
+    setRevivePendingTileId(null);
+    setReviveDestroyEffects([]);
+    setIsReviveAdInProgress(false);
+    setIsReviveAdReady(false);
+    setIsBlockRefreshAdInProgress(false);
+    setSessionLockedPlayerName(null);
+    attendanceToastShownRef.current = false;
+    attendanceHintShownRef.current = false;
+
+    const now = Date.now();
+    gameStartTimeRef.current = now;
+    activePlayDurationMsRef.current = 0;
+    activePlayStartedAtRef.current = isDocumentVisible() ? now : null;
+    moveCountRef.current = 0;
+    sessionIdRef.current = crypto.randomUUID();
+    liveRankFailureCountRef.current = 0;
+    liveRankRetryAfterRef.current = 0;
+    liveRankLastRequestAtRef.current = 0;
+    liveRankRequestInFlightRef.current = false;
+    liveRankRequestQueuedRef.current = false;
+    setLiveRankEstimate(null);
+    setTutorialStep(0);
+    setIsWeeklyEventModalOpen(false);
+
+    // 타이머 시작
+    setEventTimerDisplay(formatTimerMmSs(rule.timeLimitSeconds * 1000));
+    startEventTimer();
+
+    trackAnalyticsEvent({
+      name: 'game_start',
+      meta: { boardSize: eventSize, gameMode: 'weekly_event', eventType: current.eventType },
+    });
+    gameEventBus.emit('GAME_STARTED', { mode: 'weekly_event', boardSize: eventSize });
+  }
+
+  function continueWeeklyEvent() {
+    const saved = loadEventGameState();
+    if (!saved) return;
+
+    const current = getCurrentEvent();
+    const rule = EVENT_RULES[saved.eventType as keyof typeof EVENT_RULES];
+    if (!rule) return;
+
+    // 기존 게임 상태 정리
+    clearGameState();
+    if (mergeClearTimeoutRef.current) { window.clearTimeout(mergeClearTimeoutRef.current); mergeClearTimeoutRef.current = null; }
+    if (mergeFinalizeTimeoutRef.current) { window.clearTimeout(mergeFinalizeTimeoutRef.current); mergeFinalizeTimeoutRef.current = null; }
+    if (unlockTimeoutRef.current) { window.clearTimeout(unlockTimeoutRef.current); unlockTimeoutRef.current = null; }
+    if (comboMessageTimeoutRef.current) { window.clearTimeout(comboMessageTimeoutRef.current); comboMessageTimeoutRef.current = null; }
+    reviveDestroyEffectTimeoutsRef.current.forEach((tid) => window.clearTimeout(tid));
+    reviveDestroyEffectTimeoutsRef.current = [];
+
+    setGameMode('weekly_event');
+    eventRuleRef.current = rule;
+    eventIdRef.current = saved.eventId;
+    eventAttemptNumberRef.current = saved.attemptNumber;
+    eventPlayedMsRef.current = saved.eventPlayedMs;
+    challengeDateRef.current = null;
+    challengeSeedRef.current = null;
+    challengePieceIndexRef.current = 0;
+
+    setBoardSize(saved.boardSize);
+    setGrid(saved.grid);
+    setSlots(saved.slots);
+    setScore(saved.score);
+    maxScoreThisRunRef.current = saved.score;
+    setMaxScoreThisRun(saved.score);
+    setMergingTiles(EMPTY_MERGING_TILES);
+    setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
+    slideLockRef.current = false;
+    setIsAnimating(false);
+    setPhase(saved.phase as Phase);
+    setGameState(GameState.PLAYING);
+    setComboMessage(null);
+    setCanSkipSlide(false);
+    setLastSnapshot(null);
+    setUndoRemaining(rule.disableUndo ? 0 : INITIAL_UNDO_AMOUNT);
+    setBlockRefreshRemaining(rule.disableBlockRefresh ? 0 : INITIAL_BLOCK_REFRESH_AMOUNT);
+    setShowBlockRefreshAdButton(false);
+    setHasUsedReviveThisRun(rule.disableRevive);
+    isReviveSelectionModeRef.current = false;
+    setIsReviveSelectionMode(false);
+    setReviveBreakRemaining(0);
+    setRevivePendingTileId(null);
+    setReviveDestroyEffects([]);
+    setIsReviveAdInProgress(false);
+    setIsReviveAdReady(false);
+    setIsBlockRefreshAdInProgress(false);
+    setSessionLockedPlayerName(null);
+    attendanceToastShownRef.current = false;
+    attendanceHintShownRef.current = false;
+
+    const now = Date.now();
+    gameStartTimeRef.current = saved.startedAt;
+    activePlayDurationMsRef.current = 0;
+    activePlayStartedAtRef.current = isDocumentVisible() ? now : null;
+    moveCountRef.current = saved.moveCount;
+    sessionIdRef.current = saved.sessionId;
+    liveRankFailureCountRef.current = 0;
+    liveRankRetryAfterRef.current = 0;
+    liveRankLastRequestAtRef.current = 0;
+    liveRankRequestInFlightRef.current = false;
+    liveRankRequestQueuedRef.current = false;
+    setLiveRankEstimate(null);
+    setTutorialStep(0);
+    setIsWeeklyEventModalOpen(false);
+
+    // 타이머 이어서 시작
+    const remaining = getEventTimerRemainingMs(rule.timeLimitSeconds, saved.eventPlayedMs);
+    setEventTimerDisplay(formatTimerMmSs(remaining));
+    startEventTimer();
+
+    gameEventBus.emit('GAME_STARTED', { mode: 'weekly_event', boardSize: saved.boardSize });
   }
 
   // --- Undo 시스템 ---
@@ -1772,6 +2134,9 @@ const App: React.FC = () => {
     // 사용 횟수 차감 및 스냅샷 초기화 (연속 Undo 방지)
     setUndoRemaining(prev => prev - 1);
     setLastSnapshot(null);
+
+    // 미션 이벤트: 되돌리기 사용
+    gameEventBus.emit('UNDO_USED', {});
     if (comboMessageTimeoutRef.current) {
       window.clearTimeout(comboMessageTimeoutRef.current);
       comboMessageTimeoutRef.current = null;
@@ -1827,6 +2192,9 @@ const App: React.FC = () => {
 
     setSlots((prevSlots) => generateRefreshedSlotPieces(prevSlots, prevSlots.length));
     setBlockRefreshRemaining((prev) => Math.max(0, prev - 1));
+
+    // 미션 이벤트: 블록 새로고침 사용
+    gameEventBus.emit('BLOCK_REFRESH_USED', {});
   }, [
     blockRefreshRemaining,
     draggingPiece,
@@ -2155,6 +2523,8 @@ const App: React.FC = () => {
 
   const rotateActivePiece = useCallback(() => {
     if (!draggingPiece) return;
+    // 이벤트 모드: 회전 비활성화
+    if (eventRuleRef.current?.disableRotation) return;
 
     setDraggingPiece(prev => {
       if (!prev) return null;
@@ -2179,6 +2549,8 @@ const App: React.FC = () => {
 
   // Memoized callback to prevent Slot re-renders
   const rotateSlotPiece = useCallback((index: number) => {
+    // 이벤트 모드: 회전 비활성화
+    if (eventRuleRef.current?.disableRotation) return;
     setSlots(currentSlots => {
       const newSlots = [...currentSlots];
       const piece = newSlots[index];
@@ -2353,7 +2725,12 @@ const App: React.FC = () => {
           const newGrid = placePieceOnGrid(grid, draggingPiece, hover.x, hover.y);
           setGrid(newGrid);
 
-          // 배치 성공 시점에만 콤보 권한을 소모한다.
+          // 미션 이벤트: 블록 배치
+          gameEventBus.emit('BLOCK_PLACED', {
+            pieceType: draggingPiece.type,
+            rotation: draggingPiece.rotation,
+            value: draggingPiece.value,
+          });
           setCanSkipSlide(false);
           setComboMessage(null);
 
@@ -2369,6 +2746,8 @@ const App: React.FC = () => {
             const nextPiece = generateChallengeSlots(challengeSeedRef.current, challengePieceIndexRef.current, 1)[0];
             challengePieceIndexRef.current += 1;
             newSlots[dragOriginIndex] = nextPiece;
+          } else if (gameMode === 'weekly_event' && eventRuleRef.current) {
+            newSlots[dragOriginIndex] = generateEventPiece(eventRuleRef.current);
           } else {
             newSlots[dragOriginIndex] = generateRandomPiece();
           }
@@ -2484,6 +2863,17 @@ const App: React.FC = () => {
       return;
     }
 
+    // 미션 이벤트: 슬라이드 수행
+    gameEventBus.emit('SLIDE_PERFORMED', {
+      direction: dir.toLowerCase() as 'up' | 'down' | 'left' | 'right',
+      mergeCount: mergedTiles.length,
+      scoreGained: scoreAdded,
+    });
+    // 미션 이벤트: 타일 생성 (병합으로 새 값이 만들어질 때)
+    for (const mt of mergedTiles) {
+      gameEventBus.emit('TILE_CREATED', { value: mt.toValue });
+    }
+
     if (tutorialStep === 2) {
       setTutorialStep(0);
       localStorage.setItem('tutorial_completed', 'true');
@@ -2537,7 +2927,19 @@ const App: React.FC = () => {
     if (scoreAdded > 0) {
       mergeFinalizeTimeoutRef.current = window.setTimeout(() => {
         setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
-        setScore(prev => prev + scoreAdded);
+
+        // 이벤트 점수 배율 & 트리플킬 보너스 적용
+        let finalScore = scoreAdded;
+        const evRule = eventRuleRef.current;
+        if (gameMode === 'weekly_event' && evRule) {
+          if (evRule.scoreMultiplier > 1) {
+            finalScore = Math.round(finalScore * evRule.scoreMultiplier);
+          }
+          if (evRule.tripleKillBonus > 0 && mergedTiles.length >= 3) {
+            finalScore += evRule.tripleKillBonus;
+          }
+        }
+        setScore(prev => prev + finalScore);
 
         // 1024 블럭이 새로 만들어질 때마다 스킨 조각 1개씩 지급
         const new1024Count = mergedTiles.filter(mt => mt.toValue === 1024).length;
@@ -2595,7 +2997,20 @@ const App: React.FC = () => {
       if (isRewardInterstitialAdSupported() && !rewardInterstitialAdService.isAdReady()) {
         rewardInterstitialAdService.preloadAd();
       }
+      // 이벤트 모드: 타이머 정지 & 이벤트 세이브 삭제
+      if (gameMode === 'weekly_event') {
+        pauseEventTimer();
+        clearEventGameState();
+      }
       setGameState(GameState.GAME_OVER);
+      // 이벤트 버스: 게임 오버
+      gameEventBus.emit('GAME_OVER', {
+        score,
+        mode: gameMode,
+        boardSize,
+        moves: moveCountRef.current,
+        duration: Date.now() - (gameStartTimeRef.current ?? Date.now()),
+      });
       if (score > highScore) setHighScore(score);
     }
   }, [phase, grid, slots, gameState, score, highScore, isAnimating, finishSlideTurn, isReviveSelectionMode]);
@@ -2913,6 +3328,13 @@ const App: React.FC = () => {
         </div>
 
         <div className="field-row">
+          <input id="menu-action-mission" type="radio" name={premiumMenuActionRadioGroupName} onClick={() => { setIsMissionModalOpen(true); setDailyMissionCompleted(getDailyCompletedCount()); }} readOnly />
+          <label htmlFor="menu-action-mission">
+            📋 {t('game:missions.title')} ({dailyMissionCompleted}/3)
+          </label>
+        </div>
+
+        <div className="field-row">
           <input id="menu-action-replay" type="radio" name={premiumMenuActionRadioGroupName} onClick={handleReplayTutorial} readOnly />
           <label htmlFor="menu-action-replay">{t('common:actions.replayTutorial', '튜토리얼 다시보기')}</label>
         </div>
@@ -3043,6 +3465,29 @@ const App: React.FC = () => {
               <span>{t('game:dailyChallenge.menuButton')}</span>
             </span>
             <span className={`${isWin98ThemeActive ? 'win98-muted' : 'text-amber-200/70'} font-normal text-sm`}>5×5</span>
+          </span>
+        </button>
+
+        {/* 주간 이벤트 버튼 */}
+        <button
+          onClick={() => setIsWeeklyEventModalOpen(true)}
+          className="
+          relative group w-full py-4 px-6 rounded-2xl win98-menu-btn
+          bg-gradient-to-br from-purple-500 via-pink-500 to-rose-500
+          border border-purple-400/30
+          shadow-lg shadow-purple-900/20
+          hover:shadow-xl hover:shadow-purple-600/30 hover:-translate-y-0.5
+          active:translate-y-0 active:shadow-md
+          transition-all duration-200 ease-out
+          text-white font-semibold text-lg
+        "
+        >
+          <span className="flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <span>🎯</span>
+              <span>{t('game:weeklyEvent.menuButton')}</span>
+            </span>
+            <span className={`${isWin98ThemeActive ? 'win98-muted' : 'text-purple-200/70'} font-normal text-sm`}>{t('game:weeklyEvent.menuTag')}</span>
           </span>
         </button>
 
@@ -3217,6 +3662,26 @@ const App: React.FC = () => {
             <Trophy size={16} className="text-yellow-600" />
             {t('game:actions.leaderboard')}
           </span>
+        </button>
+
+        <button
+          onClick={() => { setIsMissionModalOpen(true); setDailyMissionCompleted(getDailyCompletedCount()); }}
+          className={`
+          relative group w-full py-3.5 px-6 rounded-2xl win98-menu-btn
+          bg-white/60 backdrop-blur-sm
+          border border-white/50
+          shadow-lg
+          hover:shadow-xl hover:-translate-y-0.5
+          active:translate-y-0 active:shadow-md
+          transition-all duration-200 ease-out
+          text-gray-800 font-semibold text-base
+          flex items-center justify-between
+        `}
+        >
+          <span className="flex items-center gap-2">
+            📋 {t('game:missions.title')}
+          </span>
+          <span className="text-gray-400 font-normal text-sm">{dailyMissionCompleted}/3</span>
         </button>
 
         {!isWin98ThemeActive && <LanguageSwitcher />}
@@ -3406,6 +3871,7 @@ const App: React.FC = () => {
               context={activeGameExitContext}
               score={activeGameRankingSnapshot.score}
               difficulty={activeGameRankingSnapshot.difficulty}
+              boardSize={activeGameRankingSnapshot.boardSize}
               duration={activeGameRankingSnapshot.duration}
               moves={activeGameRankingSnapshot.moves}
               sessionId={activeGameRankingSnapshot.sessionId}
@@ -3443,6 +3909,15 @@ const App: React.FC = () => {
               setSeasonRewards([]);
               setIsSeasonRewardOpen(false);
               return total;
+            }}
+          />
+
+          <MissionModal
+            open={isMissionModalOpen}
+            onClose={() => setIsMissionModalOpen(false)}
+            onRewardClaimed={(fragments) => {
+              showComboMessage(`✦ ${t('game:missions.rewardToast', { amount: fragments } as any)}`, 2500);
+              setDailyMissionCompleted(getDailyCompletedCount());
             }}
           />
         </div>
@@ -3539,6 +4014,27 @@ const App: React.FC = () => {
             }}
           >
             🏆 {t('game:dailyChallenge.banner')}
+          </div>
+        )}
+
+        {/* 주간 이벤트 배너 */}
+        {gameMode === 'weekly_event' && eventRuleRef.current && (
+          <div
+            className="w-full text-center py-1.5 bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 text-white text-xs font-bold tracking-wide flex items-center justify-center gap-2"
+            style={{
+              maxWidth: `${gameLayoutProfile.columnWidthPx}px`,
+              marginTop: isWin98ThemeActive ? '0' : 'calc(var(--game-safe-top))',
+            }}
+          >
+            <span>{t(`game:weeklyEvent.events.${eventRuleRef.current.type}.name`)}</span>
+            {eventTimerDisplay && (
+              <span className="px-2 py-0.5 bg-white/20 rounded-full text-[10px] tabular-nums">
+                ⏱ {eventTimerDisplay}
+              </span>
+            )}
+            <span className="text-[10px] opacity-80">
+              {t('game:weeklyEvent.tags.attempts', { current: eventAttemptNumberRef.current, max: 3 })}
+            </span>
           </div>
         )}
 
@@ -3864,12 +4360,21 @@ const App: React.FC = () => {
         {/* Dragging Overlay */}
         {renderDraggingPiece()}
 
+        {/* Weekly Event Modal */}
+        <WeeklyEventModal
+          isOpen={isWeeklyEventModalOpen}
+          onClose={() => setIsWeeklyEventModalOpen(false)}
+          onStartEvent={startWeeklyEvent}
+          onContinueEvent={continueWeeklyEvent}
+        />
+
         {/* Game Over Modal */}
         {gameState === GameState.GAME_OVER && (
           <GameOverModal
             sessionId={sessionIdRef.current}
             score={score}
             difficulty={`${boardSize}x${boardSize}`}
+            boardSize={boardSize}
             duration={getCurrentActiveDurationSeconds()}
             moves={moveCountRef.current}
             playerName={playerName}
@@ -3881,6 +4386,7 @@ const App: React.FC = () => {
             onClose={handleGameOverClose}
             gameMode={gameMode}
             challengeDate={challengeDateRef.current ?? undefined}
+            eventAttemptNumber={eventAttemptNumberRef.current}
           />
         )}
 
@@ -3890,6 +4396,7 @@ const App: React.FC = () => {
             context={activeGameExitContext}
             score={activeGameRankingSnapshot.score}
             difficulty={activeGameRankingSnapshot.difficulty}
+            boardSize={activeGameRankingSnapshot.boardSize}
             duration={activeGameRankingSnapshot.duration}
             moves={activeGameRankingSnapshot.moves}
             sessionId={activeGameRankingSnapshot.sessionId}

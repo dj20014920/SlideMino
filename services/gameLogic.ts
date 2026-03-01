@@ -1,5 +1,5 @@
 import { Grid, Piece, ShapeType, Coordinate, Phase, Tile, MergingTile } from '../types';
-import { SHAPES } from '../constants';
+import { SHAPES, STANDARD_SHAPES } from '../constants';
 
 // --- Utils ---
 
@@ -15,8 +15,8 @@ const createPiece = (type: ShapeType, rotation: number): Piece => ({
   value: 1,
 });
 
-export const generateRandomPiece = (): Piece => {
-  const shapes = Object.values(ShapeType);
+export const generateRandomPiece = (allowedShapes?: ShapeType[]): Piece => {
+  const shapes = allowedShapes ?? STANDARD_SHAPES;
   const type = shapes[Math.floor(Math.random() * shapes.length)];
   const rotation = Math.floor(Math.random() * 4);
 
@@ -26,8 +26,8 @@ export const generateRandomPiece = (): Piece => {
 export const getRotatedCells = (type: ShapeType, rotation: number): Coordinate[] => {
   let cells = [...SHAPES[type]];
 
-  // O piece doesn't rotate
-  if (type === ShapeType.O) return cells;
+  // O, PLUS piece doesn't rotate (symmetrical)
+  if (type === ShapeType.O || type === ShapeType.PLUS) return cells;
 
   for (let i = 0; i < rotation; i++) {
     cells = cells.map(({ x, y }) => ({ x: -y, y: x }));
@@ -54,7 +54,7 @@ interface PieceVariant {
 const UNIQUE_PIECE_VARIANTS: PieceVariant[] = (() => {
   const bySignature = new Map<string, PieceVariant>();
 
-  for (const type of Object.values(ShapeType)) {
+  for (const type of STANDARD_SHAPES) {
     for (let rotation = 0; rotation < 4; rotation += 1) {
       const signature = getPieceShapeSignatureFromCells(getRotatedCells(type, rotation));
       if (bySignature.has(signature)) continue;

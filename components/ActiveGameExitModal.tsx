@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Check, Medal, Send } from 'lucide-react';
+import { Check, Medal, Send, Share2 } from 'lucide-react';
 import { rankingService } from '../services/rankingService';
 import { getAnalyticsInstallId } from '../services/analyticsService';
+import { shareGameResult, type ShareResult } from '../services/shareCardService';
 import { PLAYER_NAME_MAX_LENGTH, normalizePlayerName, validatePlayerName } from '../utils/playerName';
+import type { BoardSize } from '../types';
 
 export type ActiveGameExitContext = 'HOME' | 'NEW_GAME';
 
@@ -12,6 +14,7 @@ interface ActiveGameExitModalProps {
     context: ActiveGameExitContext;
     score: number;
     difficulty: string;
+    boardSize: BoardSize;
     duration: number;
     moves: number;
     sessionId: string;
@@ -30,6 +33,7 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
     context,
     score,
     difficulty,
+    boardSize,
     duration,
     moves,
     sessionId,
@@ -50,6 +54,33 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
     const [nameError, setNameError] = useState<string | null>(null);
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [submittedMessageOverride, setSubmittedMessageOverride] = useState<string | null>(null);
+    const [isSharing, setIsSharing] = useState(false);
+    const [shareToast, setShareToast] = useState<string | null>(null);
+
+    // 중간 저장 후 작은 공유 아이콘 핸들러
+    const handleShare = useCallback(async () => {
+        if (isSharing) return;
+        setIsSharing(true);
+        setShareToast(null);
+        try {
+            const result: ShareResult = await shareGameResult({
+                score,
+                boardSize,
+                mode: 'normal',
+                playerName,
+            });
+            if (result === 'shared') {
+                setShareToast(t('common:share.shared'));
+            } else if (result === 'downloaded') {
+                setShareToast(t('common:share.downloaded'));
+            } else if (result === 'copied') {
+                setShareToast(t('common:share.copied'));
+            }
+        } catch { /* 무시 */ } finally {
+            setIsSharing(false);
+            setTimeout(() => setShareToast(null), 3000);
+        }
+    }, [isSharing, score, boardSize, playerName, t]);
 
     useEffect(() => {
         if (!open) return;
@@ -397,17 +428,34 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                                 {submittedMessage}
                             </p>
                         </div>
-                        <button
-                            type="button"
-                            onClick={submitIntent === 'MID_SAVE' ? onIntermediateSaveComplete : onRegisteredAndProceed}
-                            className={isWin98
-                                ? 'w-full py-2 px-3 win98-menu-btn text-sm font-semibold'
-                                : 'w-full py-4 rounded-2xl bg-gray-900 text-white font-bold text-lg shadow-lg hover:bg-gray-800 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200'}
-                        >
-                            {submitIntent === 'MID_SAVE'
-                                ? t('modals:activeGameExit.continueAfterMidSave')
-                                : t(confirmKey)}
-                        </button>
+                        <div className="flex gap-3 w-full">
+                            <button
+                                type="button"
+                                onClick={submitIntent === 'MID_SAVE' ? onIntermediateSaveComplete : onRegisteredAndProceed}
+                                className={isWin98
+                                    ? 'flex-1 py-2 px-3 win98-menu-btn text-sm font-semibold'
+                                    : 'flex-1 py-4 rounded-2xl bg-gray-900 text-white font-bold text-lg shadow-lg hover:bg-gray-800 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200'}
+                            >
+                                {submitIntent === 'MID_SAVE'
+                                    ? t('modals:activeGameExit.continueAfterMidSave')
+                                    : t(confirmKey)}
+                            </button>
+                            {/* 작은 공유 아이콘 */}
+                            <button
+                                type="button"
+                                onClick={handleShare}
+                                disabled={isSharing}
+                                aria-label={t('common:share.button')}
+                                className={isWin98
+                                    ? 'px-3 py-2 win98-menu-btn text-sm'
+                                    : 'px-4 py-4 rounded-2xl border border-gray-200 bg-white text-gray-500 shadow-sm hover:bg-gray-50 hover:text-gray-900 disabled:opacity-50 active:scale-[0.97] transition-all duration-150'}
+                            >
+                                <Share2 size={20} />
+                            </button>
+                        </div>
+                        {shareToast && (
+                            <p className="text-xs text-green-600 font-medium">{shareToast}</p>
+                        )}
                     </div>
                 )}
                 </div>

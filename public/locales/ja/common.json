@@ -36,5 +36,13 @@
     "close": "閉じる",
     "selectTile": "タイル{{value}}を選択",
     "rotateBlock": "ブロックを回転"
+  },
+  "share": {
+    "button": "共有する",
+    "sharing": "共有中...",
+    "brag": "友達に自慢する",
+    "shared": "共有しました！",
+    "downloaded": "画像を保存しました！",
+    "copied": "テキストをコピーしました！"
   }
 }

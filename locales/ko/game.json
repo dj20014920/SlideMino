@@ -46,7 +46,9 @@
     "customization": "블럭 커스터마이징",
     "leaderboard": "랭킹 보기",
     "locked": "잠김",
-    "customize": "꾸미기"
+    "customize": "꾸미기",
+    "skin": "스킨",
+    "skinDescription": "컬렉션"
   },
   "rewardAd": {
     "watchButton": "충전",
@@ -84,5 +86,144 @@
   "dailyChallenge": {
     "menuButton": "오늘의 챌린지",
     "banner": "데일리 챌린지"
+  },
+  "weeklyEvent": {
+    "menuButton": "주간 이벤트",
+    "menuTag": "EVENT",
+    "remaining": "남음",
+    "myBest": "내 최고점",
+    "myRank": "내 순위",
+    "rankings": "이벤트 랭킹",
+    "start": "도전 시작",
+    "continueGame": "이어하기",
+    "newAttempt": "새 도전",
+    "maxAttempts": "3회 도전 완료",
+    "claimReward": "참여 보상 받기",
+    "tags": {
+      "noRotation": "회전 불가",
+      "scoreBoost": "점수 부스트",
+      "tripleKill": "트리플킬",
+      "minutes": "분",
+      "attempts": "{{current}}/{{max}}회"
+    },
+    "rewards": {
+      "participation": "참여 보상",
+      "top10": "TOP 10",
+      "first": "1위",
+      "fragments": "스킨 조각 {{count}}개",
+      "title": "칭호",
+      "specialTitle": "스페셜 칭호"
+    },
+    "events": {
+      "NO_ROTATION": {
+        "name": "🔒 회전 금지",
+        "desc": "블록 회전이 비활성화됩니다. 주어진 형태 그대로 배치하세요!"
+      },
+      "BURNING": {
+        "name": "🔥 버닝 이벤트",
+        "desc": "점수 1.5배! 뜨거운 점수 경쟁을 즐기세요."
+      },
+      "PLUS_RUSH": {
+        "name": "➕ 플러스 러시",
+        "desc": "+자 블록이 높은 확률로 등장합니다. 전략적으로 활용하세요!"
+      },
+      "EXPERT_4X4": {
+        "name": "💀 익스퍼트 4×4",
+        "desc": "좁은 4×4 보드에서 최고 점수를 노려보세요."
+      },
+      "SPEED_RUN": {
+        "name": "⚡ 스피드런",
+        "desc": "15분 안에 최고 점수를 달성하세요!"
+      },
+      "TRIPLE_KILL": {
+        "name": "💥 트리플킬",
+        "desc": "3개 이상 동시 병합 시 +333점 보너스!"
+      },
+      "I_BLOCK_RUSH": {
+        "name": "📏 I블록 러시",
+        "desc": "I블록이 3배 자주 등장합니다. I블록 마스터가 되어보세요!"
+      },
+      "PLAINS_10X10": {
+        "name": "🌾 대평원 10×10",
+        "desc": "넓디넓은 10×10 보드에서 대작전을 펼쳐보세요."
+      }
+    }
+  },
+  "missions": {
+    "title": "미션",
+    "daily": "일일 미션",
+    "weekly": "주간 미션",
+    "dailyReset": "{{time}} 후 리셋",
+    "weeklyReset": "{{time}} 후 리셋",
+    "claim": "보상 받기",
+    "reroll": "다시 굴리기",
+    "rerollHint": "하루 1회 무료 다시 굴리기",
+    "allComplete": "모든 미션 달성!",
+    "claimBonus": "보너스 받기",
+    "bonusClaimed": "보너스 수령 완료",
+    "completed": "달성!",
+    "rewardToast": "스킨 조각 {{amount}}개 획득!",
+    "pool": {
+      "e_score_300": "점수 300점 획득하기",
+      "e_score_500": "점수 500점 획득하기",
+      "e_score_1000": "점수 1,000점 획득하기",
+      "e_block_i_3": "I 블록 3번 배치하기",
+      "e_block_o_3": "O 블록 3번 배치하기",
+      "e_block_t_3": "T 블록 3번 배치하기",
+      "e_block_s_3": "S 블록 3번 배치하기",
+      "e_block_z_3": "Z 블록 3번 배치하기",
+      "e_block_j_3": "J 블록 3번 배치하기",
+      "e_block_l_3": "L 블록 3번 배치하기",
+      "e_slide_10": "슬라이드 10번 하기",
+      "e_slide_15": "슬라이드 15번 하기",
+      "e_submit": "랭킹 반영하기",
+      "e_share": "친구에게 점수 공유하기",
+      "e_game_1": "게임 1판 완료하기",
+      "e_game_2": "게임 2판 완료하기",
+      "e_place_10": "블록 10개 배치하기",
+      "e_place_15": "블록 15개 배치하기",
+      "e_all_dirs": "4방향 모두 슬라이드하기",
+      "e_tile_16": "16 타일 만들기",
+      "m_tile_256": "256 타일 만들기",
+      "m_tile_128": "128 타일 만들기",
+      "m_tile_64": "64 타일 만들기",
+      "m_merge_2": "한 슬라이드에서 2개 동시 병합",
+      "m_score_3000": "3,000점 획득하기",
+      "m_score_5000": "5,000점 획득하기",
+      "m_score_7000": "7,000점 획득하기",
+      "m_no_rot_3": "회전 없이 블록 3개 연속 배치",
+      "m_no_rot_5": "회전 없이 블록 5개 연속 배치",
+      "m_block_t_5": "T 블록 5번 사용하기",
+      "m_block_i_5": "I 블록 5번 사용하기",
+      "m_block_o_5": "O 블록 5번 사용하기",
+      "m_block_s_5": "S 블록 5번 사용하기",
+      "m_block_j_5": "J 블록 5번 사용하기",
+      "m_block_l_5": "L 블록 5번 사용하기",
+      "m_place_30": "블록 30개 배치하기",
+      "m_place_40": "블록 40개 배치하기",
+      "m_slide_30": "슬라이드 30번 하기",
+      "m_slide_50": "슬라이드 50번 하기",
+      "m_game_3": "게임 3판 완료하기",
+      "h_tile_512": "512 타일 만들기",
+      "h_tile_1024": "1024 타일 만들기",
+      "h_tile_2048": "2048 타일 만들기",
+      "h_merge_3": "한 슬라이드에서 3개 동시 병합",
+      "h_merge_4": "한 슬라이드에서 4개 동시 병합",
+      "h_score_10000": "10,000점 획득하기",
+      "h_score_15000": "15,000점 획득하기",
+      "h_score_20000": "20,000점 획득하기",
+      "h_score_25000": "25,000점 획득하기",
+      "h_score_30000": "30,000점 획득하기",
+      "h_no_tools_5000": "도구 미사용 5,000점 달성",
+      "h_no_tools_10000": "도구 미사용 10,000점 달성",
+      "h_no_tools_15000": "도구 미사용 15,000점 달성",
+      "h_no_rot_10": "회전 없이 블록 10개 연속 배치",
+      "h_place_50": "블록 50개 배치하기",
+      "h_slide_80": "슬라이드 80번 하기",
+      "h_slide_100": "슬라이드 100번 하기",
+      "h_game_5": "게임 5판 완료하기",
+      "h_block_i_10": "I 블록 10번 배치하기",
+      "h_block_t_10": "T 블록 10번 배치하기"
+    }
   }
 }

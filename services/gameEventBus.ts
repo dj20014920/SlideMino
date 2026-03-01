@@ -11,6 +11,7 @@
 
 import type { ShapeType, BoardSize, GameMode } from '../types';
 import type { MissionCompleteInfo, MissionProgressInfo } from './missionService';
+import type { LevelBadge } from './xpLevelService';
 
 // ====== 이벤트 타입 정의 ======
 
@@ -83,6 +84,23 @@ export interface GameEventMap {
 
   /** 미션 진행도 알림 (점수 미션 등의 비침습적 표시) */
   MISSION_PROGRESS: MissionProgressInfo;
+
+  // ─── XP/레벨 시스템 이벤트 ───
+
+  /** XP 획득됨 */
+  XP_GAINED: {
+    amount: number;
+    source: string;
+    newLevel: number;
+  };
+
+  /** 레벨업 달성 */
+  LEVEL_UP: {
+    level: number;
+    fragments: number;
+    badge: LevelBadge | null;
+    special: string | null;
+  };
 }
 
 // ====== 이벤트 핸들러 타입 ======

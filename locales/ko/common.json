@@ -55,5 +55,47 @@
     "shared": "공유되었어요!",
     "downloaded": "이미지가 저장되었어요!",
     "copied": "텍스트가 복사되었어요!"
+  },
+  "xp": {
+    "title": "레벨 & XP",
+    "level": "Lv.{{level}}",
+    "season": "시즌 {{season}}",
+    "seasonRemaining": "시즌 종료까지 {{days}}일",
+    "xpProgress": "{{current}} / {{required}} XP",
+    "badges": "레벨 배지",
+    "honorLevels": "명예 레벨",
+    "weeklyXp": "이번 주 XP",
+    "todayLog": "오늘의 XP 기록",
+    "noLog": "아직 기록이 없어요",
+    "roadmap": "레벨 로드맵",
+    "pendingRewards": "미수령 보상",
+    "claimReward": "보상 수령",
+    "rewardClaimed": "보상을 수령했어요!",
+    "fragments": "조각 {{count}}개",
+    "specialReward": "스페셜 보상",
+    "featureUnlocked": {
+      "streak": "연속 출석이 해금되었어요!",
+      "daily_mission": "일일 미션이 해금되었어요!",
+      "daily_challenge": "데일리 챌린지가 해금되었어요!",
+      "weekly_event": "주간 이벤트가 해금되었어요!",
+      "share_card": "공유 카드가 해금되었어요!",
+      "calendar": "캘린더가 해금되었어요!"
+    }
+  },
+  "calendar": {
+    "title": "이번 주 일정",
+    "noItems": "이번 주 일정이 없어요",
+    "urgent": "긴급",
+    "attendance": "출석 체크",
+    "attendanceComplete": "오늘 출석 완료!",
+    "attendanceIncomplete": "100점 이상 획득 시 인정",
+    "dailyMission": "일일 미션",
+    "missionAllComplete": "모든 미션 완료!",
+    "missionProgress": "진행 중...",
+    "dailyChallenge": "데일리 챌린지",
+    "weeklyEvent": "주간 이벤트",
+    "seasonEnd": "시즌 종료 임박",
+    "seasonEndDesc": "시즌이 곷 종료됩니다",
+    "weeklyMission": "주간 미션"
   }
 }

@@ -44,5 +44,47 @@
     "shared": "共有しました！",
     "downloaded": "画像を保存しました！",
     "copied": "テキストをコピーしました！"
+  },
+  "xp": {
+    "title": "レベル & XP",
+    "level": "Lv.{{level}}",
+    "season": "シーズン {{season}}",
+    "seasonRemaining": "シーズン終了まで{{days}}日",
+    "xpProgress": "{{current}} / {{required}} XP",
+    "badges": "レベルバッジ",
+    "honorLevels": "名誉レベル",
+    "weeklyXp": "今週のXP",
+    "todayLog": "今日のXP記録",
+    "noLog": "まだ記録がありません",
+    "roadmap": "レベルロードマップ",
+    "pendingRewards": "未受取報酬",
+    "claimReward": "受け取る",
+    "rewardClaimed": "報酬を受け取りました！",
+    "fragments": "かけら{{count}}個",
+    "specialReward": "スペシャル報酬",
+    "featureUnlocked": {
+      "streak": "連続出席が解放されました！",
+      "daily_mission": "デイリーミッションが解放されました！",
+      "daily_challenge": "デイリーチャレンジが解放されました！",
+      "weekly_event": "ウィークリーイベントが解放されました！",
+      "share_card": "シェアカードが解放されました！",
+      "calendar": "カレンダーが解放されました！"
+    }
+  },
+  "calendar": {
+    "title": "今週のスケジュール",
+    "noItems": "今週の予定はありません",
+    "urgent": "緊急",
+    "attendance": "出席チェック",
+    "attendanceComplete": "今日の出席完了！",
+    "attendanceIncomplete": "100点以上で出席認定",
+    "dailyMission": "デイリーミッション",
+    "missionAllComplete": "全ミッション完了！",
+    "missionProgress": "進行中...",
+    "dailyChallenge": "デイリーチャレンジ",
+    "weeklyEvent": "ウィークリーイベント",
+    "seasonEnd": "シーズン終了間近",
+    "seasonEndDesc": "シーズンがもうすぐ終了します",
+    "weeklyMission": "ウィークリーミッション"
   }
 }

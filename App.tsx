@@ -145,6 +145,27 @@ import {
   type WeeklyEventRule,
   EVENT_RULES,
 } from './services/weeklyEventService';
+import {
+  initXpTracking,
+  getXpProgress,
+  grantXpStreak,
+  grantXpWeeklyEvent,
+  grantXpSkinAcquired,
+  loadXpData,
+  type XpGainResult,
+  type LevelUpReward,
+} from './services/xpLevelService';
+import { getCalendarItems } from './services/calendarService';
+import {
+  recordGameCompleted as recordOnboardingGame,
+  checkLevelUnlocks,
+  isFeatureUnlocked,
+  getUnnotifiedFeatures,
+  markFeatureNotified,
+  type FeatureId,
+} from './services/onboardingService';
+import { XpLevelModal } from './components/XpLevelModal';
+import { CalendarModal, CalendarCard } from './components/CalendarModal';
 
 const EMPTY_TILE_VALUE_OVERRIDES: Record<string, number> = {};
 const EMPTY_MERGING_TILES: MergingTile[] = [];
@@ -628,6 +649,38 @@ const App: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ===== XP/레벨 시스템 초기화 =====
+  useEffect(() => {
+    initXpTracking();
+
+    const refreshXpUI = () => {
+      const p = getXpProgress();
+      setXpLevel(p.level);
+      setXpPercent(p.requiredXp > 0 ? Math.floor((p.currentXpInLevel / p.requiredXp) * 100) : 0);
+    };
+
+    const unsubXp = gameEventBus.on('XP_GAINED', () => {
+      refreshXpUI();
+    });
+
+    const unsubLevelUp = gameEventBus.on('LEVEL_UP', (info) => {
+      refreshXpUI();
+      showComboMessage(`⬆️ Lv.${info.level}! ${info.fragments > 0 ? `+${info.fragments} ✦` : ''}`, 3000);
+
+      // 온보딩: 레벨업 시 새로운 기능 해금 체크
+      const newlyUnlocked = checkLevelUnlocks();
+      newlyUnlocked.forEach(featureId => {
+        setTimeout(() => {
+          showComboMessage(`🔓 ${t(`common:xp.featureUnlocked.${featureId}` as any)}`, 3000);
+          markFeatureNotified(featureId as FeatureId);
+        }, 3500);
+      });
+    });
+
+    return () => { unsubXp(); unsubLevelUp(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Fake loading delay for the premium feel
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -786,6 +839,15 @@ const App: React.FC = () => {
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false);
   const [dailyMissionCompleted, setDailyMissionCompleted] = useState(() => getDailyCompletedCount());
   const missionProgressThrottleRef = useRef(0);
+
+  // ===== XP/레벨 + 캘린더 상태 =====
+  const [isXpModalOpen, setIsXpModalOpen] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [xpLevel, setXpLevel] = useState(() => loadXpData().level);
+  const [xpPercent, setXpPercent] = useState(() => {
+    const p = getXpProgress();
+    return p.requiredXp > 0 ? Math.floor((p.currentXpInLevel / p.requiredXp) * 100) : 0;
+  });
 
   // ===== 데일리 챌린지 상태 =====
   const [gameMode, setGameMode] = useState<GameMode>('normal');
@@ -1985,6 +2047,17 @@ const App: React.FC = () => {
         setStreakCount(result.currentStreak);
         setTodayAttended(true);
         showComboMessage(String(t('common:streak.todayComplete', { count: result.currentStreak } as any)), 3000);
+
+        // 출석 XP 지급
+        grantXpStreak(result.currentStreak);
+        // 온보딩: 게임 완료 기록
+        const newFeatures = recordOnboardingGame();
+        newFeatures.forEach(f => {
+          setTimeout(() => {
+            showComboMessage(`🔓 ${t(`common:xp.featureUnlocked.${f}` as any)}`, 3000);
+            markFeatureNotified(f as FeatureId);
+          }, 6000);
+        });
 
         // 프리즈 지급 안내
         if (result.freezeGranted) {
@@ -3335,6 +3408,20 @@ const App: React.FC = () => {
         </div>
 
         <div className="field-row">
+          <input id="menu-action-xplevel" type="radio" name={premiumMenuActionRadioGroupName} onClick={() => setIsXpModalOpen(true)} readOnly />
+          <label htmlFor="menu-action-xplevel">
+            ⭐ Lv.{xpLevel} ({xpPercent}%)
+          </label>
+        </div>
+
+        <div className="field-row">
+          <input id="menu-action-calendar" type="radio" name={premiumMenuActionRadioGroupName} onClick={() => setIsCalendarOpen(true)} readOnly />
+          <label htmlFor="menu-action-calendar">
+            📅 {t('common:calendar.title')}
+          </label>
+        </div>
+
+        <div className="field-row">
           <input id="menu-action-replay" type="radio" name={premiumMenuActionRadioGroupName} onClick={handleReplayTutorial} readOnly />
           <label htmlFor="menu-action-replay">{t('common:actions.replayTutorial', '튜토리얼 다시보기')}</label>
         </div>
@@ -3684,6 +3771,59 @@ const App: React.FC = () => {
           <span className="text-gray-400 font-normal text-sm">{dailyMissionCompleted}/3</span>
         </button>
 
+        {/* XP/레벨 버튼 */}
+        <button
+          onClick={() => setIsXpModalOpen(true)}
+          className={`
+          relative group w-full py-3.5 px-6 rounded-2xl win98-menu-btn
+          bg-white/60 backdrop-blur-sm
+          border border-white/50
+          shadow-lg
+          hover:shadow-xl hover:-translate-y-0.5
+          active:translate-y-0 active:shadow-md
+          transition-all duration-200 ease-out
+          text-gray-800 font-semibold text-base
+          flex items-center justify-between
+        `}
+        >
+          <span className="flex items-center gap-2">
+            ⭐ Lv.{xpLevel}
+          </span>
+          <span className="text-gray-400 font-normal text-sm">
+            <span className="inline-block w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden align-middle mr-1">
+              <span className="block h-full bg-blue-500 rounded-full" style={{ width: `${xpPercent}%` }} />
+            </span>
+            {xpPercent}%
+          </span>
+        </button>
+
+        {/* 캘린더 버튼 */}
+        <button
+          onClick={() => setIsCalendarOpen(true)}
+          className={`
+          relative group w-full py-3.5 px-6 rounded-2xl win98-menu-btn
+          bg-white/60 backdrop-blur-sm
+          border border-white/50
+          shadow-lg
+          hover:shadow-xl hover:-translate-y-0.5
+          active:translate-y-0 active:shadow-md
+          transition-all duration-200 ease-out
+          text-gray-800 font-semibold text-base
+          flex items-center justify-between
+        `}
+        >
+          <span className="flex items-center gap-2">
+            📅 {t('common:calendar.title')}
+          </span>
+          <span className="text-gray-400 font-normal text-sm">
+            {getCalendarItems().filter(i => !i.isCompleted).length > 0 && (
+              <span className="inline-flex items-center justify-center w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full">
+                {getCalendarItems().filter(i => !i.isCompleted).length}
+              </span>
+            )}
+          </span>
+        </button>
+
         {!isWin98ThemeActive && <LanguageSwitcher />}
 
         <button
@@ -3918,6 +4058,25 @@ const App: React.FC = () => {
             onRewardClaimed={(fragments) => {
               showComboMessage(`✦ ${t('game:missions.rewardToast', { amount: fragments } as any)}`, 2500);
               setDailyMissionCompleted(getDailyCompletedCount());
+            }}
+          />
+
+          <XpLevelModal
+            open={isXpModalOpen}
+            onClose={() => setIsXpModalOpen(false)}
+            onSpecialRewardClaim={(reward) => {
+              showComboMessage(`🎁 ${t('common:xp.rewardClaimed' as any)}`, 2500);
+            }}
+          />
+
+          <CalendarModal
+            open={isCalendarOpen}
+            onClose={() => setIsCalendarOpen(false)}
+            onAction={(action) => {
+              if (action === 'streak') setIsStreakInfoOpen(true);
+              else if (action === 'mission') { setIsMissionModalOpen(true); setDailyMissionCompleted(getDailyCompletedCount()); }
+              else if (action === 'daily_challenge') startDailyChallenge();
+              else if (action === 'weekly_event') setIsWeeklyEventModalOpen(true);
             }}
           />
         </div>

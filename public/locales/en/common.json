@@ -48,5 +48,47 @@
     "shared": "Shared!",
     "downloaded": "Image saved!",
     "copied": "Text copied!"
+  },
+  "xp": {
+    "title": "Level & XP",
+    "level": "Lv.{{level}}",
+    "season": "Season {{season}}",
+    "seasonRemaining": "{{days}} days until season ends",
+    "xpProgress": "{{current}} / {{required}} XP",
+    "badges": "Level Badges",
+    "honorLevels": "Honor Levels",
+    "weeklyXp": "This Week's XP",
+    "todayLog": "Today's XP Log",
+    "noLog": "No records yet",
+    "roadmap": "Level Roadmap",
+    "pendingRewards": "Unclaimed Rewards",
+    "claimReward": "Claim",
+    "rewardClaimed": "Reward claimed!",
+    "fragments": "{{count}} fragments",
+    "specialReward": "Special Reward",
+    "featureUnlocked": {
+      "streak": "Daily Streak unlocked!",
+      "daily_mission": "Daily Missions unlocked!",
+      "daily_challenge": "Daily Challenge unlocked!",
+      "weekly_event": "Weekly Event unlocked!",
+      "share_card": "Share Card unlocked!",
+      "calendar": "Calendar unlocked!"
+    }
+  },
+  "calendar": {
+    "title": "This Week",
+    "noItems": "No events this week",
+    "urgent": "Urgent",
+    "attendance": "Attendance Check",
+    "attendanceComplete": "Today's attendance done!",
+    "attendanceIncomplete": "Score 100+ to check in",
+    "dailyMission": "Daily Missions",
+    "missionAllComplete": "All missions done!",
+    "missionProgress": "In progress...",
+    "dailyChallenge": "Daily Challenge",
+    "weeklyEvent": "Weekly Event",
+    "seasonEnd": "Season Ending Soon",
+    "seasonEndDesc": "Season is about to end",
+    "weeklyMission": "Weekly Missions"
   }
 }

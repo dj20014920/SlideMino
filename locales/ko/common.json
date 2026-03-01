@@ -142,5 +142,9 @@
     "missionEvening": "오늘의 미션이 아직 완료되지 않았어요!",
     "settingsTitle": "알림 설정",
     "enabled": "푸시 알림 활성화"
+  },
+  "app": {
+    "title": "블록 슬라이드",
+    "subtitle": "(Block Slide)"
   }
 }

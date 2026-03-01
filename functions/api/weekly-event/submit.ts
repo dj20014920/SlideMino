@@ -29,6 +29,24 @@ const EVENT_TIME_LIMITS: Record<string, number> = {
 const DEFAULT_TIME_LIMIT = 1800; // 30분
 const TIMER_TOLERANCE_SEC = 30;  // 네트워크 지연 여유
 
+/** 유효 이벤트 타입 화이트리스트 */
+const VALID_EVENT_TYPES = [
+  'NO_ROTATION', 'BURNING', 'PLUS_RUSH', 'EXPERT_4X4',
+  'SPEED_RUN', 'TRIPLE_KILL', 'I_BLOCK_RUSH', 'PLAINS_10X10',
+] as const;
+
+/** 이벤트 타입별 보드 크기 (difficulty) */
+const EVENT_BOARD_SIZE: Record<string, '4' | '5' | '10'> = {
+  NO_ROTATION: '5',
+  BURNING: '5',
+  PLUS_RUSH: '5',
+  EXPERT_4X4: '4',
+  SPEED_RUN: '5',
+  TRIPLE_KILL: '5',
+  I_BLOCK_RUSH: '5',
+  PLAINS_10X10: '10',
+};
+
 /** 이벤트 타입별 점수 배율 (BURNING=1.5x, TRIPLE_KILL=~1.3x 보정) */
 const EVENT_SCORE_MULTIPLIER: Record<string, number> = {
   BURNING: 1.5,
@@ -79,6 +97,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       return errorResponse('Invalid event parameters', 400, corsHeaders);
     }
 
+    // 이벤트 타입 화이트리스트 검증
+    if (!(VALID_EVENT_TYPES as readonly string[]).includes(eventType)) {
+      return errorResponse('Invalid event type', 400, corsHeaders);
+    }
+
     const nameV = validateName(data.name);
     if (!nameV.valid) return errorResponse(nameV.error!, 400, corsHeaders);
     const name = nameV.sanitized!;
@@ -114,7 +137,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     // 이벤트 타입별 점수 일관성 검증
     const multiplier = EVENT_SCORE_MULTIPLIER[eventType] ?? 1;
-    const consistencyCheck = validateGameConsistency(score, '5', duration, moves, multiplier);
+    const boardSize = EVENT_BOARD_SIZE[eventType] ?? '5';
+    const consistencyCheck = validateGameConsistency(score, boardSize, duration, moves, multiplier);
     if (!consistencyCheck.valid) {
       return errorResponse(consistencyCheck.error ?? 'Inconsistent game data', 403, corsHeaders);
     }

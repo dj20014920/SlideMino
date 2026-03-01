@@ -142,5 +142,9 @@
     "missionEvening": "Today's missions are not completed yet!",
     "settingsTitle": "Notification Settings",
     "enabled": "Enable push notifications"
+  },
+  "app": {
+    "title": "Block Slide",
+    "subtitle": ""
   }
 }

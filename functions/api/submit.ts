@@ -160,11 +160,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       ? await hashInstallId(data.installId, env.ANALYTICS_HASH_SALT)
       : null;
 
-    // ========== 플랫폼 식별 (웹 유저 보상 차단용) ==========
-    const VALID_PLATFORMS = ['android', 'ios', 'web'];
-    const platform = typeof data.platform === 'string' && VALID_PLATFORMS.includes(data.platform)
-      ? data.platform
-      : null;
+    // ========== 플랫폼 식별 (서버 추론 — User-Agent 기반) ==========
+    const ua = request.headers.get('User-Agent') ?? '';
+    const platform: string = /Android/i.test(ua)
+      ? 'android'
+      : /iPhone|iPad|iPod/i.test(ua)
+        ? 'ios'
+        : 'web';
 
     // ========== 데이터베이스 저장 (D1 batch: UNIQUE 제약 없이 원자적 동작) ==========
     // D1 batch()는 단일 트랜잭션으로 실행되어 레이스 컨디션을 방지한다.

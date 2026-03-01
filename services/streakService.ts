@@ -169,17 +169,25 @@ export function checkAndUpdateStreak(now: Date = getServerAdjustedNow()): Streak
   }
 
   // 빠진 날이 있음 → 프리즈 처리
-  if (data.autoFreezeEnabled && data.freezeCount >= missedDays) {
-    // 프리즈로 커버 가능
-    data.freezeCount -= missedDays;
+  if (data.autoFreezeEnabled && data.freezeCount > 0) {
+    const daysToFreeze = Math.min(data.freezeCount, missedDays);
+    const unfrozenDays = missedDays - daysToFreeze;
+    data.freezeCount -= daysToFreeze;
+
+    if (unfrozenDays === 0) {
+      // 프리즈로 모든 빠진 날 커버 → 스트릭 유지
+      saveStreakData(data);
+      return { streakBroken: false, freezeUsed: daysToFreeze, currentStreak: data.currentStreak, freezeCount: data.freezeCount };
+    }
+
+    // 일부만 커버 → 프리즈 소모 후 스트릭 리셋
+    data.currentStreak = 0;
     saveStreakData(data);
-    return { streakBroken: false, freezeUsed: missedDays, currentStreak: data.currentStreak, freezeCount: data.freezeCount };
+    return { streakBroken: true, freezeUsed: daysToFreeze, currentStreak: 0, freezeCount: data.freezeCount };
   }
 
-  // 프리즈 부족 또는 자동 사용 OFF → 스트릭 리셋
-  const oldStreak = data.currentStreak;
+  // 프리즈 없음 또는 자동 사용 OFF → 스트릭 리셋
   data.currentStreak = 0;
-  // 프리즈 개수는 유지 (리셋하지 않음)
   saveStreakData(data);
   return { streakBroken: true, freezeUsed: 0, currentStreak: 0, freezeCount: data.freezeCount };
 }

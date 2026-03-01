@@ -11,6 +11,7 @@ import { getKstDateString, isTodayAttended, loadStreakData } from './streakServi
 import { getCurrentEvent } from './weeklyEventService';
 import { getSeasonRemainingMs } from './xpLevelService';
 import { getDailyCompletedCount } from './missionService';
+import { getServerAdjustedNow } from './serverTimeService';
 
 // ====== 캘린더 항목 타입 ======
 
@@ -33,7 +34,7 @@ const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 /** 오늘 KST 자정의 UTC 타임스탬프 */
 function getTodayKstMidnightMs(): number {
-  const now = new Date();
+  const now = getServerAdjustedNow();
   const kst = new Date(now.getTime() + KST_OFFSET_MS);
   const y = kst.getUTCFullYear();
   const m = kst.getUTCMonth();
@@ -48,7 +49,7 @@ function getNextKstMidnightMs(): number {
 
 /** 다음 월요일 KST 00:00 타임스탬프 */
 function getNextMondayKstMs(): number {
-  const now = new Date();
+  const now = getServerAdjustedNow();
   const kst = new Date(now.getTime() + KST_OFFSET_MS);
   const day = kst.getUTCDay(); // 0=일, 1=월, ...
   const daysUntilMonday = day === 0 ? 1 : day === 1 ? 7 : 8 - day;
@@ -64,7 +65,7 @@ function getNextMondayKstMs(): number {
  * 최대 6개 항목 반환.
  */
 export function getCalendarItems(): CalendarItem[] {
-  const now = Date.now();
+  const now = getServerAdjustedNow().getTime();
   const items: CalendarItem[] = [];
 
   // 1. 출석 상태
@@ -160,7 +161,7 @@ export function getCalendarItems(): CalendarItem[] {
 
 /** 종료까지 남은 시간 포맷 (예: "2일 3시간", "5시간 20분") */
 export function formatTimeRemaining(endsAt: number): string {
-  const ms = Math.max(0, endsAt - Date.now());
+  const ms = Math.max(0, endsAt - getServerAdjustedNow().getTime());
   const totalMinutes = Math.floor(ms / 60000);
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;

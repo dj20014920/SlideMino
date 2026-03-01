@@ -138,5 +138,9 @@
     "missionEvening": "今日のミッションがまだ完了していません！",
     "settingsTitle": "通知設定",
     "enabled": "プッシュ通知を有効にする"
+  },
+  "app": {
+    "title": "ブロックスライド",
+    "subtitle": "(Block Slide)"
   }
 }

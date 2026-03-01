@@ -962,6 +962,7 @@ const App: React.FC = () => {
   const hoverGridPosRef = useRef<{ x: number; y: number } | null>(null);
   const swipeStartRef = useRef<{ x: number, y: number } | null>(null); // 스와이프 시작 좌표
   const slideLockRef = useRef(false); // state 반영 전에도 즉시 입력 차단
+  const executeSlideRef = useRef<((dir: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT') => void) | null>(null);
   const isReviveSelectionModeRef = useRef(false); // 부활 선택 모드 동기 가드 (state보다 먼저 반영)
   const mergeClearTimeoutRef = useRef<number | null>(null);
   const mergeFinalizeTimeoutRef = useRef<number | null>(null);
@@ -2156,7 +2157,7 @@ const App: React.FC = () => {
         : '';
 
       showComboMessage(
-        `운영자 선물 도착\\n스킨 ${grantedSkins}개 · 조각 ${grantedFragments}개${skinDetail}`,
+        `운영자 선물 도착\n스킨 ${grantedSkins}개 · 조각 ${grantedFragments}개${skinDetail}`,
         3200
       );
     }
@@ -2923,7 +2924,7 @@ const App: React.FC = () => {
         if (e.key === 'ArrowRight') dir = 'RIGHT';
 
         if (dir) {
-          executeSlide(dir);
+          executeSlideRef.current?.(dir);
         }
       }
     };
@@ -3066,6 +3067,9 @@ const App: React.FC = () => {
       }
     }, lockMs + 32);
   };
+
+  // Keep ref in sync so keyboard handler always uses latest closure
+  executeSlideRef.current = executeSlide;
 
   // --- Game Over Check ---
   useEffect(() => {

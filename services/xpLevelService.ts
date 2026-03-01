@@ -11,6 +11,7 @@
 import { gameEventBus } from './gameEventBus';
 import { addFragments, loadSkinSettings } from './skinService';
 import { getKstDateString } from './streakService';
+import { getServerAdjustedNow } from './serverTimeService';
 
 // ====== 상수 ======
 
@@ -37,7 +38,7 @@ const MAX_LEVEL = 50;
 // 시즌 = 3개월 (분기)
 // S1: 1-3월, S2: 4-6월, S3: 7-9월, S4: 10-12월
 function getCurrentSeasonId(): string {
-  const now = new Date();
+  const now = getServerAdjustedNow();
   const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
   const y = kst.getUTCFullYear();
   const m = kst.getUTCMonth(); // 0-based
@@ -47,7 +48,7 @@ function getCurrentSeasonId(): string {
 
 /** 현재 시즌 종료 날짜(KST) 반환 */
 export function getSeasonEndDate(): Date {
-  const now = new Date();
+  const now = getServerAdjustedNow();
   const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
   const y = kst.getUTCFullYear();
   const m = kst.getUTCMonth();
@@ -62,7 +63,7 @@ export function getSeasonEndDate(): Date {
 
 /** 시즌 종료까지 남은 밀리초 */
 export function getSeasonRemainingMs(): number {
-  return Math.max(0, getSeasonEndDate().getTime() - Date.now());
+  return Math.max(0, getSeasonEndDate().getTime() - getServerAdjustedNow().getTime());
 }
 
 // ====== 레벨 계산 ======
@@ -203,7 +204,7 @@ export function loadXpData(): XpData {
       data.totalXp = 0;
       data.badges = [];
       data.eventXpClaimedWeeks = [];
-      data.pendingSpecialRewards = [];
+      // pendingSpecialRewards는 시즌 전환 시에도 유지 — 미수령 보상 보존
       data.seasonId = currentSeason;
     }
 
@@ -356,14 +357,15 @@ export function grantXpWeeklyMission(): XpGainResult {
 export function grantXpWeeklyEvent(): XpGainResult {
   const data = loadXpData();
   // 이번 주 이미 수령했는지 확인
-  const now = new Date();
+  const now = getServerAdjustedNow();
   const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-  const year = kst.getUTCFullYear();
-  // ISO 주차 계산
-  const jan1 = new Date(Date.UTC(year, 0, 1));
-  const dayOfYear = Math.floor((kst.getTime() - jan1.getTime()) / (24 * 60 * 60 * 1000));
-  const weekNum = Math.ceil((dayOfYear + jan1.getUTCDay() + 1) / 7);
-  const weekKey = `${year}-W${weekNum}`;
+  // ISO 8601 주차 계산 (KST 기준)
+  const d = new Date(Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth(), kst.getUTCDate()));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  const isoYear = d.getUTCFullYear();
+  const yearStart = new Date(Date.UTC(isoYear, 0, 1));
+  const weekNum = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  const weekKey = `${isoYear}-W${weekNum}`;
 
   if (data.eventXpClaimedWeeks.includes(weekKey)) {
     return { xpGained: 0, source: 'event', newLevel: data.level, leveledUp: false, levelUpRewards: [] };
@@ -465,7 +467,7 @@ export function getWeeklyXpSummary(): { date: string; total: number }[] {
     map.set(entry.dateStr, (map.get(entry.dateStr) ?? 0) + entry.amount);
   }
   // 최근 7일 정렬
-  const today = new Date();
+  const today = getServerAdjustedNow();
   const result: { date: string; total: number }[] = [];
   for (let i = 6; i >= 0; i--) {
     const d = new Date(today.getTime() + 9 * 60 * 60 * 1000 - i * 24 * 60 * 60 * 1000);

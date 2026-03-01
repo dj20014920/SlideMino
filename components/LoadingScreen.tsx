@@ -1,5 +1,6 @@
 import React, { CSSProperties, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { TILE_COLORS } from '../constants';
 
 const CELL_SIZE = 64;
@@ -15,6 +16,7 @@ const CENTERED_TILE_STYLE: CSSProperties = {
 };
 
 export const LoadingScreen: React.FC = () => {
+    const { t } = useTranslation();
     // Animation phases: 0=Separate, 1=Merging, 2=Merged/Pulse
     const [phase, setPhase] = useState(0);
 
@@ -124,9 +126,10 @@ export const LoadingScreen: React.FC = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
                 >
-                    블록 슬라이드
-                    <br />
-                    <span className="text-xl">(Block Slide)</span>
+                    {t('common:app.title')}
+                    {t('common:app.subtitle') && (
+                      <><br /><span className="text-xl">{t('common:app.subtitle')}</span></>
+                    )}
                 </motion.h1>
 
                 {/* Subtitle / Loading Text with Pulse */}

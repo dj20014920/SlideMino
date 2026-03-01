@@ -146,7 +146,8 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
         </div>
 
         {/* 본문 */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+        <div className="relative flex-1 min-h-0">
+        <div className="h-full overflow-y-auto px-5 py-4 space-y-4">
 
           {/* 특별 보상 미수령 */}
           {pendingRewards.length > 0 && (
@@ -278,6 +279,9 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
               })}
             </div>
           </div>
+        </div>
+        {/* Scroll indicator gradient */}
+        <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none rounded-b-3xl" />
         </div>
       </div>
     </div>

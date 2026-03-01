@@ -83,7 +83,7 @@ const AdBanner: React.FC = () => {
             // @ts-ignore
             (window.adsbygoogle = window.adsbygoogle || []).push({});
         } catch (err) {
-            console.error('AdSense error:', err);
+            if (import.meta.env.DEV) console.error('AdSense error:', err);
         }
         const slotElement = adSlotRef.current;
         if (!slotElement || webImpressionTrackedRef.current) return;

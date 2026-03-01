@@ -138,5 +138,9 @@
     "missionEvening": "今天的任务还没完成哦！",
     "settingsTitle": "通知设置",
     "enabled": "启用推送通知"
+  },
+  "app": {
+    "title": "方块滑动",
+    "subtitle": "(Block Slide)"
   }
 }

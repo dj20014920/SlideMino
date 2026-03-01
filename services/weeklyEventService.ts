@@ -12,6 +12,7 @@ import { BoardSize, ShapeType, WeeklyEventType, Piece } from '../types';
 import { STANDARD_SHAPES } from '../constants';
 import { getRotatedCells } from './gameLogic';
 import { getAnalyticsInstallId } from './analyticsService';
+import { getServerAdjustedNow } from './serverTimeService';
 
 // ============================================
 // 이벤트 정의 & 스케줄
@@ -175,7 +176,7 @@ const EPOCH_MONDAY_UTC = Date.UTC(2026, 0, 4, 15, 0, 0);
 
 /** KST 기준 현재 시각 ms */
 function nowKstMs(): number {
-  return Date.now() + KST_OFFSET_MS;
+  return getServerAdjustedNow().getTime() + KST_OFFSET_MS;
 }
 
 /** KST 기준 현재 시각의 Date 객체 (UTC 필드가 KST 값) */
@@ -186,7 +187,7 @@ function nowKstDate(): Date {
 /** 현재 이벤트 주차 인덱스 (0부터) */
 function getCurrentWeekIndex(): number {
   const msPerWeek = 7 * 24 * 60 * 60 * 1000;
-  return Math.floor((Date.now() - EPOCH_MONDAY_UTC) / msPerWeek);
+  return Math.floor((getServerAdjustedNow().getTime() - EPOCH_MONDAY_UTC) / msPerWeek);
 }
 
 /** 현재 주의 월요일 00:00 KST (UTC ms) */
@@ -238,7 +239,7 @@ export function getCurrentEvent(): CurrentEventInfo {
     eventId,
     startsAt,
     endsAt,
-    remainingMs: Math.max(0, endsAt - Date.now()),
+    remainingMs: Math.max(0, endsAt - getServerAdjustedNow().getTime()),
   };
 }
 

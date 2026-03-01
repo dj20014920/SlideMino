@@ -14,6 +14,7 @@ import { gameEventBus, type GameEventMap } from './gameEventBus';
 import { addFragments } from './skinService';
 import { mulberry32 } from './prng';
 import { getKstDateString } from './streakService';
+import { getServerAdjustedNow } from './serverTimeService';
 
 // ====== 상수 ======
 
@@ -204,7 +205,7 @@ const DEFAULT_STATE: MissionState = {
 // ====== 유틸 함수 ======
 
 /** KST 기준 이번 주 월요일 날짜 문자열 반환 */
-function getKstMondayString(now: Date = new Date()): string {
+function getKstMondayString(now: Date = getServerAdjustedNow()): string {
   const kst = new Date(now.getTime() + KST_OFFSET_MS);
   const dayOfWeek = kst.getUTCDay(); // 0=일, 1=월, ..., 6=토
   const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
@@ -766,7 +767,7 @@ export function refreshMissions(): void {
 
 /** 주간 미션 남은 시간 (밀리초) */
 export function getWeeklyTimeRemainingMs(): number {
-  const now = new Date();
+  const now = getServerAdjustedNow();
   const kst = new Date(now.getTime() + KST_OFFSET_MS);
   const dayOfWeek = kst.getUTCDay();
   const daysUntilMonday = dayOfWeek === 0 ? 1 : (8 - dayOfWeek);
@@ -780,7 +781,7 @@ export function getWeeklyTimeRemainingMs(): number {
 
 /** 일일 미션 남은 시간 (밀리초) */
 export function getDailyTimeRemainingMs(): number {
-  const now = new Date();
+  const now = getServerAdjustedNow();
   const kst = new Date(now.getTime() + KST_OFFSET_MS);
   const tomorrow = new Date(kst.getTime());
   tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);

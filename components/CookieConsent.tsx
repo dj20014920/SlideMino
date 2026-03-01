@@ -46,7 +46,7 @@ export const CookieConsent: React.FC = () => {
   if (!showBanner) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 animate-slide-up">
+    <div className="fixed bottom-0 left-0 right-0 z-40 animate-slide-up">
       <div className="mx-auto w-full max-w-2xl px-4 pb-4">
         <div className="rounded-2xl border border-white/50 bg-white/80 backdrop-blur-glass shadow-glass p-4 md:p-5 text-sm text-gray-700 win98-window" data-win98-surface="true">
           <div className="font-semibold text-gray-900 mb-2">{t('modals:cookie.title')}</div>

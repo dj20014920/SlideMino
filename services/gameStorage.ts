@@ -9,10 +9,13 @@
 
 import { Grid, Piece, Phase, BoardSize, GameState, GameMode } from '../types';
 import { INITIAL_BLOCK_REFRESH_AMOUNT, INITIAL_UNDO_AMOUNT } from '../constants';
+import { getTurnActionAvailability } from './gameLogic';
 
-// 로컬 스토리지 키
+// 로컬 스토리지 키 — 모드별 독립 슬롯
 const GAME_STATE_STORAGE_KEY = 'slidemino_game_state_v1';
 const GAME_STATE_BACKUP_STORAGE_KEY = 'slidemino_game_state_backup_v1';
+const DAILY_CHALLENGE_STORAGE_KEY = 'slidemino_daily_game_state_v1';
+const DAILY_CHALLENGE_BACKUP_STORAGE_KEY = 'slidemino_daily_game_state_backup_v1';
 const VALID_BOARD_SIZES: BoardSize[] = [4, 5, 7, 8, 10];
 
 export interface StoredUndoSnapshot {
@@ -255,9 +258,88 @@ export function clearGameState(): void {
 }
 
 /**
- * 진행중인 게임이 있는지 확인합니다.
+ * 진행중인 일반 게임이 있는지 확인합니다.
  */
 export function hasActiveGame(): boolean {
     const saved = loadGameState();
-    return saved?.gameState === GameState.PLAYING;
+    if (!saved || saved.gameState !== GameState.PLAYING) return false;
+    if (!isResumableSavedState(saved)) {
+        clearGameState();
+        return false;
+    }
+    return true;
+}
+
+const isResumableSavedState = (saved: SavedGameState, disableRotation = false): boolean => {
+    if (saved.gameState !== GameState.PLAYING) return false;
+    const availability = getTurnActionAvailability(saved.grid, saved.slots, disableRotation);
+    if (saved.phase === Phase.PLACE) {
+        return !availability.isGameOver;
+    }
+    if (saved.phase === Phase.SLIDE) {
+        // SLIDE 단계에서도 더 이상 스와이프/배치가 모두 불가능하면 실질적 게임오버 상태.
+        return availability.canSwipe || availability.canPlace;
+    }
+    return true;
+};
+
+/**
+ * 일반 모드 세이브의 보드 크기를 반환합니다 (없으면 null).
+ */
+export function getActiveNormalGameBoardSize(): BoardSize | null {
+    const saved = loadGameState();
+    if (saved?.gameState === GameState.PLAYING && (saved?.gameMode ?? 'normal') === 'normal') {
+        if (!isResumableSavedState(saved)) {
+            clearGameState();
+            return null;
+        }
+        return saved.boardSize;
+    }
+    return null;
+}
+
+// ====== 데일리 챌린지 전용 저장 슬롯 ======
+
+export function saveDailyChallengeState(state: Omit<SavedGameState, 'version' | 'savedAt'>): void {
+    try {
+        const savedState: SavedGameState = { ...state, version: 1, savedAt: Date.now() };
+        const serialized = JSON.stringify(savedState);
+        localStorage.setItem(DAILY_CHALLENGE_STORAGE_KEY, serialized);
+        localStorage.setItem(DAILY_CHALLENGE_BACKUP_STORAGE_KEY, serialized);
+    } catch (e) {
+        console.warn('[GameStorage] 데일리 챌린지 저장 실패:', e);
+    }
+}
+
+export function loadDailyChallengeState(): SavedGameState | null {
+    try {
+        const primary = parseSavedGameState(localStorage.getItem(DAILY_CHALLENGE_STORAGE_KEY));
+        if (primary) return primary;
+        const backup = parseSavedGameState(localStorage.getItem(DAILY_CHALLENGE_BACKUP_STORAGE_KEY));
+        if (!backup) return null;
+        localStorage.setItem(DAILY_CHALLENGE_STORAGE_KEY, JSON.stringify(backup));
+        return backup;
+    } catch (e) {
+        console.warn('[GameStorage] 데일리 챌린지 로드 실패:', e);
+        return null;
+    }
+}
+
+export function clearDailyChallengeState(): void {
+    try {
+        localStorage.removeItem(DAILY_CHALLENGE_STORAGE_KEY);
+        localStorage.removeItem(DAILY_CHALLENGE_BACKUP_STORAGE_KEY);
+    } catch (e) {
+        console.warn('[GameStorage] 데일리 챌린지 삭제 실패:', e);
+    }
+}
+
+export function hasActiveDailyChallenge(): boolean {
+    const saved = loadDailyChallengeState();
+    if (!saved || saved.gameMode !== 'daily_challenge') return false;
+    if (!isResumableSavedState(saved)) {
+        clearDailyChallengeState();
+        return false;
+    }
+    return true;
 }

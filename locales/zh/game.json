@@ -85,7 +85,8 @@
   },
   "dailyChallenge": {
     "menuButton": "今日挑战",
-    "banner": "每日挑战"
+    "banner": "每日挑战",
+    "fetchFailed": "无法连接服务器，请检查网络连接。"
   },
   "weeklyEvent": {
     "menuButton": "周活动",

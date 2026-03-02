@@ -94,6 +94,9 @@
     "myBest": "My Best",
     "myRank": "My Rank",
     "rankings": "Event Rankings",
+    "thisWeek": "This Week",
+    "lastWeek": "Last Week",
+    "noRankings": "No rankings yet",
     "start": "Start",
     "continueGame": "Continue",
     "newAttempt": "New Attempt",
@@ -112,7 +115,10 @@
       "first": "1st Place",
       "fragments": "{{count}} Skin Fragments",
       "title": "Title",
-      "specialTitle": "Special Title"
+      "specialTitle": "Special Title",
+      "appOnlyBadge": "App Only",
+      "appOnlyDesc": "Skin fragment rewards are only available in the app.",
+      "getAppCta": "Download the app to claim rewards →"
     },
     "events": {
       "NO_ROTATION": {

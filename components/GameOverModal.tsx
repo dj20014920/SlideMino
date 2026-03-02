@@ -34,6 +34,8 @@ interface GameOverModalProps {
     /** 랭킹 제출 후 반환된 순위/총인원 (공유 카드에 표시) */
     submittedRank?: number;
     submittedTotal?: number;
+    /** 제출 완료 후 랭킹 보기 (weekly_event 전용) */
+    onViewRankings?: () => void;
 }
 
 export const GameOverModal: React.FC<GameOverModalProps> = ({
@@ -55,6 +57,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
     eventAttemptNumber,
     submittedRank,
     submittedTotal,
+    onViewRankings,
 }) => {
     const { t } = useTranslation();
     const [step, setStep] = useState<'INITIAL' | 'REGISTER' | 'SUBMITTED'>('INITIAL');
@@ -554,6 +557,27 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
 
                         {shareToast && (
                             <p className="text-xs text-green-600 font-medium animate-fade-in">{shareToast}</p>
+                        )}
+
+                        {/* 이벤트 랭킹 바로 보기 (weekly_event 전용) */}
+                        {gameMode === 'weekly_event' && onViewRankings && (
+                            <button
+                                onClick={onViewRankings}
+                                className="
+                  w-full py-3 rounded-2xl
+                  bg-gradient-to-br from-purple-500 to-pink-500
+                  text-white font-bold text-base
+                  shadow-lg shadow-purple-500/25
+                  hover:shadow-xl hover:-translate-y-0.5
+                  active:scale-[0.98]
+                  transition-all duration-200
+                "
+                            >
+                                <span className="flex items-center justify-center gap-2">
+                                    <Trophy size={18} />
+                                    {t('modals:gameOver.viewEventRankings')}
+                                </span>
+                            </button>
                         )}
 
                         <button

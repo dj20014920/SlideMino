@@ -85,7 +85,8 @@
   },
   "dailyChallenge": {
     "menuButton": "오늘의 챌린지",
-    "banner": "데일리 챌린지"
+    "banner": "데일리 챌린지",
+    "fetchFailed": "서버에 연결할 수 없습니다. 인터넷 연결을 확인해주세요."
   },
   "weeklyEvent": {
     "menuButton": "주간 이벤트",

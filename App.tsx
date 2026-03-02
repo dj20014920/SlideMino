@@ -65,7 +65,11 @@ import {
   saveGameState,
   loadGameState,
   clearGameState,
-  hasActiveGame,
+  saveDailyChallengeState,
+  loadDailyChallengeState,
+  clearDailyChallengeState,
+  hasActiveDailyChallenge,
+  getActiveNormalGameBoardSize,
   type SavedGameState,
 } from './services/gameStorage';
 import { rankingService, type LiveRankEstimate } from './services/rankingService';
@@ -139,6 +143,7 @@ import {
   clearEventGameState,
   saveEventGameState,
   loadEventGameState,
+  hasActiveEventGame,
   type WeeklyEventRule,
   EVENT_RULES,
 } from './services/weeklyEventService';
@@ -1037,10 +1042,6 @@ const App: React.FC = () => {
   }, [getCurrentActiveDurationMs]);
 
   useEffect(() => {
-    syncActivePlayTimer();
-  }, [gameState, syncActivePlayTimer]);
-
-  useEffect(() => {
     if (typeof window === 'undefined') return;
     if (gameState !== GameState.PLAYING && gameState !== GameState.GAME_OVER) return;
 
@@ -1204,6 +1205,27 @@ const App: React.FC = () => {
     return base;
   }, []);
 
+  /**
+   * 이벤트 타이머를 현재 gameState/visibility에 맞게 재개 또는 일시정지.
+   * eventRuleRef가 null이면 weekly_event 모드가 아니므로 항상 일시정지.
+   */
+  const syncEventTimer = useCallback(() => {
+    const shouldRun =
+      gameStateRef.current === GameState.PLAYING &&
+      eventRuleRef.current !== null &&
+      isDocumentVisible();
+    if (shouldRun) {
+      startEventTimer();
+    } else {
+      pauseEventTimer();
+    }
+  }, [startEventTimer, pauseEventTimer]);
+
+  useEffect(() => {
+    syncActivePlayTimer();
+    syncEventTimer();
+  }, [gameState, syncActivePlayTimer, syncEventTimer]);
+
   const restoreSavedGame = useCallback((saved: SavedGameState) => {
     // maxScoreThisRun: 저장값과 현재 score 중 큰 값으로 복원
     const restoredMaxScore = typeof saved.maxScoreThisRun === 'number' && Number.isFinite(saved.maxScoreThisRun)
@@ -1302,27 +1324,17 @@ const App: React.FC = () => {
 
     const activeDurationMs = getCurrentActiveDurationMs();
 
-    saveGameState({
-      gameState,
-      grid,
-      slots,
-      score,
-      phase,
-      boardSize,
-      canSkipSlide,
-      undoRemaining,
-      blockRefreshRemaining,
-      showBlockRefreshAdButton,
+    // 모드별 독립 세이브 슬롯에 저장
+    const commonState = {
+      gameState, grid, slots, score, phase, boardSize, canSkipSlide,
+      undoRemaining, blockRefreshRemaining, showBlockRefreshAdButton,
       lastSnapshot,
       hasUsedRevive: hasUsedReviveThisRun,
-      isReviveSelectionMode,
-      reviveBreakRemaining,
-      revivePendingTileId,
+      isReviveSelectionMode, reviveBreakRemaining, revivePendingTileId,
       sessionId: sessionIdRef.current,
       moveCount: moveCountRef.current,
       startedAt: gameStartTimeRef.current,
-      activeDurationMs,
-      maxScoreThisRun,
+      activeDurationMs, maxScoreThisRun,
       playerName,
       sessionLockedPlayerName: sessionLockedPlayerName ?? undefined,
       gameMode,
@@ -1333,25 +1345,29 @@ const App: React.FC = () => {
       eventType: eventRuleRef.current?.type ?? undefined,
       eventAttemptNumber: eventAttemptNumberRef.current,
       eventPlayedMs: getCurrentEventPlayedMs(),
-    });
+    };
 
-    // 이벤트 모드일 때 이벤트 전용 저장도 동시 수행
-    if (gameMode === 'weekly_event' && eventIdRef.current && eventRuleRef.current) {
-      saveEventGameState({
-        eventId: eventIdRef.current,
-        eventType: eventRuleRef.current.type,
-        grid,
-        slots,
-        score,
-        phase,
-        boardSize,
-        moveCount: moveCountRef.current,
-        eventPlayedMs: getCurrentEventPlayedMs(),
-        attemptNumber: eventAttemptNumberRef.current,
-        sessionId: sessionIdRef.current,
-        startedAt: gameStartTimeRef.current ?? Date.now(),
-        savedAt: Date.now(),
-      });
+    if (gameMode === 'daily_challenge') {
+      saveDailyChallengeState(commonState);
+    } else if (gameMode === 'weekly_event' && eventIdRef.current && eventRuleRef.current) {
+      if (gameState === GameState.PLAYING) {
+        saveEventGameState({
+          eventId: eventIdRef.current,
+          eventType: eventRuleRef.current.type,
+          grid, slots, score, phase, boardSize,
+          moveCount: moveCountRef.current,
+          eventPlayedMs: getCurrentEventPlayedMs(),
+          attemptNumber: eventAttemptNumberRef.current,
+          sessionId: sessionIdRef.current,
+          startedAt: gameStartTimeRef.current ?? Date.now(),
+          savedAt: Date.now(),
+        });
+      } else {
+        // GAME_OVER는 이어하기 대상이 아니므로 이벤트 전용 슬롯을 정리한다.
+        clearEventGameState();
+      }
+    } else {
+      saveGameState(commonState);
     }
   }, [
     gameState,
@@ -1408,10 +1424,7 @@ const App: React.FC = () => {
         return;
       }
       syncActivePlayTimer();
-      // 이벤트 타이머 복원
-      if (gameStateRef.current === GameState.PLAYING && eventRuleRef.current) {
-        startEventTimer();
-      }
+      syncEventTimer();
     };
 
     window.addEventListener('pagehide', flushRecoverableState);
@@ -1423,7 +1436,7 @@ const App: React.FC = () => {
       window.removeEventListener('beforeunload', flushRecoverableState);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [persistRecoverableGameState, pauseActivePlayTimer, syncActivePlayTimer]);
+  }, [persistRecoverableGameState, pauseActivePlayTimer, syncActivePlayTimer, syncEventTimer]);
 
   useEffect(() => {
     const shouldLockScroll = currentRoute === '/' && gameState !== GameState.MENU;
@@ -1532,8 +1545,14 @@ const App: React.FC = () => {
   }, [buildActiveGameRankingSnapshot, goToMenu, startGameWithReusableNameOrPrompt]);
 
   const handleGameOverClose = useCallback(() => {
-    // 게임오버 결과 확인을 마치고 메뉴로 돌아갈 때 복구 상태를 정리한다.
-    clearGameState();
+    // 게임오버 결과 확인을 마치고 메뉴로 돌아갈 때 해당 모드의 복구 상태만 정리한다.
+    if (gameMode === 'daily_challenge') {
+      clearDailyChallengeState();
+    } else if (gameMode === 'weekly_event') {
+      clearEventGameState();
+    } else {
+      clearGameState();
+    }
     reviveDestroyEffectTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
     reviveDestroyEffectTimeoutsRef.current = [];
     isReviveSelectionModeRef.current = false;
@@ -1543,16 +1562,22 @@ const App: React.FC = () => {
     setReviveDestroyEffects([]);
     // 이벤트 / 챌린지 모드 초기화
     resetEventTimer();
-    clearEventGameState();
     setGameMode('normal');
     challengeDateRef.current = null;
     challengeSeedRef.current = null;
     challengePieceIndexRef.current = 0;
     setGameState(GameState.MENU);
-  }, [resetEventTimer]);
+  }, [gameMode, resetEventTimer]);
 
-  const handleHomeButtonClick = useCallback(() => {
-    if (gameState === GameState.PLAYING) {
+  // 게임오버 후 이벤트 랭킹 바로 보기 (weekly_event 전용)
+  const handleGameOverViewRankings = useCallback(() => {
+    handleGameOverClose();
+    // handleGameOverClose는 setGameState(GameState.MENU)를 호출하므로
+    // 상태 업데이트 batching으로 동일 틱에서 모달을 열어도 안전하다.
+    setIsWeeklyEventModalOpen(true);
+  }, [handleGameOverClose]);
+
+  const handleHomeButtonClick = useCallback(() => {    if (gameState === GameState.PLAYING) {
       openActiveGameExitModal('HOME');
       return;
     }
@@ -1599,9 +1624,16 @@ const App: React.FC = () => {
 
   const handleActiveGameExitRegisteredAndProceed = useCallback(() => {
     const context = activeGameExitContext;
+    const modeToClear: GameMode = context === 'NEW_GAME' ? 'normal' : gameMode;
     setIsActiveGameExitModalOpen(false);
     setActiveGameRankingSnapshot(null);
-    clearGameState();
+    if (modeToClear === 'daily_challenge') {
+      clearDailyChallengeState();
+    } else if (modeToClear === 'weekly_event') {
+      clearEventGameState();
+    } else {
+      clearGameState();
+    }
 
     if (context === 'HOME') {
       goToMenu();
@@ -1615,11 +1647,12 @@ const App: React.FC = () => {
 
     setShowActiveGameWarning(false);
     setIsNameInputOpen(true);
-  }, [activeGameExitContext, goToMenu, pendingDifficulty, startGameWithReusableNameOrPrompt]);
+  }, [activeGameExitContext, gameMode, goToMenu, pendingDifficulty, startGameWithReusableNameOrPrompt]);
 
   // 난이도 선택 시 진행중 게임 경고 -> 이름 입력 모달
   const tryStartGame = useCallback((size: BoardSize) => {
-    const active = hasActiveGame() && (gameState === GameState.MENU || boardSize !== size);
+    const activeSize = getActiveNormalGameBoardSize();
+    const active = activeSize !== null && (gameState === GameState.MENU || boardSize !== size);
     if (active) {
       openActiveGameExitModal('NEW_GAME', size);
       return;
@@ -1737,16 +1770,23 @@ const App: React.FC = () => {
   // --- 데일리 챌린지 시작 ---
   async function startDailyChallenge() {
     if (isDailyChallengeLoading) return;
+    // 진행 중인 데일리 챌린지가 있으면 덮어쓰기 방지 — 자동으로 이어하기
+    if (hasActiveDailyChallenge()) {
+      const saved = loadDailyChallengeState();
+      if (saved) { restoreSavedGame(saved); return; }
+    }
     setIsDailyChallengeLoading(true);
     try {
       const seed = await fetchDailyChallengeSeed();
       if (!seed) {
+        // 서버 연결 실패 시 사용자에게 알림
+        showComboMessage(t('game:dailyChallenge.fetchFailed', '서버에 연결할 수 없습니다. 인터넷 연결을 확인해주세요.'), 3000);
         setIsDailyChallengeLoading(false);
         return;
       }
 
-      // 기존 게임 상태 정리
-      clearGameState();
+      // 데일리 챌린지 세이브만 정리 (일반/이벤트 세이브 보존)
+      clearDailyChallengeState();
       resetEventTimer();
       if (mergeClearTimeoutRef.current) { window.clearTimeout(mergeClearTimeoutRef.current); mergeClearTimeoutRef.current = null; }
       if (mergeFinalizeTimeoutRef.current) { window.clearTimeout(mergeFinalizeTimeoutRef.current); mergeFinalizeTimeoutRef.current = null; }
@@ -1833,8 +1873,7 @@ const App: React.FC = () => {
     const localAttempts = getLocalAttemptCount();
     if (localAttempts >= 3) return;
 
-    // 기존 게임 상태 정리
-    clearGameState();
+    // 이벤트 세이브만 정리 (일반/챌린지 세이브 보존)
     clearEventGameState();
     if (mergeClearTimeoutRef.current) { window.clearTimeout(mergeClearTimeoutRef.current); mergeClearTimeoutRef.current = null; }
     if (mergeFinalizeTimeoutRef.current) { window.clearTimeout(mergeFinalizeTimeoutRef.current); mergeFinalizeTimeoutRef.current = null; }
@@ -1925,8 +1964,7 @@ const App: React.FC = () => {
     const rule = EVENT_RULES[saved.eventType as keyof typeof EVENT_RULES];
     if (!rule) return;
 
-    // 기존 게임 상태 정리
-    clearGameState();
+    // 이벤트 이어하기: 다른 모드 세이브는 건드리지 않음
     if (mergeClearTimeoutRef.current) { window.clearTimeout(mergeClearTimeoutRef.current); mergeClearTimeoutRef.current = null; }
     if (mergeFinalizeTimeoutRef.current) { window.clearTimeout(mergeFinalizeTimeoutRef.current); mergeFinalizeTimeoutRef.current = null; }
     if (unlockTimeoutRef.current) { window.clearTimeout(unlockTimeoutRef.current); unlockTimeoutRef.current = null; }
@@ -3087,10 +3125,12 @@ const App: React.FC = () => {
       if (isRewardInterstitialAdSupported() && !rewardInterstitialAdService.isAdReady()) {
         rewardInterstitialAdService.preloadAd();
       }
-      // 이벤트 모드: 타이머 정지 & 이벤트 세이브 삭제
+      // 모드별 세이브 정리
       if (gameModeRef.current === 'weekly_event') {
         pauseEventTimer();
         clearEventGameState();
+      } else if (gameModeRef.current === 'daily_challenge') {
+        clearDailyChallengeState();
       }
       setGameState(GameState.GAME_OVER);
       // 이벤트 버스: 게임 오버 (activePlayDuration 사용 — 일시정지 시간 제외)
@@ -3474,28 +3514,28 @@ const App: React.FC = () => {
       </fieldset>
     );
 
+    const activeNormalSize = getActiveNormalGameBoardSize();
     const win98DifficultyRows = (
       <>
-        {hasActiveGame() && (
-          <div className="field-row">
-            <input
-              id="difficulty-continue"
-              type="radio"
-              name={premiumDifficultyRadioGroupName}
-              onChange={() => {
-                const saved = loadGameState();
-                if (saved) {
-                  restoreSavedGame(saved);
-                }
-              }}
-            />
-            <label htmlFor="difficulty-continue">{t('game:difficulties.continue')} ({boardSize}×{boardSize})</label>
-          </div>
-        )}
-
         <div className="field-row">
           <input id="difficulty-4" type="radio" name={premiumDifficultyRadioGroupName} checked={boardSize === 4} onChange={() => tryStartGame(4)} />
-          <label htmlFor="difficulty-4">{t('game:difficulties.expert')} ({t('game:boardSizes.4x4')})</label>
+          <label htmlFor="difficulty-4" style={{ flex: 1 }}>{t('game:difficulties.expert')} ({t('game:boardSizes.4x4')})</label>
+          {activeNormalSize === 4 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const saved = loadGameState();
+                if (saved) restoreSavedGame(saved);
+              }}
+              className="ml-2 px-2 py-0.5"
+              title={t('game:difficulties.continue')}
+              aria-label={t('game:difficulties.continue')}
+            >
+              {'>'}
+            </button>
+          )}
         </div>
         <div className="field-row">
           <input
@@ -3508,19 +3548,83 @@ const App: React.FC = () => {
               localStorage.setItem('tutorial_game_mode_seen_v1', 'true');
             }}
           />
-          <label htmlFor="difficulty-5">{t('game:difficulties.normal')} ({t('game:boardSizes.5x5')})</label>
+          <label htmlFor="difficulty-5" style={{ flex: 1 }}>{t('game:difficulties.normal')} ({t('game:boardSizes.5x5')})</label>
+          {activeNormalSize === 5 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const saved = loadGameState();
+                if (saved) restoreSavedGame(saved);
+              }}
+              className="ml-2 px-2 py-0.5"
+              title={t('game:difficulties.continue')}
+              aria-label={t('game:difficulties.continue')}
+            >
+              {'>'}
+            </button>
+          )}
         </div>
         <div className="field-row">
           <input id="difficulty-7" type="radio" name={premiumDifficultyRadioGroupName} checked={boardSize === 7} onChange={() => tryStartGame(7)} />
-          <label htmlFor="difficulty-7">{t('game:difficulties.beginner')} ({t('game:boardSizes.7x7')})</label>
+          <label htmlFor="difficulty-7" style={{ flex: 1 }}>{t('game:difficulties.beginner')} ({t('game:boardSizes.7x7')})</label>
+          {activeNormalSize === 7 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const saved = loadGameState();
+                if (saved) restoreSavedGame(saved);
+              }}
+              className="ml-2 px-2 py-0.5"
+              title={t('game:difficulties.continue')}
+              aria-label={t('game:difficulties.continue')}
+            >
+              {'>'}
+            </button>
+          )}
         </div>
         <div className="field-row">
           <input id="difficulty-8" type="radio" name={premiumDifficultyRadioGroupName} checked={boardSize === 8} onChange={() => tryStartGame(8)} />
-          <label htmlFor="difficulty-8">{t('game:difficulties.easy')} ({t('game:boardSizes.8x8')})</label>
+          <label htmlFor="difficulty-8" style={{ flex: 1 }}>{t('game:difficulties.easy')} ({t('game:boardSizes.8x8')})</label>
+          {activeNormalSize === 8 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const saved = loadGameState();
+                if (saved) restoreSavedGame(saved);
+              }}
+              className="ml-2 px-2 py-0.5"
+              title={t('game:difficulties.continue')}
+              aria-label={t('game:difficulties.continue')}
+            >
+              {'>'}
+            </button>
+          )}
         </div>
         <div className="field-row">
           <input id="difficulty-10" type="radio" name={premiumDifficultyRadioGroupName} checked={boardSize === 10} onChange={() => tryStartGame(10)} />
-          <label htmlFor="difficulty-10">{t('game:difficulties.infinite')} ({t('game:boardSizes.10x10')})</label>
+          <label htmlFor="difficulty-10" style={{ flex: 1 }}>{t('game:difficulties.infinite')} ({t('game:boardSizes.10x10')})</label>
+          {activeNormalSize === 10 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const saved = loadGameState();
+                if (saved) restoreSavedGame(saved);
+              }}
+              className="ml-2 px-2 py-0.5"
+              title={t('game:difficulties.continue')}
+              aria-label={t('game:difficulties.continue')}
+            >
+              {'>'}
+            </button>
+          )}
         </div>
       </>
     );
@@ -3531,182 +3635,150 @@ const App: React.FC = () => {
           {isLoading && <LoadingScreen key="loading-screen-menu" />}
         </AnimatePresence>
 
-        {hasActiveGame() && (
+        {/* 데일리 챌린지 버튼 */}
+        {isFeatureUnlocked('daily_challenge') && (
+        <div className="relative w-full">
           <button
-            onClick={() => {
-              const saved = loadGameState();
-              if (saved) {
-                restoreSavedGame(saved);
-              }
-            }}
-            className="
+            onClick={startDailyChallenge}
+            disabled={isDailyChallengeLoading}
+            className={`
             relative group w-full py-4 px-6 rounded-2xl win98-menu-btn
-            bg-gradient-to-br from-emerald-500 to-emerald-600
-            border border-emerald-400/30
-            shadow-lg shadow-emerald-900/20
-            hover:shadow-xl hover:shadow-emerald-600/30 hover:-translate-y-0.5
+            bg-gradient-to-br from-amber-500 via-orange-500 to-red-500
+            border border-amber-400/30
+            shadow-lg shadow-orange-900/20
+            hover:shadow-xl hover:shadow-orange-600/30 hover:-translate-y-0.5
             active:translate-y-0 active:shadow-md
             transition-all duration-200 ease-out
             text-white font-semibold text-lg
-          "
+            ${isDailyChallengeLoading ? 'opacity-60 cursor-wait' : ''}
+            ${hasActiveDailyChallenge() ? 'pr-14' : ''}
+          `}
           >
             <span className="flex items-center justify-between">
-              <span>{t('game:difficulties.continue')}</span>
-              <span className={`${isWin98ThemeActive ? 'win98-muted' : 'text-emerald-200/70'} font-normal text-sm`}>{boardSize}×{boardSize}</span>
+              <span className="flex items-center gap-2">
+                <span>🏆</span>
+                <span>{t('game:dailyChallenge.menuButton')}</span>
+              </span>
+              <span className={`${isWin98ThemeActive ? 'win98-muted' : 'text-amber-200/70'} font-normal text-sm`}>5×5</span>
             </span>
           </button>
-        )}
-
-        {/* 데일리 챌린지 버튼 */}
-        {isFeatureUnlocked('daily_challenge') && (
-        <button
-          onClick={startDailyChallenge}
-          disabled={isDailyChallengeLoading}
-          className={`
-          relative group w-full py-4 px-6 rounded-2xl win98-menu-btn
-          bg-gradient-to-br from-amber-500 via-orange-500 to-red-500
-          border border-amber-400/30
-          shadow-lg shadow-orange-900/20
-          hover:shadow-xl hover:shadow-orange-600/30 hover:-translate-y-0.5
-          active:translate-y-0 active:shadow-md
-          transition-all duration-200 ease-out
-          text-white font-semibold text-lg
-          ${isDailyChallengeLoading ? 'opacity-60 cursor-wait' : ''}
-        `}
-        >
-          <span className="flex items-center justify-between">
-            <span className="flex items-center gap-2">
-              <span>🏆</span>
-              <span>{t('game:dailyChallenge.menuButton')}</span>
-            </span>
-            <span className={`${isWin98ThemeActive ? 'win98-muted' : 'text-amber-200/70'} font-normal text-sm`}>5×5</span>
-          </span>
-        </button>
+          {hasActiveDailyChallenge() && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const saved = loadDailyChallengeState();
+                if (saved) restoreSavedGame(saved);
+              }}
+              className="absolute right-0 top-0 bottom-0 w-12 flex items-center justify-center
+                rounded-r-2xl border-l border-white/20
+                bg-white/10 hover:bg-white/25
+                transition-colors duration-150
+                text-white text-lg"
+              title={t('game:difficulties.continue')}
+            >
+              ▶
+            </button>
+          )}
+        </div>
         )}
 
         {/* 주간 이벤트 버튼 */}
         {isFeatureUnlocked('weekly_event') && (
-        <button
-          onClick={() => setIsWeeklyEventModalOpen(true)}
-          className="
-          relative group w-full py-4 px-6 rounded-2xl win98-menu-btn
-          bg-gradient-to-br from-purple-500 via-pink-500 to-rose-500
-          border border-purple-400/30
-          shadow-lg shadow-purple-900/20
-          hover:shadow-xl hover:shadow-purple-600/30 hover:-translate-y-0.5
-          active:translate-y-0 active:shadow-md
-          transition-all duration-200 ease-out
-          text-white font-semibold text-lg
-        "
-        >
-          <span className="flex items-center justify-between">
-            <span className="flex items-center gap-2">
-              <span>🎯</span>
-              <span>{t('game:weeklyEvent.menuButton')}</span>
+        <div className="relative w-full">
+          <button
+            onClick={() => setIsWeeklyEventModalOpen(true)}
+            className={`
+            relative group w-full py-4 px-6 rounded-2xl win98-menu-btn
+            bg-gradient-to-br from-purple-500 via-pink-500 to-rose-500
+            border border-purple-400/30
+            shadow-lg shadow-purple-900/20
+            hover:shadow-xl hover:shadow-purple-600/30 hover:-translate-y-0.5
+            active:translate-y-0 active:shadow-md
+            transition-all duration-200 ease-out
+            text-white font-semibold text-lg
+            ${hasActiveEventGame() ? 'pr-14' : ''}
+          `}
+          >
+            <span className="flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <span>🎯</span>
+                <span>{t('game:weeklyEvent.menuButton')}</span>
+              </span>
+              <span className={`${isWin98ThemeActive ? 'win98-muted' : 'text-purple-200/70'} font-normal text-sm`}>{t('game:weeklyEvent.menuTag')}</span>
             </span>
-            <span className={`${isWin98ThemeActive ? 'win98-muted' : 'text-purple-200/70'} font-normal text-sm`}>{t('game:weeklyEvent.menuTag')}</span>
-          </span>
-        </button>
+          </button>
+          {hasActiveEventGame() && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                continueWeeklyEvent();
+              }}
+              className="absolute right-0 top-0 bottom-0 w-12 flex items-center justify-center
+                rounded-r-2xl border-l border-white/20
+                bg-white/10 hover:bg-white/25
+                transition-colors duration-150
+                text-white text-lg"
+              title={t('game:difficulties.continue')}
+            >
+              ▶
+            </button>
+          )}
+        </div>
         )}
 
-        <button
-          onClick={() => tryStartGame(4)}
-          className="
-          relative group w-full py-4 px-6 rounded-2xl win98-menu-btn
-          bg-gradient-to-br from-red-600 via-red-700 to-red-900
-          border border-red-400/30
-          shadow-lg shadow-red-900/20
-          hover:shadow-xl hover:shadow-red-600/30 hover:-translate-y-0.5
-          active:translate-y-0 active:shadow-md
-          transition-all duration-200 ease-out
-          text-white font-semibold text-lg
-        "
-        >
-          <span className="flex items-center justify-between">
-            <span>{t('game:difficulties.expert')}</span>
-            <span className={`${isWin98ThemeActive ? 'win98-muted' : 'text-red-200/70'} font-normal text-sm`}>{t('game:boardSizes.4x4')}</span>
-          </span>
-        </button>
-
-        <button
-          id="mode-btn-beginner"
-          onClick={() => {
-            tryStartGame(5);
-            localStorage.setItem('tutorial_game_mode_seen_v1', 'true');
-          }}
-          className="
-          relative group w-full py-4 px-6 rounded-2xl win98-menu-btn
-          bg-gradient-to-br from-blue-600 to-blue-700
-          border border-blue-400/30
-          shadow-lg shadow-blue-900/20
-          hover:shadow-xl hover:shadow-blue-600/30 hover:-translate-y-0.5
-          active:translate-y-0 active:shadow-md
-          transition-all duration-200 ease-out
-          text-white font-semibold text-lg
-        "
-        >
-          <span className="flex items-center justify-between">
-            <span>{t('game:difficulties.normal')}</span>
-            <span className={`${isWin98ThemeActive ? 'win98-muted' : 'text-blue-200/70'} font-normal text-sm`}>{t('game:boardSizes.5x5')}</span>
-          </span>
-        </button>
-
-        <button
-          onClick={() => tryStartGame(7)}
-          className="
-          relative group w-full py-4 px-6 rounded-2xl win98-menu-btn
-          bg-gradient-to-br from-indigo-600 to-indigo-800
-          border border-indigo-400/30
-          shadow-lg shadow-indigo-900/20
-          hover:shadow-xl hover:shadow-indigo-600/30 hover:-translate-y-0.5
-          active:translate-y-0 active:shadow-md
-          transition-all duration-200 ease-out
-          text-white font-semibold text-lg
-        "
-        >
-          <span className="flex items-center justify-between">
-            <span>{t('game:difficulties.beginner')}</span>
-            <span className={`${isWin98ThemeActive ? 'win98-muted' : 'text-indigo-200/70'} font-normal text-sm`}>{t('game:boardSizes.7x7')}</span>
-          </span>
-        </button>
-
-        <button
-          onClick={() => tryStartGame(8)}
-          className="
-          relative group w-full py-4 px-6 rounded-2xl win98-menu-btn
-          bg-gradient-to-br from-gray-800 to-gray-900
-          border border-white/10
-          shadow-lg
-          hover:shadow-xl hover:-translate-y-0.5
-          active:translate-y-0 active:shadow-md
-          transition-all duration-200 ease-out
-          text-white font-semibold text-lg
-        "
-        >
-          <span className="flex items-center justify-between">
-            <span>{t('game:difficulties.easy')}</span>
-            <span className={`${isWin98ThemeActive ? 'win98-muted' : 'text-gray-400'} font-normal text-sm`}>{t('game:boardSizes.8x8')}</span>
-          </span>
-        </button>
-
-        <button
-          onClick={() => tryStartGame(10)}
-          className="
-          relative group w-full py-4 px-6 rounded-2xl win98-menu-btn
-          bg-black
-          border border-white/10
-          shadow-lg
-          hover:shadow-xl hover:-translate-y-0.5
-          active:translate-y-0 active:shadow-md
-          transition-all duration-200 ease-out
-          text-white font-semibold text-lg
-        "
-        >
-          <span className="flex items-center justify-between">
-            <span>{t('game:difficulties.infinite')}</span>
-            <span className={`${isWin98ThemeActive ? 'win98-muted' : 'text-gray-500'} font-normal text-sm`}>{t('game:boardSizes.10x10')}</span>
-          </span>
-        </button>
+        {([
+          { size: 4 as BoardSize, label: t('game:difficulties.expert'), sizeLabel: t('game:boardSizes.4x4'), gradient: 'from-red-600 via-red-700 to-red-900', border: 'border-red-400/30', shadow: 'shadow-red-900/20', hoverShadow: 'hover:shadow-red-600/30', mutedColor: 'text-red-200/70' },
+          { size: 5 as BoardSize, label: t('game:difficulties.normal'), sizeLabel: t('game:boardSizes.5x5'), gradient: 'from-blue-600 to-blue-700', border: 'border-blue-400/30', shadow: 'shadow-blue-900/20', hoverShadow: 'hover:shadow-blue-600/30', mutedColor: 'text-blue-200/70', id: 'mode-btn-beginner' },
+          { size: 7 as BoardSize, label: t('game:difficulties.beginner'), sizeLabel: t('game:boardSizes.7x7'), gradient: 'from-indigo-600 to-indigo-800', border: 'border-indigo-400/30', shadow: 'shadow-indigo-900/20', hoverShadow: 'hover:shadow-indigo-600/30', mutedColor: 'text-indigo-200/70' },
+          { size: 8 as BoardSize, label: t('game:difficulties.easy'), sizeLabel: t('game:boardSizes.8x8'), gradient: 'from-gray-800 to-gray-900', border: 'border-white/10', shadow: 'shadow-lg', hoverShadow: '', mutedColor: 'text-gray-400' },
+          { size: 10 as BoardSize, label: t('game:difficulties.infinite'), sizeLabel: t('game:boardSizes.10x10'), gradient: 'bg-black', border: 'border-white/10', shadow: 'shadow-lg', hoverShadow: '', mutedColor: 'text-gray-500', isBlack: true },
+        ] as const).map((mode) => {
+          const hasResume = getActiveNormalGameBoardSize() === mode.size;
+          return (
+            <div key={mode.size} className="relative w-full">
+              <button
+                id={mode.id}
+                onClick={() => {
+                  tryStartGame(mode.size);
+                  if (mode.size === 5) localStorage.setItem('tutorial_game_mode_seen_v1', 'true');
+                }}
+                className={`
+                  relative group w-full py-4 px-6 rounded-2xl win98-menu-btn
+                  ${mode.isBlack ? 'bg-black' : `bg-gradient-to-br ${mode.gradient}`}
+                  border ${mode.border}
+                  shadow-lg ${mode.shadow}
+                  hover:shadow-xl ${mode.hoverShadow} hover:-translate-y-0.5
+                  active:translate-y-0 active:shadow-md
+                  transition-all duration-200 ease-out
+                  text-white font-semibold text-lg
+                  ${hasResume ? 'pr-14' : ''}
+                `}
+              >
+                <span className="flex items-center justify-between">
+                  <span>{mode.label}</span>
+                  <span className={`${isWin98ThemeActive ? 'win98-muted' : mode.mutedColor} font-normal text-sm`}>{mode.sizeLabel}</span>
+                </span>
+              </button>
+              {hasResume && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const saved = loadGameState();
+                    if (saved) restoreSavedGame(saved);
+                  }}
+                  className="absolute right-0 top-0 bottom-0 w-12 flex items-center justify-center
+                    rounded-r-2xl border-l border-white/20
+                    bg-white/10 hover:bg-white/25
+                    transition-colors duration-150
+                    text-white text-lg"
+                  title={t('game:difficulties.continue')}
+                >
+                  ▶
+                </button>
+              )}
+            </div>
+          );
+        })}
 
         {isNativeApp() && (
           <button
@@ -4149,6 +4221,14 @@ const App: React.FC = () => {
               else if (action === 'weekly_event') setIsWeeklyEventModalOpen(true);
             }}
           />
+
+          {/* 주간 이벤트 모달 — 메뉴 화면에서 접근 가능하도록 여기에 배치 */}
+          <WeeklyEventModal
+            isOpen={isWeeklyEventModalOpen}
+            onClose={() => setIsWeeklyEventModalOpen(false)}
+            onStartEvent={startWeeklyEvent}
+            onContinueEvent={continueWeeklyEvent}
+          />
         </div>
       </>
     );
@@ -4156,8 +4236,19 @@ const App: React.FC = () => {
 
   const reviveDestroyCount = REVIVE_DESTROY_COUNT_BY_BOARD_SIZE[boardSize];
   const occupiedTileCount = countOccupiedTiles(grid);
+  const isRotationDisabledByRule = Boolean(eventRuleRef.current?.disableRotation);
+  const isUndoLockedByMode =
+    gameMode === 'daily_challenge' ||
+    (gameMode === 'weekly_event' && Boolean(eventRuleRef.current?.disableUndo));
+  const isBlockRefreshLockedByMode =
+    gameMode === 'daily_challenge' ||
+    (gameMode === 'weekly_event' && Boolean(eventRuleRef.current?.disableBlockRefresh));
+  const isReviveLockedByMode =
+    gameMode === 'daily_challenge' ||
+    (gameMode === 'weekly_event' && Boolean(eventRuleRef.current?.disableRevive));
+  const canUseUndoRechargeAd = !isUndoLockedByMode && undoRemaining === 0 && isRewardAdSupported();
   const canOfferRevive =
-    gameMode !== 'daily_challenge' &&
+    !isReviveLockedByMode &&
     isRewardInterstitialAdSupported() &&
     !hasUsedReviveThisRun &&
     occupiedTileCount > 0 &&
@@ -4192,8 +4283,15 @@ const App: React.FC = () => {
   // - SLIDE: 보드 + Undo 강조 (슬롯은 비강조)
   const isSlotPointerLocked = isSwipePhase || isAnimating || isReviveSelectionMode;
   const isSlotDisabled = isAnimating || isReviveSelectionMode;
-  const shouldShowBlockRefreshAdCta = showBlockRefreshAdButton && blockRefreshRemaining <= 0;
-  const isBlockRefreshButtonDisabled = isAnimating || isReviveSelectionMode || Boolean(draggingPiece);
+  const shouldShowBlockRefreshAdCta =
+    !isBlockRefreshLockedByMode &&
+    showBlockRefreshAdButton &&
+    blockRefreshRemaining <= 0;
+  const isBlockRefreshButtonDisabled =
+    isBlockRefreshLockedByMode ||
+    isAnimating ||
+    isReviveSelectionMode ||
+    Boolean(draggingPiece);
 
   // ========== GAME SCREEN ==========
   return (
@@ -4362,14 +4460,14 @@ const App: React.FC = () => {
                 onPointerDown={(e) => {
                   e.stopPropagation();
                 }}
-                onClick={undoRemaining === 0 && isRewardAdSupported() ? handleWatchRewardAd : executeUndo}
+                onClick={canUseUndoRechargeAd ? handleWatchRewardAd : executeUndo}
                 disabled={
-                  undoRemaining === 0 && isRewardAdSupported()
+                  canUseUndoRechargeAd
                     ? (isAnimating || isReviveSelectionMode)
-                    : (!lastSnapshot || undoRemaining <= 0 || isAnimating || isReviveSelectionMode)
+                    : (isUndoLockedByMode || !lastSnapshot || undoRemaining <= 0 || isAnimating || isReviveSelectionMode)
                 }
                 aria-label={
-                  undoRemaining === 0 && isRewardAdSupported()
+                  canUseUndoRechargeAd
                     ? t('game:rewardAd.watchButtonFull')
                     : t('game:actions.undo')
                 }
@@ -4378,15 +4476,15 @@ const App: React.FC = () => {
                 border shadow-sm transition-all duration-200
                 ${undoFocusSurfaceClass}
                 pointer-events-auto
-                ${undoRemaining === 0 && isRewardAdSupported()
+                ${canUseUndoRechargeAd
                     ? `bg-gradient-to-r from-yellow-500 to-amber-500 text-white border-yellow-400/50 shadow-md active:scale-95 ${isSwipeFocusMode ? 'opacity-35 grayscale pointer-events-none select-none' : ''} ${(isAnimating || isReviveSelectionMode) ? 'opacity-50 cursor-not-allowed' : 'hover:from-yellow-600 hover:to-amber-600 hover:shadow-lg'}`
-                    : (!lastSnapshot || undoRemaining <= 0 || isAnimating || isReviveSelectionMode)
+                    : (isUndoLockedByMode || !lastSnapshot || undoRemaining <= 0 || isAnimating || isReviveSelectionMode)
                       ? 'bg-gray-100/50 text-gray-300 border-gray-200/50 cursor-not-allowed'
                       : 'bg-white/70 hover:bg-white text-gray-700 border-white/50 hover:shadow-md active:scale-95'
                   }
               `}
               >
-                {undoRemaining === 0 && isRewardAdSupported() ? (
+                {canUseUndoRechargeAd ? (
                   <>
                     <span>📺</span>
                     <span>{t('game:rewardAd.watchButton')}</span>
@@ -4487,6 +4585,7 @@ const App: React.FC = () => {
                 htmlId={i === 0 ? 'slot-0' : undefined}
                 onPointerDown={handlePointerDown}
                 onRotate={rotateSlotPiece}
+                rotationDisabled={isRotationDisabledByRule}
                 isPressed={pressedSlotIndex === i}
                 disabled={isSlotDisabled}
               />
@@ -4549,6 +4648,7 @@ const App: React.FC = () => {
               onPointerDown={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                if (isRotationDisabledByRule) return;
                 if (!draggingPiece) return;
                 rotateActivePiece();
               }}
@@ -4559,11 +4659,11 @@ const App: React.FC = () => {
                 text-gray-700 shadow-sm
                 hover:bg-white
                 transition-colors
-                ${draggingPiece ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
+                ${draggingPiece && !isRotationDisabledByRule ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
               `}
               aria-label={t('common:aria.rotateBlock')}
-              aria-hidden={!draggingPiece}
-              tabIndex={draggingPiece ? 0 : -1}
+              aria-hidden={!draggingPiece || isRotationDisabledByRule}
+              tabIndex={draggingPiece && !isRotationDisabledByRule ? 0 : -1}
             >
               <RotateCw size={16} />
             </button>
@@ -4589,14 +4689,6 @@ const App: React.FC = () => {
         {/* Dragging Overlay */}
         {renderDraggingPiece()}
 
-        {/* Weekly Event Modal */}
-        <WeeklyEventModal
-          isOpen={isWeeklyEventModalOpen}
-          onClose={() => setIsWeeklyEventModalOpen(false)}
-          onStartEvent={startWeeklyEvent}
-          onContinueEvent={continueWeeklyEvent}
-        />
-
         {/* Game Over Modal */}
         {gameState === GameState.GAME_OVER && (
           <GameOverModal
@@ -4618,6 +4710,7 @@ const App: React.FC = () => {
             gameMode={gameMode}
             challengeDate={challengeDateRef.current ?? undefined}
             eventAttemptNumber={eventAttemptNumberRef.current}
+            onViewRankings={handleGameOverViewRankings}
           />
         )}
 

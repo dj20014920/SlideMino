@@ -85,7 +85,8 @@
   },
   "dailyChallenge": {
     "menuButton": "Daily Challenge",
-    "banner": "Daily Challenge"
+    "banner": "Daily Challenge",
+    "fetchFailed": "Cannot connect to server. Please check your internet connection."
   },
   "weeklyEvent": {
     "menuButton": "Weekly Event",

@@ -13,8 +13,10 @@ import { useTranslation } from 'react-i18next';
 import { Trophy, Play, Clock, Shield, Flame, Zap, Target, X } from 'lucide-react';
 import {
   getCurrentEvent,
+  getPreviousEvent,
   formatEventRemaining,
   getLocalAttemptCount,
+  syncAttemptCountFromServer,
   fetchEventRankings,
   hasClaimedEventReward,
   markEventRewardClaimed,
@@ -64,15 +66,28 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
   const [remainingText, setRemainingText] = useState('');
   const [hasSavedGame, setHasSavedGame] = useState(false);
 
+  // 이전 주 랭킹 탭
+  const [showPrevWeek, setShowPrevWeek] = useState(false);
+  const [prevRankings, setPrevRankings] = useState<EventRankingEntry[]>([]);
+  const [prevMyRank, setPrevMyRank] = useState<number | undefined>();
+  const [prevLoading, setPrevLoading] = useState(false);
+  const [prevEventInfo, setPrevEventInfo] = useState<CurrentEventInfo | null>(null);
+
   // 초기 데이터 로딩
   useEffect(() => {
     if (!isOpen) return;
     const current = getCurrentEvent();
     setEvent(current);
+    // 우선 로컬 캐시로 즉시 표시하고, 서버 동기화 후 갱신 (로컬스토리지 클리어 등 방어)
     setAttemptCount(getLocalAttemptCount());
     setRewardClaimed(hasClaimedEventReward());
     setHasSavedGame(!!loadEventGameState());
     setRemainingText(formatEventRemaining(current.remainingMs));
+
+    // 서버 도전 횟수 동기화 (비동기, 로컬 > 서버면 무시)
+    syncAttemptCountFromServer().then(count => {
+      setAttemptCount(count);
+    }).catch(() => { /* 오프라인 등 실패 시 로컬 값 유지 */ });
 
     // 랭킹 비동기 로딩
     fetchEventRankings().then(result => {
@@ -93,7 +108,25 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
     return () => clearInterval(interval);
   }, [isOpen, event]);
 
-  // 참여 보상 수령
+  // 모달 닫힐 때 탭 초기화
+  useEffect(() => {
+    if (!isOpen) setShowPrevWeek(false);
+  }, [isOpen]);
+
+  // 이전 주 랭킹 탭 전환 시 한 번만 fetch
+  useEffect(() => {
+    if (!isOpen || !showPrevWeek) return;
+    if (prevRankings.length > 0 || prevLoading) return; // 이미 로드됨
+    const prev = getPreviousEvent();
+    setPrevEventInfo(prev);
+    setPrevLoading(true);
+    fetchEventRankings(prev.eventId).then(result => {
+      setPrevRankings(result.rankings);
+      setPrevMyRank(result.myRank);
+    }).finally(() => setPrevLoading(false));
+  }, [isOpen, showPrevWeek, prevRankings.length, prevLoading]);
+
+  // 참여 보상 수령 — 스킨 시스템이 있는 앱에서만 실제 지급
   const handleClaimReward = useCallback(() => {
     if (rewardClaimed || attemptCount === 0) return;
     if (isNativeApp()) {
@@ -109,6 +142,7 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
   const rule = event.rule;
   const canStart = attemptCount < 3;
   const hasPlayed = attemptCount > 0;
+  const isApp = isNativeApp();
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
@@ -171,18 +205,60 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
 
         {/* 보상 */}
         <div className="px-5 pb-3">
-          <div className="flex items-center gap-2 text-xs text-gray-500">
-            <Trophy size={12} className="text-amber-500" />
-            <span>{t('game:weeklyEvent.rewards.participation')}: {isNativeApp() ? t('game:weeklyEvent.rewards.fragments', { count: 2 }) : t('game:weeklyEvent.rewards.title')}</span>
-          </div>
-          <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
-            <Flame size={12} className="text-red-500" />
-            <span>{t('game:weeklyEvent.rewards.top10')}: {isNativeApp() ? t('game:weeklyEvent.rewards.fragments', { count: 5 }) : t('game:weeklyEvent.rewards.title')}</span>
-          </div>
-          <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
-            <Zap size={12} className="text-yellow-500" />
-            <span>{t('game:weeklyEvent.rewards.first')}: {isNativeApp() ? t('game:weeklyEvent.rewards.fragments', { count: 10 }) + ' + ' : ''}{t('game:weeklyEvent.rewards.specialTitle')}</span>
-          </div>
+          {isApp ? (
+            // 앱: 구체적인 조각 수량 표시
+            <>
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <Trophy size={12} className="text-amber-500" />
+                <span>{t('game:weeklyEvent.rewards.participation')}: {t('game:weeklyEvent.rewards.fragments', { count: 2 })}</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                <Flame size={12} className="text-red-500" />
+                <span>{t('game:weeklyEvent.rewards.top10')}: {t('game:weeklyEvent.rewards.fragments', { count: 5 })}</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                <Zap size={12} className="text-yellow-500" />
+                <span>{t('game:weeklyEvent.rewards.first')}: {t('game:weeklyEvent.rewards.fragments', { count: 10 })} + {t('game:weeklyEvent.rewards.specialTitle')}</span>
+              </div>
+            </>
+          ) : (
+            // 웹: 잠긴 보상 + 앱 다운로드 유도
+            <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-3">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  {t('game:weeklyEvent.rewards.participation')}
+                </p>
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-600">
+                  {t('game:weeklyEvent.rewards.appOnlyBadge')}
+                </span>
+              </div>
+              <div className="flex gap-4 mb-2.5">
+                <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                  <Trophy size={12} className="text-gray-300" />
+                  <span>{t('game:weeklyEvent.rewards.fragments', { count: 2 })}</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                  <Flame size={12} className="text-gray-300" />
+                  <span>TOP10 +{t('game:weeklyEvent.rewards.fragments', { count: 5 })}</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                  <Zap size={12} className="text-gray-300" />
+                  <span>1위 +{t('game:weeklyEvent.rewards.fragments', { count: 10 })}</span>
+                </div>
+              </div>
+              <p className="text-[11px] text-gray-400 mb-2">
+                {t('game:weeklyEvent.rewards.appOnlyDesc')}
+              </p>
+              <a
+                href="https://slidemino.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center w-full py-2 rounded-lg bg-indigo-600 text-white font-semibold text-xs hover:bg-indigo-700 active:scale-[0.98] transition-all"
+              >
+                {t('game:weeklyEvent.rewards.getAppCta')}
+              </a>
+            </div>
+          )}
         </div>
 
         {/* 내 정보 */}
@@ -203,8 +279,8 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
           </div>
         )}
 
-        {/* 참여 보상 수령 */}
-        {hasPlayed && !rewardClaimed && isNativeApp() && (
+        {/* 참여 보상 수령 — 앱 전용 */}
+        {isApp && hasPlayed && !rewardClaimed && (
           <div className="mx-5 mb-3">
             <button
               onClick={handleClaimReward}
@@ -252,36 +328,108 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
         </div>
 
         {/* 랭킹 */}
-        {rankings.length > 0 && (
-          <div className="px-5 pb-5">
-            <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1">
-              <Trophy size={14} className="text-amber-500" />
-              {t('game:weeklyEvent.rankings')}
-            </h3>
-            <div className="space-y-1 max-h-60 overflow-y-auto">
-              {rankings.slice(0, 20).map((entry, idx) => (
-                <div
-                  key={idx}
-                  className={`flex items-center justify-between py-1.5 px-2.5 rounded-lg text-sm ${
-                    myRank === entry.rank ? 'bg-amber-50 font-semibold' : ''
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className={`w-6 text-center font-bold ${
-                      entry.rank === 1 ? 'text-amber-500' :
-                      entry.rank === 2 ? 'text-gray-400' :
-                      entry.rank === 3 ? 'text-amber-700' : 'text-gray-400'
-                    }`}>
-                      {entry.rank <= 3 ? ['🥇', '🥈', '🥉'][entry.rank - 1] : entry.rank}
-                    </span>
-                    <span className="text-gray-800 truncate max-w-[140px]">{entry.name}</span>
-                  </div>
-                  <span className="font-bold text-gray-900">{entry.score.toLocaleString()}</span>
-                </div>
-              ))}
-            </div>
+        <div className="px-5 pb-5">
+          {/* 주차 탭 토글 */}
+          <div className="flex items-center gap-1 mb-3">
+            <button
+              onClick={() => setShowPrevWeek(false)}
+              className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                !showPrevWeek
+                  ? `bg-gradient-to-r ${theme.gradient} text-white shadow-sm`
+                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+              }`}
+            >
+              {t('game:weeklyEvent.thisWeek')}
+            </button>
+            <button
+              onClick={() => setShowPrevWeek(true)}
+              className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                showPrevWeek
+                  ? `bg-gradient-to-r ${theme.gradient} text-white shadow-sm`
+                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+              }`}
+            >
+              {t('game:weeklyEvent.lastWeek')}
+            </button>
           </div>
-        )}
+
+          {!showPrevWeek ? (
+            /* 이번 주 랭킹 */
+            rankings.length > 0 ? (
+              <>
+                <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1">
+                  <Trophy size={14} className="text-amber-500" />
+                  {t('game:weeklyEvent.rankings')}
+                </h3>
+                <div className="space-y-1 max-h-60 overflow-y-auto">
+                  {rankings.slice(0, 20).map((entry, idx) => (
+                    <div
+                      key={idx}
+                      className={`flex items-center justify-between py-1.5 px-2.5 rounded-lg text-sm ${
+                        myRank === entry.rank ? 'bg-amber-50 font-semibold' : ''
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={`w-6 text-center font-bold ${
+                          entry.rank === 1 ? 'text-amber-500' :
+                          entry.rank === 2 ? 'text-gray-400' :
+                          entry.rank === 3 ? 'text-amber-700' : 'text-gray-400'
+                        }`}>
+                          {entry.rank <= 3 ? ['🥇', '🥈', '🥉'][entry.rank - 1] : entry.rank}
+                        </span>
+                        <span className="text-gray-800 truncate max-w-[140px]">{entry.name}</span>
+                      </div>
+                      <span className="font-bold text-gray-900">{entry.score.toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="text-center text-xs text-gray-400 py-3">{t('game:weeklyEvent.noRankings')}</p>
+            )
+          ) : (
+            /* 이전 주 랭킹 */
+            <>
+              {prevEventInfo && (
+                <p className="text-xs text-gray-500 mb-2 flex items-center gap-1.5">
+                  <span className="text-base">{EVENT_THEME[prevEventInfo.eventType]?.icon}</span>
+                  <span className="font-semibold">{t(`game:weeklyEvent.events.${prevEventInfo.eventType}.name`)}</span>
+                </p>
+              )}
+              {prevLoading ? (
+                <p className="text-center text-xs text-gray-400 py-3">
+                  <span className="inline-block w-3 h-3 border-2 border-gray-300 border-t-gray-500 rounded-full animate-spin mr-1" />
+                  {t('common:labels.loading')}
+                </p>
+              ) : prevRankings.length > 0 ? (
+                <div className="space-y-1 max-h-60 overflow-y-auto">
+                  {prevRankings.slice(0, 20).map((entry, idx) => (
+                    <div
+                      key={idx}
+                      className={`flex items-center justify-between py-1.5 px-2.5 rounded-lg text-sm ${
+                        prevMyRank === entry.rank ? 'bg-amber-50 font-semibold' : ''
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={`w-6 text-center font-bold ${
+                          entry.rank === 1 ? 'text-amber-500' :
+                          entry.rank === 2 ? 'text-gray-400' :
+                          entry.rank === 3 ? 'text-amber-700' : 'text-gray-400'
+                        }`}>
+                          {entry.rank <= 3 ? ['🥇', '🥈', '🥉'][entry.rank - 1] : entry.rank}
+                        </span>
+                        <span className="text-gray-800 truncate max-w-[140px]">{entry.name}</span>
+                      </div>
+                      <span className="font-bold text-gray-900">{entry.score.toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-xs text-gray-400 py-3">{t('game:weeklyEvent.noRankings')}</p>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

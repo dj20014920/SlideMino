@@ -18,7 +18,8 @@
     "reviveNoTargets": "No blocks available to destroy. Returning to play now.",
     "registerRanking": "Register Score",
     "backToMenu": "Back to Menu",
-    "challengeSubmitted": "Daily Challenge Rank #{{rank}} / {{total}} players"
+    "challengeSubmitted": "Daily Challenge Rank #{{rank}} / {{total}} players",
+    "viewEventRankings": "View Event Rankings"
   },
   "leaderboard": {
     "title": "Leaderboard",

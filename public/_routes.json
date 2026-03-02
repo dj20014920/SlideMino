@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "description": "API 경로는 Cloudflare Pages Functions로 라우팅, 나머지는 정적 에셋/SPA",
+  "include": ["/api/*"],
+  "exclude": []
+}

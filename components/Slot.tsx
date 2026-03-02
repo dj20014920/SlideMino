@@ -10,11 +10,12 @@ export interface SlotProps {
   onRotate: (index: number) => void;
   index: number;
   disabled: boolean;
+  rotationDisabled?: boolean;
   isPressed?: boolean;
   htmlId?: string; // For tutorial overlay targeting
 }
 
-export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, index, disabled, isPressed = false, htmlId }) => {
+export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, index, disabled, rotationDisabled = false, isPressed = false, htmlId }) => {
   const { t } = useTranslation();
   const { resolveTileAppearance, isWin98ThemeActive } = useBlockCustomization();
 
@@ -80,7 +81,7 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
       }}
     >
       {/* 회전 버튼 */}
-      {!disabled && (
+      {!disabled && !rotationDisabled && (
         <button
           type="button"
           className={`

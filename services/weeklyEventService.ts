@@ -8,9 +8,9 @@
  * - 일반 게임과 병행 가능 (독립 저장 슬롯)
  */
 
-import { BoardSize, ShapeType, WeeklyEventType, Piece } from '../types';
+import { BoardSize, ShapeType, WeeklyEventType, Piece, Phase } from '../types';
 import { STANDARD_SHAPES } from '../constants';
-import { getRotatedCells } from './gameLogic';
+import { getRotatedCells, getTurnActionAvailability } from './gameLogic';
 import { getAnalyticsInstallId } from './analyticsService';
 import { getServerAdjustedNow } from './serverTimeService';
 import { KST_OFFSET_MS } from '../config/constants';
@@ -331,6 +331,25 @@ export function loadEventGameState(): EventGameSaveData | null {
       clearEventGameState();
       return null;
     }
+    // 저장은 존재하지만 재개 불가능(이미 게임오버 상태)한 데이터는 즉시 정리.
+    const rule = EVENT_RULES[data.eventType as WeeklyEventType];
+    if (!rule || !Array.isArray(data.grid) || !Array.isArray(data.slots)) {
+      clearEventGameState();
+      return null;
+    }
+    if (!Number.isFinite(data.eventPlayedMs) || data.eventPlayedMs >= rule.timeLimitSeconds * 1000) {
+      clearEventGameState();
+      return null;
+    }
+    const availability = getTurnActionAvailability(data.grid, data.slots, rule.disableRotation);
+    const phase = data.phase === Phase.SLIDE ? Phase.SLIDE : Phase.PLACE;
+    const isTerminal =
+      (phase === Phase.PLACE && availability.isGameOver) ||
+      (phase === Phase.SLIDE && !availability.canSwipe && !availability.canPlace);
+    if (isTerminal) {
+      clearEventGameState();
+      return null;
+    }
     return data;
   } catch {
     return null;
@@ -341,6 +360,11 @@ export function clearEventGameState(): void {
   try {
     localStorage.removeItem(EVENT_GAME_STATE_KEY);
   } catch (e) { /* ignore */ }
+}
+
+/** 진행중인 이벤트 게임이 있는지 확인 */
+export function hasActiveEventGame(): boolean {
+  return loadEventGameState() !== null;
 }
 
 // ============================================
@@ -387,6 +411,37 @@ export function incrementLocalAttemptCount(score: number): void {
   prev.count += 1;
   prev.bestScore = Math.max(prev.bestScore, score);
   saveLocalAttempts(prev);
+}
+
+/**
+ * 서버에서 실제 도전 횟수를 조회해 로컬 캐시와 동기화한다.
+ * 앱 재설치/localStorage 초기화 등으로 로컬 값이 낮은 경우를 보정함.
+ * 네트워크 오류 시 로컬 값을 그대로 반환.
+ */
+export async function syncAttemptCountFromServer(): Promise<number> {
+  try {
+    const current = getCurrentEvent();
+    const installId = getAnalyticsInstallId();
+    const res = await fetch(
+      `${API_BASE}/attempts?eventId=${encodeURIComponent(current.eventId)}&installId=${encodeURIComponent(installId)}`
+    );
+    if (!res.ok) return getLocalAttemptCount();
+    const data = await res.json() as { count: number };
+    const serverCount = Math.min(3, Math.max(0, data.count ?? 0));
+    // 서버 횟수가 로컬보다 크면 동기화 (더 신뢰할 수 있는 쪽으로)
+    const local = loadLocalAttempts();
+    const localCount = (local && local.eventId === current.eventId) ? local.count : 0;
+    if (serverCount > localCount) {
+      saveLocalAttempts({
+        eventId: current.eventId,
+        count: serverCount,
+        bestScore: local?.bestScore ?? 0,
+      });
+    }
+    return Math.max(serverCount, localCount);
+  } catch {
+    return getLocalAttemptCount();
+  }
 }
 
 /** 현재 이벤트 참여 보상 수령 여부 */
@@ -470,12 +525,31 @@ export interface EventRankingsResult {
   total: number;
 }
 
+/** 이전 주 이벤트 정보 (종료된 이벤트의 랭킹 조회용) */
+export function getPreviousEvent(): CurrentEventInfo {
+  const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+  const prevWeekIndex = getCurrentWeekIndex() - 1;
+  const eventType = EVENT_ROTATION_ORDER[((prevWeekIndex % EVENT_ROTATION_ORDER.length) + EVENT_ROTATION_ORDER.length) % EVENT_ROTATION_ORDER.length];
+  const rule = EVENT_RULES[eventType];
+  const startsAt = EPOCH_MONDAY_UTC + prevWeekIndex * msPerWeek;
+  const endsAt = startsAt + msPerWeek;
+  const eventId = `${getKstDateString(startsAt)}_${eventType}`;
+  return {
+    eventType,
+    rule,
+    eventId,
+    startsAt,
+    endsAt,
+    remainingMs: 0, // 종료된 이벤트
+  };
+}
+
 /** 이벤트 랭킹 조회 */
-export async function fetchEventRankings(): Promise<EventRankingsResult> {
+export async function fetchEventRankings(eventId?: string): Promise<EventRankingsResult> {
   try {
-    const current = getCurrentEvent();
+    const resolvedEventId = eventId ?? getCurrentEvent().eventId;
     const installId = getAnalyticsInstallId();
-    const res = await fetch(`${API_BASE}/rankings?eventId=${encodeURIComponent(current.eventId)}&installId=${encodeURIComponent(installId)}`);
+    const res = await fetch(`${API_BASE}/rankings?eventId=${encodeURIComponent(resolvedEventId)}&installId=${encodeURIComponent(installId)}`);
     if (!res.ok) return { rankings: [], total: 0 };
     return await res.json() as EventRankingsResult;
   } catch {

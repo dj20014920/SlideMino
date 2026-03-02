@@ -18,7 +18,8 @@
     "reviveNoTargets": "当前没有可摧毁方块，已直接返回游戏。",
     "registerRanking": "注册排名",
     "backToMenu": "返回菜单",
-    "challengeSubmitted": "每日挑战 第{{rank}}名 / 共{{total}}人"
+    "challengeSubmitted": "今日挑战 第{{rank}}名 / 共{{total}}人",
+    "viewEventRankings": "查看活动排名"
   },
   "leaderboard": {
     "title": "Leaderboard",

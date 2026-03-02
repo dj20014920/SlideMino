@@ -85,7 +85,8 @@
   },
   "dailyChallenge": {
     "menuButton": "今日のチャレンジ",
-    "banner": "デイリーチャレンジ"
+    "banner": "デイリーチャレンジ",
+    "fetchFailed": "サーバーに接続できません。インターネット接続を確認してください。"
   },
   "weeklyEvent": {
     "menuButton": "ウィークリーイベント",

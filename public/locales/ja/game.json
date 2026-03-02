@@ -94,6 +94,9 @@
     "myBest": "自己ベスト",
     "myRank": "自分の順位",
     "rankings": "イベントランキング",
+    "thisWeek": "今週",
+    "lastWeek": "先週",
+    "noRankings": "まだランキングデータがありません",
     "start": "挑戦開始",
     "continueGame": "続きから",
     "newAttempt": "新しい挑戦",
@@ -112,7 +115,10 @@
       "first": "1位",
       "fragments": "スキンの欠片 {{count}}個",
       "title": "称号",
-      "specialTitle": "スペシャル称号"
+      "specialTitle": "スペシャル称号",
+      "appOnlyBadge": "アプリ限定",
+      "appOnlyDesc": "スキンの欠片はアプリでのみ受け取れます。",
+      "getAppCta": "アプリをDLして報酬を受け取る →"
     },
     "events": {
       "NO_ROTATION": {

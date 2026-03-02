@@ -3,7 +3,7 @@
  * Defense in Depth - Layer 3: SQL Injection 방어, Rate Limiting
  */
 
-import { resetSeasonIfNeeded, getSeasonBoundaries } from '../utils/seasonReset';
+import { resetSeasonIfNeeded } from '../utils/seasonReset';
 import { checkRateLimit, getClientIp } from '../utils/rateLimit';
 import { validateDifficulty, validateScore } from '../utils/validation';
 import { buildCorsHeaders } from '../utils/cors';
@@ -152,9 +152,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     // ========== 데이터베이스 조회 (Layer 4) ==========
     // Prepared statement로 SQL Injection 방어
     try {
-      // 시즌 정보 계산
-      const seasonInfo = getSeasonBoundaries(new Date());
-
       const { results } = await env.DB.prepare(
         `SELECT name, score, difficulty, timestamp
          FROM rankings
@@ -162,23 +159,20 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
          LIMIT 100`
       ).all();
 
+      // 구버전 클라이언트(6e7394a) 호환: 배열을 직접 반환한다.
+      // 현재 클라이언트의 rankingService.getLeaderboard()는 배열/객체 양쪽 모두 파싱 가능.
+      // 시즌 정보는 클라이언트가 seasonService.getSeasonCountdown()으로 독립 계산한다.
       return new Response(
-        JSON.stringify({
-          rankings: results,
-          seasonInfo: {
-            seasonId: seasonInfo.seasonId,
-            endsAt: seasonInfo.seasonEndMs,
-          },
-        }),
+        JSON.stringify(results),
         {
           status: 200,
           headers: {
-              ...corsHeaders,
-              'Content-Type': 'application/json',
-              'Cache-Control': 'no-store, no-cache, must-revalidate',
-            },
-          }
-        );
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-store, no-cache, must-revalidate',
+          },
+        }
+      );
 
     } catch (dbError) {
       console.error('Database error:', dbError);

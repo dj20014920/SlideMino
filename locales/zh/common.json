@@ -65,6 +65,18 @@
     "weeklyXp": "本周XP",
     "todayLog": "今日XP记录",
     "noLog": "暂无记录",
+    "earnMethodsTitle": "XP获取方式",
+    "limitDailyOnce": "每日1次",
+    "limitUnlimited": "无次数限制",
+    "earnMethods": {
+      "dailyMission": "完成全部3个每日任务后发放。",
+      "weeklyMission": "完成全部3个每周任务后发放。",
+      "event": "周活动分数提交成功时发放。",
+      "streak": "当日首次签到达成时，按连签天数发放（最多10）。",
+      "tile2048": "每次合成2048方块都会获得。",
+      "skin": "首次获得新皮肤时发放。",
+      "gameComplete": "当日首次完成一局游戏时发放。"
+    },
     "roadmap": "等级路线图",
     "roadmapReward": {
       "lv5": "皮肤碎片 +5",
@@ -107,8 +119,8 @@
     }
   },
   "calendar": {
-    "title": "本周日程",
-    "noItems": "本周没有活动",
+    "title": "消息",
+    "noItems": "暂无可显示的消息",
     "urgent": "紧急",
     "attendance": "签到检查",
     "attendanceComplete": "今日签到完成！",

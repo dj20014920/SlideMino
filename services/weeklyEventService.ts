@@ -551,6 +551,7 @@ export async function submitEventScore(params: {
   moves: number;
   duration: number;
   attemptNumber: number;
+  levelBadge?: string;
 }): Promise<EventSubmitResult> {
   try {
     const current = getCurrentEvent();
@@ -581,6 +582,7 @@ export interface EventRankingEntry {
   score: number;
   moves: number;
   duration: number;
+  levelBadge?: string | null;
 }
 
 export interface EventRankingsResult {

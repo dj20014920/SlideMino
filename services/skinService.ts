@@ -47,10 +47,16 @@ export const loadSkinSettings = (): SkinSettings => {
     if (obj.version !== 2) return DEFAULT_SKIN_SETTINGS;
 
     const ownedSkins: SkinItem[] = [];
+    const validCatalogIds = new Set(SKIN_CATALOG.map((entry) => entry.id));
+    const seenSkinIds = new Set<string>();
     if (Array.isArray(obj.ownedSkins)) {
       for (const item of obj.ownedSkins) {
         const sanitized = sanitizeSkinItem(item);
-        if (sanitized) ownedSkins.push(sanitized);
+        if (!sanitized) continue;
+        if (!validCatalogIds.has(sanitized.id)) continue;
+        if (seenSkinIds.has(sanitized.id)) continue;
+        seenSkinIds.add(sanitized.id);
+        ownedSkins.push(sanitized);
       }
     }
 
@@ -132,7 +138,13 @@ export const getFragmentCost = (skinId: string): number => {
  * 컬렉션 완성 여부 (카탈로그의 모든 스킨을 보유)
  */
 export const isCollectionComplete = (settings: SkinSettings): boolean => {
-  return settings.ownedSkins.length >= SKIN_CATALOG.length;
+  const validCatalogIds = new Set(SKIN_CATALOG.map((entry) => entry.id));
+  const ownedCount = new Set(
+    settings.ownedSkins
+      .map((skin) => skin.id)
+      .filter((id) => validCatalogIds.has(id))
+  ).size;
+  return ownedCount >= SKIN_CATALOG.length;
 };
 
 /**

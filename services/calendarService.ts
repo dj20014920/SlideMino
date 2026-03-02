@@ -1,5 +1,5 @@
 /**
- * 라이브옵스 캘린더 서비스 (기능 10 — 이번 주 일정 한눈에 보기)
+ * 라이브옵스 캘린더 서비스 (기능 10 — 소식용 상태 요약)
  *
  * - 오늘부터 7일간 이벤트 스케줄 표시
  * - 데일리 챌린지, 주간 이벤트, 시즌 종료, 출석 상태 등 통합
@@ -10,7 +10,7 @@
 import { getKstDateString, isTodayAttended, loadStreakData } from './streakService';
 import { getCurrentEvent } from './weeklyEventService';
 import { getSeasonRemainingMs } from './xpLevelService';
-import { getDailyCompletedCount } from './missionService';
+import { getDailyCompletedCount, getWeeklyCompletedCount } from './missionService';
 import { getServerAdjustedNow } from './serverTimeService';
 import { KST_OFFSET_MS } from '../config/constants';
 
@@ -139,14 +139,16 @@ export function getCalendarItems(): CalendarItem[] {
   }
 
   // 6. 주간 미션 (월요일 리셋)
+  const weeklyCompleted = getWeeklyCompletedCount();
   const weekEndMs = getNextMondayKstMs();
   const weeklyUrgent = weekEndMs - now < 24 * 60 * 60 * 1000;
   items.push({
     type: 'weekly_mission',
     titleKey: 'calendar.weeklyMission',
+    descKey: weeklyCompleted >= 3 ? 'calendar.missionAllComplete' : 'calendar.missionProgress',
     endsAt: weekEndMs,
     isUrgent: weeklyUrgent,
-    isCompleted: false,
+    isCompleted: weeklyCompleted >= 3,
     action: 'mission',
   });
 

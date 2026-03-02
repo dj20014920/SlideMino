@@ -1,17 +1,26 @@
 /**
- * 캘린더 모달 — 이번 주 일정 한눈에 보기
+ * 소식 모달 — 이번 주 핵심 정보를 압축 표시
  * 접기/펼치기 가능한 카드 형태
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Calendar, X, ChevronDown, ChevronUp, Clock, CheckCircle2 } from 'lucide-react';
+import { Calendar, X, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import {
   getCalendarItems,
   formatTimeRemaining,
   type CalendarItem,
 } from '../services/calendarService';
+import {
+  getDailyMissions,
+  getWeeklyMissions,
+  getMissionDefinition,
+  getDailyCompletedCount,
+  getWeeklyCompletedCount,
+  type ActiveMission,
+} from '../services/missionService';
+import { getCurrentEvent } from '../services/weeklyEventService';
 
 interface CalendarModalProps {
   open: boolean;
@@ -36,11 +45,19 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onA
   const { t } = useTranslation();
   useBodyScrollLock(open);
   const [items, setItems] = useState<CalendarItem[]>([]);
-  const [timeNow, setTimeNow] = useState(Date.now());
+  const [dailyMissions, setDailyMissions] = useState<ActiveMission[]>([]);
+  const [weeklyMissions, setWeeklyMissions] = useState<ActiveMission[]>([]);
+  const [dailyCompleted, setDailyCompleted] = useState(0);
+  const [weeklyCompleted, setWeeklyCompleted] = useState(0);
+  const [eventInfo, setEventInfo] = useState(() => getCurrentEvent());
 
   const refresh = useCallback(() => {
     setItems(getCalendarItems());
-    setTimeNow(Date.now());
+    setDailyMissions(getDailyMissions());
+    setWeeklyMissions(getWeeklyMissions());
+    setDailyCompleted(getDailyCompletedCount());
+    setWeeklyCompleted(getWeeklyCompletedCount());
+    setEventInfo(getCurrentEvent());
   }, []);
 
   useEffect(() => {
@@ -53,6 +70,65 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onA
   }, [open, refresh]);
 
   if (!open) return null;
+
+  const attendanceItem = items.find((item) => item.type === 'attendance');
+  const seasonEndItem = items.find((item) => item.type === 'season_end');
+  const dailyMissionItem = items.find((item) => item.type === 'daily_mission');
+  const weeklyMissionItem = items.find((item) => item.type === 'weekly_mission');
+
+  const eventRuleTags: string[] = [
+    `${eventInfo.rule.boardSize}×${eventInfo.rule.boardSize}`,
+    `⏱ ${Math.floor(eventInfo.rule.timeLimitSeconds / 60)}${t('game:weeklyEvent.tags.minutes')}`,
+  ];
+  if (eventInfo.rule.disableRotation) {
+    eventRuleTags.push(t('game:weeklyEvent.tags.noRotation'));
+  }
+  if (eventInfo.rule.scoreMultiplier > 1) {
+    eventRuleTags.push(`×${eventInfo.rule.scoreMultiplier} ${t('game:weeklyEvent.tags.scoreBoost')}`);
+  }
+  if (eventInfo.rule.tripleKillBonus > 0) {
+    eventRuleTags.push(`+${eventInfo.rule.tripleKillBonus}pt ${t('game:weeklyEvent.tags.tripleKill')}`);
+  }
+
+  const dailyMissionRows = dailyMissions
+    .map((mission) => {
+      const def = getMissionDefinition(mission.definitionId);
+      if (!def) return null;
+      return {
+        id: mission.definitionId,
+        nameKey: def.nameKey,
+        progress: Math.min(mission.progress, def.target),
+        target: def.target,
+        completed: mission.completed,
+      };
+    })
+    .filter((row): row is {
+      id: string;
+      nameKey: string;
+      progress: number;
+      target: number;
+      completed: boolean;
+    } => Boolean(row));
+
+  const weeklyMissionRows = weeklyMissions
+    .map((mission) => {
+      const def = getMissionDefinition(mission.definitionId);
+      if (!def) return null;
+      return {
+        id: mission.definitionId,
+        nameKey: def.nameKey,
+        progress: Math.min(mission.progress, def.target),
+        target: def.target,
+        completed: mission.completed,
+      };
+    })
+    .filter((row): row is {
+      id: string;
+      nameKey: string;
+      progress: number;
+      target: number;
+      completed: boolean;
+    } => Boolean(row));
 
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 modal-safe-overlay" onClick={onClose}>
@@ -76,64 +152,123 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onA
         </div>
 
         {/* 항목 목록 */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
-          {items.length === 0 ? (
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2.5">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-2.5 py-2">
+              <div className="text-[10px] font-semibold text-emerald-700">
+                {t('common:calendar.attendance')}
+              </div>
+              <div className="mt-0.5 text-[11px] text-emerald-800 truncate">
+                {attendanceItem?.isCompleted
+                  ? t('common:calendar.attendanceComplete')
+                  : t('common:calendar.attendanceIncomplete')}
+              </div>
+            </div>
+            <div className="rounded-xl border border-blue-100 bg-blue-50 px-2.5 py-2">
+              <div className="text-[10px] font-semibold text-blue-700">
+                {t('common:calendar.seasonEnd')}
+              </div>
+              <div className="mt-0.5 text-[11px] text-blue-800 tabular-nums">
+                {seasonEndItem?.endsAt ? formatTimeRemaining(seasonEndItem.endsAt) : '-'}
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={() => {
+              onAction?.('mission');
+              onClose();
+            }}
+            className="w-full text-left rounded-2xl border border-gray-100 bg-gray-50 px-3 py-2.5 transition-colors hover:bg-gray-100"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm">📋</span>
+                <span className="text-xs font-bold text-gray-800">{t('common:calendar.dailyMission')}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-semibold text-blue-600 tabular-nums">{dailyCompleted}/3</span>
+                {dailyMissionItem?.isCompleted && <CheckCircle2 size={13} className="text-emerald-500" />}
+              </div>
+            </div>
+            <div className="mt-1.5 space-y-1">
+              {dailyMissionRows.map((row) => (
+                <div key={row.id} className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] text-gray-600 truncate">{t(row.nameKey as any)}</span>
+                  <span className={`text-[10px] tabular-nums ${row.completed ? 'text-emerald-600 font-semibold' : 'text-gray-400'}`}>
+                    {row.progress}/{row.target}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-1 text-[10px] text-gray-400 tabular-nums">
+              {dailyMissionItem?.endsAt ? formatTimeRemaining(dailyMissionItem.endsAt) : ''}
+            </div>
+          </button>
+
+          <button
+            onClick={() => {
+              onAction?.('weekly_event');
+              onClose();
+            }}
+            className="w-full text-left rounded-2xl border border-violet-100 bg-violet-50 px-3 py-2.5 transition-colors hover:bg-violet-100/80"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="text-sm">🎯</span>
+                <span className="text-xs font-bold text-gray-800 truncate">{t('common:calendar.weeklyEvent')}</span>
+              </div>
+              <span className="text-[10px] font-semibold text-violet-600 tabular-nums">
+                {formatTimeRemaining(eventInfo.endsAt)}
+              </span>
+            </div>
+            <p className="mt-1 text-[11px] text-violet-700 truncate">
+              {t(`game:weeklyEvent.events.${eventInfo.eventType}.name` as any)}
+            </p>
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {eventRuleTags.slice(0, 4).map((tag) => (
+                <span key={tag} className="rounded-full bg-white/70 border border-violet-200 px-1.5 py-0.5 text-[10px] text-violet-700">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </button>
+
+          <button
+            onClick={() => {
+              onAction?.('mission');
+              onClose();
+            }}
+            className="w-full text-left rounded-2xl border border-gray-100 bg-gray-50 px-3 py-2.5 transition-colors hover:bg-gray-100"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm">📅</span>
+                <span className="text-xs font-bold text-gray-800">{t('common:calendar.weeklyMission')}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-semibold text-blue-600 tabular-nums">{weeklyCompleted}/3</span>
+                {weeklyMissionItem?.isCompleted && <CheckCircle2 size={13} className="text-emerald-500" />}
+              </div>
+            </div>
+            <div className="mt-1.5 space-y-1">
+              {weeklyMissionRows.map((row) => (
+                <div key={row.id} className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] text-gray-600 truncate">{t(row.nameKey as any)}</span>
+                  <span className={`text-[10px] tabular-nums ${row.completed ? 'text-emerald-600 font-semibold' : 'text-gray-400'}`}>
+                    {row.progress}/{row.target}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-1 text-[10px] text-gray-400 tabular-nums">
+              {weeklyMissionItem?.endsAt ? formatTimeRemaining(weeklyMissionItem.endsAt) : ''}
+            </div>
+          </button>
+          {items.length === 0 && (
             <p className="text-center text-sm text-gray-400 py-8">
               {t('common:calendar.noItems')}
             </p>
-          ) : (
-            items.map((item, idx) => (
-              <button
-                key={idx}
-                onClick={() => {
-                  if (item.action) {
-                    onAction?.(item.action);
-                    onClose();
-                  }
-                }}
-                className={`
-                  w-full text-left rounded-2xl p-3.5 transition-all duration-200
-                  ${item.isUrgent
-                    ? 'bg-red-50 border-2 border-red-300 shadow-sm'
-                    : item.isCompleted
-                      ? 'bg-emerald-50 border border-emerald-200'
-                      : 'bg-gray-50 border border-gray-100 hover:bg-gray-100'
-                  }
-                `}
-              >
-                <div className="flex items-start gap-3">
-                  <span className="text-xl mt-0.5">{getItemIcon(item.type)}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-sm font-semibold text-gray-800 truncate">
-                        {t(item.titleKey as any)}
-                      </span>
-                      {item.isUrgent && (
-                        <span className="px-1.5 py-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold">
-                          {t('common:calendar.urgent')}
-                        </span>
-                      )}
-                      {item.isCompleted && (
-                        <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />
-                      )}
-                    </div>
-                    {item.descKey && (
-                      <p className="text-xs text-gray-500 mt-0.5 truncate">
-                        {t(item.descKey as any)}
-                      </p>
-                    )}
-                  </div>
-                  {item.endsAt && !item.isCompleted && (
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Clock size={11} className={item.isUrgent ? 'text-red-500' : 'text-gray-400'} />
-                      <span className={`text-xs font-semibold tabular-nums ${item.isUrgent ? 'text-red-600' : 'text-gray-500'}`}>
-                        {formatTimeRemaining(item.endsAt)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </button>
-            ))
           )}
         </div>
       </div>

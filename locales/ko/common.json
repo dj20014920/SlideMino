@@ -69,6 +69,18 @@
     "weeklyXp": "이번 주 XP",
     "todayLog": "오늘의 XP 기록",
     "noLog": "아직 기록이 없어요",
+    "earnMethodsTitle": "XP 획득 방법",
+    "limitDailyOnce": "하루 1회",
+    "limitUnlimited": "횟수 제한 없음",
+    "earnMethods": {
+      "dailyMission": "일일 미션 3개를 모두 완료하면 지급됩니다.",
+      "weeklyMission": "주간 미션 3개를 모두 완료하면 지급됩니다.",
+      "event": "주간 이벤트 점수 제출이 성공하면 지급됩니다.",
+      "streak": "당일 첫 출석 인정 시 연속일수만큼(최대 10) 지급됩니다.",
+      "tile2048": "2048 타일을 만들 때마다 획득할 수 있습니다.",
+      "skin": "신규 스킨을 처음 획득했을 때 지급됩니다.",
+      "gameComplete": "당일 첫 게임 완료 시 지급됩니다."
+    },
     "roadmap": "레벨 로드맵",
     "roadmapReward": {
       "lv5": "스킨 조각 +5",
@@ -111,8 +123,8 @@
     }
   },
   "calendar": {
-    "title": "이번 주 일정",
-    "noItems": "이번 주 일정이 없어요",
+    "title": "소식",
+    "noItems": "표시할 소식이 없어요",
     "urgent": "긴급",
     "attendance": "출석 체크",
     "attendanceComplete": "오늘 출석 완료!",

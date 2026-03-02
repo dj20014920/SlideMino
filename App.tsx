@@ -155,6 +155,7 @@ import {
   getXpProgress,
   grantXpStreak,
   loadXpData,
+  getHighestLevelBadgeForLevel,
 } from './services/xpLevelService';
 import { getCalendarItems } from './services/calendarService';
 import {
@@ -4252,16 +4253,25 @@ const App: React.FC = () => {
                 const drawCount = reward === 'FREE_DRAW_5' ? 5 : 1;
                 let newSkins = 0;
                 let dupFragments = 0;
+                // 연속 뽑기 동안 최신 보유 상태를 로컬 스냅샷으로 유지해 보상 누락을 방지한다.
+                let drawSettings = loadSkinSettings();
                 for (let i = 0; i < drawCount; i++) {
-                  const settings = loadSkinSettings();
-                  const result = drawSkin(settings);
+                  const result = drawSkin(drawSettings);
                   if (!result) continue;
                   if (result.type === 'new') {
                     addSkin(result.skin);
                     newSkins++;
+                    drawSettings = {
+                      ...drawSettings,
+                      ownedSkins: [...drawSettings.ownedSkins, result.skin],
+                    };
                   } else {
                     addFragments(result.fragmentsEarned);
                     dupFragments += result.fragmentsEarned;
+                    drawSettings = {
+                      ...drawSettings,
+                      fragments: drawSettings.fragments + result.fragmentsEarned,
+                    };
                   }
                 }
                 const msg = newSkins > 0
@@ -4363,6 +4373,7 @@ const App: React.FC = () => {
     !isBlockRefreshLockedByMode &&
     showBlockRefreshAdButton &&
     blockRefreshRemaining <= 0;
+  const currentLevelBadge = getHighestLevelBadgeForLevel(xpLevel);
   const isBlockRefreshButtonDisabled =
     isBlockRefreshLockedByMode ||
     isAnimating ||
@@ -4481,6 +4492,11 @@ const App: React.FC = () => {
                   )}
               </h2>
               <p className="text-3xl font-bold text-gray-900 tabular-nums">{score}</p>
+              {currentLevelBadge && (
+                <p className="text-xs font-semibold text-purple-600">
+                  {currentLevelBadge.emoji} Lv.{currentLevelBadge.level}
+                </p>
+              )}
               {liveRankEstimate !== null && gameState === GameState.PLAYING
                 && score > 0 && liveRankEstimate.totalEntries >= 2 && (
                   <p className="text-xs font-semibold text-blue-500">

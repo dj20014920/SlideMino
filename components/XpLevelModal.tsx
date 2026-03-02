@@ -6,6 +6,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Star, Award, TrendingUp, ChevronDown, ChevronUp } from 'lucide-react';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
+import { gameEventBus } from '../services/gameEventBus';
 import {
   getXpProgress,
   getLevelBadges,
@@ -51,6 +52,25 @@ function getSourceLabel(source: string, t: (key: string) => string): string {
   return map[source] ?? source;
 }
 
+type XpMethodSource = 'daily_mission' | 'weekly_mission' | 'event' | 'streak' | 'tile_2048' | 'skin' | 'game_complete';
+
+interface XpMethodGuideItem {
+  source: XpMethodSource;
+  amountLabel: string;
+  dailyLimit: 'once' | 'unlimited';
+  descKey: string;
+}
+
+const XP_METHOD_GUIDE: readonly XpMethodGuideItem[] = [
+  { source: 'daily_mission', amountLabel: '+10 XP', dailyLimit: 'once', descKey: 'common:xp.earnMethods.dailyMission' },
+  { source: 'weekly_mission', amountLabel: '+15 XP', dailyLimit: 'once', descKey: 'common:xp.earnMethods.weeklyMission' },
+  { source: 'event', amountLabel: '+20 XP', dailyLimit: 'once', descKey: 'common:xp.earnMethods.event' },
+  { source: 'streak', amountLabel: '+1~10 XP', dailyLimit: 'once', descKey: 'common:xp.earnMethods.streak' },
+  { source: 'tile_2048', amountLabel: '+2 XP', dailyLimit: 'unlimited', descKey: 'common:xp.earnMethods.tile2048' },
+  { source: 'skin', amountLabel: '+5 XP', dailyLimit: 'once', descKey: 'common:xp.earnMethods.skin' },
+  { source: 'game_complete', amountLabel: '+10 XP', dailyLimit: 'once', descKey: 'common:xp.earnMethods.gameComplete' },
+];
+
 export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpecialRewardClaim }) => {
   const { t } = useTranslation();
   useBodyScrollLock(open);
@@ -73,6 +93,23 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
 
   useEffect(() => {
     if (open) refresh();
+  }, [open, refresh]);
+
+  useEffect(() => {
+    if (!open) return;
+    const unsubXp = gameEventBus.on('XP_GAINED', () => refresh());
+    const unsubLevelUp = gameEventBus.on('LEVEL_UP', () => refresh());
+    const refreshIntervalId = window.setInterval(() => refresh(), 60_000);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      unsubXp();
+      unsubLevelUp();
+      window.clearInterval(refreshIntervalId);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
   }, [open, refresh]);
 
   const [claimingReward, setClaimingReward] = useState<string | null>(null);
@@ -159,8 +196,14 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
         </div>
 
         {/* 본문 */}
-        <div className="relative flex-1 min-h-0">
-        <div className="h-full overflow-y-auto px-5 py-4 space-y-4">
+        <div
+          className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-4"
+          style={{
+            WebkitOverflowScrolling: 'touch',
+            touchAction: 'pan-y',
+            overscrollBehavior: 'contain',
+          }}
+        >
 
           {/* 특별 보상 미수령 */}
           {pendingRewards.length > 0 && (
@@ -185,6 +228,29 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
               ))}
             </div>
           )}
+
+          {/* XP 획득 방법 */}
+          <div>
+            <h3 className="text-sm font-bold text-gray-800 mb-2">{t('common:xp.earnMethodsTitle')}</h3>
+            <div className="space-y-1.5">
+              {XP_METHOD_GUIDE.map((item) => (
+                <div key={item.source} className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-gray-700">
+                      {getSourceLabel(item.source, t as (key: string) => string)}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-purple-600">{item.amountLabel}</span>
+                      <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${item.dailyLimit === 'once' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                        {item.dailyLimit === 'once' ? t('common:xp.limitDailyOnce') : t('common:xp.limitUnlimited')}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="mt-1 text-[11px] text-gray-500">{t(item.descKey as any)}</p>
+                </div>
+              ))}
+            </div>
+          </div>
 
           {/* 레벨 배지 */}
           <div>
@@ -293,9 +359,6 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
               })}
             </div>
           </div>
-        </div>
-        {/* Scroll indicator gradient */}
-        <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none rounded-b-3xl" />
         </div>
       </div>
     </div>

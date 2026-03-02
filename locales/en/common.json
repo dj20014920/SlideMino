@@ -70,6 +70,18 @@
     "weeklyXp": "This Week's XP",
     "todayLog": "Today's XP Log",
     "noLog": "No records yet",
+    "earnMethodsTitle": "How To Earn XP",
+    "limitDailyOnce": "Once per day",
+    "limitUnlimited": "No daily cap",
+    "earnMethods": {
+      "dailyMission": "Granted when all 3 daily missions are completed.",
+      "weeklyMission": "Granted when all 3 weekly missions are completed.",
+      "event": "Granted on successful weekly event score submission.",
+      "streak": "Granted on the first attendance check-in of the day (up to 10).",
+      "tile2048": "Granted every time you create a 2048 tile.",
+      "skin": "Granted when you newly acquire a skin.",
+      "gameComplete": "Granted on your first game completion of the day."
+    },
     "roadmap": "Level Roadmap",
     "roadmapReward": {
       "lv5": "+5 Skin Fragments",
@@ -112,8 +124,8 @@
     }
   },
   "calendar": {
-    "title": "This Week",
-    "noItems": "No events this week",
+    "title": "News",
+    "noItems": "No news right now",
     "urgent": "Urgent",
     "attendance": "Attendance Check",
     "attendanceComplete": "Today's attendance done!",

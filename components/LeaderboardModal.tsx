@@ -4,7 +4,7 @@ import { X, Trophy } from 'lucide-react';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import { rankingService, RankEntry } from '../services/rankingService';
 import { getSeasonCountdown } from '../services/seasonService';
-import { getHighestBadge } from '../services/streakService';
+import { getLevelBadgeById } from '../services/xpLevelService';
 
 interface LeaderboardModalProps {
     open: boolean;
@@ -23,9 +23,6 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
     const [fromCache, setFromCache] = useState(false);
     const [activeTab, setActiveTab] = useState<'ALL' | '4x4' | '5x5' | '7x7' | '8x8' | '10x10'>('ALL');
     const [countdown, setCountdown] = useState(() => getSeasonCountdown());
-
-    // 내 최고 배지 (로컬 유저 것만)
-    const myBadge = getHighestBadge();
 
     const formatDifficultyLabel = (difficulty?: string): string | null => {
         if (!difficulty) return null;
@@ -169,7 +166,9 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
                             {t('modals:leaderboard.empty')}
                         </div>
                     ) : (
-                        filteredRankings.map((entry, index) => (
+                        filteredRankings.map((entry, index) => {
+                            const levelBadge = getLevelBadgeById(entry.levelBadge ?? null);
+                            return (
                             <div
                                 key={index}
                                 className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between"
@@ -188,8 +187,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
                                             className="font-bold text-gray-800 max-w-[160px] truncate"
                                             title={entry.name}
                                         >
-                                            {/* 내 배지는 로컬에서만 자기 이름 옆에 표시 */}
-                                            {entry.name}
+                                            {levelBadge ? `${levelBadge.emoji} ` : ''}{entry.name}
                                         </div>
                                         <div className="text-xs text-gray-400 flex items-center gap-2">
                                             <span>{formatDifficultyLabel(entry.difficulty) || '8x8'}</span>
@@ -203,7 +201,8 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
                                     <div className="text-xs text-gray-400">{t('common:labels.pts')}</div>
                                 </div>
                             </div>
-                        ))
+                            );
+                        })
                     )}
                 </div>
             </div>

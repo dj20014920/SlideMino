@@ -52,6 +52,9 @@ const EVENT_SCORE_MULTIPLIER: Record<string, number> = {
   BURNING: 1.5,
   TRIPLE_KILL: 1.5,  // +333 보너스 고려하여 여유 배율
 };
+const VALID_LEVEL_BADGES = new Set([
+  'lv5', 'lv10', 'lv15', 'lv20', 'lv25', 'lv30', 'lv35', 'lv40', 'lv45', 'lv50',
+]);
 
 function errorResponse(message: string, status: number, headers: Record<string, string>): Response {
   const safe = status === 500 ? 'Internal server error' : message;
@@ -105,6 +108,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const nameV = validateName(data.name);
     if (!nameV.valid) return errorResponse(nameV.error!, 400, corsHeaders);
     const name = nameV.sanitized!;
+    const levelBadge = typeof data.levelBadge === 'string' && VALID_LEVEL_BADGES.has(data.levelBadge)
+      ? data.levelBadge
+      : null;
 
     const scoreV = validateScore(data.score);
     if (!scoreV.valid) return errorResponse(scoreV.error!, 400, corsHeaders);
@@ -194,6 +200,26 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           score, score, moves, score, moves, duration
         ),
       ]);
+
+      await env.DB.prepare(
+        `CREATE TABLE IF NOT EXISTS event_ranking_badges (
+           event_id TEXT NOT NULL,
+           install_id_hash TEXT NOT NULL,
+           level_badge TEXT NOT NULL,
+           updated_at INTEGER NOT NULL,
+           PRIMARY KEY (event_id, install_id_hash)
+         )`
+      ).run();
+
+      if (levelBadge) {
+        await env.DB.prepare(
+          `INSERT INTO event_ranking_badges (event_id, install_id_hash, level_badge, updated_at)
+           VALUES (?, ?, ?, ?)
+           ON CONFLICT(event_id, install_id_hash) DO UPDATE SET
+             level_badge = excluded.level_badge,
+             updated_at = excluded.updated_at`
+        ).bind(eventId, installIdHash, levelBadge, now).run();
+      }
 
       // 순위 조회
       const rankResult = await env.DB.prepare(

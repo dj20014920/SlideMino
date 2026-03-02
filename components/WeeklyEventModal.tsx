@@ -34,6 +34,7 @@ import {
 import { addFragments } from '../services/skinService';
 import { isNativeApp } from '../utils/platform';
 import { weeklyEventAttemptAdService } from '../services/weeklyEventAttemptAdService';
+import { getLevelBadgeById } from '../services/xpLevelService';
 
 // ============================================
 // 이벤트 아이콘/색상 매핑
@@ -475,26 +476,31 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
                   {t('game:weeklyEvent.rankings')}
                 </h3>
                 <div className="space-y-1 max-h-60 overflow-y-auto">
-                  {rankings.slice(0, 20).map((entry, idx) => (
-                    <div
-                      key={idx}
-                      className={`flex items-center justify-between py-1.5 px-2.5 rounded-lg text-sm ${
-                        myRank === entry.rank ? 'bg-amber-50 font-semibold' : ''
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className={`w-6 text-center font-bold ${
-                          entry.rank === 1 ? 'text-amber-500' :
-                          entry.rank === 2 ? 'text-gray-400' :
-                          entry.rank === 3 ? 'text-amber-700' : 'text-gray-400'
-                        }`}>
-                          {entry.rank <= 3 ? ['🥇', '🥈', '🥉'][entry.rank - 1] : entry.rank}
-                        </span>
-                        <span className="text-gray-800 truncate max-w-[140px]">{entry.name}</span>
+                  {rankings.slice(0, 20).map((entry, idx) => {
+                    const levelBadgeEmoji = getLevelBadgeById(entry.levelBadge ?? null)?.emoji;
+                    return (
+                      <div
+                        key={idx}
+                        className={`flex items-center justify-between py-1.5 px-2.5 rounded-lg text-sm ${
+                          myRank === entry.rank ? 'bg-amber-50 font-semibold' : ''
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className={`w-6 text-center font-bold ${
+                            entry.rank === 1 ? 'text-amber-500' :
+                            entry.rank === 2 ? 'text-gray-400' :
+                            entry.rank === 3 ? 'text-amber-700' : 'text-gray-400'
+                          }`}>
+                            {entry.rank <= 3 ? ['🥇', '🥈', '🥉'][entry.rank - 1] : entry.rank}
+                          </span>
+                          <span className="text-gray-800 truncate max-w-[140px]">
+                            {levelBadgeEmoji ? `${levelBadgeEmoji} ${entry.name}` : entry.name}
+                          </span>
+                        </div>
+                        <span className="font-bold text-gray-900">{entry.score.toLocaleString()}</span>
                       </div>
-                      <span className="font-bold text-gray-900">{entry.score.toLocaleString()}</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </>
             ) : (
@@ -516,26 +522,31 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
                 </p>
               ) : prevRankings.length > 0 ? (
                 <div className="space-y-1 max-h-60 overflow-y-auto">
-                  {prevRankings.slice(0, 20).map((entry, idx) => (
-                    <div
-                      key={idx}
-                      className={`flex items-center justify-between py-1.5 px-2.5 rounded-lg text-sm ${
-                        prevMyRank === entry.rank ? 'bg-amber-50 font-semibold' : ''
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className={`w-6 text-center font-bold ${
-                          entry.rank === 1 ? 'text-amber-500' :
-                          entry.rank === 2 ? 'text-gray-400' :
-                          entry.rank === 3 ? 'text-amber-700' : 'text-gray-400'
-                        }`}>
-                          {entry.rank <= 3 ? ['🥇', '🥈', '🥉'][entry.rank - 1] : entry.rank}
-                        </span>
-                        <span className="text-gray-800 truncate max-w-[140px]">{entry.name}</span>
+                  {prevRankings.slice(0, 20).map((entry, idx) => {
+                    const levelBadgeEmoji = getLevelBadgeById(entry.levelBadge ?? null)?.emoji;
+                    return (
+                      <div
+                        key={idx}
+                        className={`flex items-center justify-between py-1.5 px-2.5 rounded-lg text-sm ${
+                          prevMyRank === entry.rank ? 'bg-amber-50 font-semibold' : ''
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className={`w-6 text-center font-bold ${
+                            entry.rank === 1 ? 'text-amber-500' :
+                            entry.rank === 2 ? 'text-gray-400' :
+                            entry.rank === 3 ? 'text-amber-700' : 'text-gray-400'
+                          }`}>
+                            {entry.rank <= 3 ? ['🥇', '🥈', '🥉'][entry.rank - 1] : entry.rank}
+                          </span>
+                          <span className="text-gray-800 truncate max-w-[140px]">
+                            {levelBadgeEmoji ? `${levelBadgeEmoji} ${entry.name}` : entry.name}
+                          </span>
+                        </div>
+                        <span className="font-bold text-gray-900">{entry.score.toLocaleString()}</span>
                       </div>
-                      <span className="font-bold text-gray-900">{entry.score.toLocaleString()}</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="text-center text-xs text-gray-400 py-3">{t('game:weeklyEvent.noRankings')}</p>

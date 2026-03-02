@@ -100,6 +100,26 @@ export const LEVEL_BADGES: readonly LevelBadge[] = [
   { level: 50, id: 'lv50', emoji: '🏆',  nameKey: 'xp.badges.lv50' },
 ];
 
+/** 배지 ID로 레벨 배지 조회 */
+export function getLevelBadgeById(id: string | null | undefined): LevelBadge | null {
+  if (!id) return null;
+  return LEVEL_BADGES.find((badge) => badge.id === id) ?? null;
+}
+
+/** 현재 레벨에서 표시할 최고 배지 조회 */
+export function getHighestLevelBadgeForLevel(level: number): LevelBadge | null {
+  if (!Number.isFinite(level) || level <= 0) return null;
+  let current: LevelBadge | null = null;
+  for (const badge of LEVEL_BADGES) {
+    if (badge.level <= level) {
+      current = badge;
+      continue;
+    }
+    break;
+  }
+  return current;
+}
+
 /** 레벨업 시 보상 계산 */
 export interface LevelUpReward {
   level: number;
@@ -213,7 +233,7 @@ export function loadXpData(): XpData {
         ? Object.fromEntries(
           Object.entries(parsed.lastClaimDateBySource as Record<string, unknown>)
             .filter(([, value]) => typeof value === 'string')
-        )
+        ) as Record<string, string>
         : {},
     };
 
@@ -263,7 +283,7 @@ function loadXpLog(): XpLogData {
 function saveXpLog(log: XpLogData): void {
   try {
     // 최근 7일 데이터만 유지
-    const now = Date.now();
+    const now = getServerAdjustedNow().getTime();
     const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
     log.entries = log.entries.filter(e => now - e.timestamp < sevenDaysMs);
     localStorage.setItem(XP_LOG_KEY, JSON.stringify(log));
@@ -272,11 +292,12 @@ function saveXpLog(log: XpLogData): void {
 
 function addXpLogEntry(source: string, amount: number): void {
   const log = loadXpLog();
+  const now = getServerAdjustedNow();
   log.entries.push({
     source,
     amount,
-    timestamp: Date.now(),
-    dateStr: getKstDateString(),
+    timestamp: now.getTime(),
+    dateStr: getKstDateString(now),
   });
   saveXpLog(log);
 }

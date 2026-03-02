@@ -152,10 +152,19 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     // ========== 데이터베이스 조회 (Layer 4) ==========
     // Prepared statement로 SQL Injection 방어
     try {
+      await env.DB.prepare(
+        `CREATE TABLE IF NOT EXISTS ranking_badges (
+           session_id TEXT PRIMARY KEY,
+           level_badge TEXT NOT NULL,
+           updated_at INTEGER NOT NULL
+         )`
+      ).run();
+
       const { results } = await env.DB.prepare(
-        `SELECT name, score, difficulty, timestamp
-         FROM rankings
-         ORDER BY score DESC, updated_at ASC
+        `SELECT r.name, r.score, r.difficulty, r.timestamp, rb.level_badge as levelBadge
+         FROM rankings r
+         LEFT JOIN ranking_badges rb ON rb.session_id = r.session_id
+         ORDER BY r.score DESC, r.updated_at ASC
          LIMIT 100`
       ).all();
 

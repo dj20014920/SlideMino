@@ -65,6 +65,18 @@
     "weeklyXp": "今週のXP",
     "todayLog": "今日のXP記録",
     "noLog": "まだ記録がありません",
+    "earnMethodsTitle": "XPの獲得方法",
+    "limitDailyOnce": "1日1回",
+    "limitUnlimited": "回数制限なし",
+    "earnMethods": {
+      "dailyMission": "デイリーミッション3個をすべて完了すると付与されます。",
+      "weeklyMission": "ウィークリーミッション3個をすべて完了すると付与されます。",
+      "event": "ウィークリーイベントのスコア提出に成功すると付与されます。",
+      "streak": "当日の最初の出席認定時に連続日数分（最大10）付与されます。",
+      "tile2048": "2048タイルを作るたびに獲得できます。",
+      "skin": "新しいスキンを初めて獲得した時に付与されます。",
+      "gameComplete": "当日の最初のゲーム完了時に付与されます。"
+    },
     "roadmap": "レベルロードマップ",
     "roadmapReward": {
       "lv5": "スキンのかけら +5",
@@ -107,8 +119,8 @@
     }
   },
   "calendar": {
-    "title": "今週のスケジュール",
-    "noItems": "今週の予定はありません",
+    "title": "お知らせ",
+    "noItems": "表示するお知らせがありません",
     "urgent": "緊急",
     "attendance": "出席チェック",
     "attendanceComplete": "今日の出席完了！",

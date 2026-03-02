@@ -44,11 +44,23 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
 
     // TOP 100 랭킹 조회
+    await env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS event_ranking_badges (
+         event_id TEXT NOT NULL,
+         install_id_hash TEXT NOT NULL,
+         level_badge TEXT NOT NULL,
+         updated_at INTEGER NOT NULL,
+         PRIMARY KEY (event_id, install_id_hash)
+       )`
+    ).run();
+
     const rankings = await env.DB.prepare(
-      `SELECT name, score, moves, duration
-       FROM event_rankings
-       WHERE event_id = ?
-       ORDER BY score DESC, moves ASC, duration ASC
+      `SELECT er.name, er.score, er.moves, er.duration, erb.level_badge as levelBadge
+       FROM event_rankings er
+       LEFT JOIN event_ranking_badges erb
+         ON erb.event_id = er.event_id AND erb.install_id_hash = er.install_id_hash
+       WHERE er.event_id = ?
+       ORDER BY er.score DESC, er.moves ASC, er.duration ASC
        LIMIT 100`
     ).bind(eventId).all();
 
@@ -64,6 +76,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       score: row.score,
       moves: row.moves,
       duration: row.duration,
+      levelBadge: row.levelBadge ?? null,
     }));
 
     // 내 랭킹 정보

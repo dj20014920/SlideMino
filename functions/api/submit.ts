@@ -34,7 +34,12 @@ interface SubmitRequest {
   timestamp?: unknown;
   installId?: unknown;             // 시즌 보상 지급을 위한 install ID (선택적)
   platform?: unknown;              // 플랫폼 ('android', 'ios', 'web')
+  levelBadge?: unknown;            // 레벨 배지 ID (예: lv15)
 }
+
+const VALID_LEVEL_BADGES = new Set([
+  'lv5', 'lv10', 'lv15', 'lv20', 'lv25', 'lv30', 'lv35', 'lv40', 'lv45', 'lv50',
+]);
 
 /**
  * 에러 응답 생성 (보안 강화: 상세 정보 숨김)
@@ -145,6 +150,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
     const moves = movesValidation.value!;
 
+    // 7. 레벨 배지 검증 (선택값)
+    const levelBadge = typeof data.levelBadge === 'string' && VALID_LEVEL_BADGES.has(data.levelBadge)
+      ? data.levelBadge
+      : null;
+
     // ========== 안티-치트 검증 (Layer 3) ==========
     const consistencyCheck = validateGameConsistency(score, difficulty, duration, moves);
     if (!consistencyCheck.valid) {
@@ -190,6 +200,25 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
            WHERE session_id = ? AND ? > score`
         ).bind(score, sanitizedName, moves, duration, now, installIdHash, platform, sessionId, score),
       ]);
+
+      // 랭킹 배지 별도 테이블 저장 (기존 rankings 스키마와 분리해 호환성 유지)
+      await env.DB.prepare(
+        `CREATE TABLE IF NOT EXISTS ranking_badges (
+           session_id TEXT PRIMARY KEY,
+           level_badge TEXT NOT NULL,
+           updated_at INTEGER NOT NULL
+         )`
+      ).run();
+
+      if (levelBadge) {
+        await env.DB.prepare(
+          `INSERT INTO ranking_badges (session_id, level_badge, updated_at)
+           VALUES (?, ?, ?)
+           ON CONFLICT(session_id) DO UPDATE SET
+             level_badge = excluded.level_badge,
+             updated_at = excluded.updated_at`
+        ).bind(sessionId, levelBadge, now).run();
+      }
 
       // ========== 순위 조회 ==========
       // 같은 난이도 내에서 현재 점수보다 높은 점수의 개수 + 1

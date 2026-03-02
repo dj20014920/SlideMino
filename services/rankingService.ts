@@ -8,6 +8,7 @@ export interface RankEntry {
     score: number;
     timestamp: number;
     difficulty: string;
+    levelBadge?: string | null;
 }
 
 export interface SubmitScoreResponse {
@@ -50,6 +51,7 @@ interface PendingScore {
     updatedAt: number;
     installId?: string;
     platform?: string;
+    levelBadge?: string;
 }
 
 const STORAGE_KEY_NAME = 'slidemino_player_name';
@@ -250,7 +252,8 @@ const buildPayload = (
     difficulty: string,
     duration: number,
     moves: number,
-    installId?: string
+    installId?: string,
+    levelBadge?: string
 ): Omit<PendingScore, 'updatedAt'> => {
     return {
         sessionId,
@@ -262,6 +265,7 @@ const buildPayload = (
         timestamp: Date.now(),
         installId,
         platform: Capacitor.getPlatform(),
+        levelBadge,
     };
 };
 
@@ -363,11 +367,12 @@ export const rankingService = {
         difficulty: string,
         duration: number,
         moves: number,
-        installId?: string
+        installId?: string,
+        levelBadge?: string
     ): Promise<SubmitScoreResponse> => {
         // Save name locally first
         rankingService.saveName(name);
-        const payload = buildPayload(sessionId, name, score, difficulty, duration, moves, installId);
+        const payload = buildPayload(sessionId, name, score, difficulty, duration, moves, installId, levelBadge);
 
         if (!isOnline()) return { success: false, offline: true };
 
@@ -431,7 +436,13 @@ export const rankingService = {
                 const typed = data as { rankings: RankEntry[]; seasonInfo?: { seasonId: string; endsAt: number } };
                 return { data: typed.rankings, offline: false, fromCache: false, seasonInfo: typed.seasonInfo };
             }
-            return { data: data as RankEntry[], offline: false, fromCache: false };
+            const normalized = Array.isArray(data)
+                ? (data as Record<string, unknown>[]).map((entry) => ({
+                    ...entry,
+                    levelBadge: typeof entry.levelBadge === 'string' ? entry.levelBadge : null,
+                })) as RankEntry[]
+                : [];
+            return { data: normalized, offline: false, fromCache: false };
         } catch (error) {
             logLeaderboardFetchFailure(error);
             throw error;

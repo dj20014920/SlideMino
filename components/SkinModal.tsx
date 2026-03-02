@@ -62,6 +62,10 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
     () => new Set(skinSettings.ownedSkins.map(s => s.id)),
     [skinSettings.ownedSkins]
   );
+  const ownedCatalogCount = useMemo(
+    () => SKIN_CATALOG.reduce((count, entry) => count + (ownedIds.has(entry.id) ? 1 : 0), 0),
+    [ownedIds]
+  );
 
   const collectionComplete = useMemo(
     () => isCollectionComplete(skinSettings),
@@ -252,7 +256,7 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
 
             <div className="window-body flex-1 min-h-0 overflow-hidden">
               <p className="status-bar-field" style={{ marginBottom: '12px' }}>
-                {String(t('modals:skin.ownedCount', { owned: skinSettings.ownedSkins.length, total: SKIN_CATALOG.length } as any))}
+                {String(t('modals:skin.ownedCount', { owned: ownedCatalogCount, total: SKIN_CATALOG.length } as any))}
                 {' | 🧩 '}{skinSettings.fragments}
               </p>
 
@@ -410,7 +414,7 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">{t('modals:skin.title')}</h3>
                 <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <span>{String(t('modals:skin.ownedCount', { owned: skinSettings.ownedSkins.length, total: SKIN_CATALOG.length } as any))}</span>
+                  <span>{String(t('modals:skin.ownedCount', { owned: ownedCatalogCount, total: SKIN_CATALOG.length } as any))}</span>
                   <span className="text-gray-300">|</span>
                   <span>🧩 {skinSettings.fragments}</span>
                 </div>

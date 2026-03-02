@@ -9,6 +9,7 @@ import { addFragments } from '../services/skinService';
 import { shareGameResult, type ShareCardOptions, type ShareResult } from '../services/shareCardService';
 import { gameEventBus } from '../services/gameEventBus';
 import { isFeatureUnlocked } from '../services/onboardingService';
+import { getHighestLevelBadgeForLevel, loadXpData } from '../services/xpLevelService';
 import { PLAYER_NAME_MAX_LENGTH, normalizePlayerName, validatePlayerName } from '../utils/playerName';
 import type { GameMode, BoardSize } from '../types';
 import AdBanner from './AdBanner';
@@ -71,6 +72,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
     // 랭킹 제출 후 순위 (챌린지 결과에서도 사용)
     const [localRank, setLocalRank] = useState<number | undefined>(submittedRank);
     const [localTotal, setLocalTotal] = useState<number | undefined>(submittedTotal);
+    const levelBadgeId = getHighestLevelBadgeForLevel(loadXpData().level)?.id;
 
     useEffect(() => {
         // Load saved name or use provided playerName
@@ -174,6 +176,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                 moves,
                 duration,
                 attemptNumber: eventAttemptNumber ?? 1,
+                levelBadge: levelBadgeId,
             });
             setIsSubmitting(false);
             if (eventResult.success) {
@@ -207,7 +210,8 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
             difficulty,
             duration,
             moves,
-            getAnalyticsInstallId()
+            getAnalyticsInstallId(),
+            levelBadgeId
         );
         setIsSubmitting(false);
         if (result.success) {

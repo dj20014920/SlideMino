@@ -229,28 +229,6 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
             </div>
           )}
 
-          {/* XP 획득 방법 */}
-          <div>
-            <h3 className="text-sm font-bold text-gray-800 mb-2">{t('common:xp.earnMethodsTitle')}</h3>
-            <div className="space-y-1.5">
-              {XP_METHOD_GUIDE.map((item) => (
-                <div key={item.source} className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold text-gray-700">
-                      {getSourceLabel(item.source, t as (key: string) => string)}
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-bold text-purple-600">{item.amountLabel}</span>
-                      <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${item.dailyLimit === 'once' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                        {item.dailyLimit === 'once' ? t('common:xp.limitDailyOnce') : t('common:xp.limitUnlimited')}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="mt-1 text-[11px] text-gray-500">{t(item.descKey as any)}</p>
-                </div>
-              ))}
-            </div>
-          </div>
 
           {/* 레벨 배지 */}
           <div>
@@ -338,6 +316,29 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
                 )}
               </div>
             )}
+          </div>
+
+          {/* XP 획득 방법 */}
+          <div>
+            <h3 className="text-sm font-bold text-gray-800 mb-2">{t('common:xp.earnMethodsTitle')}</h3>
+            <div className="space-y-1.5">
+              {XP_METHOD_GUIDE.map((item) => (
+                <div key={item.source} className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-gray-700">
+                      {getSourceLabel(item.source, t as (key: string) => string)}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-purple-600">{item.amountLabel}</span>
+                      <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${item.dailyLimit === 'once' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                        {item.dailyLimit === 'once' ? t('common:xp.limitDailyOnce') : t('common:xp.limitUnlimited')}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="mt-1 text-[11px] text-gray-500">{t(item.descKey as any)}</p>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* 레벨 보상 로드맵 (간략) */}

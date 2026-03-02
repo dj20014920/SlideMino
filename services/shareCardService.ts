@@ -10,6 +10,7 @@
  *   3. 텍스트만 클립보드 복사 (Canvas 실패 시 최후 폴백)
  */
 
+import i18n from 'i18next';
 import { loadStreakData, BADGE_MILESTONES } from './streakService';
 import { loadSkinSettings } from './skinService';
 import { SKIN_CATALOG } from '../constants';
@@ -32,10 +33,16 @@ export interface ShareCardOptions {
 
 const CARD_W = 1080;
 const CARD_H = 1350;
-const SITE_URL = 'slidemino.app';
+const APP_STORE_URL = 'https://apps.apple.com/kr/app/%EB%B8%94%EB%A1%9D-%EC%8A%AC%EB%9D%BC%EC%9D%B4%EB%93%9C-block-slide/id6757861065';
+const WEB_URL = 'https://www.slidemino.emozleep.space/';
 const FONT_FAMILY = "Inter, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif";
 
 // ====== 유틸 ======
+
+/** i18n 번역 헬퍼 (타입 안전성 향상) */
+function t(key: string, options?: Record<string, unknown>): string {
+  return i18n.t(key, options as any) as string;
+}
 
 /** 활성 스킨의 대표 HEX → 카드 배경 악센트 색상 */
 function getActiveSkinHex(): string {
@@ -102,8 +109,8 @@ export async function generateShareCardBlob(options: ShareCardOptions): Promise<
   // ⑥ 스트릭 + 배지
   drawStreakAndBadge(ctx, accentHex);
 
-  // ⑦ CTA + 링크
-  drawCTA(ctx, accentHex);
+  // ⑦ 하단 워터마크 (링크 없음)
+  drawWatermark(ctx);
 
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
@@ -136,15 +143,19 @@ function drawLogo(ctx: CanvasRenderingContext2D) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
-  // "SlideMino" 텍스트 로고
+  // 앱 이름 (i18n)
+  const title = t('common:app.title');
+  const subtitle = t('common:app.subtitle');
   ctx.font = `800 72px ${FONT_FAMILY}`;
   ctx.fillStyle = '#FFFFFF';
-  ctx.fillText('SlideMino', CARD_W / 2, 120);
+  ctx.fillText(title, CARD_W / 2, 120);
 
-  // 부제
-  ctx.font = `400 28px ${FONT_FAMILY}`;
-  ctx.fillStyle = 'rgba(255,255,255,0.5)';
-  ctx.fillText('Block Slide + 2048', CARD_W / 2, 175);
+  // 부제 (있으면)
+  if (subtitle) {
+    ctx.font = `400 28px ${FONT_FAMILY}`;
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.fillText(subtitle, CARD_W / 2, 175);
+  }
 }
 
 function drawScore(ctx: CanvasRenderingContext2D, score: number) {
@@ -180,7 +191,7 @@ function drawBoardInfo(ctx: CanvasRenderingContext2D, options: ShareCardOptions)
 
   const parts: string[] = [`${options.boardSize}×${options.boardSize}`];
   if (options.mode === 'daily_challenge' && options.challengeDate) {
-    parts.push(`Daily ${formatDate(options.challengeDate)}`);
+    parts.push(`${t('common:share.daily')} ${formatDate(options.challengeDate)}`);
   }
   ctx.fillText(parts.join('  ·  '), CARD_W / 2, y);
 }
@@ -220,16 +231,15 @@ function drawStreakAndBadge(ctx: CanvasRenderingContext2D, accentHex: string) {
 
   ctx.textBaseline = 'middle';
 
-  // 스트릭
+  // 스트릭 (i18n: 단수/복수 처리)
   if (streak.currentStreak > 0) {
+    const daysText = t('common:share.streakDays', { count: streak.currentStreak });
+    const streakLabel = `🔥 ${daysText}`;
+
     ctx.textAlign = 'left';
     ctx.font = `700 36px ${FONT_FAMILY}`;
     ctx.fillStyle = '#F97316'; // orange-500
-    ctx.fillText(`🔥 ${streak.currentStreak}`, cardX + 30, y);
-
-    ctx.font = `400 24px ${FONT_FAMILY}`;
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.fillText('days', cardX + 30 + ctx.measureText(`🔥 ${streak.currentStreak}`).width + 8, y + 2);
+    ctx.fillText(streakLabel, cardX + 30, y);
   }
 
   // 최고 배지
@@ -244,25 +254,23 @@ function drawStreakAndBadge(ctx: CanvasRenderingContext2D, accentHex: string) {
   }
 }
 
-function drawCTA(ctx: CanvasRenderingContext2D, accentHex: string) {
+/** 하단 워터마크만 표시 (링크 없음) */
+function drawWatermark(ctx: CanvasRenderingContext2D) {
+  // CTA (i18n)
   const y = 1100;
-
-  // CTA 텍스트
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.font = `700 40px ${FONT_FAMILY}`;
   ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  ctx.fillText('Beat my score! 🎮', CARD_W / 2, y);
+  ctx.fillText(t('common:share.beatMyScore'), CARD_W / 2, y);
 
-  // 링크
-  ctx.font = `600 34px ${FONT_FAMILY}`;
-  ctx.fillStyle = hexToRgba(accentHex, 0.9);
-  ctx.fillText(SITE_URL, CARD_W / 2, y + 55);
-
-  // 하단 작은 워터마크
+  // 하단 작은 워터마크 (앱 이름)
+  const title = t('common:app.title');
+  const subtitle = t('common:app.subtitle');
+  const watermark = subtitle ? `${title} ${subtitle}` : title;
   ctx.font = `400 22px ${FONT_FAMILY}`;
   ctx.fillStyle = 'rgba(255,255,255,0.2)';
-  ctx.fillText('SlideMino — Block Slide + 2048', CARD_W / 2, CARD_H - 60);
+  ctx.fillText(watermark, CARD_W / 2, CARD_H - 60);
 }
 
 // ====== Canvas 유틸 ======
@@ -291,16 +299,19 @@ function roundRect(
 // ====== 텍스트 공유 (이미지 실패 시 폴백) ======
 
 export function generateShareText(options: ShareCardOptions): string {
+  const appTitle = t('common:app.title');
+  const ptsLabel = t('common:labels.pts');
+
   const lines: string[] = [];
-  lines.push(`🎮 SlideMino`);
+  lines.push(`🎮 ${appTitle}`);
 
   if (options.mode === 'daily_challenge' && options.challengeDate) {
-    lines.push(`📅 Daily ${formatDate(options.challengeDate)} | ${options.boardSize}×${options.boardSize}`);
+    lines.push(`📅 ${t('common:share.daily')} ${formatDate(options.challengeDate)} | ${options.boardSize}×${options.boardSize}`);
   } else {
     lines.push(`📐 ${options.boardSize}×${options.boardSize}`);
   }
 
-  lines.push(`🏆 ${formatNumber(options.score)}pts`);
+  lines.push(`🏆 ${formatNumber(options.score)}${ptsLabel}`);
 
   if (options.rank && options.total) {
     lines.push(`📊 #${formatNumber(options.rank)} / ${formatNumber(options.total)}`);
@@ -308,14 +319,17 @@ export function generateShareText(options: ShareCardOptions): string {
 
   const streak = loadStreakData();
   if (streak.currentStreak > 0) {
+    const daysText = t('common:share.streakDays', { count: streak.currentStreak });
     const badgeEmoji = streak.highestBadge
       ? BADGE_MILESTONES.find((b) => b.id === streak.highestBadge)?.emoji ?? ''
       : '';
-    lines.push(`🔥 ${streak.currentStreak} days ${badgeEmoji}`.trim());
+    lines.push(`🔥 ${daysText} ${badgeEmoji}`.trim());
   }
 
   lines.push('');
-  lines.push(`Can you beat me? → ${SITE_URL}`);
+  lines.push(t('common:share.beatMyScore'));
+  lines.push(`📱 ${t('common:share.appStore')}: ${APP_STORE_URL}`);
+  lines.push(`🌐 ${t('common:share.webPlay')}: ${WEB_URL}`);
 
   return lines.join('\n');
 }
@@ -346,7 +360,7 @@ export async function shareGameResult(options: ShareCardOptions): Promise<ShareR
   // ② Web Share API로 공유 시도 (이미지 포함)
   if (blob && typeof navigator !== 'undefined' && navigator.share) {
     try {
-      const file = new File([blob], 'slidemino-result.png', { type: 'image/png' });
+      const file = new File([blob], 'block-slide-result.png', { type: 'image/png' });
       // navigator.canShare로 파일 공유 가능 여부 확인
       const shareData: ShareData = { text, files: [file] };
       if (navigator.canShare?.(shareData)) {
@@ -355,9 +369,9 @@ export async function shareGameResult(options: ShareCardOptions): Promise<ShareR
         return 'shared';
       }
       // 파일 공유 불가 시 텍스트만 공유 시도
-      await navigator.share({ text, url: `https://${SITE_URL}` });
+      await navigator.share({ text });
       // 이미지는 별도 다운로드
-      downloadBlob(blob, 'slidemino-result.png');
+      downloadBlob(blob, 'block-slide-result.png');
       gameEventBus.emit('SHARE_COMPLETED', {});
       return 'shared';
     } catch (err: any) {
@@ -369,7 +383,7 @@ export async function shareGameResult(options: ShareCardOptions): Promise<ShareR
 
   // ③ 이미지 다운로드 + 텍스트 클립보드 복사
   if (blob) {
-    downloadBlob(blob, 'slidemino-result.png');
+    downloadBlob(blob, 'block-slide-result.png');
     await copyToClipboard(text);
     gameEventBus.emit('SHARE_COMPLETED', {});
     return 'downloaded';

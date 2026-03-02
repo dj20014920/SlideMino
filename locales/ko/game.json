@@ -48,7 +48,10 @@
     "locked": "잠김",
     "customize": "꾸미기",
     "skin": "스킨",
-    "skinDescription": "컬렉션"
+    "skinDescription": "컬렉션",
+    "missionLocked": "게임 {{count}}판 완료 시 해금",
+    "calendarLocked": "레벨 {{level}} 달성 시 해금",
+    "weeklyEventLocked": "게임 {{count}}판 완료 시 해금"
   },
   "rewardAd": {
     "watchButton": "충전",
@@ -174,7 +177,8 @@
     "weeklyReset": "{{time}} 후 리셋",
     "claim": "보상 받기",
     "reroll": "다시 굴리기",
-    "rerollHint": "하루 1회 무료 다시 굴리기",
+    "rerollHint": "각 일일 미션은 하루에 1회 무료 다시 굴리기",
+    "weeklyRerollHint": "각 주간 미션은 주간 기간당 1회 무료 다시 굴리기",
     "allComplete": "모든 미션 달성!",
     "claimBonus": "보너스 받기",
     "bonusClaimed": "보너스 수령 완료",

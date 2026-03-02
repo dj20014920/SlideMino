@@ -29,6 +29,7 @@ const DAILY_BONUS_ALL_COMPLETE = 3;
 const WEEKLY_REWARD_EASY = 3;
 const WEEKLY_REWARD_MEDIUM = 5;
 const WEEKLY_REWARD_HARD = 8;
+const MISSION_SLOT_COUNT = 3;
 
 // ====== 미션 추적 타입 ======
 
@@ -170,11 +171,12 @@ interface MissionState {
   // 일일 미션
   dailyDate: string;             // "YYYY-MM-DD" (KST)
   dailyMissions: ActiveMission[];
-  dailyRerollUsed: boolean;
+  dailyRerollUsedSlots: boolean[]; // 인덱스별 다시굴리기 사용 여부
   dailyBonusClaimed: boolean;
   // 주간 미션
   weekStartDate: string;         // 주 시작 월요일 "YYYY-MM-DD" (KST)
   weeklyMissions: ActiveMission[];
+  weeklyRerollUsedSlots: boolean[]; // 인덱스별 다시굴리기 사용 여부
   // 게임 세션 추적 (per-game 상태)
   gameSessionActive: boolean;
   gameNoUndo: boolean;
@@ -189,10 +191,11 @@ const DEFAULT_STATE: MissionState = {
   version: 1,
   dailyDate: '',
   dailyMissions: [],
-  dailyRerollUsed: false,
+  dailyRerollUsedSlots: Array(MISSION_SLOT_COUNT).fill(false),
   dailyBonusClaimed: false,
   weekStartDate: '',
   weeklyMissions: [],
+  weeklyRerollUsedSlots: Array(MISSION_SLOT_COUNT).fill(false),
   gameSessionActive: false,
   gameNoUndo: true,
   gameNoRefresh: true,
@@ -222,6 +225,17 @@ function dateToSeed(dateStr: string): number {
   return (num * 2654435761) >>> 0; // Knuth 해시
 }
 
+/** 저장 데이터의 다시굴리기 슬롯 배열을 안전하게 정규화 */
+function normalizeRerollUsedSlots(value: unknown, fallbackAllUsed = false): boolean[] {
+  if (Array.isArray(value)) {
+    return Array.from({ length: MISSION_SLOT_COUNT }, (_, index) => Boolean(value[index]));
+  }
+  if (fallbackAllUsed) {
+    return Array(MISSION_SLOT_COUNT).fill(true);
+  }
+  return Array(MISSION_SLOT_COUNT).fill(false);
+}
+
 /** 시드 기반으로 난이도별 미션 3개 선택 (충돌 그룹 고려) */
 function selectMissions(seed: number): string[] {
   const rng = mulberry32(seed);
@@ -248,6 +262,13 @@ export function getMissionDefinition(id: string): MissionDefinition | undefined 
 // ====== 상태 로드/저장 ======
 
 let state: MissionState = { ...DEFAULT_STATE };
+let stateLoaded = false;
+
+function ensureStateLoaded(): void {
+  if (stateLoaded) return;
+  state = loadState();
+  stateLoaded = true;
+}
 
 function loadState(): MissionState {
   try {
@@ -261,6 +282,11 @@ function loadState(): MissionState {
       // 배열 필드 안전 보장
       dailyMissions: Array.isArray(parsed.dailyMissions) ? parsed.dailyMissions : [],
       weeklyMissions: Array.isArray(parsed.weeklyMissions) ? parsed.weeklyMissions : [],
+      dailyRerollUsedSlots: normalizeRerollUsedSlots(
+        parsed.dailyRerollUsedSlots,
+        Boolean(parsed.dailyRerollUsed) // v1(legacy boolean) -> 이미 사용 시 전체 슬롯 사용 처리
+      ),
+      weeklyRerollUsedSlots: normalizeRerollUsedSlots(parsed.weeklyRerollUsedSlots),
       slideDirectionsUsed: Array.isArray(parsed.slideDirectionsUsed) ? parsed.slideDirectionsUsed : [],
     } as MissionState;
   } catch {
@@ -280,6 +306,7 @@ function saveState(): void {
 
 /** 현재 날짜/주에 맞게 미션을 갱신하고, 새 미션이면 생성 */
 function ensureMissionsUpToDate(): void {
+  ensureStateLoaded();
   const today = getKstDateString();
   const monday = getKstMondayString();
 
@@ -294,7 +321,7 @@ function ensureMissionsUpToDate(): void {
       completed: false,
       claimed: false,
     }));
-    state.dailyRerollUsed = false;
+    state.dailyRerollUsedSlots = Array(MISSION_SLOT_COUNT).fill(false);
     state.dailyBonusClaimed = false;
   }
 
@@ -309,6 +336,7 @@ function ensureMissionsUpToDate(): void {
       completed: false,
       claimed: false,
     }));
+    state.weeklyRerollUsedSlots = Array(MISSION_SLOT_COUNT).fill(false);
   }
 
   saveState();
@@ -431,7 +459,7 @@ export function initMissionTracking(): void {
   if (subscribed) return;
   subscribed = true;
 
-  state = loadState();
+  ensureStateLoaded();
   ensureMissionsUpToDate();
 
   // 게임 시작: per-game 상태 리셋
@@ -647,15 +675,39 @@ export function canClaimDailyBonus(): boolean {
 /** 일일 미션 다시굴리기 가능 여부 */
 export function canRerollDaily(): boolean {
   ensureMissionsUpToDate();
-  return !state.dailyRerollUsed;
+  return state.dailyMissions.some((_, index) => !state.dailyRerollUsedSlots[index]);
 }
 
-/** 일일 미션 다시굴리기 (인덱스 0-2) — 같은 난이도 풀에서 새 미션 선택 */
-export function rerollDailyMission(index: number): ActiveMission | null {
+/** 주간 미션 다시굴리기 가능 여부 */
+export function canRerollWeekly(): boolean {
   ensureMissionsUpToDate();
-  if (state.dailyRerollUsed || index < 0 || index >= state.dailyMissions.length) return null;
+  return state.weeklyMissions.some((_, index) => !state.weeklyRerollUsedSlots[index]);
+}
 
-  const old = state.dailyMissions[index];
+/** 일일 미션(인덱스별) 다시굴리기 가능 여부 */
+export function canRerollDailyMission(index: number): boolean {
+  ensureMissionsUpToDate();
+  return index >= 0 &&
+    index < state.dailyMissions.length &&
+    !state.dailyRerollUsedSlots[index];
+}
+
+/** 주간 미션(인덱스별) 다시굴리기 가능 여부 */
+export function canRerollWeeklyMission(index: number): boolean {
+  ensureMissionsUpToDate();
+  return index >= 0 &&
+    index < state.weeklyMissions.length &&
+    !state.weeklyRerollUsedSlots[index];
+}
+
+/** 미션 다시굴리기 공통 로직 (인덱스 0-2) — 같은 난이도 풀에서 새 미션 선택 */
+function rerollMission(index: number, isDaily: boolean): ActiveMission | null {
+  ensureMissionsUpToDate();
+  const missions = isDaily ? state.dailyMissions : state.weeklyMissions;
+  const rerollUsedSlots = isDaily ? state.dailyRerollUsedSlots : state.weeklyRerollUsedSlots;
+  if (index < 0 || index >= missions.length || rerollUsedSlots[index]) return null;
+
+  const old = missions[index];
   const oldDef = getMissionDefinition(old.definitionId);
   if (!oldDef) return null;
 
@@ -677,15 +729,25 @@ export function rerollDailyMission(index: number): ActiveMission | null {
 
   // 랜덤 선택 (시드 기반이 아닌 순수 랜덤 — 다시굴리기니까)
   const newDef = pool[Math.floor(Math.random() * pool.length)];
-  state.dailyMissions[index] = {
+  missions[index] = {
     definitionId: newDef.id,
     progress: 0,
     completed: false,
     claimed: false,
   };
-  state.dailyRerollUsed = true;
+  rerollUsedSlots[index] = true;
   saveState();
-  return state.dailyMissions[index];
+  return missions[index];
+}
+
+/** 일일 미션 다시굴리기 (인덱스 0-2) */
+export function rerollDailyMission(index: number): ActiveMission | null {
+  return rerollMission(index, true);
+}
+
+/** 주간 미션 다시굴리기 (인덱스 0-2) */
+export function rerollWeeklyMission(index: number): ActiveMission | null {
+  return rerollMission(index, false);
 }
 
 /** 미션 보상 수령 — 조각 지급 후 claimed true로 변경 */
@@ -762,6 +824,7 @@ export function claimAllWeeklyRewards(): number {
 /** 미션 전체 상태 새로고침 (날짜 전환 등) */
 export function refreshMissions(): void {
   state = loadState();
+  stateLoaded = true;
   ensureMissionsUpToDate();
 }
 

@@ -89,7 +89,7 @@ export const StreakInfoModal: React.FC<StreakInfoModalProps> = ({ open, onClose 
               <span className="text-sm text-gray-600">{t('streak.autoFreeze')}</span>
               <button
                 onClick={handleAutoFreezeToggle}
-                className={`w-12 h-6 rounded-full transition-colors relative ${
+                className={`relative inline-flex h-6 w-12 shrink-0 items-center rounded-full transition-colors ${
                   data.autoFreezeEnabled ? 'bg-blue-500' : 'bg-gray-300'
                 }`}
                 role="switch"
@@ -97,8 +97,8 @@ export const StreakInfoModal: React.FC<StreakInfoModalProps> = ({ open, onClose 
                 aria-label={t('streak.autoFreeze')}
               >
                 <span
-                  className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                    data.autoFreezeEnabled ? 'translate-x-6' : 'translate-x-0.5'
+                  className={`pointer-events-none absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                    data.autoFreezeEnabled ? 'translate-x-6' : 'translate-x-0'
                   }`}
                 />
               </button>

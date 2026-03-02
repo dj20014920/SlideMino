@@ -208,6 +208,20 @@ interface ActiveGameRankingSnapshot {
   sessionLockedPlayerName: string | null;
 }
 
+type OverlayModalKey =
+  | 'customization'
+  | 'skin'
+  | 'leaderboard'
+  | 'streak'
+  | 'season_reward'
+  | 'mission'
+  | 'xp'
+  | 'calendar'
+  | 'weekly_event'
+  | 'name_input'
+  | 'active_game_exit'
+  | 'help';
+
 const cloneGameSnapshot = (snapshot: GameSnapshot): GameSnapshot => ({
   grid: snapshot.grid.map((row) => row.map((tile) => (tile ? { ...tile } : null))),
   slots: snapshot.slots.map((piece) => (piece ? { ...piece, cells: [...piece.cells] } : null)),
@@ -587,7 +601,7 @@ const App: React.FC = () => {
   } = useBlockCustomization();
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
   const [menuBottomNavHeight, setMenuBottomNavHeight] = useState<number>(() =>
-    getEstimatedBottomNavHeight(isWin98ThemeActive)
+    isNative ? getEstimatedBottomNavHeight(isWin98ThemeActive) : 0
   );
 
   // Hide Capacitor Splash Screen immediately
@@ -598,8 +612,10 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    setMenuBottomNavHeight(getEstimatedBottomNavHeight(isWin98ThemeActive));
-  }, [isWin98ThemeActive]);
+    if (isNative) {
+      setMenuBottomNavHeight(getEstimatedBottomNavHeight(isWin98ThemeActive));
+    }
+  }, [isWin98ThemeActive, isNative]);
 
   // 랭킹 오프라인 큐 자동 동기화
   useEffect(() => {
@@ -629,12 +645,12 @@ const App: React.FC = () => {
     checkSeasonRewards().then(result => {
       if (result.rewards.length > 0) {
         setSeasonRewards(result.rewards);
-        setIsSeasonRewardOpen(true);
+        openSeasonRewardModal();
       }
     }).catch(() => {
       // 오프라인 등 실패 시 무시
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ===== 미션 시스템 초기화 =====
@@ -654,7 +670,7 @@ const App: React.FC = () => {
     });
 
     return () => { unsubComplete(); unsubProgress(); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ===== 로컬 푸시 알림 스케줄링 (앱 시작 시) =====
@@ -691,7 +707,7 @@ const App: React.FC = () => {
     });
 
     return () => { unsubXp(); unsubLevelUp(); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Fake loading delay for the premium feel
@@ -912,6 +928,77 @@ const App: React.FC = () => {
 
   // Help Modal
   const [showHelpModal, setShowHelpModal] = useState(false);
+
+  const closeOverlayModalsExcept = useCallback((keep: OverlayModalKey | null = null) => {
+    setIsCustomizationOpen(keep === 'customization');
+    setIsSkinOpen(keep === 'skin');
+    setIsLeaderboardOpen(keep === 'leaderboard');
+    setIsStreakInfoOpen(keep === 'streak');
+    setIsSeasonRewardOpen(keep === 'season_reward');
+    setIsMissionModalOpen(keep === 'mission');
+    setIsXpModalOpen(keep === 'xp');
+    setIsCalendarOpen(keep === 'calendar');
+    setIsWeeklyEventModalOpen(keep === 'weekly_event');
+    setIsNameInputOpen(keep === 'name_input');
+    setIsActiveGameExitModalOpen(keep === 'active_game_exit');
+    setShowHelpModal(keep === 'help');
+    if (keep !== 'active_game_exit') {
+      setActiveGameRankingSnapshot(null);
+    }
+  }, []);
+
+  const openExclusiveModal = useCallback((modal: OverlayModalKey) => {
+    closeOverlayModalsExcept(modal);
+  }, [closeOverlayModalsExcept]);
+
+  const openCustomizationModal = useCallback(() => {
+    openExclusiveModal('customization');
+  }, [openExclusiveModal]);
+
+  const openSkinModal = useCallback(() => {
+    openExclusiveModal('skin');
+  }, [openExclusiveModal]);
+
+  const openLeaderboardModal = useCallback(() => {
+    openExclusiveModal('leaderboard');
+  }, [openExclusiveModal]);
+
+  const openStreakInfoModal = useCallback(() => {
+    openExclusiveModal('streak');
+  }, [openExclusiveModal]);
+
+  const openSeasonRewardModal = useCallback(() => {
+    openExclusiveModal('season_reward');
+  }, [openExclusiveModal]);
+
+  const openMissionModal = useCallback(() => {
+    setDailyMissionCompleted(getDailyCompletedCount());
+    openExclusiveModal('mission');
+  }, [openExclusiveModal]);
+
+  const openXpModal = useCallback(() => {
+    openExclusiveModal('xp');
+  }, [openExclusiveModal]);
+
+  const openCalendarModal = useCallback(() => {
+    openExclusiveModal('calendar');
+  }, [openExclusiveModal]);
+
+  const openWeeklyEventModal = useCallback(() => {
+    openExclusiveModal('weekly_event');
+  }, [openExclusiveModal]);
+
+  const openNameInputModal = useCallback(() => {
+    openExclusiveModal('name_input');
+  }, [openExclusiveModal]);
+
+  const openActiveGameExitDialog = useCallback(() => {
+    openExclusiveModal('active_game_exit');
+  }, [openExclusiveModal]);
+
+  const openHelpModal = useCallback(() => {
+    openExclusiveModal('help');
+  }, [openExclusiveModal]);
 
   // 🆕 Reward Ad State
   const [isAdReady, setIsAdReady] = useState(false);
@@ -1530,8 +1617,8 @@ const App: React.FC = () => {
 
     setShowActiveGameWarning(false);
     setPendingDifficulty(size);
-    setIsNameInputOpen(true);
-  }, [resolveReusablePlayerName, startGame]);
+    openNameInputModal();
+  }, [openNameInputModal, resolveReusablePlayerName, startGame]);
 
   const openActiveGameExitModal = useCallback((context: ActiveGameExitContext, nextDifficulty?: BoardSize) => {
     const snapshot = buildActiveGameRankingSnapshot();
@@ -1551,8 +1638,8 @@ const App: React.FC = () => {
     }
     setActiveGameExitContext(context);
     setActiveGameRankingSnapshot(snapshot);
-    setIsActiveGameExitModalOpen(true);
-  }, [buildActiveGameRankingSnapshot, goToMenu, startGameWithReusableNameOrPrompt]);
+    openActiveGameExitDialog();
+  }, [buildActiveGameRankingSnapshot, goToMenu, openActiveGameExitDialog, startGameWithReusableNameOrPrompt]);
 
   const handleGameOverClose = useCallback(() => {
     // 게임오버 결과 확인을 마치고 메뉴로 돌아갈 때 해당 모드의 복구 상태만 정리한다.
@@ -1584,10 +1671,11 @@ const App: React.FC = () => {
     handleGameOverClose();
     // handleGameOverClose는 setGameState(GameState.MENU)를 호출하므로
     // 상태 업데이트 batching으로 동일 틱에서 모달을 열어도 안전하다.
-    setIsWeeklyEventModalOpen(true);
-  }, [handleGameOverClose]);
+    openWeeklyEventModal();
+  }, [handleGameOverClose, openWeeklyEventModal]);
 
-  const handleHomeButtonClick = useCallback(() => {    if (gameState === GameState.PLAYING) {
+  const handleHomeButtonClick = useCallback(() => {
+    if (gameState === GameState.PLAYING) {
       openActiveGameExitModal('HOME');
       return;
     }
@@ -1601,6 +1689,79 @@ const App: React.FC = () => {
     setIsActiveGameExitModalOpen(false);
     setActiveGameRankingSnapshot(null);
   }, [activeGameExitContext]);
+
+  useEffect(() => {
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+
+      if (isActiveGameExitModalOpen) {
+        handleActiveGameExitCancel();
+        return;
+      }
+      if (isNameInputOpen) {
+        setIsNameInputOpen(false);
+        return;
+      }
+      if (showHelpModal) {
+        setShowHelpModal(false);
+        return;
+      }
+      if (isWeeklyEventModalOpen) {
+        setIsWeeklyEventModalOpen(false);
+        return;
+      }
+      if (isCalendarOpen) {
+        setIsCalendarOpen(false);
+        return;
+      }
+      if (isXpModalOpen) {
+        setIsXpModalOpen(false);
+        return;
+      }
+      if (isMissionModalOpen) {
+        setIsMissionModalOpen(false);
+        return;
+      }
+      if (isSeasonRewardOpen) {
+        setIsSeasonRewardOpen(false);
+        return;
+      }
+      if (isStreakInfoOpen) {
+        setIsStreakInfoOpen(false);
+        return;
+      }
+      if (isLeaderboardOpen) {
+        setIsLeaderboardOpen(false);
+        return;
+      }
+      if (isSkinOpen) {
+        setIsSkinOpen(false);
+        return;
+      }
+      if (isCustomizationOpen) {
+        setIsCustomizationOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleEscapeKey);
+    return () => {
+      window.removeEventListener('keydown', handleEscapeKey);
+    };
+  }, [
+    handleActiveGameExitCancel,
+    isActiveGameExitModalOpen,
+    isCalendarOpen,
+    isCustomizationOpen,
+    isLeaderboardOpen,
+    isMissionModalOpen,
+    isNameInputOpen,
+    isSeasonRewardOpen,
+    isSkinOpen,
+    isStreakInfoOpen,
+    isWeeklyEventModalOpen,
+    isXpModalOpen,
+    showHelpModal,
+  ]);
 
   const handleActiveGameExitProceedWithoutRegister = useCallback(() => {
     const context = activeGameExitContext;
@@ -1618,8 +1779,8 @@ const App: React.FC = () => {
     }
 
     setShowActiveGameWarning(false);
-    setIsNameInputOpen(true);
-  }, [activeGameExitContext, goToMenu, pendingDifficulty, startGameWithReusableNameOrPrompt]);
+    openNameInputModal();
+  }, [activeGameExitContext, goToMenu, openNameInputModal, pendingDifficulty, startGameWithReusableNameOrPrompt]);
 
   const handleActiveGameExitNameLocked = useCallback((name: string) => {
     setSessionLockedPlayerName(name);
@@ -1656,8 +1817,8 @@ const App: React.FC = () => {
     }
 
     setShowActiveGameWarning(false);
-    setIsNameInputOpen(true);
-  }, [activeGameExitContext, gameMode, goToMenu, pendingDifficulty, startGameWithReusableNameOrPrompt]);
+    openNameInputModal();
+  }, [activeGameExitContext, gameMode, goToMenu, openNameInputModal, pendingDifficulty, startGameWithReusableNameOrPrompt]);
 
   // 난이도 선택 시 진행중 게임 경고 -> 이름 입력 모달
   const tryStartGame = useCallback((size: BoardSize) => {
@@ -2132,7 +2293,7 @@ const App: React.FC = () => {
         attendanceToastShownRef.current = true;
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState, score]);
 
   const showBlockRefreshNotice = useCallback((message: string, durationMs = 1600) => {
@@ -2224,7 +2385,7 @@ const App: React.FC = () => {
       if (cancelled) return;
 
       if (grantedSkins > 0 && gameStateRef.current === GameState.MENU) {
-        setIsSkinOpen(true);
+        openSkinModal();
       }
     };
 
@@ -2254,7 +2415,7 @@ const App: React.FC = () => {
       window.clearInterval(intervalId);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [claimAdminGifts, currentRoute]);
+  }, [claimAdminGifts, currentRoute, openSkinModal]);
 
   // Undo 실행: 직전 스냅샷으로 복원
   const executeUndo = useCallback(() => {
@@ -3411,7 +3572,17 @@ const App: React.FC = () => {
   // ========== MENU SCREEN ==========
   if (gameState === GameState.MENU) {
     const shouldSuppressGameModeTutorial =
-      isNameInputOpen || isCustomizationOpen || isLeaderboardOpen || isActiveGameExitModalOpen;
+      isNameInputOpen ||
+      isCustomizationOpen ||
+      isSkinOpen ||
+      isLeaderboardOpen ||
+      isStreakInfoOpen ||
+      isSeasonRewardOpen ||
+      isMissionModalOpen ||
+      isXpModalOpen ||
+      isCalendarOpen ||
+      isWeeklyEventModalOpen ||
+      isActiveGameExitModalOpen;
 
     const handleReplayTutorial = () => {
       localStorage.removeItem('tutorial_back_nav_seen_v1');
@@ -3420,10 +3591,10 @@ const App: React.FC = () => {
       setTutorialResetKey(prev => prev + 1);
       setTutorialStep(1);
       const btn = document.getElementById('replay-tutorial-btn');
-      if(btn) {
+      if (btn) {
         btn.innerText = "✨ " + t('common:actions.resetDone', '리셋 완료!');
         setTimeout(() => {
-            if(btn) btn.innerText = t('common:actions.replayTutorial', '튜토리얼 다시보기');
+          if (btn) btn.innerText = t('common:actions.replayTutorial', '튜토리얼 다시보기');
         }, 1500);
       }
     };
@@ -3443,16 +3614,16 @@ const App: React.FC = () => {
         <legend>{premiumUi?.utilityLegend ?? '메뉴'}</legend>
 
         {isFeatureUnlocked('streak') && (
-        <div className="field-row">
-          <input id="menu-action-streak" type="radio" name={premiumMenuActionRadioGroupName} onClick={() => setIsStreakInfoOpen(true)} readOnly />
-          <label htmlFor="menu-action-streak">
-            {todayAttended ? '🔥' : '🔥'} {t('common:streak.title')} ({streakCount})
-          </label>
-        </div>
+          <div className="field-row">
+            <input id="menu-action-streak" type="radio" name={premiumMenuActionRadioGroupName} onClick={openStreakInfoModal} readOnly />
+            <label htmlFor="menu-action-streak">
+              {todayAttended ? '🔥' : '🔥'} {t('common:streak.title')} ({streakCount})
+            </label>
+          </div>
         )}
 
         <div className="field-row">
-          <input id="menu-action-xplevel" type="radio" name={premiumMenuActionRadioGroupName} onClick={() => setIsXpModalOpen(true)} readOnly />
+          <input id="menu-action-xplevel" type="radio" name={premiumMenuActionRadioGroupName} onClick={openXpModal} readOnly />
           <label htmlFor="menu-action-xplevel">
             ⭐ Lv.{xpLevel} ({xpPercent}%)
           </label>
@@ -3654,49 +3825,66 @@ const App: React.FC = () => {
             )}
         */}
 
-        {/* 주간 이벤트 버튼 */}
-        {isFeatureUnlocked('weekly_event') && (
-        <div className="relative w-full">
-          <button
-            onClick={() => setIsWeeklyEventModalOpen(true)}
-            className={`
-            relative group w-full py-4 px-6 rounded-2xl win98-menu-btn
-            bg-gradient-to-br from-purple-500 via-pink-500 to-rose-500
-            border border-purple-400/30
-            shadow-lg shadow-purple-900/20
-            hover:shadow-xl hover:shadow-purple-600/30 hover:-translate-y-0.5
-            active:translate-y-0 active:shadow-md
-            transition-all duration-200 ease-out
-            text-white font-semibold text-lg
-            ${hasActiveEventGame() ? 'pr-14' : ''}
-          `}
-          >
-            <span className="flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <span>🎯</span>
-                <span>{t('game:weeklyEvent.menuButton')}</span>
-              </span>
-              <span className={`${isWin98ThemeActive ? 'win98-muted' : 'text-purple-200/70'} font-normal text-sm`}>{t('game:weeklyEvent.menuTag')}</span>
-            </span>
-          </button>
-          {hasActiveEventGame() && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                continueWeeklyEvent();
-              }}
-              className="absolute right-0 top-0 bottom-0 w-12 flex items-center justify-center
-                rounded-r-2xl border-l border-white/20
-                bg-white/10 hover:bg-white/25
-                transition-colors duration-150
-                text-white text-lg"
-              title={t('game:difficulties.continue')}
-            >
-              ▶
-            </button>
-          )}
-        </div>
-        )}
+        {/* 주간 이벤트 버튼 — 항상 표시, 잠금 시 비활성 UI */}
+        {(() => {
+          const weeklyEventUnlocked = isFeatureUnlocked('weekly_event');
+          return (
+            <div className="relative w-full">
+              <button
+                onClick={() => {
+                  if (weeklyEventUnlocked) {
+                    openWeeklyEventModal();
+                  } else {
+                    showComboMessage(`🔒 ${String(t('game:actions.weeklyEventLocked', { count: 10 } as any))}`, 2000);
+                  }
+                }}
+                className={`
+              relative group w-full py-4 px-6 rounded-2xl win98-menu-btn
+              ${weeklyEventUnlocked
+                    ? 'bg-gradient-to-br from-purple-500 via-pink-500 to-rose-500'
+                    : 'bg-gradient-to-br from-gray-400 via-gray-500 to-gray-600'
+                  }
+              border ${weeklyEventUnlocked ? 'border-purple-400/30' : 'border-gray-400/30'}
+              shadow-lg ${weeklyEventUnlocked ? 'shadow-purple-900/20' : 'shadow-gray-900/20'}
+              ${weeklyEventUnlocked
+                    ? 'hover:shadow-xl hover:shadow-purple-600/30 hover:-translate-y-0.5 active:translate-y-0 active:shadow-md'
+                    : 'cursor-default'
+                  }
+              transition-all duration-200 ease-out
+              text-white font-semibold text-lg
+              ${weeklyEventUnlocked && hasActiveEventGame() ? 'pr-14' : ''}
+              ${!weeklyEventUnlocked ? 'opacity-60' : ''}
+            `}
+              >
+                <span className="flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <span>{weeklyEventUnlocked ? '🎯' : '🔒'}</span>
+                    <span>{t('game:weeklyEvent.menuButton')}</span>
+                  </span>
+                  <span className={`${isWin98ThemeActive ? 'win98-muted' : weeklyEventUnlocked ? 'text-purple-200/70' : 'text-gray-200/70'} font-normal text-sm`}>
+                    {weeklyEventUnlocked ? t('game:weeklyEvent.menuTag') : String(t('game:actions.weeklyEventLocked', { count: 10 } as any))}
+                  </span>
+                </span>
+              </button>
+              {weeklyEventUnlocked && hasActiveEventGame() && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    continueWeeklyEvent();
+                  }}
+                  className="absolute right-0 top-0 bottom-0 w-12 flex items-center justify-center
+                  rounded-r-2xl border-l border-white/20
+                  bg-white/10 hover:bg-white/25
+                  transition-colors duration-150
+                  text-white text-lg"
+                  title={t('game:difficulties.continue')}
+                >
+                  ▶
+                </button>
+              )}
+            </div>
+          );
+        })()}
 
         {([
           { size: 4 as BoardSize, label: t('game:difficulties.expert'), sizeLabel: t('game:boardSizes.4x4'), gradient: 'from-red-600 via-red-700 to-red-900', border: 'border-red-400/30', shadow: 'shadow-red-900/20', hoverShadow: 'hover:shadow-red-600/30', mutedColor: 'text-red-200/70' },
@@ -3754,7 +3942,7 @@ const App: React.FC = () => {
 
         {/* XP/레벨 버튼 */}
         <button
-          onClick={() => setIsXpModalOpen(true)}
+          onClick={openXpModal}
           className={`
           relative group w-full py-3.5 px-6 rounded-2xl win98-menu-btn
           bg-white/60 backdrop-blur-sm
@@ -3818,7 +4006,9 @@ const App: React.FC = () => {
           className={`${isWin98ThemeActive ? 'win98-app-shell' : ''} min-h-screen min-h-[100dvh] flex flex-col items-center justify-center p-6 space-y-6`}
           style={{
             paddingTop: 'calc(0.5rem + var(--app-safe-top))',
-            paddingBottom: 'calc(var(--bottom-chrome-height, 80px) + 16px)',
+            paddingBottom: isNative
+              ? 'calc(var(--bottom-chrome-height, 80px) + 8px)'
+              : '24px',
           }}
         >
           {isWin98ThemeActive && (
@@ -3833,7 +4023,7 @@ const App: React.FC = () => {
                   ))}
                 </div>
                 <div className="title-bar-controls">
-                  <button aria-label="Help" onClick={() => setIsLeaderboardOpen(true)} />
+                  <button aria-label="Help" onClick={openLeaderboardModal} />
                 </div>
               </div>
             </div>
@@ -3895,7 +4085,7 @@ const App: React.FC = () => {
 
           {/* 푸터 네비게이션 - 앱인토스에서는 숨김 (불필요한 영역 제거) */}
           {!isAppIntoS() && (
-            <footer className="w-full max-w-md mt-8 pt-6 border-t border-gray-200">
+            <footer className="w-full max-w-md mt-4 pt-3 border-t border-gray-200">
               <nav className="flex flex-wrap justify-center gap-4 text-sm text-gray-600">
                 <a href="#/about" className="hover:text-gray-900 transition-colors">
                   {t('common:footer.about')}
@@ -3942,23 +4132,25 @@ const App: React.FC = () => {
             includeSafeBottomInReservedSpace={false}
           />
 
-          <BottomNavBar
-            showSkin={isNativeApp()}
-            showCustomization={!isNativeApp()}
-            customizationLocked={!customizationGate.allowed}
-            customizationLockReason={customizationGate.reasonKey ? t(customizationGate.reasonKey as any) : t('game:actions.locked')}
-            missionUnlocked={isFeatureUnlocked('daily_mission')}
-            calendarUnlocked={isFeatureUnlocked('calendar')}
-            dailyMissionCompleted={dailyMissionCompleted}
-            calendarPendingCount={getCalendarItems().filter(i => !i.isCompleted).length}
-            isWin98ThemeActive={isWin98ThemeActive}
-            onSkinPress={() => setIsSkinOpen(true)}
-            onCustomizationPress={() => setIsCustomizationOpen(true)}
-            onLeaderboardPress={() => setIsLeaderboardOpen(true)}
-            onMissionPress={() => { setIsMissionModalOpen(true); setDailyMissionCompleted(getDailyCompletedCount()); }}
-            onCalendarPress={() => setIsCalendarOpen(true)}
-            onHeightChange={setMenuBottomNavHeight}
-          />
+          {isNative && (
+            <BottomNavBar
+              showSkin={isNativeApp()}
+              showCustomization={!isNativeApp()}
+              customizationLocked={!customizationGate.allowed}
+              customizationLockReason={customizationGate.reasonKey ? t(customizationGate.reasonKey as any) : t('game:actions.locked')}
+              missionUnlocked={isFeatureUnlocked('daily_mission')}
+              calendarUnlocked={isFeatureUnlocked('calendar')}
+              dailyMissionCompleted={dailyMissionCompleted}
+              calendarPendingCount={getCalendarItems().filter(i => !i.isCompleted).length}
+              isWin98ThemeActive={isWin98ThemeActive}
+              onSkinPress={openSkinModal}
+              onCustomizationPress={openCustomizationModal}
+              onLeaderboardPress={openLeaderboardModal}
+              onMissionPress={openMissionModal}
+              onCalendarPress={openCalendarModal}
+              onHeightChange={setMenuBottomNavHeight}
+            />
+          )}
 
           <BlockCustomizationModal
             open={isCustomizationOpen}
@@ -4004,7 +4196,7 @@ const App: React.FC = () => {
               onRegisteredAndProceed={handleActiveGameExitRegisteredAndProceed}
             />
           )}
-          
+
           <GameModeTutorial
             key={tutorialResetKey}
             suppressed={shouldSuppressGameModeTutorial}
@@ -4065,18 +4257,18 @@ const App: React.FC = () => {
                   ? `🎰 ${t('common:xp.rewardClaimed' as any)} (+${newSkins} skin${newSkins > 1 ? 's' : ''})`
                   : `🎰 ${t('common:xp.rewardClaimed' as any)} (+${dupFragments} ✦)`;
                 showComboMessage(msg, 2500);
-                setIsSkinOpen(true);
+                openSkinModal();
                 return;
               }
               // SELECT_*: 교환용 조각 지급 후 SkinModal 오픈
               if (reward === 'SELECT_NORMAL_SKIN') {
                 addFragments(FRAGMENT_COST_NORMAL);
                 showComboMessage(`🎁 +${FRAGMENT_COST_NORMAL} ✦ — ${t('common:xp.rewardClaimed' as any)}`, 2500);
-                setIsSkinOpen(true);
+                openSkinModal();
               } else if (reward === 'SELECT_PREMIUM_SKIN' || reward === 'SELECT_PREMIUM_SKIN_AND_TITLE') {
                 addFragments(FRAGMENT_COST_PREMIUM);
                 showComboMessage(`🎁 +${FRAGMENT_COST_PREMIUM} ✦ — ${t('common:xp.rewardClaimed' as any)}`, 2500);
-                setIsSkinOpen(true);
+                openSkinModal();
               } else {
                 showComboMessage(`🎁 ${t('common:xp.rewardClaimed' as any)}`, 2500);
               }
@@ -4087,11 +4279,11 @@ const App: React.FC = () => {
             open={isCalendarOpen}
             onClose={() => setIsCalendarOpen(false)}
             onAction={(action) => {
-              if (action === 'streak') setIsStreakInfoOpen(true);
-              else if (action === 'mission') { setIsMissionModalOpen(true); setDailyMissionCompleted(getDailyCompletedCount()); }
+              if (action === 'streak') openStreakInfoModal();
+              else if (action === 'mission') openMissionModal();
               // 사용자 결정사항(임시 운영 정책): 데일리 챌린지 캘린더 진입 비활성화
               // else if (action === 'daily_challenge') startDailyChallenge();
-              else if (action === 'weekly_event') setIsWeeklyEventModalOpen(true);
+              else if (action === 'weekly_event') openWeeklyEventModal();
             }}
           />
 
@@ -4197,7 +4389,7 @@ const App: React.FC = () => {
             <div className="title-bar">
               <div className="title-bar-text">{premiumTopWindowTitleSingleLine}</div>
               <div className="title-bar-controls">
-                <button aria-label="Help" onClick={() => setShowHelpModal(true)} />
+                <button aria-label="Help" onClick={openHelpModal} />
                 <button aria-label="Close" onClick={handleHomeButtonClick} disabled={isAnimating} />
               </div>
             </div>
@@ -4272,20 +4464,20 @@ const App: React.FC = () => {
                 {t('common:labels.score')}
                 {liveRankEstimate !== null && gameState === GameState.PLAYING
                   && score > 0 && liveRankEstimate.totalEntries >= 2 && (
-                  <span className="ml-2 text-xs font-semibold text-blue-600">
-                    {String(t('game:liveRank.estimatedRank', { rank: liveRankEstimate.rank } as any))}
-                  </span>
-                )}
+                    <span className="ml-2 text-xs font-semibold text-blue-600">
+                      {String(t('game:liveRank.estimatedRank', { rank: liveRankEstimate.rank } as any))}
+                    </span>
+                  )}
               </h2>
               <p className="text-3xl font-bold text-gray-900 tabular-nums">{score}</p>
               {liveRankEstimate !== null && gameState === GameState.PLAYING
                 && score > 0 && liveRankEstimate.totalEntries >= 2 && (
-                <p className="text-xs font-semibold text-blue-500">
-                  {liveRankEstimate.pointsToNext > 0
-                    ? String(t('game:liveRank.pointsToNext', { points: liveRankEstimate.pointsToNext } as any))
-                    : t('game:liveRank.topRank')}
-                </p>
-              )}
+                  <p className="text-xs font-semibold text-blue-500">
+                    {liveRankEstimate.pointsToNext > 0
+                      ? String(t('game:liveRank.pointsToNext', { points: liveRankEstimate.pointsToNext } as any))
+                      : t('game:liveRank.topRank')}
+                  </p>
+                )}
             </div>
           </div>
           <div className="flex flex-col items-end gap-2 transition-all duration-200">
@@ -4312,7 +4504,7 @@ const App: React.FC = () => {
               {/* Help Button */}
               <button
                 type="button"
-                onClick={() => setShowHelpModal(true)}
+                onClick={openHelpModal}
                 disabled={isReviveSelectionMode}
                 className={`
                   p-2 rounded-full text-gray-600 win98-icon-btn ${isWin98ThemeActive ? 'win98-header-icon-btn' : ''}

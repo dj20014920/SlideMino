@@ -48,7 +48,10 @@
     "locked": "ロック中",
     "customize": "カスタマイズ",
     "skin": "スキン",
-    "skinDescription": "コレクション"
+    "skinDescription": "コレクション",
+    "missionLocked": "ゲーム{{count}}回クリアで解放",
+    "calendarLocked": "レベル{{level}}達成で解放",
+    "weeklyEventLocked": "ゲーム{{count}}回クリアで解放"
   },
   "rewardAd": {
     "watchButton": "チャージ",
@@ -174,7 +177,8 @@
     "weeklyReset": "{{time}}後にリセット",
     "claim": "受け取る",
     "reroll": "引き直し",
-    "rerollHint": "1日1回無料で引き直し",
+    "rerollHint": "各デイリーミッションは1日1回無料で引き直し可能",
+    "weeklyRerollHint": "各ウィークリーミッションは週ごとに1回無料で引き直し可能",
     "allComplete": "全ミッション達成！",
     "claimBonus": "ボーナス受取",
     "bonusClaimed": "ボーナス受取済み",

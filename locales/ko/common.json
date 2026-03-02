@@ -47,7 +47,12 @@
     "brag": "친구에게 자랑하기",
     "shared": "공유되었어요!",
     "downloaded": "이미지가 저장되었어요!",
-    "copied": "텍스트가 복사되었어요!"
+    "copied": "텍스트가 복사되었어요!",
+    "streakDays": "연속 {{count}}일",
+    "beatMyScore": "내 점수를 이길 수 있을까? 🎮",
+    "daily": "데일리",
+    "appStore": "앱 다운로드",
+    "webPlay": "웹에서 플레이"
   },
   "xp": {
     "title": "레벨 & XP",

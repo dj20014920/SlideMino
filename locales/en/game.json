@@ -48,7 +48,10 @@
     "locked": "Locked",
     "customize": "Customize",
     "skin": "Skin",
-    "skinDescription": "Collection"
+    "skinDescription": "Collection",
+    "missionLocked": "Unlocks after {{count}} games",
+    "calendarLocked": "Unlocks at Lv.{{level}}",
+    "weeklyEventLocked": "Unlocks after {{count}} games"
   },
   "rewardAd": {
     "watchButton": "Refill",
@@ -174,7 +177,8 @@
     "weeklyReset": "Resets in {{time}}",
     "claim": "Claim",
     "reroll": "Reroll",
-    "rerollHint": "1 free reroll per day",
+    "rerollHint": "Each daily mission can be rerolled once per day",
+    "weeklyRerollHint": "Each weekly mission can be rerolled once per week",
     "allComplete": "All missions complete!",
     "claimBonus": "Claim Bonus",
     "bonusClaimed": "Bonus claimed",

@@ -32,12 +32,12 @@ interface UnlockCondition {
 }
 
 const UNLOCK_CONDITIONS: Record<FeatureId, UnlockCondition> = {
-  streak:          { gamesCompleted: 1 },
-  daily_mission:   { gamesCompleted: 3 },
+  streak: { gamesCompleted: 1 },
+  daily_mission: { gamesCompleted: 3 },
   daily_challenge: { gamesCompleted: 5 },
-  weekly_event:    { gamesCompleted: 10 },
-  share_card:      { level: 3 },
-  calendar:        { level: 5 },
+  weekly_event: { gamesCompleted: 10 },
+  share_card: { level: 3 },
+  calendar: { level: 5 },
 };
 
 // ====== 데이터 타입 ======
@@ -101,15 +101,13 @@ export function checkLevelUnlocks(): string[] {
   return newlyUnlocked;
 }
 
-/** 특정 기능이 해금되었는지 확인 */
-export function isFeatureUnlocked(featureId: FeatureId): boolean {
-  const data = loadData();
-  // 기존 유저(온보딩 데이터 없이 많이 플레이한)를 위한 폴백:
-  // gamesCompleted가 0이고 다른 로컬 데이터가 있으면 모두 해금
-  if (data.gamesCompleted === 0 && hasExistingGameData()) {
-    return true;
-  }
-  return data.unlockedFeatures.includes(featureId);
+/** 특정 기능이 해금되었는지 확인 — 온보딩 해금 비활성화: 모든 기능 항상 해금 */
+export function isFeatureUnlocked(_featureId: FeatureId): boolean {
+  return true;
+  // --- 아래는 향후 점진적 해금을 재활성화할 때 사용 ---
+  // const data = loadData();
+  // if (data.gamesCompleted === 0 && hasExistingGameData()) return true;
+  // return data.unlockedFeatures.includes(featureId);
 }
 
 /** 해금 알림을 아직 보지 않은 기능 목록 */

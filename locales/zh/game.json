@@ -48,7 +48,10 @@
     "locked": "锁定",
     "customize": "自定义",
     "skin": "皮肤",
-    "skinDescription": "收藏"
+    "skinDescription": "收藏",
+    "missionLocked": "完成{{count}}局后解锁",
+    "calendarLocked": "达到等级{{level}}后解锁",
+    "weeklyEventLocked": "完成{{count}}局后解锁"
   },
   "rewardAd": {
     "watchButton": "充值",
@@ -168,7 +171,8 @@
     "weeklyReset": "{{time}}后重置",
     "claim": "领取",
     "reroll": "刷新",
-    "rerollHint": "每天1次免费刷新",
+    "rerollHint": "每个日常任务每天可免费刷新1次",
+    "weeklyRerollHint": "每个周常任务每周可免费刷新1次",
     "allComplete": "全部任务完成！",
     "claimBonus": "领取奖励",
     "bonusClaimed": "奖励已领取",

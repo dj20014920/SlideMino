@@ -13,8 +13,10 @@ import {
   claimMissionReward,
   claimDailyBonus,
   canClaimDailyBonus,
-  canRerollDaily,
+  canRerollDailyMission,
+  canRerollWeeklyMission,
   rerollDailyMission,
+  rerollWeeklyMission,
   getDailyTimeRemainingMs,
   getWeeklyTimeRemainingMs,
   getReward,
@@ -114,8 +116,8 @@ const MissionRow: React.FC<{
             </span>
           )}
 
-          {/* 다시굴리기 버튼 (일일 미션, 미완료, 아직 미사용) */}
-          {isDaily && !mission.completed && canReroll && onReroll && (
+          {/* 다시굴리기 버튼 (미완료 + 해당 슬롯 미사용) */}
+          {!mission.completed && canReroll && onReroll && (
             <button
               onClick={() => onReroll(index)}
               className="p-1.5 rounded-lg hover:bg-gray-200/60 text-gray-400 hover:text-gray-600 transition-colors"
@@ -136,16 +138,24 @@ export const MissionModal: React.FC<MissionModalProps> = ({ open, onClose, onRew
   useBodyScrollLock(open);
   const [dailyMissions, setDailyMissions] = useState<ActiveMission[]>([]);
   const [weeklyMissions, setWeeklyMissions] = useState<ActiveMission[]>([]);
-  const [rerollAvailable, setRerollAvailable] = useState(false);
+  const [dailyRerollAvailableSlots, setDailyRerollAvailableSlots] = useState<boolean[]>([]);
+  const [weeklyRerollAvailableSlots, setWeeklyRerollAvailableSlots] = useState<boolean[]>([]);
   const [dailyTimeLeft, setDailyTimeLeft] = useState('');
   const [weeklyTimeLeft, setWeeklyTimeLeft] = useState('');
   const [tab, setTab] = useState<'daily' | 'weekly'>('daily');
 
   // 데이터 새로고침
   const refresh = useCallback(() => {
-    setDailyMissions(getDailyMissions());
-    setWeeklyMissions(getWeeklyMissions());
-    setRerollAvailable(canRerollDaily());
+    const nextDailyMissions = getDailyMissions();
+    const nextWeeklyMissions = getWeeklyMissions();
+    setDailyMissions(nextDailyMissions);
+    setWeeklyMissions(nextWeeklyMissions);
+    setDailyRerollAvailableSlots(
+      nextDailyMissions.map((_, index) => canRerollDailyMission(index))
+    );
+    setWeeklyRerollAvailableSlots(
+      nextWeeklyMissions.map((_, index) => canRerollWeeklyMission(index))
+    );
     setDailyTimeLeft(formatTimeRemaining(getDailyTimeRemainingMs()));
     setWeeklyTimeLeft(formatTimeRemaining(getWeeklyTimeRemainingMs()));
   }, []);
@@ -182,8 +192,13 @@ export const MissionModal: React.FC<MissionModalProps> = ({ open, onClose, onRew
     }
   }, [onRewardClaimed, refresh]);
 
-  const handleReroll = useCallback((index: number) => {
+  const handleDailyReroll = useCallback((index: number) => {
     rerollDailyMission(index);
+    refresh();
+  }, [refresh]);
+
+  const handleWeeklyReroll = useCallback((index: number) => {
+    rerollWeeklyMission(index);
     refresh();
   }, [refresh]);
 
@@ -192,6 +207,8 @@ export const MissionModal: React.FC<MissionModalProps> = ({ open, onClose, onRew
   const dailyCompleted = dailyMissions.filter(m => m.completed).length;
   const weeklyCompleted = weeklyMissions.filter(m => m.completed).length;
   const bonusAvailable = canClaimDailyBonus();
+  const dailyRerollAvailable = dailyRerollAvailableSlots.some(Boolean);
+  const weeklyRerollAvailable = weeklyRerollAvailableSlots.some(Boolean);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -249,13 +266,13 @@ export const MissionModal: React.FC<MissionModalProps> = ({ open, onClose, onRew
             <>
               {dailyMissions.map((mission, idx) => (
                 <MissionRow
-                  key={mission.definitionId}
+                  key={`daily-${idx}`}
                   mission={mission}
                   isDaily={true}
                   onClaim={handleClaim}
-                  onReroll={handleReroll}
+                  onReroll={handleDailyReroll}
                   index={idx}
-                  canReroll={rerollAvailable}
+                  canReroll={dailyRerollAvailableSlots[idx] ?? false}
                 />
               ))}
 
@@ -281,22 +298,30 @@ export const MissionModal: React.FC<MissionModalProps> = ({ open, onClose, onRew
           ) : (
             weeklyMissions.map((mission, idx) => (
               <MissionRow
-                key={mission.definitionId}
+                key={`weekly-${idx}`}
                 mission={mission}
                 isDaily={false}
                 onClaim={handleClaim}
+                onReroll={handleWeeklyReroll}
                 index={idx}
-                canReroll={false}
+                canReroll={weeklyRerollAvailableSlots[idx] ?? false}
               />
             ))
           )}
         </div>
 
         {/* 다시굴리기 안내 */}
-        {tab === 'daily' && rerollAvailable && (
+        {tab === 'daily' && dailyRerollAvailable && (
           <div className="px-4 pb-3 pt-1 border-t border-gray-100">
             <p className="text-xs text-gray-400 text-center">
               {t('game:missions.rerollHint')}
+            </p>
+          </div>
+        )}
+        {tab === 'weekly' && weeklyRerollAvailable && (
+          <div className="px-4 pb-3 pt-1 border-t border-gray-100">
+            <p className="text-xs text-gray-400 text-center">
+              {t('game:missions.weeklyRerollHint')}
             </p>
           </div>
         )}

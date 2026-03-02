@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Palette, Trophy, ClipboardList, Calendar } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Palette, Trophy, ClipboardList, Calendar, Lock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { isNativeApp } from '../utils/platform';
 
@@ -77,7 +77,12 @@ interface NavItem {
   label: string;
   onPress: () => void;
   badge?: number | string;
+  /** 항상 true — 4개 아이템은 네이티브에서 항상 표시 */
   visible: boolean;
+  /** 해금 전 잠금 상태 여부 */
+  locked: boolean;
+  /** 잠금 시 탭했을 때 표시할 안내 문구 */
+  lockMessage?: string;
 }
 
 export const BottomNavBar: React.FC<BottomNavBarProps> = ({
@@ -102,6 +107,18 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
   const [navHeight, setNavHeight] = useState<number>(() => getEstimatedBottomNavHeight(isWin98ThemeActive));
   useBottomChromeHeight(navHeight);
 
+  // 잠금 안내 토스트 상태
+  const [lockToast, setLockToast] = useState<string | null>(null);
+  const lockToastTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  const showLockToast = useCallback((msg: string) => {
+    clearTimeout(lockToastTimerRef.current);
+    setLockToast(msg);
+    lockToastTimerRef.current = setTimeout(() => setLockToast(null), 2000);
+  }, []);
+
+  useEffect(() => () => clearTimeout(lockToastTimerRef.current), []);
+
   const navItems: NavItem[] = [
     {
       id: 'skin',
@@ -109,6 +126,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
       label: t('game:actions.skin'),
       onPress: showSkin ? onSkinPress : onCustomizationPress,
       visible: showSkin || showCustomization,
+      locked: false,
     },
     {
       id: 'leaderboard',
@@ -116,22 +134,27 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
       label: t('game:actions.leaderboard'),
       onPress: onLeaderboardPress,
       visible: true,
+      locked: false,
     },
     {
       id: 'mission',
       icon: <ClipboardList size={20} />,
       label: t('game:missions.title'),
       onPress: onMissionPress,
-      badge: dailyMissionCompleted < 3 ? `${dailyMissionCompleted}/3` : undefined,
-      visible: missionUnlocked,
+      badge: missionUnlocked && dailyMissionCompleted < 3 ? `${dailyMissionCompleted}/3` : undefined,
+      visible: true,
+      locked: !missionUnlocked,
+      lockMessage: String(t('game:actions.missionLocked', { count: 3 } as any)),
     },
     {
       id: 'calendar',
       icon: <Calendar size={20} />,
       label: t('common:calendar.title'),
       onPress: onCalendarPress,
-      badge: calendarPendingCount > 0 ? calendarPendingCount : undefined,
-      visible: calendarUnlocked,
+      badge: calendarUnlocked && calendarPendingCount > 0 ? calendarPendingCount : undefined,
+      visible: true,
+      locked: !calendarUnlocked,
+      lockMessage: String(t('game:actions.calendarLocked', { level: 5 } as any)),
     },
   ].filter(item => item.visible);
 
@@ -178,6 +201,14 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
         className="fixed left-0 right-0 z-[100]"
         style={{ bottom: bottomOffset }}
       >
+        {/* 잠금 안내 토스트 */}
+        {lockToast && (
+          <div className="flex justify-center mb-1 px-2">
+            <div className="px-3 py-1 rounded bg-black/70 text-white text-[10px] font-medium">
+              🔒 {lockToast}
+            </div>
+          </div>
+        )}
         <div
           className="flex items-center gap-0.5 px-1 py-0.5"
           style={{
@@ -189,7 +220,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
           {navItems.map((item) => (
             <button
               key={item.id}
-              onClick={item.onPress}
+              onClick={item.locked ? () => showLockToast(item.lockMessage!) : item.onPress}
               className="relative flex items-center gap-1 px-3 py-1 text-xs font-normal"
               style={{
                 background: '#c0c0c0',
@@ -197,11 +228,14 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
                 fontFamily: '"MS Sans Serif", "Microsoft Sans Serif", Arial, sans-serif',
                 minWidth: 0,
                 flex: 1,
+                opacity: item.locked ? 0.45 : 1,
               }}
             >
-              <span className="shrink-0">{item.icon}</span>
+              <span className="shrink-0">
+                {item.locked ? <Lock size={14} /> : item.icon}
+              </span>
               <span className="truncate">{item.label}</span>
-              {item.badge != null && (
+              {!item.locked && item.badge != null && (
                 <span
                   className="absolute -top-1 -right-1 min-w-[16px] h-4 flex items-center justify-center rounded-full text-[9px] font-bold text-white px-1"
                   style={{ background: '#ff0000' }}
@@ -223,6 +257,14 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
       className="fixed left-0 right-0 z-[100]"
       style={{ bottom: bottomOffset }}
     >
+      {/* 잠금 안내 토스트 */}
+      {lockToast && (
+        <div className="flex justify-center mb-1.5 px-4">
+          <div className="px-4 py-1.5 rounded-full bg-gray-900/80 backdrop-blur text-white text-[11px] font-medium shadow-lg">
+            🔒 {lockToast}
+          </div>
+        </div>
+      )}
       <div className="mx-auto max-w-md px-3">
         <nav
           className="
@@ -237,20 +279,21 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
           {navItems.map((item) => (
             <button
               key={item.id}
-              onClick={item.onPress}
-              className="
+              onClick={item.locked ? () => showLockToast(item.lockMessage!) : item.onPress}
+              className={`
                 relative flex flex-col items-center justify-center
                 gap-0.5 flex-1 py-2 px-1
                 rounded-xl
-                text-gray-500
-                hover:text-gray-900 hover:bg-gray-100/60
-                active:scale-95 active:bg-gray-200/60
                 transition-all duration-150 ease-out
-              "
+                ${item.locked
+                  ? 'text-gray-300'
+                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100/60 active:scale-95 active:bg-gray-200/60'
+                }
+              `}
             >
               <span className="relative">
-                {item.icon}
-                {item.badge != null && (
+                {item.locked ? <Lock size={18} className="text-gray-300" /> : item.icon}
+                {!item.locked && item.badge != null && (
                   <span className="absolute -top-1.5 -right-2.5 min-w-[16px] h-4 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold px-1">
                     {item.badge}
                   </span>

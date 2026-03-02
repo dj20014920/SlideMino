@@ -47,7 +47,13 @@
     "brag": "Brag to friends",
     "shared": "Shared!",
     "downloaded": "Image saved!",
-    "copied": "Text copied!"
+    "copied": "Text copied!",
+    "streakDays": "{{count}} day streak",
+    "streakDays_plural": "{{count}} day streak",
+    "beatMyScore": "Can you beat my score? 🎮",
+    "daily": "Daily",
+    "appStore": "App Download",
+    "webPlay": "Play on Web"
   },
   "xp": {
     "title": "Level & XP",

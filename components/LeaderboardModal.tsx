@@ -95,8 +95,8 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
     const countdownText = countdown.totalMs <= 0
         ? t('common:season.countdownDone')
         : countdown.isUrgent
-            ? t('common:season.countdownUrgent', { hours: countdown.hours, minutes: countdown.minutes })
-            : t('common:season.countdown', { days: countdown.days, hours: countdown.hours });
+            ? t('common:season.countdownUrgent', { hours: countdown.hours, minutes: countdown.minutes } as any)
+            : t('common:season.countdown', { days: countdown.days, hours: countdown.hours } as any);
 
     return (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 modal-safe-overlay">
@@ -128,7 +128,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
                         ? 'bg-red-50 text-red-600 border-b border-red-100'
                         : 'bg-blue-50 text-blue-600 border-b border-blue-100'
                 }`}>
-                    {countdownText}
+                    {String(countdownText)}
                 </div>
 
                 {/* Tabs */}

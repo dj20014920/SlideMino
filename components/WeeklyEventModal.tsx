@@ -243,7 +243,7 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
           <button
             onClick={onClose}
             className="absolute top-3 right-3 p-1.5 rounded-full bg-white/20 hover:bg-white/30 transition"
-            aria-label={t('common:actions.close')}
+            aria-label={t('common:buttons.close')}
           >
             <X size={18} />
           </button>

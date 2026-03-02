@@ -1,4 +1,8 @@
 {
+  "actions": {
+    "replayTutorial": "チュートリアルを再生",
+    "resetDone": "リセット完了！"
+  },
   "buttons": {
     "confirm": "確認",
     "cancel": "キャンセル",
@@ -45,6 +49,7 @@
     "downloaded": "画像を保存しました！",
     "copied": "テキストをコピーしました！",
     "streakDays": "連続{{count}}日",
+    "streakDays_plural": "連続{{count}}日",
     "beatMyScore": "私のスコアに勝てる？ 🎮",
     "daily": "デイリー",
     "appStore": "アプリダウンロード",

@@ -49,6 +49,7 @@
     "downloaded": "이미지가 저장되었어요!",
     "copied": "텍스트가 복사되었어요!",
     "streakDays": "연속 {{count}}일",
+    "streakDays_plural": "연속 {{count}}일",
     "beatMyScore": "내 점수를 이길 수 있을까? 🎮",
     "daily": "데일리",
     "appStore": "앱 다운로드",

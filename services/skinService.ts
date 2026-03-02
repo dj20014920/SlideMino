@@ -8,6 +8,7 @@
 
 import { SKIN_CATALOG, FRAGMENTS_PER_DUPLICATE, FRAGMENT_COST_NORMAL, FRAGMENT_COST_PREMIUM } from '../constants';
 import type { SkinItem, SkinSettings, SkinDrawResult } from '../types';
+import { gameEventBus } from './gameEventBus';
 
 const SKIN_STORAGE_KEY = 'slidemino.skin.v2';
 
@@ -148,10 +149,11 @@ export const isCollectionComplete = (settings: SkinSettings): boolean => {
 };
 
 /**
- * 스킨 조각 추가 (데일리 챌린지 보상 등)
+ * 스킨 조각 추가 — 이벤트 버스를 통해 Context에 위임.
+ * 직접 localStorage를 쓰지 않아 Context의 debounced save와 경합하지 않습니다.
  */
-export const addFragments = (amount: number): void => {
-  const settings = loadSkinSettings();
-  settings.fragments += Math.max(0, Math.floor(amount));
-  saveSkinSettings(settings);
+export const addFragments = (amount: number, source: string = 'unknown'): void => {
+  const safeAmount = Math.max(0, Math.floor(amount));
+  if (safeAmount <= 0) return;
+  gameEventBus.emit('FRAGMENTS_ADDED', { amount: safeAmount, source });
 };

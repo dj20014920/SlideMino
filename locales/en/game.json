@@ -199,8 +199,6 @@
       "e_slide_15": "Slide 15 times",
       "e_submit": "Submit ranking",
       "e_share": "Share your score",
-      "e_game_1": "Complete 1 game",
-      "e_game_2": "Complete 2 games",
       "e_place_10": "Place 10 blocks",
       "e_place_15": "Place 15 blocks",
       "e_all_dirs": "Slide in all 4 directions",
@@ -224,7 +222,6 @@
       "m_place_40": "Place 40 blocks",
       "m_slide_30": "Slide 30 times",
       "m_slide_50": "Slide 50 times",
-      "m_game_3": "Complete 3 games",
       "h_tile_512": "Create a 512 tile",
       "h_tile_1024": "Create a 1024 tile",
       "h_tile_2048": "Create a 2048 tile",
@@ -242,7 +239,6 @@
       "h_place_50": "Place 50 blocks",
       "h_slide_80": "Slide 80 times",
       "h_slide_100": "Slide 100 times",
-      "h_game_5": "Complete 5 games",
       "h_block_i_10": "Place I block 10 times",
       "h_block_t_10": "Place T block 10 times"
     }

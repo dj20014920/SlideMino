@@ -101,7 +101,12 @@ export function checkLevelUnlocks(): string[] {
   return newlyUnlocked;
 }
 
-/** 특정 기능이 해금되었는지 확인 — 온보딩 해금 비활성화: 모든 기능 항상 해금 */
+/**
+ * 특정 기능이 해금되었는지 확인 — 온보딩 해금 비활성화: 모든 기능 항상 해금
+ *
+ * @todo 온보딩 시스템 의도적 비활성화 상태. 점진적 해금을 재활성화하려면
+ *       아래 주석 처리된 원래 로직(gamesCompleted / hasExistingGameData 기반)을 복원할 것.
+ */
 export function isFeatureUnlocked(_featureId: FeatureId): boolean {
   return true;
   // --- 아래는 향후 점진적 해금을 재활성화할 때 사용 ---

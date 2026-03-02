@@ -14,6 +14,7 @@ import { getRotatedCells, getTurnActionAvailability } from './gameLogic';
 import { getAnalyticsInstallId } from './analyticsService';
 import { getServerAdjustedNow } from './serverTimeService';
 import { KST_OFFSET_MS } from '../config/constants';
+import { getApiUrl } from '../utils/apiUrl';
 
 // ============================================
 // 이벤트 정의 & 스케줄
@@ -491,7 +492,7 @@ export async function syncAttemptCountFromServer(): Promise<number> {
     const current = getCurrentEvent();
     const installId = getAnalyticsInstallId();
     const res = await fetch(
-      `${API_BASE}/attempts?eventId=${encodeURIComponent(current.eventId)}&installId=${encodeURIComponent(installId)}`
+      getApiUrl(`${API_BASE}/attempts?eventId=${encodeURIComponent(current.eventId)}&installId=${encodeURIComponent(installId)}`)
     );
     if (!res.ok) return getLocalAttemptCount();
     const data = await res.json() as { count: number };
@@ -556,7 +557,7 @@ export async function submitEventScore(params: {
   try {
     const current = getCurrentEvent();
     const installId = getAnalyticsInstallId();
-    const res = await fetch(`${API_BASE}/submit`, {
+    const res = await fetch(getApiUrl(`${API_BASE}/submit`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -616,7 +617,7 @@ export async function fetchEventRankings(eventId?: string): Promise<EventRanking
   try {
     const resolvedEventId = eventId ?? getCurrentEvent().eventId;
     const installId = getAnalyticsInstallId();
-    const res = await fetch(`${API_BASE}/rankings?eventId=${encodeURIComponent(resolvedEventId)}&installId=${encodeURIComponent(installId)}`);
+    const res = await fetch(getApiUrl(`${API_BASE}/rankings?eventId=${encodeURIComponent(resolvedEventId)}&installId=${encodeURIComponent(installId)}`));
     if (!res.ok) return { rankings: [], total: 0 };
     return await res.json() as EventRankingsResult;
   } catch {

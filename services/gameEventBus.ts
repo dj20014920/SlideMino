@@ -70,6 +70,9 @@ export interface GameEventMap {
   /** 블록 새로고침 사용됨 */
   BLOCK_REFRESH_USED: Record<string, never>;
 
+  /** 블록 회전 사용됨 */
+  ROTATION_USED: Record<string, never>;
+
   /** 점수 공유 완료 */
   SHARE_COMPLETED: Record<string, never>;
 
@@ -81,6 +84,12 @@ export interface GameEventMap {
   /** 스킨 신규 획득 */
   SKIN_ACQUIRED: {
     count: number;
+  };
+
+  /** 스킨 조각 추가 (서비스 → Context 브릿지) */
+  FRAGMENTS_ADDED: {
+    amount: number;
+    source: string;
   };
 
   // ─── 미션 시스템 알림 이벤트 ───

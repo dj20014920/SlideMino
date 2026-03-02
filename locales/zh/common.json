@@ -1,4 +1,8 @@
 {
+  "actions": {
+    "replayTutorial": "重播教程",
+    "resetDone": "重置完成！"
+  },
   "buttons": {
     "confirm": "确认",
     "cancel": "取消",
@@ -45,6 +49,7 @@
     "downloaded": "图片已保存！",
     "copied": "文本已复制！",
     "streakDays": "连续{{count}}天",
+    "streakDays_plural": "连续{{count}}天",
     "beatMyScore": "你能超过我的分数吗？ 🎮",
     "daily": "每日",
     "appStore": "下载应用",

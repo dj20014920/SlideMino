@@ -19,10 +19,10 @@ interface SeasonRewardModalProps {
 }
 
 const REWARD_LABEL_MAP: Record<string, string> = {
-  top1: 'season.top1',
-  top2: 'season.top2',
-  top3: 'season.top3',
-  participant: 'season.participant',
+  top1: 'common:season.top1',
+  top2: 'common:season.top2',
+  top3: 'common:season.top3',
+  participant: 'common:season.participant',
 };
 
 export const SeasonRewardModal: React.FC<SeasonRewardModalProps> = ({
@@ -57,7 +57,7 @@ export const SeasonRewardModal: React.FC<SeasonRewardModalProps> = ({
         <div className="p-5 pb-3 flex justify-between items-center bg-gradient-to-r from-amber-50 to-yellow-50 border-b border-amber-100">
           <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
             <Gift className="text-amber-500" size={22} />
-            {t('season.rewardTitle')}
+            {t('common:season.rewardTitle')}
           </h2>
           <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-200/50 text-gray-500">
             <X size={18} />
@@ -66,7 +66,7 @@ export const SeasonRewardModal: React.FC<SeasonRewardModalProps> = ({
 
         {/* 보상 목록 */}
         <div className="p-5 space-y-3">
-          <p className="text-sm text-gray-500">{t('season.rewardDesc')}</p>
+          <p className="text-sm text-gray-500">{t('common:season.rewardDesc')}</p>
 
           {rewards.map((reward, i) => (
             <div
@@ -75,14 +75,14 @@ export const SeasonRewardModal: React.FC<SeasonRewardModalProps> = ({
             >
               <div>
                 <span className="text-sm font-semibold text-gray-700">
-                  {t('season.difficulty', { size: reward.difficulty })}
+                  {String(t('common:season.difficulty', { size: reward.difficulty } as any))}
                 </span>
                 <span className="ml-2 text-xs text-gray-500">
-                  {t(REWARD_LABEL_MAP[reward.reward_type] ?? 'season.participant')}
+                  {t((REWARD_LABEL_MAP[reward.reward_type] ?? 'common:season.participant') as any)}
                 </span>
               </div>
               <span className="text-sm font-bold text-amber-600">
-                {t('season.rewardFragments', { count: reward.fragment_amount })}
+                {String(t('common:season.rewardFragments', { count: reward.fragment_amount } as any))}
               </span>
             </div>
           ))}
@@ -90,7 +90,7 @@ export const SeasonRewardModal: React.FC<SeasonRewardModalProps> = ({
           {/* 웹 유저: 앱 설치 유도 */}
           {isWeb && (
             <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-center">
-              <p className="text-sm text-blue-700 font-medium">{t('season.rewardWebOnly')}</p>
+              <p className="text-sm text-blue-700 font-medium">{t('common:season.rewardWebOnly')}</p>
             </div>
           )}
 
@@ -101,16 +101,16 @@ export const SeasonRewardModal: React.FC<SeasonRewardModalProps> = ({
               disabled={claiming}
               className="w-full py-3 bg-gradient-to-r from-amber-400 to-yellow-400 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all disabled:opacity-50"
             >
-              {claiming ? '...' : t('season.rewardClaimAll')}
+              {claiming ? '...' : t('common:season.rewardClaimAll')}
             </button>
           )}
 
           {/* 수령 완료 */}
           {claimed && (
             <div className="text-center py-3">
-              <p className="text-lg font-bold text-emerald-600">{t('season.rewardClaimed')}</p>
+              <p className="text-lg font-bold text-emerald-600">{t('common:season.rewardClaimed')}</p>
               <p className="text-sm text-gray-500">
-                {t('season.rewardFragments', { count: totalClaimed })}
+                {String(t('common:season.rewardFragments', { count: totalClaimed } as any))}
               </p>
             </div>
           )}

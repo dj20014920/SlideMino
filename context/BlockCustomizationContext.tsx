@@ -60,6 +60,17 @@ export function BlockCustomizationProvider({ children }: { children: React.React
   const skinSaveTimeoutRef = useRef<number | null>(null);
   const prevOwnedSkinCountRef = useRef<number>(skinSettings.ownedSkins.length);
 
+  // 서비스 레이어에서 발생한 FRAGMENTS_ADDED 이벤트를 React state에 반영
+  useEffect(() => {
+    const unsubscribe = gameEventBus.on('FRAGMENTS_ADDED', ({ amount }) => {
+      setSkinSettings(prev => ({
+        ...prev,
+        fragments: prev.fragments + amount,
+      }));
+    });
+    return unsubscribe;
+  }, []);
+
   // 개발 디바이스: 모든 스킨 자동 해금
   useEffect(() => {
     let cancelled = false;

@@ -109,6 +109,7 @@ import {
   type NativeUpdateRequirement,
 } from './services/nativeUpdate';
 import { SeasonRewardModal } from './components/SeasonRewardModal';
+import { clamp } from './utils/math';
 import { MissionModal } from './components/MissionModal';
 import {
   initMissionTracking,
@@ -333,8 +334,6 @@ const LEGACY_PORTRAIT_ASPECT = 16 / 9;
 const MODERN_PHONE_PORTRAIT_ASPECT = 19.5 / 9;
 const APP_RESUME_EVENT = 'slidemino:app-resume';
 const VIEWPORT_RECOVERY_DELAYS_MS = [120, 320, 600] as const;
-
-const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value));
 
 const lerp = (from: number, to: number, t: number): number => from + (to - from) * t;
 
@@ -2833,6 +2832,7 @@ const App: React.FC = () => {
     if (!draggingPiece) return;
     // 이벤트 모드: 회전 비활성화
     if (eventRuleRef.current?.disableRotation) return;
+    gameEventBus.emit('ROTATION_USED', {});
 
     setDraggingPiece(prev => {
       if (!prev) return null;
@@ -2841,6 +2841,8 @@ const App: React.FC = () => {
       return {
         ...prev,
         rotation: nextRot,
+        // 회전 버튼을 한 번이라도 누른 조각은 "회전 사용"으로 간주한다.
+        initialRotation: -1,
         cells: nextCells,
       };
     });
@@ -2859,6 +2861,7 @@ const App: React.FC = () => {
   const rotateSlotPiece = useCallback((index: number) => {
     // 이벤트 모드: 회전 비활성화
     if (eventRuleRef.current?.disableRotation) return;
+    gameEventBus.emit('ROTATION_USED', {});
     setSlots(currentSlots => {
       const newSlots = [...currentSlots];
       const piece = newSlots[index];
@@ -2868,6 +2871,8 @@ const App: React.FC = () => {
       newSlots[index] = {
         ...piece,
         rotation: nextRot,
+        // 회전 후 원각도로 되돌리는 우회를 막기 위해 흔적을 남긴다.
+        initialRotation: -1,
         cells: getRotatedCells(piece.type, nextRot)
       };
       return newSlots;
@@ -3904,7 +3909,7 @@ const App: React.FC = () => {
           { size: 7 as BoardSize, label: t('game:difficulties.beginner'), sizeLabel: t('game:boardSizes.7x7'), gradient: 'from-indigo-600 to-indigo-800', border: 'border-indigo-400/30', shadow: 'shadow-indigo-900/20', hoverShadow: 'hover:shadow-indigo-600/30', mutedColor: 'text-indigo-200/70' },
           { size: 8 as BoardSize, label: t('game:difficulties.easy'), sizeLabel: t('game:boardSizes.8x8'), gradient: 'from-gray-800 to-gray-900', border: 'border-white/10', shadow: 'shadow-lg', hoverShadow: '', mutedColor: 'text-gray-400' },
           { size: 10 as BoardSize, label: t('game:difficulties.infinite'), sizeLabel: t('game:boardSizes.10x10'), gradient: 'bg-black', border: 'border-white/10', shadow: 'shadow-lg', hoverShadow: '', mutedColor: 'text-gray-500', isBlack: true },
-        ] as const).map((mode) => {
+        ] as Array<{size: BoardSize; label: string; sizeLabel: string; gradient: string; border: string; shadow: string; hoverShadow: string; mutedColor: string; id?: string; isBlack?: boolean}>).map((mode) => {
           const hasResume = getActiveNormalGameBoardSize() === mode.size;
           return (
             <div key={mode.size} className="relative w-full">
@@ -4447,7 +4452,7 @@ const App: React.FC = () => {
               </span>
             )}
             <span className="text-[10px] opacity-80">
-              {t('game:weeklyEvent.tags.attempts', { current: eventAttemptNumberRef.current, max: 3 })}
+              {String(t('game:weeklyEvent.tags.attempts', { current: eventAttemptNumberRef.current, max: 3 } as any))}
             </span>
           </div>
         )}

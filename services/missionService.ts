@@ -3,7 +3,7 @@
  *
  * - 하루 3개 미션 (쉬움·보통·어려움), 00:00 KST 리셋
  * - 주간 3개 미션 (쉬움·보통·어려움), 매주 월요일 00:00 KST 리셋
- * - 미션 풀 60개 (난이도별 20개)
+ * - 미션 풀 56개 (easy 18 / medium 19 / hard 19)
  * - 보상: 일일 1/1/1 + 보너스 3, 주간 3/5/8 조각
  * - 하루 1회 무료 미션 다시굴리기
  * - 이벤트 버스 구독으로 자동 추적
@@ -43,7 +43,6 @@ export type MissionTrackingType =
   | 'TILE_VALUE_CREATE'       // N 값 타일 생성
   | 'NO_ROTATION_CONSECUTIVE' // 회전 없이 N개 연속 배치
   | 'NO_TOOLS_SCORE'          // 도구 미사용으로 N점 달성 (단일 게임)
-  | 'GAME_COMPLETE'           // 게임 N판 완료
   | 'BLOCK_PLACE_COUNT'       // 블록 총 N개 배치
   | 'SLIDE_ALL_DIRECTIONS';   // 4방향 모두 슬라이드
 
@@ -89,10 +88,10 @@ export interface MissionProgressInfo {
   remaining: number;
 }
 
-// ====== 미션 풀 (60개) ======
+// ====== 미션 풀 (56개) ======
 
 const MISSION_POOL: readonly MissionDefinition[] = [
-  // ─── 쉬움 (20개) ───
+  // ─── 쉬움 (18개) ───
   { id: 'e_score_300',   difficulty: 'easy', type: 'SCORE_ACCUMULATE',   target: 300,  nameKey: 'game:missions.pool.e_score_300',   conflictGroup: 'score' },
   { id: 'e_score_500',   difficulty: 'easy', type: 'SCORE_ACCUMULATE',   target: 500,  nameKey: 'game:missions.pool.e_score_500',   conflictGroup: 'score' },
   { id: 'e_score_1000',  difficulty: 'easy', type: 'SCORE_ACCUMULATE',   target: 1000, nameKey: 'game:missions.pool.e_score_1000',  conflictGroup: 'score' },
@@ -107,14 +106,12 @@ const MISSION_POOL: readonly MissionDefinition[] = [
   { id: 'e_slide_15',    difficulty: 'easy', type: 'SLIDE_COUNT',        target: 15, nameKey: 'game:missions.pool.e_slide_15',    conflictGroup: 'slide_count' },
   { id: 'e_submit',      difficulty: 'easy', type: 'SUBMIT_RANKING',     target: 1,  nameKey: 'game:missions.pool.e_submit',      conflictGroup: 'submit' },
   { id: 'e_share',       difficulty: 'easy', type: 'SHARE_SCORE',        target: 1,  nameKey: 'game:missions.pool.e_share',       conflictGroup: 'share' },
-  { id: 'e_game_1',      difficulty: 'easy', type: 'GAME_COMPLETE',      target: 1,  nameKey: 'game:missions.pool.e_game_1',      conflictGroup: 'game_complete' },
-  { id: 'e_game_2',      difficulty: 'easy', type: 'GAME_COMPLETE',      target: 2,  nameKey: 'game:missions.pool.e_game_2',      conflictGroup: 'game_complete' },
   { id: 'e_place_10',    difficulty: 'easy', type: 'BLOCK_PLACE_COUNT',  target: 10, nameKey: 'game:missions.pool.e_place_10',    conflictGroup: 'place_count' },
   { id: 'e_place_15',    difficulty: 'easy', type: 'BLOCK_PLACE_COUNT',  target: 15, nameKey: 'game:missions.pool.e_place_15',    conflictGroup: 'place_count' },
   { id: 'e_all_dirs',    difficulty: 'easy', type: 'SLIDE_ALL_DIRECTIONS', target: 1, nameKey: 'game:missions.pool.e_all_dirs',   conflictGroup: 'all_dirs' },
   { id: 'e_tile_16',     difficulty: 'easy', type: 'TILE_VALUE_CREATE',  target: 16, nameKey: 'game:missions.pool.e_tile_16',     conflictGroup: 'tile_value' },
 
-  // ─── 보통 (20개) ───
+  // ─── 보통 (19개) ───
   { id: 'm_tile_256',    difficulty: 'medium', type: 'TILE_VALUE_CREATE',    target: 256,  nameKey: 'game:missions.pool.m_tile_256',    conflictGroup: 'tile_value' },
   { id: 'm_tile_128',    difficulty: 'medium', type: 'TILE_VALUE_CREATE',    target: 128,  nameKey: 'game:missions.pool.m_tile_128',    conflictGroup: 'tile_value' },
   { id: 'm_tile_64',     difficulty: 'medium', type: 'TILE_VALUE_CREATE',    target: 64,   nameKey: 'game:missions.pool.m_tile_64',     conflictGroup: 'tile_value' },
@@ -134,9 +131,8 @@ const MISSION_POOL: readonly MissionDefinition[] = [
   { id: 'm_place_40',    difficulty: 'medium', type: 'BLOCK_PLACE_COUNT',    target: 40, nameKey: 'game:missions.pool.m_place_40',   conflictGroup: 'place_count' },
   { id: 'm_slide_30',    difficulty: 'medium', type: 'SLIDE_COUNT',          target: 30, nameKey: 'game:missions.pool.m_slide_30',   conflictGroup: 'slide_count' },
   { id: 'm_slide_50',    difficulty: 'medium', type: 'SLIDE_COUNT',          target: 50, nameKey: 'game:missions.pool.m_slide_50',   conflictGroup: 'slide_count' },
-  { id: 'm_game_3',      difficulty: 'medium', type: 'GAME_COMPLETE',        target: 3,  nameKey: 'game:missions.pool.m_game_3',     conflictGroup: 'game_complete' },
 
-  // ─── 어려움 (20개) ───
+  // ─── 어려움 (19개) ───
   { id: 'h_tile_512',      difficulty: 'hard', type: 'TILE_VALUE_CREATE',      target: 512,   nameKey: 'game:missions.pool.h_tile_512',      conflictGroup: 'tile_value' },
   { id: 'h_tile_1024',     difficulty: 'hard', type: 'TILE_VALUE_CREATE',      target: 1024,  nameKey: 'game:missions.pool.h_tile_1024',     conflictGroup: 'tile_value' },
   { id: 'h_tile_2048',     difficulty: 'hard', type: 'TILE_VALUE_CREATE',      target: 2048,  nameKey: 'game:missions.pool.h_tile_2048',     conflictGroup: 'tile_value' },
@@ -154,7 +150,6 @@ const MISSION_POOL: readonly MissionDefinition[] = [
   { id: 'h_place_50',      difficulty: 'hard', type: 'BLOCK_PLACE_COUNT',      target: 50,    nameKey: 'game:missions.pool.h_place_50',      conflictGroup: 'place_count' },
   { id: 'h_slide_80',      difficulty: 'hard', type: 'SLIDE_COUNT',            target: 80,    nameKey: 'game:missions.pool.h_slide_80',      conflictGroup: 'slide_count' },
   { id: 'h_slide_100',     difficulty: 'hard', type: 'SLIDE_COUNT',            target: 100,   nameKey: 'game:missions.pool.h_slide_100',     conflictGroup: 'slide_count' },
-  { id: 'h_game_5',        difficulty: 'hard', type: 'GAME_COMPLETE',          target: 5,     nameKey: 'game:missions.pool.h_game_5',        conflictGroup: 'game_complete' },
   { id: 'h_block_i_10',    difficulty: 'hard', type: 'BLOCK_TYPE_COUNT',       target: 10, param: 'I', nameKey: 'game:missions.pool.h_block_i_10', conflictGroup: 'block_i' },
   { id: 'h_block_t_10',    difficulty: 'hard', type: 'BLOCK_TYPE_COUNT',       target: 10, param: 'T', nameKey: 'game:missions.pool.h_block_t_10', conflictGroup: 'block_t' },
 ];
@@ -163,6 +158,7 @@ const MISSION_POOL: readonly MissionDefinition[] = [
 const EASY_POOL = MISSION_POOL.filter(m => m.difficulty === 'easy');
 const MEDIUM_POOL = MISSION_POOL.filter(m => m.difficulty === 'medium');
 const HARD_POOL = MISSION_POOL.filter(m => m.difficulty === 'hard');
+const SLOT_DIFFICULTIES: readonly MissionDifficulty[] = ['easy', 'medium', 'hard'];
 
 // ====== 저장 데이터 구조 ======
 
@@ -254,6 +250,68 @@ function selectMissions(seed: number): string[] {
   return [pick(EASY_POOL), pick(MEDIUM_POOL), pick(HARD_POOL)];
 }
 
+/** 난이도별 미션 풀 반환 */
+function getPoolByDifficulty(difficulty: MissionDifficulty): readonly MissionDefinition[] {
+  switch (difficulty) {
+    case 'easy':
+      return EASY_POOL;
+    case 'medium':
+      return MEDIUM_POOL;
+    case 'hard':
+      return HARD_POOL;
+  }
+}
+
+/**
+ * 저장된 미션 목록에서 현재 미션 풀에 없는(삭제/개편된) 미션을 교체한다.
+ * - 슬롯 난이도(easy/medium/hard)는 유지
+ * - 유효한 기존 미션은 그대로 보존
+ * - 교체 미션은 진행도 0으로 시작
+ */
+function repairInvalidMissions(
+  missions: ActiveMission[],
+  seed: number,
+): { missions: ActiveMission[]; changed: boolean } {
+  let changed = false;
+  const normalized = missions.slice(0, MISSION_SLOT_COUNT);
+  while (normalized.length < MISSION_SLOT_COUNT) {
+    normalized.push({ definitionId: '', progress: 0, completed: false, claimed: false });
+    changed = true;
+  }
+
+  const usedConflictGroups = new Set<string>();
+  for (const mission of normalized) {
+    const def = getMissionDefinition(mission.definitionId);
+    if (def) usedConflictGroups.add(def.conflictGroup);
+  }
+
+  for (let index = 0; index < MISSION_SLOT_COUNT; index += 1) {
+    const mission = normalized[index];
+    const existingDef = getMissionDefinition(mission.definitionId);
+    if (existingDef) continue;
+
+    const difficulty = SLOT_DIFFICULTIES[index] ?? 'easy';
+    const pool = getPoolByDifficulty(difficulty);
+    if (pool.length === 0) continue;
+
+    const candidates = pool.filter(def => !usedConflictGroups.has(def.conflictGroup));
+    const finalPool = candidates.length > 0 ? candidates : pool;
+    const rng = mulberry32((seed + index * 977 + 17) >>> 0);
+    const selected = finalPool[Math.floor(rng() * finalPool.length)];
+
+    normalized[index] = {
+      definitionId: selected.id,
+      progress: 0,
+      completed: false,
+      claimed: false,
+    };
+    usedConflictGroups.add(selected.conflictGroup);
+    changed = true;
+  }
+
+  return { missions: normalized, changed };
+}
+
 /** 미션 정의 조회 */
 export function getMissionDefinition(id: string): MissionDefinition | undefined {
   return MISSION_POOL.find(m => m.id === id);
@@ -309,6 +367,7 @@ function ensureMissionsUpToDate(): void {
   ensureStateLoaded();
   const today = getKstDateString();
   const monday = getKstMondayString();
+  let changed = false;
 
   // 일일 미션 갱신
   if (state.dailyDate !== today) {
@@ -323,6 +382,7 @@ function ensureMissionsUpToDate(): void {
     }));
     state.dailyRerollUsedSlots = Array(MISSION_SLOT_COUNT).fill(false);
     state.dailyBonusClaimed = false;
+    changed = true;
   }
 
   // 주간 미션 갱신
@@ -337,9 +397,25 @@ function ensureMissionsUpToDate(): void {
       claimed: false,
     }));
     state.weeklyRerollUsedSlots = Array(MISSION_SLOT_COUNT).fill(false);
+    changed = true;
   }
 
-  saveState();
+  // 과거 버전 저장값에 남아있는 삭제된 미션 ID를 현재 풀 기준으로 교체
+  const repairedDaily = repairInvalidMissions(state.dailyMissions, dateToSeed(today));
+  if (repairedDaily.changed) {
+    state.dailyMissions = repairedDaily.missions;
+    changed = true;
+  }
+
+  const repairedWeekly = repairInvalidMissions(state.weeklyMissions, dateToSeed(monday) + 7777);
+  if (repairedWeekly.changed) {
+    state.weeklyMissions = repairedWeekly.missions;
+    changed = true;
+  }
+
+  if (changed) {
+    saveState();
+  }
 }
 
 // ====== 미션 진행도 업데이트 핵심 로직 ======
@@ -360,7 +436,7 @@ function updateMissionProgress(
 
   // 누적형 미션: 진행도에 amount 추가
   if (['SCORE_ACCUMULATE', 'BLOCK_TYPE_COUNT', 'SLIDE_COUNT', 'SUBMIT_RANKING',
-       'SHARE_SCORE', 'GAME_COMPLETE', 'BLOCK_PLACE_COUNT'].includes(type)) {
+       'SHARE_SCORE', 'BLOCK_PLACE_COUNT'].includes(type)) {
     mission.progress = Math.min(mission.progress + amount, def.target);
   }
 
@@ -433,6 +509,27 @@ function processUpdate(
   return completedList;
 }
 
+/** 금지 액션 발생 시 해당 미션 진행도를 초기화 */
+function resetMissionProgressByTypes(types: MissionTrackingType[]): void {
+  if (types.length === 0) return;
+  const targetTypes = new Set(types);
+  let changed = false;
+  const all = state.dailyMissions.concat(state.weeklyMissions);
+
+  for (const mission of all) {
+    if (mission.completed || mission.claimed) continue;
+    const def = getMissionDefinition(mission.definitionId);
+    if (!def || !targetTypes.has(def.type)) continue;
+    if (mission.progress === 0) continue;
+    mission.progress = 0;
+    changed = true;
+  }
+
+  if (changed) {
+    saveState();
+  }
+}
+
 /** 난이도별 보상 조각 수 반환 */
 export function getReward(difficulty: MissionDifficulty, isDaily: boolean): number {
   if (isDaily) {
@@ -491,6 +588,7 @@ export function initMissionTracking(): void {
       } else {
         state.consecutiveNoRotation = 0;
         state.gameNoRotation = false;
+        resetMissionProgressByTypes(['NO_ROTATION_CONSECUTIVE', 'NO_TOOLS_SCORE']);
       }
       const completed3 = processUpdate('NO_ROTATION_CONSECUTIVE', state.consecutiveNoRotation);
 
@@ -551,8 +649,6 @@ export function initMissionTracking(): void {
   unsubscribers.push(
     gameEventBus.on('GAME_OVER', () => {
       state.gameSessionActive = false;
-      const completed = processUpdate('GAME_COMPLETE', 1);
-      emitCompletions(completed);
       saveState();
     })
   );
@@ -569,6 +665,7 @@ export function initMissionTracking(): void {
   unsubscribers.push(
     gameEventBus.on('UNDO_USED', () => {
       state.gameNoUndo = false;
+      resetMissionProgressByTypes(['NO_TOOLS_SCORE']);
       saveState();
     })
   );
@@ -577,6 +674,17 @@ export function initMissionTracking(): void {
   unsubscribers.push(
     gameEventBus.on('BLOCK_REFRESH_USED', () => {
       state.gameNoRefresh = false;
+      resetMissionProgressByTypes(['NO_TOOLS_SCORE']);
+      saveState();
+    })
+  );
+
+  // 블록 회전 사용
+  unsubscribers.push(
+    gameEventBus.on('ROTATION_USED', () => {
+      state.gameNoRotation = false;
+      state.consecutiveNoRotation = 0;
+      resetMissionProgressByTypes(['NO_ROTATION_CONSECUTIVE', 'NO_TOOLS_SCORE']);
       saveState();
     })
   );

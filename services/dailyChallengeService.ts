@@ -11,8 +11,7 @@
 
 import { Piece } from '../types';
 import { mulberry32, generateSeededPieceData, createPieceFromData } from './prng';
-import { isNativeApp } from '../utils/platform';
-import { BASE_URL } from '../config/constants';
+import { getApiUrl } from '../utils/apiUrl';
 import { updateServerTimeOffset } from './serverTimeService';
 import { getAnalyticsInstallId } from './analyticsService';
 
@@ -65,21 +64,6 @@ interface DailyChallengeLocalState {
   /** 마지막으로 참여한 날짜 */
   lastPlayedDate: string | null;
 }
-
-// ==========================================
-// API URL 헬퍼
-// ==========================================
-
-const API_BASE_URL = (() => {
-  const fromEnv = (import.meta.env.VITE_API_BASE_URL || '').trim();
-  if (!fromEnv) return BASE_URL;
-  return fromEnv.replace(/\/+$/, '');
-})();
-
-const getApiUrl = (path: string): string => {
-  if (isNativeApp()) return `${API_BASE_URL}${path}`;
-  return path;
-};
 
 const isOnline = (): boolean => {
   if (typeof navigator === 'undefined') return true;

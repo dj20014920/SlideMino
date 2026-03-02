@@ -41,7 +41,7 @@ export const StreakInfoModal: React.FC<StreakInfoModalProps> = ({ open, onClose 
         <div className="p-5 pb-3 flex justify-between items-center bg-orange-50 border-b border-orange-100">
           <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
             <Flame className="text-orange-500" size={22} />
-            {t('streak.title')}
+            {t('common:streak.title')}
           </h2>
           <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-200/50 text-gray-500">
             <X size={18} />
@@ -53,10 +53,10 @@ export const StreakInfoModal: React.FC<StreakInfoModalProps> = ({ open, onClose 
           <div className="text-center bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl p-5">
             <div className="text-5xl font-black text-orange-500">{data.currentStreak}</div>
             <div className="text-sm text-gray-600 mt-1">
-              {t('streak.days', { count: data.currentStreak })}
+              {String(t('common:streak.days', { count: data.currentStreak } as any))}
             </div>
             <div className="text-xs text-gray-400 mt-2">
-              {t('streak.totalDays')}: {data.totalAttendanceDays}
+              {t('common:streak.totalDays')}: {data.totalAttendanceDays}
             </div>
           </div>
 
@@ -64,7 +64,7 @@ export const StreakInfoModal: React.FC<StreakInfoModalProps> = ({ open, onClose 
           <div className="bg-blue-50 rounded-2xl p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-gray-700">{t('streak.freezeCount')}</span>
+                <span className="text-sm font-semibold text-gray-700">{t('common:streak.freezeCount')}</span>
                 <button
                   onClick={() => setShowFreezeHelp(!showFreezeHelp)}
                   className="text-gray-400 hover:text-gray-600"
@@ -80,13 +80,13 @@ export const StreakInfoModal: React.FC<StreakInfoModalProps> = ({ open, onClose 
 
             {showFreezeHelp && (
               <p className="text-xs text-gray-500 mt-2 bg-white rounded-lg p-2">
-                {t('streak.freezeHelp')}
+                {t('common:streak.freezeHelp')}
               </p>
             )}
 
             {/* 자동 프리즈 토글 */}
             <div className="flex items-center justify-between mt-3 pt-3 border-t border-blue-100">
-              <span className="text-sm text-gray-600">{t('streak.autoFreeze')}</span>
+              <span className="text-sm text-gray-600">{t('common:streak.autoFreeze')}</span>
               <button
                 onClick={handleAutoFreezeToggle}
                 className={`relative inline-flex h-6 w-12 shrink-0 items-center rounded-full transition-colors ${
@@ -94,7 +94,7 @@ export const StreakInfoModal: React.FC<StreakInfoModalProps> = ({ open, onClose 
                 }`}
                 role="switch"
                 aria-checked={data.autoFreezeEnabled}
-                aria-label={t('streak.autoFreeze')}
+                aria-label={t('common:streak.autoFreeze')}
               >
                 <span
                   className={`pointer-events-none absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
@@ -107,12 +107,12 @@ export const StreakInfoModal: React.FC<StreakInfoModalProps> = ({ open, onClose 
 
           {/* 출석 조건 안내 */}
           <div className="text-xs text-center text-gray-400">
-            {t('streak.condition')}
+            {t('common:streak.condition')}
           </div>
 
           {/* 배지 컬렉션 */}
           <div>
-            <h3 className="text-sm font-bold text-gray-700 mb-3">{t('streak.badgeCollection')}</h3>
+            <h3 className="text-sm font-bold text-gray-700 mb-3">{t('common:streak.badgeCollection')}</h3>
             <div className="space-y-2">
               {BADGE_MILESTONES.map(milestone => {
                 const earned = data.badges.includes(milestone.id);
@@ -129,7 +129,7 @@ export const StreakInfoModal: React.FC<StreakInfoModalProps> = ({ open, onClose 
                       </span>
                       <div>
                         <span className={`text-sm font-semibold ${earned ? 'text-gray-800' : 'text-gray-400'}`}>
-                          {t(milestone.nameKey)}
+                          {t(milestone.nameKey as any)}
                         </span>
                         <span className="text-xs text-gray-400 ml-2">
                           {milestone.days}일

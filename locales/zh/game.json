@@ -106,6 +106,15 @@
     "newAttempt": "新挑战 ({{current}}/{{max}})",
     "maxAttempts": "已用完所有尝试次数",
     "claimReward": "领取参与奖励",
+    "watchAdForAttempt": "看广告 +1次机会",
+    "adUnlockPreparing": "广告准备中...",
+    "adUnlockLoading": "正在观看广告...",
+    "adUnlockHint": "基本次数已用完。看广告可解锁额外1次机会。",
+    "adUnlockSuccess": "已解锁额外1次机会！",
+    "adUnlockError": "广告加载失败，请稍后再试。",
+    "adUnlockDailyLimit": "今日广告解锁次数已达上限。",
+    "adUnlockUnsupported": "此平台不支持周活动广告功能。",
+    "remainingInline": "剩余{{remaining}}次",
     "rewardClaimed": "已领取奖励",
     "banner": "周活动",
     "attempt": "第{{n}}次",
@@ -115,7 +124,8 @@
       "scoreBoost": "分数×{{multiplier}}",
       "tripleKill": "三连消+{{bonus}}",
       "minutes": "{{min}}分钟",
-      "attempts": "{{n}}次机会"
+      "attempts": "{{n}}次机会",
+      "remainingAttempts": "剩余{{remaining}}/{{max}}次"
     },
     "rewards": {
       "participation": "参与奖励",
@@ -193,8 +203,6 @@
       "e_slide_15": "滑动15次",
       "e_submit": "提交排名",
       "e_share": "分享你的分数",
-      "e_game_1": "完成1局游戏",
-      "e_game_2": "完成2局游戏",
       "e_place_10": "放置10个方块",
       "e_place_15": "放置15个方块",
       "e_all_dirs": "向所有4个方向滑动",
@@ -218,7 +226,6 @@
       "m_place_40": "放置40个方块",
       "m_slide_30": "滑动30次",
       "m_slide_50": "滑动50次",
-      "m_game_3": "完成3局游戏",
       "h_tile_512": "创建512格",
       "h_tile_1024": "创建1024格",
       "h_tile_2048": "创建2048格",
@@ -236,7 +243,6 @@
       "h_place_50": "放置50个方块",
       "h_slide_80": "滑动80次",
       "h_slide_100": "滑动100次",
-      "h_game_5": "完成5局游戏",
       "h_block_i_10": "放置I方块10次",
       "h_block_t_10": "放置T方块10次"
     }

@@ -6,6 +6,8 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, RefreshCw, Check, Gift, Clock, Star } from 'lucide-react';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
+import { SHAPES } from '../constants';
+import { ShapeType } from '../types';
 import {
   getDailyMissions,
   getWeeklyMissions,
@@ -53,6 +55,63 @@ function getRewardAmount(d: MissionDifficulty, isDaily: boolean): number {
   return getReward(d, isDaily);
 }
 
+function toShapeType(value?: string): ShapeType | null {
+  if (!value) return null;
+  switch (value) {
+    case ShapeType.I:
+    case ShapeType.O:
+    case ShapeType.T:
+    case ShapeType.S:
+    case ShapeType.Z:
+    case ShapeType.J:
+    case ShapeType.L:
+    case ShapeType.PLUS:
+      return value;
+    default:
+      return null;
+  }
+}
+
+const BlockShapeBadge: React.FC<{ type: ShapeType }> = ({ type }) => {
+  const cells = SHAPES[type];
+  const minX = Math.min(...cells.map((c) => c.x));
+  const maxX = Math.max(...cells.map((c) => c.x));
+  const minY = Math.min(...cells.map((c) => c.y));
+  const maxY = Math.max(...cells.map((c) => c.y));
+  const width = maxX - minX + 1;
+  const height = maxY - minY + 1;
+  const normalized = cells.map((c) => ({ x: c.x - minX, y: c.y - minY }));
+  const cellSize = 4;
+  const viewSize = 18;
+  const shapeWidth = width * cellSize;
+  const shapeHeight = height * cellSize;
+  const offsetX = (viewSize - shapeWidth) / 2;
+  const offsetY = (viewSize - shapeHeight) / 2;
+
+  return (
+    <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-100 px-1.5 py-0.5">
+      <svg
+        width={viewSize}
+        height={viewSize}
+        viewBox={`0 0 ${viewSize} ${viewSize}`}
+        aria-hidden="true"
+      >
+        {normalized.map((cell, idx) => (
+          <rect
+            key={idx}
+            x={offsetX + cell.x * cellSize}
+            y={offsetY + cell.y * cellSize}
+            width={cellSize - 0.5}
+            height={cellSize - 0.5}
+            rx="0.6"
+            className="fill-slate-600"
+          />
+        ))}
+      </svg>
+    </span>
+  );
+};
+
 const MissionRow: React.FC<{
   mission: ActiveMission;
   isDaily: boolean;
@@ -69,6 +128,7 @@ const MissionRow: React.FC<{
   const reward = getRewardAmount(def.difficulty, isDaily);
   const progress = Math.min(mission.progress, def.target);
   const pct = Math.min(100, Math.round((progress / def.target) * 100));
+  const blockShapeType = def.type === 'BLOCK_TYPE_COUNT' ? toShapeType(def.param) : null;
 
   return (
     <div className={`rounded-2xl p-3.5 ${mission.completed ? 'bg-emerald-50 border border-emerald-200' : 'bg-gray-50 border border-gray-100'}`}>
@@ -76,6 +136,7 @@ const MissionRow: React.FC<{
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-1">
             <span className="text-xs">{diffInfo.label}</span>
+            {blockShapeType && <BlockShapeBadge type={blockShapeType} />}
             <span className="text-sm font-semibold text-gray-800 truncate">
               {t(def.nameKey as any)}
             </span>

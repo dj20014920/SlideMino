@@ -5,22 +5,11 @@
  * - 보상 확인/수령 API 호출
  */
 
-import { isNativeApp } from '../utils/platform';
-import { BASE_URL, KST_OFFSET_MS } from '../config/constants';
+import { getApiUrl } from '../utils/apiUrl';
+import { KST_OFFSET_MS } from '../config/constants';
 import { getAnalyticsInstallId } from './analyticsService';
-import { loadSkinSettings, saveSkinSettings } from './skinService';
+import { addFragments } from './skinService';
 import { updateServerTimeOffset, getServerAdjustedNow } from './serverTimeService';
-
-const API_BASE_URL = (() => {
-  const fromEnv = (import.meta.env.VITE_API_BASE_URL || '').trim();
-  if (!fromEnv) return BASE_URL;
-  return fromEnv.replace(/\/+$/, '');
-})();
-
-const getApiUrl = (path: string): string => {
-  if (isNativeApp()) return `${API_BASE_URL}${path}`;
-  return path;
-};
 
 // ====== 시즌 보상 타입 ======
 export interface SeasonReward {
@@ -160,11 +149,9 @@ export async function claimSeasonReward(
 
     const fragments = data.fragmentAmount ?? 0;
 
-    // 로컬 스킨 설정에 조각 추가
+    // 로컬 스킨 설정에 조각 추가 (이벤트 버스 → Context)
     if (fragments > 0) {
-      const settings = loadSkinSettings();
-      settings.fragments += fragments;
-      saveSkinSettings(settings);
+      addFragments(fragments, 'seasonReward');
     }
 
     return { success: true, fragmentAmount: fragments };

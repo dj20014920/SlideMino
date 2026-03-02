@@ -1,6 +1,6 @@
 import { isNativeApp } from '../utils/platform';
 import { Capacitor } from '@capacitor/core';
-import { BASE_URL } from '../config/constants';
+import { getApiUrl } from '../utils/apiUrl';
 import { updateServerTimeOffset } from './serverTimeService';
 
 export interface RankEntry {
@@ -58,21 +58,8 @@ const STORAGE_KEY_NAME = 'slidemino_player_name';
 const STORAGE_KEY_QUEUE = 'slidemino_pending_scores_v1';
 const LEADERBOARD_ERROR_LOG_COOLDOWN_MS = 60_000;
 const REALTIME_RANKING_ONLY = true;
-const API_BASE_URL = (() => {
-    const fromEnv = (import.meta.env.VITE_API_BASE_URL || '').trim();
-    if (!fromEnv) return BASE_URL;
-    return fromEnv.replace(/\/+$/, '');
-})();
 
 let lastLeaderboardErrorLogAt = 0;
-
-const getApiUrl = (path: string): string => {
-    // In native (Capacitor) builds the app is served from a local origin
-    // (e.g. capacitor://localhost), so relative `/api/*` calls won't hit Cloudflare.
-    // Use a fixed origin for API calls (default: production, override: VITE_API_BASE_URL).
-    if (isNativeApp()) return `${API_BASE_URL}${path}`;
-    return path;
-};
 
 const normalizeDifficultyForApi = (difficulty: string): string => {
     const trimmed = difficulty.trim();

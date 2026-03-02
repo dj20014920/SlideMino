@@ -21,6 +21,7 @@ import { getRewardAdId, isRewardAdSupported, CURRENT_AD_PLATFORM } from './adCon
 import { ensureAdMobReady } from './admob';
 import { CooldownGate, RetryBackoffScheduler, HourlyFrequencyCap, ClickAbuseGuard } from './adResilience';
 import { MAX_DAILY_AD_VIEWS, REWARD_UNDO_AMOUNT } from '../constants';
+import { KST_OFFSET_MS } from '../config/constants';
 import { getServerAdjustedNow } from './serverTimeService';
 
 // ==========================================
@@ -52,7 +53,7 @@ class DailyAdLimiter {
 
   private getTodayString(): string {
     // KST 기준 날짜 (게임의 날짜 경계는 KST 자정) — 서버 보정 시각 사용
-    const kstMs = getServerAdjustedNow().getTime() + 9 * 60 * 60 * 1000;
+    const kstMs = getServerAdjustedNow().getTime() + KST_OFFSET_MS;
     const kst = new Date(kstMs);
     return `${kst.getUTCFullYear()}-${String(kst.getUTCMonth() + 1).padStart(2, '0')}-${String(kst.getUTCDate()).padStart(2, '0')}`;
   }
@@ -242,7 +243,7 @@ class RewardAdService {
   constructor() {
     this.adGroupId = getRewardAdId();
 
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       console.log('[RewardAdService] 초기화');
       console.log('[RewardAdService] 플랫폼:', CURRENT_AD_PLATFORM);
       console.log('[RewardAdService] 광고 ID:', this.adGroupId);

@@ -4,7 +4,7 @@
  */
 
 import { hashInstallId } from '../../utils/hash';
-import { getSeasonBoundaries } from '../../utils/seasonReset';
+import { getSeasonBoundaries, resetSeasonIfNeeded } from '../../utils/seasonReset';
 import { checkRateLimit, getClientIp } from '../../utils/rateLimit';
 import { buildCorsHeaders } from '../../utils/cors';
 
@@ -43,6 +43,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    // 시즌 교체 직후 보상 미생성 방지
+    await resetSeasonIfNeeded(env);
 
     const installHash = await hashInstallId(installId, env.ANALYTICS_HASH_SALT);
     if (!installHash) {

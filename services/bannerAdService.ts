@@ -21,6 +21,8 @@ interface BannerShowOptions {
   bottomMarginPx?: number;
 }
 
+type BannerSizeListener = (heightPx: number) => void;
+
 // ==========================================
 // 📌 배너 광고 서비스
 // ==========================================
@@ -36,6 +38,8 @@ class BannerAdService {
   private hasTrackedAdMobImpressionForCurrentBanner = false;
   private requestedBottomMarginPx = 0;
   private activeBottomMarginPx = 0;
+  private bannerHeightPx = 0;
+  private bannerSizeListeners = new Set<BannerSizeListener>();
 
   constructor() {
     this.adUnitId = getBannerAdId();
@@ -91,15 +95,16 @@ class BannerAdService {
       options: {
         adGroupId: this.adUnitId,
         // 배너 위치 설정 (하단 고정)
-        // @ts-expect-error - 앱인토스 SDK 타입 정의에 position/margin이 없을 수 있음
+        // @ts-ignore - 앱인토스 SDK 타입 정의에 position/margin이 없을 수 있음
         position: 'bottom',
-        // @ts-expect-error - 일부 런타임에서 margin을 지원할 수 있어 best-effort로 전달
+        // @ts-ignore - 일부 런타임에서 margin을 지원할 수 있어 best-effort로 전달
         margin: bottomMarginPx,
       },
       onEvent: (event) => {
         switch (event.type) {
           case 'show':
             this.showStatus = 'showing';
+            if (this.bannerHeightPx <= 0) this.setBannerHeightPx(50);
             console.log('[BannerAdService] 배너 표시 완료');
             break;
 
@@ -121,17 +126,20 @@ class BannerAdService {
 
           case 'dismissed':
             this.showStatus = 'idle';
+            this.setBannerHeightPx(0);
             console.log('[BannerAdService] 배너 닫힘');
             break;
 
           case 'failedToShow':
             this.showStatus = 'failed';
+            this.setBannerHeightPx(0);
             console.error('[BannerAdService] 배너 표시 실패');
             break;
         }
       },
       onError: (error) => {
         this.showStatus = 'failed';
+        this.setBannerHeightPx(0);
         console.error('[BannerAdService] 앱인토스 배너 에러:', error);
       },
     });
@@ -157,6 +165,7 @@ class BannerAdService {
     try {
       await AdMob.showBanner(options);
       this.showStatus = 'showing';
+      if (this.bannerHeightPx <= 0) this.setBannerHeightPx(50);
       if (!this.hasTrackedAdMobImpressionForCurrentBanner) {
         trackAnalyticsEvent({
           name: 'ad_banner_impression',
@@ -190,6 +199,17 @@ class BannerAdService {
         name: 'ad_banner_click',
         meta: { source: 'admob' },
       });
+    });
+
+    AdMob.addListener(BannerAdPluginEvents.SizeChanged, (info: unknown) => {
+      const height = typeof info === 'object' && info !== null
+        ? (info as { height?: unknown }).height
+        : 0;
+      this.setBannerHeightPx(height);
+    });
+
+    AdMob.addListener(BannerAdPluginEvents.FailedToLoad, () => {
+      this.setBannerHeightPx(0);
     });
   }
 
@@ -233,6 +253,18 @@ class BannerAdService {
 
   public getStatus(): BannerShowStatus {
     return this.showStatus;
+  }
+
+  public getCurrentBannerHeightPx(): number {
+    return this.bannerHeightPx;
+  }
+
+  public onBannerSizeChange(listener: BannerSizeListener): () => void {
+    this.bannerSizeListeners.add(listener);
+    listener(this.bannerHeightPx);
+    return () => {
+      this.bannerSizeListeners.delete(listener);
+    };
   }
 
   private enqueueSync(): Promise<void> {
@@ -286,10 +318,29 @@ class BannerAdService {
     return Math.max(0, Math.round(value));
   }
 
+  private normalizeBannerHeightPx(value: unknown): number {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return 0;
+    return Math.max(0, Math.round(value));
+  }
+
+  private setBannerHeightPx(value: unknown): void {
+    const next = this.normalizeBannerHeightPx(value);
+    if (next === this.bannerHeightPx) return;
+    this.bannerHeightPx = next;
+    this.bannerSizeListeners.forEach((listener) => {
+      try {
+        listener(next);
+      } catch {
+        // Listener 오류는 서비스 동작을 중단시키지 않는다.
+      }
+    });
+  }
+
   private async hideCurrentBanner(): Promise<void> {
     if (this.showStatus !== 'showing') {
       this.showStatus = 'idle';
       this.activeBottomMarginPx = 0;
+      this.setBannerHeightPx(0);
       return;
     }
 
@@ -312,6 +363,7 @@ class BannerAdService {
       this.showStatus = 'idle';
       this.hasTrackedAdMobImpressionForCurrentBanner = false;
       this.activeBottomMarginPx = 0;
+      this.setBannerHeightPx(0);
     }
   }
 }

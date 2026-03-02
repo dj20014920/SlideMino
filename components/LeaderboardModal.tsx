@@ -102,7 +102,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
             : t('common:season.countdown', { days: countdown.days, hours: countdown.hours });
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 modal-safe-overlay">
             {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fade-in"
@@ -110,7 +110,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
             />
 
             {/* Modal Content */}
-            <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden animate-scale-in flex flex-col max-h-[80vh] win98-window">
+            <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden animate-scale-in flex flex-col max-h-[80vh] modal-safe-panel win98-window">
                 {/* Header */}
                 <div className="p-6 pb-2 flex justify-between items-center bg-gray-50 border-b border-gray-100">
                     <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">

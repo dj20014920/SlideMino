@@ -232,7 +232,7 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
     return (
       <>
         <div
-          className="fixed inset-0 z-[1000] flex items-center justify-center p-4"
+          className="fixed inset-0 z-[1000] flex items-center justify-center p-4 modal-safe-overlay"
           onPointerDown={(e) => e.stopPropagation()}
           onPointerMove={(e) => e.stopPropagation()}
           onPointerUp={(e) => e.stopPropagation()}
@@ -240,7 +240,7 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
           {/* Windows 98 Dotted Overlay or Solid Background */}
           <div className="absolute inset-0 bg-[#000000] opacity-50" onClick={onClose} />
 
-          <div className="window relative z-10 w-full max-w-lg shadow-none flex flex-col max-h-[calc(100dvh-2rem)]" style={{ width: '100%', backgroundColor: '#c0c0c0', color: '#222' }}>
+          <div className="window relative z-10 w-full max-w-lg shadow-none flex flex-col max-h-[calc(100dvh-2rem)] modal-safe-panel" style={{ width: '100%', backgroundColor: '#c0c0c0', color: '#222' }}>
             <div className="title-bar" style={{ background: 'linear-gradient(90deg, #000080, #1084d0)' }}>
               <div className="title-bar-text" style={{ color: '#fff' }}>
                 {t('modals:skin.title')}
@@ -397,14 +397,14 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
   return (
     <>
       <div
-        className="fixed inset-0 z-[1000] flex items-center justify-center p-4"
+        className="fixed inset-0 z-[1000] flex items-center justify-center p-4 modal-safe-overlay"
         onPointerDown={(e) => e.stopPropagation()}
         onPointerMove={(e) => e.stopPropagation()}
         onPointerUp={(e) => e.stopPropagation()}
       >
         <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
-        <div className="relative z-10 w-full max-w-lg max-h-[90dvh] rounded-3xl bg-white/90 backdrop-blur-sm border border-white/60 shadow-2xl overflow-hidden flex flex-col win98-window">
+        <div className="relative z-10 w-full max-w-lg max-h-[90dvh] modal-safe-panel rounded-3xl bg-white/90 backdrop-blur-sm border border-white/60 shadow-2xl overflow-hidden flex flex-col win98-window">
           {/* 헤더 */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-black/5 shrink-0">
               <div>

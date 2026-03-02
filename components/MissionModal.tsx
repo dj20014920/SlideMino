@@ -211,9 +211,9 @@ export const MissionModal: React.FC<MissionModalProps> = ({ open, onClose, onRew
   const weeklyRerollAvailable = weeklyRerollAvailableSlots.some(Boolean);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 modal-safe-overlay">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+      <div className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden max-h-[85vh] modal-safe-panel flex flex-col">
         {/* 헤더 */}
         <div className="p-5 pb-3 flex justify-between items-center bg-gradient-to-r from-violet-50 to-blue-50 border-b border-violet-100">
           <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">

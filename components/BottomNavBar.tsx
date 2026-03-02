@@ -2,11 +2,11 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Palette, Trophy, ClipboardList, Calendar, Lock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { isNativeApp } from '../utils/platform';
+import { bannerAdService } from '../services/bannerAdService';
 
-/** 네이티브 배너 광고 높이 (폰 50dp, 태블릿 90dp) */
+/** 네이티브 배너 광고 fallback 높이 (표준 배너 50dp) */
 function getNativeBannerHeightPx(): number {
-  if (typeof window === 'undefined') return 50;
-  return window.innerWidth >= 768 ? 90 : 50;
+  return 50;
 }
 
 /** 네비게이션 바 기본 추정 높이 (Win98: 32px, 기본: 64px) */
@@ -22,16 +22,33 @@ export const getEstimatedBottomNavHeight = (isWin98: boolean): number =>
  * 이를 통해 메인 콘텐츠가 동적으로 paddingBottom을 계산할 수 있다.
  */
 function useBottomChromeHeight(navHeight: number) {
-  const [adHeight, setAdHeight] = useState(() => isNativeApp() ? getNativeBannerHeightPx() : 0);
+  const [adHeight, setAdHeight] = useState(() => {
+    if (!isNativeApp()) return 0;
+    const measured = bannerAdService.getCurrentBannerHeightPx();
+    return measured > 0 ? measured : getNativeBannerHeightPx();
+  });
 
   useEffect(() => {
     if (!isNativeApp()) {
       setAdHeight(0);
       return;
     }
-    const handleResize = () => setAdHeight(getNativeBannerHeightPx());
+    const applyFallback = () => {
+      const measured = bannerAdService.getCurrentBannerHeightPx();
+      setAdHeight(measured > 0 ? measured : getNativeBannerHeightPx());
+    };
+    const unsubscribe = bannerAdService.onBannerSizeChange((height) => {
+      setAdHeight(height > 0 ? height : getNativeBannerHeightPx());
+    });
+    const handleResize = () => applyFallback();
+    applyFallback();
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.visualViewport?.addEventListener('resize', handleResize);
+    return () => {
+      unsubscribe();
+      window.removeEventListener('resize', handleResize);
+      window.visualViewport?.removeEventListener('resize', handleResize);
+    };
   }, []);
 
   // CSS 변수로 전체 하단 점유 높이를 노출 (콘텐츠 paddingBottom에 사용)

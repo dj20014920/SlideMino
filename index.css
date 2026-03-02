@@ -154,3 +154,13 @@
     filter: hue-rotate(-20deg) brightness(1.04) saturate(1.15);
   }
 }
+
+/* Modal safe area for bottom-fixed chrome (native ad + bottom nav) */
+.modal-safe-overlay {
+  padding-top: max(1rem, calc(var(--app-safe-top, 0px) + 0.75rem));
+  padding-bottom: max(1rem, calc(var(--bottom-chrome-height, 0px) + 0.75rem));
+}
+
+.modal-safe-panel {
+  max-height: min(92dvh, calc(100dvh - var(--app-safe-top, 0px) - var(--bottom-chrome-height, 0px) - 1.5rem));
+}

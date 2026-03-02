@@ -16,6 +16,12 @@ import {
   getPreviousEvent,
   formatEventRemaining,
   getLocalAttemptCount,
+  isEventAttemptAdBonusUnlocked,
+  unlockEventAttemptAdBonus,
+  canUnlockWeeklyEventAdBonus,
+  canStartWeeklyEventAttempt,
+  getRemainingWeeklyEventAttempts,
+  getWeeklyEventAttemptLimit,
   syncAttemptCountFromServer,
   fetchEventRankings,
   hasClaimedEventReward,
@@ -26,6 +32,7 @@ import {
 } from '../services/weeklyEventService';
 import { addFragments } from '../services/skinService';
 import { isNativeApp } from '../utils/platform';
+import { weeklyEventAttemptAdService } from '../services/weeklyEventAttemptAdService';
 
 // ============================================
 // 이벤트 아이콘/색상 매핑
@@ -65,6 +72,10 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
   const [rewardClaimed, setRewardClaimed] = useState(false);
   const [remainingText, setRemainingText] = useState('');
   const [hasSavedGame, setHasSavedGame] = useState(false);
+  const [isAdBonusUnlocked, setIsAdBonusUnlocked] = useState(false);
+  const [isAttemptUnlockAdReady, setIsAttemptUnlockAdReady] = useState(false);
+  const [isAttemptUnlockAdInProgress, setIsAttemptUnlockAdInProgress] = useState(false);
+  const [attemptUnlockNotice, setAttemptUnlockNotice] = useState<string | null>(null);
 
   // 이전 주 랭킹 탭
   const [showPrevWeek, setShowPrevWeek] = useState(false);
@@ -80,6 +91,10 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
     setEvent(current);
     // 우선 로컬 캐시로 즉시 표시하고, 서버 동기화 후 갱신 (로컬스토리지 클리어 등 방어)
     setAttemptCount(getLocalAttemptCount());
+    setIsAdBonusUnlocked(isEventAttemptAdBonusUnlocked());
+    setIsAttemptUnlockAdReady(weeklyEventAttemptAdService.isAdReady());
+    setIsAttemptUnlockAdInProgress(false);
+    setAttemptUnlockNotice(null);
     setRewardClaimed(hasClaimedEventReward());
     setHasSavedGame(!!loadEventGameState());
     setRemainingText(formatEventRemaining(current.remainingMs));
@@ -113,6 +128,25 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
     if (!isOpen) setShowPrevWeek(false);
   }, [isOpen]);
 
+  const canUnlockByAd = canUnlockWeeklyEventAdBonus(attemptCount, isAdBonusUnlocked);
+  const isAttemptUnlockAdSupported = weeklyEventAttemptAdService.isSupported();
+
+  useEffect(() => {
+    if (!isOpen || !canUnlockByAd || !isAttemptUnlockAdSupported) return;
+    weeklyEventAttemptAdService.preloadAd();
+    setIsAttemptUnlockAdReady(weeklyEventAttemptAdService.isAdReady());
+    const intervalId = window.setInterval(() => {
+      const ready = weeklyEventAttemptAdService.isAdReady();
+      setIsAttemptUnlockAdReady(ready);
+      if (ready) {
+        window.clearInterval(intervalId);
+      }
+    }, 1200);
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [isOpen, canUnlockByAd, isAttemptUnlockAdSupported]);
+
   // 이전 주 랭킹 탭 전환 시 한 번만 fetch
   useEffect(() => {
     if (!isOpen || !showPrevWeek) return;
@@ -136,11 +170,52 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
     setRewardClaimed(true);
   }, [rewardClaimed, attemptCount]);
 
+  const handleWatchAttemptUnlockAd = useCallback(() => {
+    if (isAttemptUnlockAdInProgress) return;
+    if (!canUnlockByAd) return;
+    if (!isAttemptUnlockAdSupported) {
+      setAttemptUnlockNotice(String(t('game:weeklyEvent.adUnlockUnsupported')));
+      return;
+    }
+    setAttemptUnlockNotice(null);
+    setIsAttemptUnlockAdInProgress(true);
+    weeklyEventAttemptAdService.showRewardAd({
+      onRewardEarned: () => {
+        unlockEventAttemptAdBonus();
+        setIsAdBonusUnlocked(true);
+        setAttemptUnlockNotice(String(t('game:weeklyEvent.adUnlockSuccess')));
+      },
+      onAdClosed: () => {
+        setIsAttemptUnlockAdInProgress(false);
+        setIsAttemptUnlockAdReady(weeklyEventAttemptAdService.isAdReady());
+      },
+      onError: () => {
+        setIsAttemptUnlockAdInProgress(false);
+        setIsAttemptUnlockAdReady(weeklyEventAttemptAdService.isAdReady());
+        setAttemptUnlockNotice(String(t('game:weeklyEvent.adUnlockError')));
+      },
+      onDailyLimitReached: () => {
+        setIsAttemptUnlockAdInProgress(false);
+        setAttemptUnlockNotice(String(t('game:weeklyEvent.adUnlockDailyLimit')));
+      },
+    });
+  }, [isAttemptUnlockAdInProgress, canUnlockByAd, isAttemptUnlockAdSupported, t]);
+
   if (!isOpen || !event) return null;
 
   const theme = EVENT_THEME[event.eventType] ?? EVENT_THEME.BURNING;
   const rule = event.rule;
-  const canStart = attemptCount < 3;
+  const canStart = canStartWeeklyEventAttempt(attemptCount, isAdBonusUnlocked);
+  const maxAttempts = getWeeklyEventAttemptLimit(isAdBonusUnlocked);
+  const remainingAttempts = getRemainingWeeklyEventAttempts(attemptCount, isAdBonusUnlocked);
+  const remainingTagTextRaw = String(t('game:weeklyEvent.tags.remainingAttempts', { remaining: remainingAttempts, max: maxAttempts }));
+  const remainingTagText = remainingTagTextRaw.includes('weeklyEvent.')
+    ? `${remainingAttempts}/${maxAttempts}`
+    : remainingTagTextRaw;
+  const remainingInlineTextRaw = String(t('game:weeklyEvent.remainingInline', { remaining: remainingAttempts }));
+  const remainingInlineText = remainingInlineTextRaw.includes('weeklyEvent.')
+    ? `${remainingAttempts}`
+    : remainingInlineTextRaw;
   const hasPlayed = attemptCount > 0;
   const isApp = isNativeApp();
 
@@ -198,7 +273,7 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
               ⏱ {Math.floor(rule.timeLimitSeconds / 60)}{t('game:weeklyEvent.tags.minutes')}
             </span>
             <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
-              🎯 {t('game:weeklyEvent.tags.attempts', { current: attemptCount, max: 3 })}
+              🎯 {remainingTagText}
             </span>
           </div>
         </div>
@@ -293,6 +368,23 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
 
         {/* 시작/이어하기 버튼 */}
         <div className="px-5 pb-3 space-y-2">
+          {!hasSavedGame && canUnlockByAd && isAttemptUnlockAdSupported && (
+            <button
+              onClick={handleWatchAttemptUnlockAd}
+              disabled={isAttemptUnlockAdInProgress || !isAttemptUnlockAdReady}
+              className={`w-full py-3.5 rounded-xl font-bold text-base transition-all ${
+                isAttemptUnlockAdInProgress || !isAttemptUnlockAdReady
+                  ? 'bg-gray-100 text-gray-500'
+                  : 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5'
+              }`}
+            >
+              {isAttemptUnlockAdInProgress
+                ? t('game:weeklyEvent.adUnlockLoading')
+                : isAttemptUnlockAdReady
+                  ? t('game:weeklyEvent.watchAdForAttempt')
+                  : t('game:weeklyEvent.adUnlockPreparing')}
+            </button>
+          )}
           {hasSavedGame && (
             <button
               onClick={onContinueEvent}
@@ -311,19 +403,24 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
                 } font-bold text-base transition-all`}
             >
               {hasSavedGame ? (
-                <>{t('game:weeklyEvent.newAttempt')} ({attemptCount}/3)</>
+                <>{t('game:weeklyEvent.newAttempt')} ({remainingInlineText})</>
               ) : (
                 <>
                   <Play size={16} className="inline mr-1 -mt-0.5" />
-                  {t('game:weeklyEvent.start')} ({attemptCount}/3)
+                  {t('game:weeklyEvent.start')} ({remainingInlineText})
                 </>
               )}
             </button>
           )}
           {!canStart && !hasSavedGame && (
             <div className="text-center py-3 text-sm text-gray-400">
-              {t('game:weeklyEvent.maxAttempts')}
+              {canUnlockByAd
+                ? (isAttemptUnlockAdSupported ? t('game:weeklyEvent.adUnlockHint') : t('game:weeklyEvent.adUnlockUnsupported'))
+                : t('game:weeklyEvent.maxAttempts')}
             </div>
+          )}
+          {attemptUnlockNotice && (
+            <p className="text-center text-xs text-gray-500">{attemptUnlockNotice}</p>
           )}
         </div>
 

@@ -265,6 +265,12 @@ export const MAX_DAILY_REVIVE_AD_VIEWS = 5;
  */
 export const MAX_DAILY_BLOCK_REFRESH_AD_VIEWS = 5;
 
+/**
+ * 하루 최대 주간 이벤트 도전 해금 광고 시청 횟수
+ * - 이벤트당 실제 해금은 1회지만, 광고 SDK/재시도 실패를 고려해 여유를 둔다.
+ */
+export const MAX_DAILY_WEEKLY_EVENT_ATTEMPT_AD_VIEWS = 5;
+
 // ==========================================
 // 📌 스킨 시스템 상수
 // ==========================================

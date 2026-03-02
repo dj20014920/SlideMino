@@ -18,7 +18,8 @@
     "reviveNoTargets": "破壊できるブロックがないため、すぐにプレイへ戻ります。",
     "registerRanking": "ランキング登録",
     "backToMenu": "メニューに戻る",
-    "challengeSubmitted": "デイリーチャレンジ {{rank}}位 / {{total}}人"
+    "challengeSubmitted": "本日チャレンジ {{rank}}位 / {{total}}人",
+    "viewEventRankings": "イベントランキングを見る"
   },
   "leaderboard": {
     "title": "Leaderboard",

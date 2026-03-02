@@ -18,7 +18,8 @@
     "reviveNoTargets": "파괴할 블럭이 없어 바로 플레이로 복귀합니다.",
     "registerRanking": "랭킹 등록하기",
     "backToMenu": "메뉴로 돌아가기",
-    "challengeSubmitted": "오늘의 챌린지 {{rank}}위 / {{total}}명"
+    "challengeSubmitted": "오늘의 챌린지 {{rank}}위 / {{total}}명",
+    "viewEventRankings": "이벤트 랭킹 보기"
   },
   "leaderboard": {
     "title": "Leaderboard",

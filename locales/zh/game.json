@@ -95,6 +95,9 @@
     "myBest": "我的最高分",
     "myRank": "我的排名",
     "rankings": "排行榜",
+    "thisWeek": "本周",
+    "lastWeek": "上周",
+    "noRankings": "暂无排名数据",
     "start": "开始挑战",
     "continueGame": "继续游戏",
     "newAttempt": "新挑战 ({{current}}/{{max}})",
@@ -117,7 +120,10 @@
       "first": "第1名奖励",
       "fragments": "{{n}}个碎片",
       "title": "称号",
-      "specialTitle": "特殊称号"
+      "specialTitle": "特殊称号",
+      "appOnlyBadge": "仅限App",
+      "appOnlyDesc": "皮肤碎片奖励仅可在App中领取。",
+      "getAppCta": "下载App领取奖励 →"
     },
     "events": {
       "NO_ROTATION": {
@@ -146,7 +152,7 @@
       },
       "I_BLOCK_RUSH": {
         "name": "📏 I型方块冲刺",
-        "desc": "I型方块出现频率提升3倍。成为I型方块大师吧！"
+        "desc": "I型方块出现频率提高3倍。成为I型方块大师吧！"
       },
       "PLAINS_10X10": {
         "name": "🌾 平原10×10",

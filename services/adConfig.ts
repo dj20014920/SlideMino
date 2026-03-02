@@ -91,6 +91,8 @@ export const ADMOB_AD_IDS = {
   // Android
   ANDROID: {
     REWARD: 'ca-app-pub-5319827978116991/4879909972', // ✅ 사용자 제공 Android 리워드 광고 ID
+    // 주간 이벤트 도전 해금용 보상형 광고
+    REWARD_WEEKLY_EVENT_ATTEMPT: 'ca-app-pub-5319827978116991/8925989824',
     // 게임오버 부활용 보상형 전면 광고
     REWARD_INTERSTITIAL: 'ca-app-pub-5319827978116991/5753319580', // ✅ 사용자 제공 Android 보상형 전면 광고 ID
     // 블록 새로고침용 보상형 전면 광고
@@ -105,6 +107,8 @@ export const ADMOB_AD_IDS = {
   // iOS
   IOS: {
     REWARD: 'ca-app-pub-5319827978116991/7585964362', // ✅ 사용자 제공 iOS 리워드 광고 ID
+    // 주간 이벤트 도전 해금용 보상형 광고
+    REWARD_WEEKLY_EVENT_ATTEMPT: 'ca-app-pub-5319827978116991/5489783056',
     // 스킨 뽑기용 보상형 광고
     REWARD_SKIN_DRAW: 'ca-app-pub-5319827978116991/5203257881', // ✅ 사용자 제공 iOS 스킨뽑기 보상형 광고 ID
     // ✅ 사용자 제공 iOS 보상형 전면 광고 ID (게임오버 부활)
@@ -212,6 +216,23 @@ export function getSkinRewardAdId(): string {
 
     case 'admob-ios':
       return ADMOB_AD_IDS.IOS.REWARD_SKIN_DRAW;
+
+    default:
+      return '';
+  }
+}
+
+/**
+ * 주간 이벤트 도전 해금용 보상형 광고 ID 가져오기
+ */
+export function getWeeklyEventAttemptRewardAdId(): string {
+  if (SCREENSHOT_MODE) return '';
+  switch (CURRENT_AD_PLATFORM) {
+    case 'admob-android':
+      return ADMOB_AD_IDS.ANDROID.REWARD_WEEKLY_EVENT_ATTEMPT;
+
+    case 'admob-ios':
+      return ADMOB_AD_IDS.IOS.REWARD_WEEKLY_EVENT_ATTEMPT;
 
     default:
       return '';
@@ -333,6 +354,20 @@ export function isSkinRewardAdSupported(): boolean {
 }
 
 /**
+ * 주간 이벤트 도전 해금용 보상형 광고 지원 여부
+ */
+export function isWeeklyEventAttemptRewardAdSupported(): boolean {
+  if (SCREENSHOT_MODE) return false;
+
+  const isSupportedPlatform = CURRENT_AD_PLATFORM === 'admob-ios'
+    || CURRENT_AD_PLATFORM === 'admob-android';
+
+  if (!isSupportedPlatform) return false;
+
+  return isConfiguredAdUnitId(getWeeklyEventAttemptRewardAdId());
+}
+
+/**
  * 보상형 전면 광고 지원 여부
  */
 export function isRewardInterstitialAdSupported(): boolean {
@@ -389,6 +424,8 @@ if (import.meta.env.DEV) {
   console.log('[AdConfig] 리워드 광고 지원:', isRewardAdSupported());
   console.log('[AdConfig] 스킨 뽑기 리워드 광고 ID:', getSkinRewardAdId());
   console.log('[AdConfig] 스킨 뽑기 리워드 광고 지원:', isSkinRewardAdSupported());
+  console.log('[AdConfig] 주간 이벤트 리워드 광고 ID:', getWeeklyEventAttemptRewardAdId());
+  console.log('[AdConfig] 주간 이벤트 리워드 광고 지원:', isWeeklyEventAttemptRewardAdSupported());
   console.log('[AdConfig] 보상형 전면 광고 ID:', getRewardInterstitialAdId());
   console.log('[AdConfig] 보상형 전면 광고 지원:', isRewardInterstitialAdSupported());
   console.log('[AdConfig] 새로고침 보상형 전면 광고 ID:', getBlockRefreshRewardInterstitialAdId());

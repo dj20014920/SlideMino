@@ -3,7 +3,7 @@
  *
  * 매주 월요일 00:00 KST에 새 이벤트가 시작되어 7일간 운영.
  * 8종 이벤트가 순환하며, 각 이벤트마다 고유 규칙이 적용됨.
- * - 도전 3회 제한 (서버 검증)
+ * - 기본 2회 + 광고 해금 1회 (서버 최대 3회 검증)
  * - 30분 타이머 (게임 플레이 중에만 진행)
  * - 일반 게임과 병행 가능 (독립 저장 슬롯)
  */
@@ -371,7 +371,12 @@ export function hasActiveEventGame(): boolean {
 // 도전 횟수 관리 (로컬 캐시 + 서버 검증)
 // ============================================
 
+export const WEEKLY_EVENT_BASE_ATTEMPTS = 2;
+export const WEEKLY_EVENT_AD_BONUS_ATTEMPTS = 1;
+export const WEEKLY_EVENT_MAX_ATTEMPTS = WEEKLY_EVENT_BASE_ATTEMPTS + WEEKLY_EVENT_AD_BONUS_ATTEMPTS;
+
 const EVENT_ATTEMPTS_KEY = 'slidemino.event_attempts.v1';
+const EVENT_ATTEMPT_AD_BONUS_KEY = 'slidemino.event_attempt_ad_bonus.v1';
 
 interface LocalEventAttempts {
   eventId: string;
@@ -383,7 +388,13 @@ function loadLocalAttempts(): LocalEventAttempts | null {
   try {
     const raw = localStorage.getItem(EVENT_ATTEMPTS_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as LocalEventAttempts;
+    const parsed = JSON.parse(raw) as Partial<LocalEventAttempts>;
+    if (typeof parsed.eventId !== 'string') return null;
+    return {
+      eventId: parsed.eventId,
+      count: typeof parsed.count === 'number' ? Math.max(0, Math.floor(parsed.count)) : 0,
+      bestScore: typeof parsed.bestScore === 'number' ? Math.max(0, Math.floor(parsed.bestScore)) : 0,
+    };
   } catch { return null; }
 }
 
@@ -393,12 +404,69 @@ function saveLocalAttempts(data: LocalEventAttempts): void {
   } catch { /* ignore */ }
 }
 
+interface LocalEventAttemptAdBonus {
+  eventId: string;
+  unlocked: boolean;
+}
+
+function loadLocalAttemptAdBonus(): LocalEventAttemptAdBonus | null {
+  try {
+    const raw = localStorage.getItem(EVENT_ATTEMPT_AD_BONUS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<LocalEventAttemptAdBonus>;
+    if (typeof parsed.eventId !== 'string' || typeof parsed.unlocked !== 'boolean') return null;
+    return { eventId: parsed.eventId, unlocked: parsed.unlocked };
+  } catch { return null; }
+}
+
+function saveLocalAttemptAdBonus(data: LocalEventAttemptAdBonus): void {
+  try {
+    localStorage.setItem(EVENT_ATTEMPT_AD_BONUS_KEY, JSON.stringify(data));
+  } catch { /* ignore */ }
+}
+
+export function isEventAttemptAdBonusUnlocked(): boolean {
+  const current = getCurrentEvent();
+  const bonus = loadLocalAttemptAdBonus();
+  return Boolean(bonus && bonus.eventId === current.eventId && bonus.unlocked);
+}
+
+export function unlockEventAttemptAdBonus(): void {
+  const current = getCurrentEvent();
+  saveLocalAttemptAdBonus({
+    eventId: current.eventId,
+    unlocked: true,
+  });
+}
+
+export function getWeeklyEventAttemptLimit(isAdBonusUnlocked: boolean): number {
+  const unlockedBonus = isAdBonusUnlocked ? WEEKLY_EVENT_AD_BONUS_ATTEMPTS : 0;
+  return Math.min(WEEKLY_EVENT_MAX_ATTEMPTS, WEEKLY_EVENT_BASE_ATTEMPTS + unlockedBonus);
+}
+
+export function canUnlockWeeklyEventAdBonus(attemptCount: number, isAdBonusUnlocked: boolean): boolean {
+  const normalizedCount = Math.max(0, Math.floor(attemptCount));
+  return !isAdBonusUnlocked
+    && normalizedCount >= WEEKLY_EVENT_BASE_ATTEMPTS
+    && normalizedCount < WEEKLY_EVENT_MAX_ATTEMPTS;
+}
+
+export function canStartWeeklyEventAttempt(attemptCount: number, isAdBonusUnlocked: boolean): boolean {
+  const normalizedCount = Math.max(0, Math.floor(attemptCount));
+  return normalizedCount < getWeeklyEventAttemptLimit(isAdBonusUnlocked);
+}
+
+export function getRemainingWeeklyEventAttempts(attemptCount: number, isAdBonusUnlocked: boolean): number {
+  const normalizedCount = Math.max(0, Math.floor(attemptCount));
+  return Math.max(0, getWeeklyEventAttemptLimit(isAdBonusUnlocked) - normalizedCount);
+}
+
 /** 현재 이벤트의 로컬 도전 횟수 (서버 확인 전 빠른 체크) */
 export function getLocalAttemptCount(): number {
   const current = getCurrentEvent();
   const local = loadLocalAttempts();
   if (!local || local.eventId !== current.eventId) return 0;
-  return local.count;
+  return Math.max(0, Math.min(WEEKLY_EVENT_MAX_ATTEMPTS, local.count));
 }
 
 /** 로컬 도전 횟수 증가 */
@@ -408,7 +476,7 @@ export function incrementLocalAttemptCount(score: number): void {
   const prev = (local && local.eventId === current.eventId)
     ? local
     : { eventId: current.eventId, count: 0, bestScore: 0 };
-  prev.count += 1;
+  prev.count = Math.min(WEEKLY_EVENT_MAX_ATTEMPTS, prev.count + 1);
   prev.bestScore = Math.max(prev.bestScore, score);
   saveLocalAttempts(prev);
 }
@@ -427,7 +495,7 @@ export async function syncAttemptCountFromServer(): Promise<number> {
     );
     if (!res.ok) return getLocalAttemptCount();
     const data = await res.json() as { count: number };
-    const serverCount = Math.min(3, Math.max(0, data.count ?? 0));
+    const serverCount = Math.min(WEEKLY_EVENT_MAX_ATTEMPTS, Math.max(0, data.count ?? 0));
     // 서버 횟수가 로컬보다 크면 동기화 (더 신뢰할 수 있는 쪽으로)
     const local = loadLocalAttempts();
     const localCount = (local && local.eventId === current.eventId) ? local.count : 0;

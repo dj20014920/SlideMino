@@ -95,17 +95,30 @@
     "myBest": "내 최고점",
     "myRank": "내 순위",
     "rankings": "이벤트 랭킹",
+    "thisWeek": "이번 주",
+    "lastWeek": "지난 주",
+    "noRankings": "아직 랭킹 데이터가 없습니다",
     "start": "도전 시작",
     "continueGame": "이어하기",
     "newAttempt": "새 도전",
     "maxAttempts": "3회 도전 완료",
     "claimReward": "참여 보상 받기",
+    "watchAdForAttempt": "광고 보고 +1회 기회 얻기",
+    "adUnlockPreparing": "광고 준비 중...",
+    "adUnlockLoading": "광고 시청 중...",
+    "adUnlockHint": "기본 기회 소진. 광고 시청 시 1회 추가됩니다.",
+    "adUnlockSuccess": "추가 도전 1회가 열렸습니다!",
+    "adUnlockError": "광고 로드에 실패했습니다. 잠시 후 다시 시도해주세요.",
+    "adUnlockDailyLimit": "오늘은 더 이상 도전 해금 광고를 볼 수 없습니다.",
+    "adUnlockUnsupported": "현재 환경에서는 주간 이벤트 광고가 지원되지 않습니다.",
+    "remainingInline": "남은 {{remaining}}회",
     "tags": {
       "noRotation": "회전 불가",
       "scoreBoost": "점수 부스트",
       "tripleKill": "트리플킬",
       "minutes": "분",
-      "attempts": "{{current}}/{{max}}회"
+      "attempts": "{{current}}/{{max}}회",
+      "remainingAttempts": "남은 {{remaining}}/{{max}}회"
     },
     "rewards": {
       "participation": "참여 보상",
@@ -113,7 +126,10 @@
       "first": "1위",
       "fragments": "스킨 조각 {{count}}개",
       "title": "칭호",
-      "specialTitle": "스페셜 칭호"
+      "specialTitle": "스페셜 칭호",
+      "appOnlyBadge": "앱 전용",
+      "appOnlyDesc": "스킨 조각 보상은 앱에서만 수령 가능해요.",
+      "getAppCta": "앱 다운로드하고 보상 받기 →"
     },
     "events": {
       "NO_ROTATION": {
@@ -126,10 +142,10 @@
       },
       "PLUS_RUSH": {
         "name": "➕ 플러스 러시",
-        "desc": "+자 블록이 높은 확률로 등장합니다. 전략적으로 활용하세요!"
+        "desc": "+자 블록이 추가되고, 높은 확률로 등장합니다. 전략적으로 활용하세요!"
       },
       "EXPERT_4X4": {
-        "name": "💀 익스퍼트 4×4",
+        "name": "4💀4",
         "desc": "좁은 4×4 보드에서 최고 점수를 노려보세요."
       },
       "SPEED_RUN": {
@@ -138,7 +154,7 @@
       },
       "TRIPLE_KILL": {
         "name": "💥 트리플킬",
-        "desc": "3개 이상 동시 병합 시 +333점 보너스!"
+        "desc": "한 번에 3개 블럭쌍 이상 합체시 +333점 보너스!"
       },
       "I_BLOCK_RUSH": {
         "name": "📏 I블록 러시",

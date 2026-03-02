@@ -95,17 +95,30 @@
     "myBest": "自己ベスト",
     "myRank": "自分の順位",
     "rankings": "イベントランキング",
+    "thisWeek": "今週",
+    "lastWeek": "先週",
+    "noRankings": "まだランキングデータがありません",
     "start": "挑戦開始",
     "continueGame": "続きから",
     "newAttempt": "新しい挑戦",
     "maxAttempts": "3回の挑戦完了",
     "claimReward": "参加報酬を受け取る",
+    "watchAdForAttempt": "広告を見て+1回追加",
+    "adUnlockPreparing": "広告を準備中...",
+    "adUnlockLoading": "広告を視聴中...",
+    "adUnlockHint": "基本回数を使い切りました。広告視聴で1回追加できます。",
+    "adUnlockSuccess": "追加挑戦1回が解放されました！",
+    "adUnlockError": "広告の読み込みに失敗しました。しばらくして再試行してください。",
+    "adUnlockDailyLimit": "本日の解放広告視聴上限に達しました。",
+    "adUnlockUnsupported": "この環境ではウィークリーイベント広告は利用できません。",
+    "remainingInline": "残り{{remaining}}回",
     "tags": {
       "noRotation": "回転不可",
       "scoreBoost": "スコアブースト",
       "tripleKill": "トリプルキル",
       "minutes": "分",
-      "attempts": "{{current}}/{{max}}回"
+      "attempts": "{{current}}/{{max}}回",
+      "remainingAttempts": "残り{{remaining}}/{{max}}回"
     },
     "rewards": {
       "participation": "参加報酬",
@@ -113,7 +126,10 @@
       "first": "1位",
       "fragments": "スキンの欠片 {{count}}個",
       "title": "称号",
-      "specialTitle": "スペシャル称号"
+      "specialTitle": "スペシャル称号",
+      "appOnlyBadge": "アプリ限定",
+      "appOnlyDesc": "スキンの欠片はアプリでのみ受け取れます。",
+      "getAppCta": "アプリをDLして報酬を受け取る →"
     },
     "events": {
       "NO_ROTATION": {

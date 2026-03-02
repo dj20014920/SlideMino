@@ -95,17 +95,30 @@
     "myBest": "My Best",
     "myRank": "My Rank",
     "rankings": "Event Rankings",
+    "thisWeek": "This Week",
+    "lastWeek": "Last Week",
+    "noRankings": "No rankings yet",
     "start": "Start",
     "continueGame": "Continue",
     "newAttempt": "New Attempt",
     "maxAttempts": "All 3 attempts used",
     "claimReward": "Claim Participation Reward",
+    "watchAdForAttempt": "Watch Ad for +1 Attempt",
+    "adUnlockPreparing": "Preparing ad...",
+    "adUnlockLoading": "Watching ad...",
+    "adUnlockHint": "Base attempts are used. Watch an ad to unlock one extra attempt.",
+    "adUnlockSuccess": "One extra attempt has been unlocked!",
+    "adUnlockError": "Failed to load ad. Please try again later.",
+    "adUnlockDailyLimit": "You've reached today's unlock-ad limit.",
+    "adUnlockUnsupported": "Weekly event ad is not supported on this platform.",
+    "remainingInline": "{{remaining}} left",
     "tags": {
       "noRotation": "No Rotation",
       "scoreBoost": "Score Boost",
       "tripleKill": "Triple Kill",
       "minutes": "min",
-      "attempts": "{{current}}/{{max}}"
+      "attempts": "{{current}}/{{max}}",
+      "remainingAttempts": "{{remaining}}/{{max}} left"
     },
     "rewards": {
       "participation": "Participation",
@@ -113,7 +126,10 @@
       "first": "1st Place",
       "fragments": "{{count}} Skin Fragments",
       "title": "Title",
-      "specialTitle": "Special Title"
+      "specialTitle": "Special Title",
+      "appOnlyBadge": "App Only",
+      "appOnlyDesc": "Skin fragment rewards are only available in the app.",
+      "getAppCta": "Download the app to claim rewards →"
     },
     "events": {
       "NO_ROTATION": {

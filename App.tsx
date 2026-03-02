@@ -140,6 +140,8 @@ import {
   getEventTimerRemainingMs,
   formatTimerMmSs,
   getLocalAttemptCount,
+  canStartWeeklyEventAttempt,
+  isEventAttemptAdBonusUnlocked,
   clearEventGameState,
   saveEventGameState,
   loadEventGameState,
@@ -1871,7 +1873,8 @@ const App: React.FC = () => {
     const current = getCurrentEvent();
     const rule = current.rule;
     const localAttempts = getLocalAttemptCount();
-    if (localAttempts >= 3) return;
+    const adBonusUnlocked = isEventAttemptAdBonusUnlocked();
+    if (!canStartWeeklyEventAttempt(localAttempts, adBonusUnlocked)) return;
 
     // 이벤트 세이브만 정리 (일반/챌린지 세이브 보존)
     clearEventGameState();

@@ -9,9 +9,10 @@
  */
 
 import { gameEventBus } from './gameEventBus';
-import { addFragments, loadSkinSettings } from './skinService';
+import { addFragments } from './skinService';
 import { getKstDateString } from './streakService';
 import { getServerAdjustedNow } from './serverTimeService';
+import { getDailyCompletedCount, getWeeklyCompletedCount } from './missionService';
 
 // ====== 상수 ======
 
@@ -146,6 +147,8 @@ export interface XpData {
   eventXpClaimedWeeks: string[];
   /** 특별 보상 미수령 목록 */
   pendingSpecialRewards: string[];
+  /** XP 소스별 마지막 수령일 (KST YYYY-MM-DD) */
+  lastClaimDateBySource: Record<string, string>;
 }
 
 export interface XpLogEntry {
@@ -173,14 +176,27 @@ const DEFAULT_XP_DATA: XpData = {
   todayDate: '',
   eventXpClaimedWeeks: [],
   pendingSpecialRewards: [],
+  lastClaimDateBySource: {},
 };
+
+function createDefaultXpData(): XpData {
+  return {
+    ...DEFAULT_XP_DATA,
+    seasonId: getCurrentSeasonId(),
+    badges: [],
+    honorLevels: {},
+    eventXpClaimedWeeks: [],
+    pendingSpecialRewards: [],
+    lastClaimDateBySource: {},
+  };
+}
 
 export function loadXpData(): XpData {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_XP_DATA, seasonId: getCurrentSeasonId() };
+    if (!raw) return createDefaultXpData();
     const parsed = JSON.parse(raw);
-    if (!parsed || parsed.version !== 1) return { ...DEFAULT_XP_DATA, seasonId: getCurrentSeasonId() };
+    if (!parsed || parsed.version !== 1) return createDefaultXpData();
 
     const data: XpData = {
       version: 1,
@@ -193,6 +209,12 @@ export function loadXpData(): XpData {
       todayDate: typeof parsed.todayDate === 'string' ? parsed.todayDate : '',
       eventXpClaimedWeeks: Array.isArray(parsed.eventXpClaimedWeeks) ? parsed.eventXpClaimedWeeks : [],
       pendingSpecialRewards: Array.isArray(parsed.pendingSpecialRewards) ? parsed.pendingSpecialRewards : [],
+      lastClaimDateBySource: (typeof parsed.lastClaimDateBySource === 'object' && parsed.lastClaimDateBySource !== null)
+        ? Object.fromEntries(
+          Object.entries(parsed.lastClaimDateBySource as Record<string, unknown>)
+            .filter(([, value]) => typeof value === 'string')
+        )
+        : {},
     };
 
     // 시즌 전환 감지 → 명예 레벨 기록 후 리셋
@@ -204,13 +226,14 @@ export function loadXpData(): XpData {
       data.totalXp = 0;
       data.badges = [];
       data.eventXpClaimedWeeks = [];
+      data.lastClaimDateBySource = {};
       // pendingSpecialRewards는 시즌 전환 시에도 유지 — 미수령 보상 보존
       data.seasonId = currentSeason;
     }
 
     return data;
   } catch {
-    return { ...DEFAULT_XP_DATA, seasonId: getCurrentSeasonId() };
+    return createDefaultXpData();
   }
 }
 
@@ -276,6 +299,15 @@ function addXp(amount: number, source: string): XpGainResult {
   if (amount <= 0) return { xpGained: 0, source, newLevel: 0, leveledUp: false, levelUpRewards: [] };
 
   const data = loadXpData();
+  // 요청 정책: tile_2048을 제외한 모든 XP 소스는 일일 1회 제한
+  if (source !== 'tile_2048') {
+    const today = getKstDateString(getServerAdjustedNow());
+    if (data.lastClaimDateBySource[source] === today) {
+      return { xpGained: 0, source, newLevel: data.level, leveledUp: false, levelUpRewards: [] };
+    }
+    data.lastClaimDateBySource[source] = today;
+  }
+
   const oldLevel = data.level;
   data.xp += amount;
   data.totalXp += amount;
@@ -353,26 +385,8 @@ export function grantXpWeeklyMission(): XpGainResult {
   return addXp(XP_WEEKLY_MISSION, 'weekly_mission');
 }
 
-/** 주간 이벤트 참여 시 호출 (주 1회만 인정) */
+/** 주간 이벤트 참여 시 호출 */
 export function grantXpWeeklyEvent(): XpGainResult {
-  const data = loadXpData();
-  // 이번 주 이미 수령했는지 확인
-  const now = getServerAdjustedNow();
-  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-  // ISO 8601 주차 계산 (KST 기준)
-  const d = new Date(Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth(), kst.getUTCDate()));
-  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-  const isoYear = d.getUTCFullYear();
-  const yearStart = new Date(Date.UTC(isoYear, 0, 1));
-  const weekNum = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-  const weekKey = `${isoYear}-W${weekNum}`;
-
-  if (data.eventXpClaimedWeeks.includes(weekKey)) {
-    return { xpGained: 0, source: 'event', newLevel: data.level, leveledUp: false, levelUpRewards: [] };
-  }
-
-  data.eventXpClaimedWeeks.push(weekKey);
-  saveXpData(data);
   return addXp(XP_WEEKLY_EVENT, 'event');
 }
 
@@ -490,11 +504,15 @@ export function initXpTracking(): void {
   if (_initialized) return;
   _initialized = true;
 
-  // 미션 완료 → XP
+  // 미션 XP: 각각 3개 전부 완료된 시점에만 지급
   gameEventBus.on('MISSION_COMPLETED', (info) => {
     if (info.isDaily) {
-      grantXpDailyMission();
-    } else {
+      if (getDailyCompletedCount() === 3) {
+        grantXpDailyMission();
+      }
+      return;
+    }
+    if (getWeeklyCompletedCount() === 3) {
       grantXpWeeklyMission();
     }
   });
@@ -509,5 +527,17 @@ export function initXpTracking(): void {
   // 게임 완료 → XP
   gameEventBus.on('GAME_OVER', () => {
     grantXpGameComplete();
+  });
+
+  // 주간 이벤트 점수 제출 성공(랭킹 반영) → XP
+  gameEventBus.on('SCORE_SUBMITTED', (data) => {
+    if (data.mode === 'weekly_event') {
+      grantXpWeeklyEvent();
+    }
+  });
+
+  // 스킨 신규 획득 → XP
+  gameEventBus.on('SKIN_ACQUIRED', () => {
+    grantXpSkinAcquired();
   });
 }

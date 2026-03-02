@@ -15,6 +15,7 @@ import {
 import { getFeatureGateDecision, type FeatureGateDecision } from '../services/featureGates';
 import { SKIN_CATALOG, FRAGMENT_COST_NORMAL, FRAGMENT_COST_PREMIUM } from '../constants';
 import { isDevDevice } from '../utils/deviceDetection';
+import { gameEventBus } from '../services/gameEventBus';
 
 type BlockCustomizationContextValue = {
   gate: FeatureGateDecision;
@@ -57,6 +58,7 @@ export function BlockCustomizationProvider({ children }: { children: React.React
   const [skinSettings, setSkinSettings] = useState<SkinSettings>(() => loadSkinSettings());
   const saveTimeoutRef = useRef<number | null>(null);
   const skinSaveTimeoutRef = useRef<number | null>(null);
+  const prevOwnedSkinCountRef = useRef<number>(skinSettings.ownedSkins.length);
 
   // 개발 디바이스: 모든 스킨 자동 해금
   useEffect(() => {
@@ -115,6 +117,16 @@ export function BlockCustomizationProvider({ children }: { children: React.React
       }
     };
   }, [skinSettings]);
+
+  // 신규 스킨 획득 이벤트 발행 (XP 시스템 연동)
+  useEffect(() => {
+    const prevCount = prevOwnedSkinCountRef.current;
+    const currentCount = skinSettings.ownedSkins.length;
+    if (currentCount > prevCount) {
+      gameEventBus.emit('SKIN_ACQUIRED', { count: currentCount - prevCount });
+    }
+    prevOwnedSkinCountRef.current = currentCount;
+  }, [skinSettings.ownedSkins.length]);
 
   const resetAll = useCallback(() => {
     setSettings(DEFAULT_BLOCK_CUSTOMIZATION_SETTINGS);

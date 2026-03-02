@@ -16,7 +16,14 @@ interface ClaimRequest {
   installId?: unknown;
   seasonId?: unknown;
   difficulty?: unknown;
-  platform?: unknown;  // 웹 유저 보상 차단용
+}
+
+/** User-Agent 기반 네이티브 앱 여부 판정 (클라이언트 입력을 신뢰하지 않음) */
+function isNativeAppRequest(request: Request): boolean {
+  const ua = (request.headers.get('User-Agent') ?? '').toLowerCase();
+  // Capacitor/iOS WebView 또는 Android WebView에서 오는 요청만 네이티브로 인정
+  return ua.includes('capacitor') || ua.includes('slidemino')
+    || (ua.includes('mobile') && (ua.includes('wv') || ua.includes('crosswalk')));
 }
 
 export const onRequestOptions: PagesFunction<Env> = async (context) => {
@@ -71,8 +78,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // 웹 유저는 스킨 조각 보상 수령 불가 (2중 방어)
-    if (data.platform === 'web') {
+    // 웹 유저는 스킨 조각 보상 수령 불가 (서버측 UA 기반 판정 — 클라이언트 입력 불신)
+    if (!isNativeAppRequest(request)) {
       return new Response(JSON.stringify({ error: 'Web users cannot claim skin fragment rewards' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

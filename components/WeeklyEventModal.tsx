@@ -163,14 +163,27 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
   }, [isOpen, showPrevWeek, prevRankings.length, prevLoading]);
 
   // 참여 보상 수령 — 스킨 시스템이 있는 앱에서만 실제 지급
+  const [isClaimingReward, setIsClaimingReward] = useState(false);
+
   const handleClaimReward = useCallback(() => {
-    if (rewardClaimed || attemptCount === 0) return;
+    // 이중 클릭 / 재진입 차단
+    if (isClaimingReward || rewardClaimed) return;
+    // localStorage 기반 재검증 (탭 간 중복 방지)
+    if (hasClaimedEventReward()) {
+      setRewardClaimed(true);
+      return;
+    }
+    if (attemptCount === 0) return;
+
+    setIsClaimingReward(true);
+    // 먼저 수령 기록을 저장한 뒤 조각 지급 (중단 시에도 중복 수령 불가)
+    markEventRewardClaimed();
+    setRewardClaimed(true);
     if (isNativeApp()) {
       addFragments(2);
     }
-    markEventRewardClaimed();
-    setRewardClaimed(true);
-  }, [rewardClaimed, attemptCount]);
+    setIsClaimingReward(false);
+  }, [isClaimingReward, rewardClaimed, attemptCount]);
 
   const handleWatchAttemptUnlockAd = useCallback(() => {
     if (isAttemptUnlockAdInProgress) return;
@@ -361,7 +374,8 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
           <div className="mx-5 mb-3">
             <button
               onClick={handleClaimReward}
-              className="w-full py-2.5 rounded-xl bg-amber-500 text-white font-semibold text-sm hover:bg-amber-600 transition"
+              disabled={isClaimingReward}
+              className="w-full py-2.5 rounded-xl bg-amber-500 text-white font-semibold text-sm hover:bg-amber-600 transition disabled:opacity-50"
             >
               🎁 {t('game:weeklyEvent.claimReward')}
             </button>

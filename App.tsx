@@ -915,6 +915,10 @@ const App: React.FC = () => {
   const [lastSnapshot, setLastSnapshot] = useState<GameSnapshot | null>(null);
   const [undoRemaining, setUndoRemaining] = useState(INITIAL_UNDO_AMOUNT);
   const [blockRefreshRemaining, setBlockRefreshRemaining] = useState(INITIAL_BLOCK_REFRESH_AMOUNT);
+
+  // 1024 타일 Undo 파밍 방지: 세션 내 실제 1024 보상 지급 횟수를 추적
+  // (Undo로 되돌려도 이미 지급된 카운트는 유지)
+  const rewarded1024CountRef = useRef(0);
   const [showBlockRefreshAdButton, setShowBlockRefreshAdButton] = useState(false);
   const [isBlockRefreshAdInProgress, setIsBlockRefreshAdInProgress] = useState(false);
   const [blockRefreshNotice, setBlockRefreshNotice] = useState<string | null>(null);
@@ -1893,6 +1897,7 @@ const App: React.FC = () => {
     setBlockRefreshRemaining(INITIAL_BLOCK_REFRESH_AMOUNT);
     setShowBlockRefreshAdButton(false);
     setHasUsedReviveThisRun(false);
+    rewarded1024CountRef.current = 0;
     isReviveSelectionModeRef.current = false;
     setIsReviveSelectionMode(false);
     setReviveBreakRemaining(0);
@@ -3245,10 +3250,16 @@ const App: React.FC = () => {
         setScore(prev => prev + finalScore);
 
         // 1024 블럭이 새로 만들어질 때마다 스킨 조각 1개씩 지급
+        // Undo 파밍 방지: 보드 위 실제 1024+ 타일 총 개수와 이미 보상 지급된 수를 비교
         const new1024Count = mergedTiles.filter(mt => mt.toValue === 1024).length;
         if (new1024Count > 0) {
-          addScoreMilestoneFragments(new1024Count);
-          showComboMessage('✦ 스킨 조각 획득!\n스킨 창에서 확인하세요', 2200);
+          const board1024Total = newGrid.flat().filter(t => t !== null && t.value >= 1024).length;
+          const rewardable = Math.max(0, board1024Total - rewarded1024CountRef.current);
+          if (rewardable > 0) {
+            addScoreMilestoneFragments(rewardable);
+            rewarded1024CountRef.current += rewardable;
+            showComboMessage('✦ 스킨 조각 획득!\n스킨 창에서 확인하세요', 2200);
+          }
         }
 
         mergeFinalizeTimeoutRef.current = null;

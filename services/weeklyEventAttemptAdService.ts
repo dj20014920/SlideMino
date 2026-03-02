@@ -20,6 +20,7 @@ import {
 import { ensureAdMobReady } from './admob';
 import { CooldownGate, RetryBackoffScheduler, HourlyFrequencyCap, ClickAbuseGuard } from './adResilience';
 import { MAX_DAILY_WEEKLY_EVENT_ATTEMPT_AD_VIEWS } from '../constants';
+import { getServerAdjustedNow } from './serverTimeService';
 
 export interface WeeklyEventAttemptAdCallbacks {
   onRewardEarned: () => void;
@@ -39,7 +40,8 @@ class WeeklyEventAttemptDailyAdLimiter {
   private readonly STORAGE_KEY = 'slidemino_daily_weekly_event_attempt_ad_data';
 
   private getTodayString(): string {
-    const kstMs = Date.now() + 9 * 60 * 60 * 1000;
+    // 서버 보정 시각 사용
+    const kstMs = getServerAdjustedNow().getTime() + 9 * 60 * 60 * 1000;
     const kst = new Date(kstMs);
     return `${kst.getUTCFullYear()}-${String(kst.getUTCMonth() + 1).padStart(2, '0')}-${String(kst.getUTCDate()).padStart(2, '0')}`;
   }

@@ -483,7 +483,7 @@ export function incrementLocalAttemptCount(score: number): void {
 
 /**
  * 서버에서 실제 도전 횟수를 조회해 로컬 캐시와 동기화한다.
- * 앱 재설치/localStorage 초기화 등으로 로컬 값이 낮은 경우를 보정함.
+ * 서버 값을 권위 원장으로 신뢰하여 로컬 조작값을 무시한다.
  * 네트워크 오류 시 로컬 값을 그대로 반환.
  */
 export async function syncAttemptCountFromServer(): Promise<number> {
@@ -496,17 +496,14 @@ export async function syncAttemptCountFromServer(): Promise<number> {
     if (!res.ok) return getLocalAttemptCount();
     const data = await res.json() as { count: number };
     const serverCount = Math.min(WEEKLY_EVENT_MAX_ATTEMPTS, Math.max(0, data.count ?? 0));
-    // 서버 횟수가 로컬보다 크면 동기화 (더 신뢰할 수 있는 쪽으로)
+    // 서버 값을 권위 원장으로 신뢰 — 로컬 조작값 무시
     const local = loadLocalAttempts();
-    const localCount = (local && local.eventId === current.eventId) ? local.count : 0;
-    if (serverCount > localCount) {
-      saveLocalAttempts({
-        eventId: current.eventId,
-        count: serverCount,
-        bestScore: local?.bestScore ?? 0,
-      });
-    }
-    return Math.max(serverCount, localCount);
+    saveLocalAttempts({
+      eventId: current.eventId,
+      count: serverCount,
+      bestScore: local?.bestScore ?? 0,
+    });
+    return serverCount;
   } catch {
     return getLocalAttemptCount();
   }

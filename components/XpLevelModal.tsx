@@ -75,11 +75,22 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
     if (open) refresh();
   }, [open, refresh]);
 
+  const [claimingReward, setClaimingReward] = useState<string | null>(null);
+
   const handleSpecialClaim = useCallback((rewardType: string) => {
-    claimSpecialReward(rewardType);
+    // 중복 클릭 방지: 이미 수령 처리 중이면 무시
+    if (claimingReward) return;
+    setClaimingReward(rewardType);
+
+    const success = claimSpecialReward(rewardType);
     setPendingRewards(getPendingSpecialRewards());
-    onSpecialRewardClaim?.(rewardType);
-  }, [onSpecialRewardClaim]);
+
+    // claimSpecialReward가 성공한 경우에만 후속 보상 지급
+    if (success) {
+      onSpecialRewardClaim?.(rewardType);
+    }
+    setClaimingReward(null);
+  }, [onSpecialRewardClaim, claimingReward]);
 
   if (!open) return null;
 
@@ -165,7 +176,8 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
                   </span>
                   <button
                     onClick={() => handleSpecialClaim(r)}
-                    className="px-3 py-1 rounded-lg bg-amber-500 text-white text-xs font-bold hover:bg-amber-600 active:scale-95 transition-all"
+                    disabled={claimingReward !== null}
+                    className="px-3 py-1 rounded-lg bg-amber-500 text-white text-xs font-bold hover:bg-amber-600 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {t('common:xp.claimReward')}
                   </button>

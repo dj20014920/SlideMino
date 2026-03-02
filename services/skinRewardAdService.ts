@@ -17,6 +17,7 @@ import { getSkinRewardAdId, isSkinRewardAdSupported, CURRENT_AD_PLATFORM } from 
 import { ensureAdMobReady } from './admob';
 import { CooldownGate, RetryBackoffScheduler, HourlyFrequencyCap, ClickAbuseGuard } from './adResilience';
 import { MAX_DAILY_SKIN_AD_VIEWS } from '../constants';
+import { getServerAdjustedNow } from './serverTimeService';
 
 export interface SkinRewardAdCallbacks {
   onRewardEarned: () => void;
@@ -37,8 +38,8 @@ class SkinDailyAdLimiter {
   private readonly STORAGE_KEY = 'slidemino_daily_skin_ad_data';
 
   private getTodayString(): string {
-    // KST 기준 날짜 (게임의 날짜 경계는 KST 자정)
-    const kstMs = Date.now() + 9 * 60 * 60 * 1000;
+    // KST 기준 날짜 (게임의 날짜 경계는 KST 자정) — 서버 보정 시각 사용
+    const kstMs = getServerAdjustedNow().getTime() + 9 * 60 * 60 * 1000;
     const kst = new Date(kstMs);
     return `${kst.getUTCFullYear()}-${String(kst.getUTCMonth() + 1).padStart(2, '0')}-${String(kst.getUTCDate()).padStart(2, '0')}`;
   }

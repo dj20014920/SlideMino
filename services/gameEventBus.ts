@@ -78,6 +78,11 @@ export interface GameEventMap {
     value: number;
   };
 
+  /** 스킨 신규 획득 */
+  SKIN_ACQUIRED: {
+    count: number;
+  };
+
   // ─── 미션 시스템 알림 이벤트 ───
 
   /** 미션 완료 알림 */

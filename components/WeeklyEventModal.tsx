@@ -11,6 +11,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Trophy, Play, Clock, Shield, Flame, Zap, Target, X } from 'lucide-react';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import {
   getCurrentEvent,
   getPreviousEvent,
@@ -63,6 +64,7 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
   onContinueEvent,
 }) => {
   const { t } = useTranslation(['game', 'common']);
+  useBodyScrollLock(isOpen);
   const [event, setEvent] = useState<CurrentEventInfo | null>(null);
   const [rankings, setRankings] = useState<EventRankingEntry[]>([]);
   const [myRank, setMyRank] = useState<number | undefined>();

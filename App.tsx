@@ -42,6 +42,7 @@ import AdBanner from './components/AdBanner';
 import { CookieConsent } from './components/CookieConsent';
 import { HelpModal } from './components/HelpModal';
 import { LanguageSwitcher } from './components/LanguageSwitcher';
+import { BottomNavBar, getEstimatedBottomNavHeight } from './components/BottomNavBar';
 import { NativeUpdateModal } from './components/NativeUpdateModal';
 import {
   BOARD_CELL_GAP_PX,
@@ -585,6 +586,9 @@ const App: React.FC = () => {
     premiumUiOverrides,
   } = useBlockCustomization();
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
+  const [menuBottomNavHeight, setMenuBottomNavHeight] = useState<number>(() =>
+    getEstimatedBottomNavHeight(isWin98ThemeActive)
+  );
 
   // Hide Capacitor Splash Screen immediately
   useEffect(() => {
@@ -592,6 +596,10 @@ const App: React.FC = () => {
       // 웹 환경에서는 에러가 발생할 수 있으므로 무시
     });
   }, []);
+
+  useEffect(() => {
+    setMenuBottomNavHeight(getEstimatedBottomNavHeight(isWin98ThemeActive));
+  }, [isWin98ThemeActive]);
 
   // 랭킹 오프라인 큐 자동 동기화
   useEffect(() => {
@@ -1771,6 +1779,12 @@ const App: React.FC = () => {
 
   // --- 데일리 챌린지 시작 ---
   async function startDailyChallenge() {
+    // 사용자 결정사항(임시 운영 정책):
+    // 데일리 챌린지는 사용자 증가 시점까지 비활성화한다.
+    // 재활성화 시 이 return 블록을 제거하면 기존 로직이 즉시 동작한다.
+    showComboMessage('오늘의 챌린지는 현재 임시 비활성화 상태입니다.', 2500);
+    return;
+
     if (isDailyChallengeLoading) return;
     // 진행 중인 데일리 챌린지가 있으면 덮어쓰기 방지 — 자동으로 이어하기
     if (hasActiveDailyChallenge()) {
@@ -3427,35 +3441,6 @@ const App: React.FC = () => {
     const win98UtilityButtons = (
       <fieldset>
         <legend>{premiumUi?.utilityLegend ?? '메뉴'}</legend>
-        {isNativeApp() && (
-          <div className="field-row">
-            <input id="menu-action-skin" type="radio" name={premiumMenuActionRadioGroupName} onClick={() => setIsSkinOpen(true)} readOnly />
-            <label htmlFor="menu-action-skin">{t('game:actions.skin')}</label>
-          </div>
-        )}
-
-        {!isNativeApp() && (
-          <div className="field-row">
-            <input
-              id="menu-action-customize"
-              type="radio"
-              name={premiumMenuActionRadioGroupName}
-              onClick={() => setIsCustomizationOpen(true)}
-              disabled={!customizationGate.allowed}
-              readOnly
-            />
-            <label htmlFor="menu-action-customize">
-              {!customizationGate.allowed
-                ? `${t('game:actions.customization')} (${customizationGate.reasonKey ? t(customizationGate.reasonKey as any) : t('game:actions.locked')})`
-                : t('game:actions.customization')}
-            </label>
-          </div>
-        )}
-
-        <div className="field-row">
-          <input id="menu-action-leaderboard" type="radio" name={premiumMenuActionRadioGroupName} onClick={() => setIsLeaderboardOpen(true)} readOnly />
-          <label htmlFor="menu-action-leaderboard">{t('game:actions.leaderboard')}</label>
-        </div>
 
         {isFeatureUnlocked('streak') && (
         <div className="field-row">
@@ -3466,30 +3451,12 @@ const App: React.FC = () => {
         </div>
         )}
 
-        {isFeatureUnlocked('daily_mission') && (
-        <div className="field-row">
-          <input id="menu-action-mission" type="radio" name={premiumMenuActionRadioGroupName} onClick={() => { setIsMissionModalOpen(true); setDailyMissionCompleted(getDailyCompletedCount()); }} readOnly />
-          <label htmlFor="menu-action-mission">
-            📋 {t('game:missions.title')} ({dailyMissionCompleted}/3)
-          </label>
-        </div>
-        )}
-
         <div className="field-row">
           <input id="menu-action-xplevel" type="radio" name={premiumMenuActionRadioGroupName} onClick={() => setIsXpModalOpen(true)} readOnly />
           <label htmlFor="menu-action-xplevel">
             ⭐ Lv.{xpLevel} ({xpPercent}%)
           </label>
         </div>
-
-        {isFeatureUnlocked('calendar') && (
-        <div className="field-row">
-          <input id="menu-action-calendar" type="radio" name={premiumMenuActionRadioGroupName} onClick={() => setIsCalendarOpen(true)} readOnly />
-          <label htmlFor="menu-action-calendar">
-            📅 {t('common:calendar.title')}
-          </label>
-        </div>
-        )}
 
         <div className="field-row">
           <input id="menu-action-replay" type="radio" name={premiumMenuActionRadioGroupName} onClick={handleReplayTutorial} readOnly />
@@ -3638,52 +3605,54 @@ const App: React.FC = () => {
           {isLoading && <LoadingScreen key="loading-screen-menu" />}
         </AnimatePresence>
 
-        {/* 데일리 챌린지 버튼 */}
-        {isFeatureUnlocked('daily_challenge') && (
-        <div className="relative w-full">
-          <button
-            onClick={startDailyChallenge}
-            disabled={isDailyChallengeLoading}
-            className={`
-            relative group w-full py-4 px-6 rounded-2xl win98-menu-btn
-            bg-gradient-to-br from-amber-500 via-orange-500 to-red-500
-            border border-amber-400/30
-            shadow-lg shadow-orange-900/20
-            hover:shadow-xl hover:shadow-orange-600/30 hover:-translate-y-0.5
-            active:translate-y-0 active:shadow-md
-            transition-all duration-200 ease-out
-            text-white font-semibold text-lg
-            ${isDailyChallengeLoading ? 'opacity-60 cursor-wait' : ''}
-            ${hasActiveDailyChallenge() ? 'pr-14' : ''}
-          `}
-          >
-            <span className="flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <span>🏆</span>
-                <span>{t('game:dailyChallenge.menuButton')}</span>
-              </span>
-              <span className={`${isWin98ThemeActive ? 'win98-muted' : 'text-amber-200/70'} font-normal text-sm`}>5×5</span>
-            </span>
-          </button>
-          {hasActiveDailyChallenge() && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                const saved = loadDailyChallengeState();
-                if (saved) restoreSavedGame(saved);
-              }}
-              className="absolute right-0 top-0 bottom-0 w-12 flex items-center justify-center
-                rounded-r-2xl border-l border-white/20
-                bg-white/10 hover:bg-white/25
-                transition-colors duration-150
-                text-white text-lg"
-              title={t('game:difficulties.continue')}
-            >
-              ▶
-            </button>
-          )}
-        </div>
-        )}
+        {/* 사용자 결정사항(임시 운영 정책): 데일리 챌린지 홈 버튼 숨김.
+            사용자 증가 시점에 아래 블록을 복구해 재활성화한다.
+            {isFeatureUnlocked('daily_challenge') && (
+            <div className="relative w-full">
+              <button
+                onClick={startDailyChallenge}
+                disabled={isDailyChallengeLoading}
+                className={`
+                relative group w-full py-4 px-6 rounded-2xl win98-menu-btn
+                bg-gradient-to-br from-amber-500 via-orange-500 to-red-500
+                border border-amber-400/30
+                shadow-lg shadow-orange-900/20
+                hover:shadow-xl hover:shadow-orange-600/30 hover:-translate-y-0.5
+                active:translate-y-0 active:shadow-md
+                transition-all duration-200 ease-out
+                text-white font-semibold text-lg
+                ${isDailyChallengeLoading ? 'opacity-60 cursor-wait' : ''}
+                ${hasActiveDailyChallenge() ? 'pr-14' : ''}
+              `}
+              >
+                <span className="flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <span>🏆</span>
+                    <span>{t('game:dailyChallenge.menuButton')}</span>
+                  </span>
+                  <span className={`${isWin98ThemeActive ? 'win98-muted' : 'text-amber-200/70'} font-normal text-sm`}>5×5</span>
+                </span>
+              </button>
+              {hasActiveDailyChallenge() && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const saved = loadDailyChallengeState();
+                    if (saved) restoreSavedGame(saved);
+                  }}
+                  className="absolute right-0 top-0 bottom-0 w-12 flex items-center justify-center
+                    rounded-r-2xl border-l border-white/20
+                    bg-white/10 hover:bg-white/25
+                    transition-colors duration-150
+                    text-white text-lg"
+                  title={t('game:difficulties.continue')}
+                >
+                  ▶
+                </button>
+              )}
+            </div>
+            )}
+        */}
 
         {/* 주간 이벤트 버튼 */}
         {isFeatureUnlocked('weekly_event') && (
@@ -3783,102 +3752,6 @@ const App: React.FC = () => {
           );
         })}
 
-        {isNativeApp() && (
-          <button
-            id="menu-skin-btn"
-            onClick={() => setIsSkinOpen(true)}
-            className={`
-            relative group w-full py-3.5 px-6 rounded-2xl win98-menu-btn
-            bg-white/60 backdrop-blur-sm
-            border border-white/50
-            shadow-lg
-            hover:shadow-xl hover:-translate-y-0.5
-            active:translate-y-0 active:shadow-md
-            transition-all duration-200 ease-out
-            text-gray-800 font-semibold text-base
-            flex items-center justify-between
-          `}
-          >
-            <span className="flex items-center gap-2">
-              <Palette size={16} />
-              {t('game:actions.skin')}
-            </span>
-            <span className="text-gray-400 font-normal text-sm">{t('game:actions.skinDescription')}</span>
-          </button>
-        )}
-
-        {!isNativeApp() && (
-          <button
-            onClick={() => setIsCustomizationOpen(true)}
-            className={`
-            relative group w-full py-3.5 px-6 rounded-2xl win98-menu-btn
-            bg-white/60 backdrop-blur-sm
-            border border-white/50
-            shadow-lg
-            hover:shadow-xl hover:-translate-y-0.5
-            active:translate-y-0 active:shadow-md
-            transition-all duration-200 ease-out
-            text-gray-800 font-semibold text-base
-            flex items-center justify-between
-          `}
-          >
-            <span className="flex items-center gap-2">
-              <Palette size={16} />
-              {t('game:actions.customization')}
-            </span>
-            {!customizationGate.allowed ? (
-              <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-700/90">
-                <Lock size={14} />
-                {customizationGate.reasonKey ? t(customizationGate.reasonKey as any) : t('game:actions.locked')}
-              </span>
-            ) : (
-              <span className="text-gray-400 font-normal text-sm">{t('game:actions.customize')}</span>
-            )}
-          </button>
-        )}
-
-        <button
-          onClick={() => setIsLeaderboardOpen(true)}
-          className={`
-          relative group w-full py-3.5 px-6 rounded-2xl win98-menu-btn
-          bg-white/60 backdrop-blur-sm
-          border border-white/50
-          shadow-lg
-          hover:shadow-xl hover:-translate-y-0.5
-          active:translate-y-0 active:shadow-md
-          transition-all duration-200 ease-out
-          text-gray-800 font-semibold text-base
-          flex items-center justify-between
-        `}
-        >
-          <span className="flex items-center gap-2">
-            <Trophy size={16} className="text-yellow-600" />
-            {t('game:actions.leaderboard')}
-          </span>
-        </button>
-
-        {isFeatureUnlocked('daily_mission') && (
-        <button
-          onClick={() => { setIsMissionModalOpen(true); setDailyMissionCompleted(getDailyCompletedCount()); }}
-          className={`
-          relative group w-full py-3.5 px-6 rounded-2xl win98-menu-btn
-          bg-white/60 backdrop-blur-sm
-          border border-white/50
-          shadow-lg
-          hover:shadow-xl hover:-translate-y-0.5
-          active:translate-y-0 active:shadow-md
-          transition-all duration-200 ease-out
-          text-gray-800 font-semibold text-base
-          flex items-center justify-between
-        `}
-        >
-          <span className="flex items-center gap-2">
-            📋 {t('game:missions.title')}
-          </span>
-          <span className="text-gray-400 font-normal text-sm">{dailyMissionCompleted}/3</span>
-        </button>
-        )}
-
         {/* XP/레벨 버튼 */}
         <button
           onClick={() => setIsXpModalOpen(true)}
@@ -3904,35 +3777,6 @@ const App: React.FC = () => {
             {xpPercent}%
           </span>
         </button>
-
-        {/* 캘린더 버튼 */}
-        {isFeatureUnlocked('calendar') && (
-        <button
-          onClick={() => setIsCalendarOpen(true)}
-          className={`
-          relative group w-full py-3.5 px-6 rounded-2xl win98-menu-btn
-          bg-white/60 backdrop-blur-sm
-          border border-white/50
-          shadow-lg
-          hover:shadow-xl hover:-translate-y-0.5
-          active:translate-y-0 active:shadow-md
-          transition-all duration-200 ease-out
-          text-gray-800 font-semibold text-base
-          flex items-center justify-between
-        `}
-        >
-          <span className="flex items-center gap-2">
-            📅 {t('common:calendar.title')}
-          </span>
-          <span className="text-gray-400 font-normal text-sm">
-            {getCalendarItems().filter(i => !i.isCompleted).length > 0 && (
-              <span className="inline-flex items-center justify-center w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full">
-                {getCalendarItems().filter(i => !i.isCompleted).length}
-              </span>
-            )}
-          </span>
-        </button>
-        )}
 
         {!isWin98ThemeActive && <LanguageSwitcher />}
 
@@ -3972,7 +3816,10 @@ const App: React.FC = () => {
         )}
         <div
           className={`${isWin98ThemeActive ? 'win98-app-shell' : ''} min-h-screen min-h-[100dvh] flex flex-col items-center justify-center p-6 space-y-6`}
-          style={{ paddingTop: 'calc(0.5rem + var(--app-safe-top))' }}
+          style={{
+            paddingTop: 'calc(0.5rem + var(--app-safe-top))',
+            paddingBottom: 'calc(var(--bottom-chrome-height, 80px) + 16px)',
+          }}
         >
           {isWin98ThemeActive && (
             <div className="window w-full max-w-md win98-top-window">
@@ -4089,7 +3936,29 @@ const App: React.FC = () => {
             </footer>
           )}
 
-          <AdBanner />
+          <AdBanner
+            nativeBottomMarginPx={menuBottomNavHeight}
+            reserveNativeSpace={false}
+            includeSafeBottomInReservedSpace={false}
+          />
+
+          <BottomNavBar
+            showSkin={isNativeApp()}
+            showCustomization={!isNativeApp()}
+            customizationLocked={!customizationGate.allowed}
+            customizationLockReason={customizationGate.reasonKey ? t(customizationGate.reasonKey as any) : t('game:actions.locked')}
+            missionUnlocked={isFeatureUnlocked('daily_mission')}
+            calendarUnlocked={isFeatureUnlocked('calendar')}
+            dailyMissionCompleted={dailyMissionCompleted}
+            calendarPendingCount={getCalendarItems().filter(i => !i.isCompleted).length}
+            isWin98ThemeActive={isWin98ThemeActive}
+            onSkinPress={() => setIsSkinOpen(true)}
+            onCustomizationPress={() => setIsCustomizationOpen(true)}
+            onLeaderboardPress={() => setIsLeaderboardOpen(true)}
+            onMissionPress={() => { setIsMissionModalOpen(true); setDailyMissionCompleted(getDailyCompletedCount()); }}
+            onCalendarPress={() => setIsCalendarOpen(true)}
+            onHeightChange={setMenuBottomNavHeight}
+          />
 
           <BlockCustomizationModal
             open={isCustomizationOpen}
@@ -4220,7 +4089,8 @@ const App: React.FC = () => {
             onAction={(action) => {
               if (action === 'streak') setIsStreakInfoOpen(true);
               else if (action === 'mission') { setIsMissionModalOpen(true); setDailyMissionCompleted(getDailyCompletedCount()); }
-              else if (action === 'daily_challenge') startDailyChallenge();
+              // 사용자 결정사항(임시 운영 정책): 데일리 챌린지 캘린더 진입 비활성화
+              // else if (action === 'daily_challenge') startDailyChallenge();
               else if (action === 'weekly_event') setIsWeeklyEventModalOpen(true);
             }}
           />

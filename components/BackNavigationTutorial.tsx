@@ -125,7 +125,7 @@ export const BackNavigationTutorial: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="absolute left-0 right-0 px-4 text-center"
-            style={{ bottom: 'max(16px, calc(env(safe-area-inset-bottom) + 12px))' }}
+            style={{ bottom: 'max(16px, calc(var(--bottom-chrome-height, 0px) + 12px))' }}
           >
             <div className="mx-auto max-w-sm bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl px-4 py-3 shadow-xl">
               <div className="flex items-center justify-center gap-2 text-white">

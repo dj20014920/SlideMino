@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Calendar, X, ChevronDown, ChevronUp, Clock, CheckCircle2 } from 'lucide-react';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import {
   getCalendarItems,
   formatTimeRemaining,
@@ -33,6 +34,7 @@ function getItemIcon(type: CalendarItem['type']): string {
 
 export const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onAction }) => {
   const { t } = useTranslation();
+  useBodyScrollLock(open);
   const [items, setItems] = useState<CalendarItem[]>([]);
   const [timeNow, setTimeNow] = useState(Date.now());
 

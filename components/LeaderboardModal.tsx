@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Trophy } from 'lucide-react';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import { rankingService, RankEntry } from '../services/rankingService';
 import { getSeasonCountdown } from '../services/seasonService';
 import { getHighestBadge } from '../services/streakService';
@@ -14,6 +15,7 @@ const LEADERBOARD_REFRESH_INTERVAL_MS = 5000;
 
 export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClose }) => {
     const { t } = useTranslation();
+    useBodyScrollLock(open);
     const [rankings, setRankings] = useState<RankEntry[]>([]);
     const [loading, setLoading] = useState(false);
     const [hasError, setHasError] = useState(false);

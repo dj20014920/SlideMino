@@ -5,6 +5,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, RefreshCw, Check, Gift, Clock, Star } from 'lucide-react';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import {
   getDailyMissions,
   getWeeklyMissions,
@@ -132,6 +133,7 @@ const MissionRow: React.FC<{
 
 export const MissionModal: React.FC<MissionModalProps> = ({ open, onClose, onRewardClaimed }) => {
   const { t } = useTranslation();
+  useBodyScrollLock(open);
   const [dailyMissions, setDailyMissions] = useState<ActiveMission[]>([]);
   const [weeklyMissions, setWeeklyMissions] = useState<ActiveMission[]>([]);
   const [rerollAvailable, setRerollAvailable] = useState(false);

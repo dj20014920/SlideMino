@@ -13,6 +13,7 @@ import { skinRewardAdService } from '../services/skinRewardAdService';
 import { isSkinRewardAdSupported } from '../services/adConfig';
 import { trackAnalyticsEvent } from '../services/analyticsService';
 import { SkinAcquisitionOverlay } from './SkinAcquisitionOverlay';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 
 type SkinModalProps = {
   open: boolean;
@@ -48,6 +49,7 @@ const SkinPreviewTile = React.memo<{ value: number; skin: { id?: string; hex: st
 
 export function SkinModal({ open, onClose }: SkinModalProps) {
   const { t } = useTranslation();
+  useBodyScrollLock(open);
   const { skinSettings, activeSkin, addSkin, setActiveSkin, isWin98ThemeActive, addFragments, purchaseSkin } = useBlockCustomization();
   const [selectedSkinHex, setSelectedSkinHex] = useState<string | null>(null);
   const [selectedSkinId, setSelectedSkinId] = useState<string | null>(null);

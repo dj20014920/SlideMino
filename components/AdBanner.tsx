@@ -7,7 +7,20 @@ import { isScreenshotMode } from '../services/adConfig';
 import { isVirtualDevice } from '../services/admob';
 import { trackAnalyticsEvent } from '../services/analyticsService';
 
-const AdBanner: React.FC = () => {
+interface AdBannerProps {
+    /** 네이티브 배너를 하단 고정 UI 위로 띄우기 위한 margin (px) */
+    nativeBottomMarginPx?: number;
+    /** 네이티브 배너 공간을 현재 레이아웃에 인라인으로 예약할지 여부 */
+    reserveNativeSpace?: boolean;
+    /** 인라인 예약 공간에 safe-bottom을 포함할지 여부 */
+    includeSafeBottomInReservedSpace?: boolean;
+}
+
+const AdBanner: React.FC<AdBannerProps> = ({
+    nativeBottomMarginPx = 0,
+    reserveNativeSpace = true,
+    includeSafeBottomInReservedSpace = true,
+}) => {
     if (isScreenshotMode()) return null;
     const [consent, setConsent] = useState<'accepted' | 'declined' | null>(null);
 
@@ -53,12 +66,12 @@ const AdBanner: React.FC = () => {
         if (appIntoS || native) {
             if (native && nativeBannerAllowed === false) return;
             if (native && nativeBannerAllowed === null) return;
-            bannerAdService.showBanner();
+            bannerAdService.showBanner({ bottomMarginPx: nativeBottomMarginPx });
             return () => {
                 bannerAdService.hideBanner();
             };
         }
-    }, [native, appIntoS, nativeBannerAllowed]);
+    }, [native, appIntoS, nativeBannerAllowed, nativeBottomMarginPx]);
 
     useEffect(() => {
         // 앱인토스에서는 AdSense 쿠키 동의 불필요
@@ -119,11 +132,15 @@ const AdBanner: React.FC = () => {
     if (native || appIntoS) {
         if (native && nativeBannerAllowed === false) return null;
         if (native && nativeBannerAllowed === null) return null;
-        // Reserve minimal space so bottom UI isn't covered by the native banner.
+        if (!reserveNativeSpace) return null;
         return (
             <div
                 className="w-full"
-                style={{ height: `calc(${nativeBannerHeightPx}px + var(--app-safe-bottom))` }}
+                style={{
+                    height: includeSafeBottomInReservedSpace
+                        ? `calc(${nativeBannerHeightPx}px + var(--app-safe-bottom))`
+                        : `${nativeBannerHeightPx}px`,
+                }}
             />
         );
     }

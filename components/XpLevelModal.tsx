@@ -5,6 +5,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Star, Award, TrendingUp, ChevronDown, ChevronUp } from 'lucide-react';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import {
   getXpProgress,
   getLevelBadges,
@@ -52,6 +53,7 @@ function getSourceLabel(source: string, t: (key: string) => string): string {
 
 export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpecialRewardClaim }) => {
   const { t } = useTranslation();
+  useBodyScrollLock(open);
   const [progress, setProgress] = useState<XpProgress>(() => getXpProgress());
   const [badges, setBadges] = useState<LevelBadge[]>([]);
   const [todayLog, setTodayLog] = useState<XpLogEntry[]>([]);
@@ -96,7 +98,7 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
           <button
             onClick={onClose}
             className="absolute top-4 right-4 p-1.5 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
-            aria-label={t('common:xp.close')}
+            aria-label={t('common:buttons.close')}
           >
             <X size={16} />
           </button>
@@ -111,7 +113,7 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
               <div className="text-xs opacity-70">{progress.seasonId}</div>
             </div>
             <div className="text-right">
-              <div className="text-xs opacity-70">{t('common:xp.seasonRemaining')}</div>
+              <div className="text-xs opacity-70">{t('common:xp.seasonRemainingLabel')}</div>
               <div className="text-sm font-bold">{formatSeasonRemaining(seasonRemMs)}</div>
             </div>
           </div>
@@ -159,13 +161,13 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
               {pendingRewards.map((r, i) => (
                 <div key={i} className="flex items-center justify-between rounded-xl bg-amber-50 border border-amber-200 p-3">
                   <span className="text-sm font-semibold text-amber-800">
-                    {t(`common:xp.specialReward.${r}` as any)}
+                    {t(`common:xp.specialRewards.${r}` as any)}
                   </span>
                   <button
                     onClick={() => handleSpecialClaim(r)}
                     className="px-3 py-1 rounded-lg bg-amber-500 text-white text-xs font-bold hover:bg-amber-600 active:scale-95 transition-all"
                   >
-                    {t('common:xp.claim')}
+                    {t('common:xp.claimReward')}
                   </button>
                 </div>
               ))}
@@ -176,7 +178,7 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
           <div>
             <h3 className="text-sm font-bold text-gray-800 flex items-center gap-1 mb-2">
               <Star size={14} className="text-purple-500" />
-              {t('common:xp.levelBadges')}
+              {t('common:xp.badges')}
             </h3>
             <div className="grid grid-cols-5 gap-2">
               {LEVEL_BADGES.map((b) => {
@@ -214,7 +216,7 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
 
           {/* 주간 XP 그래프 */}
           <div>
-            <h3 className="text-sm font-bold text-gray-800 mb-2">{t('common:xp.weeklyGraph')}</h3>
+            <h3 className="text-sm font-bold text-gray-800 mb-2">{t('common:xp.weeklyXp')}</h3>
             <div className="flex items-end gap-1 h-20">
               {weeklySummary.map((day, i) => {
                 const pct = maxBarXp > 0 ? (day.total / maxBarXp) * 100 : 0;
@@ -247,7 +249,7 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
             {showLog && (
               <div className="mt-2 space-y-1.5 max-h-40 overflow-y-auto">
                 {todayLog.length === 0 ? (
-                  <p className="text-xs text-gray-400">{t('common:xp.noLogToday')}</p>
+                  <p className="text-xs text-gray-400">{t('common:xp.noLog')}</p>
                 ) : (
                   todayLog.map((entry, i) => (
                     <div key={i} className="flex items-center justify-between text-xs px-2 py-1 bg-gray-50 rounded-lg">

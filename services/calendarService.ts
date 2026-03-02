@@ -91,15 +91,17 @@ export function getCalendarItems(): CalendarItem[] {
     action: 'mission',
   });
 
-  // 3. 데일리 챌린지
-  items.push({
-    type: 'daily_challenge',
-    titleKey: 'calendar.dailyChallenge',
-    endsAt: getNextKstMidnightMs(),
-    isUrgent: false,
-    isCompleted: false, // 참여 여부는 서버에서만 확인 가능 → false로 표시
-    action: 'daily_challenge',
-  });
+  // 사용자 결정사항(임시 운영 정책):
+  // 데일리 챌린지는 사용자 증가 시점까지 비활성화하며, 캘린더 노출도 함께 중단한다.
+  // 재활성화 시 아래 push 블록을 복구한다.
+  // items.push({
+  //   type: 'daily_challenge',
+  //   titleKey: 'calendar.dailyChallenge',
+  //   endsAt: getNextKstMidnightMs(),
+  //   isUrgent: false,
+  //   isCompleted: false, // 참여 여부는 서버에서만 확인 가능 → false로 표시
+  //   action: 'daily_challenge',
+  // });
 
   // 4. 주간 이벤트
   const event = getCurrentEvent();

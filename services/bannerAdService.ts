@@ -17,6 +17,10 @@ import { trackAnalyticsEvent } from './analyticsService';
 
 type BannerShowStatus = 'idle' | 'showing' | 'failed';
 
+interface BannerShowOptions {
+  bottomMarginPx?: number;
+}
+
 // ==========================================
 // 📌 배너 광고 서비스
 // ==========================================
@@ -30,6 +34,8 @@ class BannerAdService {
   private syncQueue: Promise<void> = Promise.resolve();
   private isAdMobListenersRegistered = false;
   private hasTrackedAdMobImpressionForCurrentBanner = false;
+  private requestedBottomMarginPx = 0;
+  private activeBottomMarginPx = 0;
 
   constructor() {
     this.adUnitId = getBannerAdId();
@@ -50,12 +56,14 @@ class BannerAdService {
   // 📌 배너 광고 표시
   // ==========================================
 
-  public async showBanner(): Promise<void> {
+  public async showBanner(options: BannerShowOptions = {}): Promise<void> {
     // 1. 플랫폼 지원 체크
     if (!isBannerAdSupported()) {
       console.warn('[BannerAdService] 플랫폼 미지원:', CURRENT_AD_PLATFORM);
       return;
     }
+
+    this.requestedBottomMarginPx = this.normalizeBottomMarginPx(options.bottomMarginPx);
 
     // 2. 참조 카운트 (여러 컴포넌트에서 호출될 수 있음)
     this.bannerUsers += 1;
@@ -70,7 +78,7 @@ class BannerAdService {
   /**
    * 앱인토스 배너 광고 표시
    */
-  private async showAppsInTossBanner(): Promise<void> {
+  private async showAppsInTossBanner(bottomMarginPx: number): Promise<void> {
     if (!GoogleAdMob.showAppsInTossAdMob.isSupported()) {
       console.warn('[BannerAdService] GoogleAdMob 미지원');
       this.showStatus = 'failed';
@@ -83,8 +91,10 @@ class BannerAdService {
       options: {
         adGroupId: this.adUnitId,
         // 배너 위치 설정 (하단 고정)
-        // @ts-expect-error - 앱인토스 SDK 타입 정의에 position이 없을 수 있음
+        // @ts-expect-error - 앱인토스 SDK 타입 정의에 position/margin이 없을 수 있음
         position: 'bottom',
+        // @ts-expect-error - 일부 런타임에서 margin을 지원할 수 있어 best-effort로 전달
+        margin: bottomMarginPx,
       },
       onEvent: (event) => {
         switch (event.type) {
@@ -134,14 +144,14 @@ class BannerAdService {
   /**
    * AdMob 배너 광고 표시 (iOS/Android)
    */
-  private async showAdMobBanner(): Promise<void> {
+  private async showAdMobBanner(bottomMarginPx: number): Promise<void> {
     console.log('[BannerAdService] AdMob 배너 표시 시작');
 
     const options: BannerAdOptions = {
       adId: this.adUnitId,
       adSize: BannerAdSize.BANNER, // 표준 배너 (320x50)
       position: BannerAdPosition.BOTTOM_CENTER, // 하단 중앙 고정
-      margin: 0,
+      margin: bottomMarginPx,
     };
 
     try {
@@ -234,9 +244,13 @@ class BannerAdService {
 
   private async syncBannerVisibility(): Promise<void> {
     const shouldShow = this.bannerUsers > 0;
+    const targetBottomMarginPx = shouldShow ? this.requestedBottomMarginPx : 0;
 
     if (shouldShow) {
-      if (this.showStatus === 'showing') return;
+      if (this.showStatus === 'showing') {
+        if (this.activeBottomMarginPx === targetBottomMarginPx) return;
+        await this.hideCurrentBanner();
+      }
 
       if (!this.adUnitId) {
         console.error('[BannerAdService] 광고 ID 없음');
@@ -246,15 +260,16 @@ class BannerAdService {
 
       try {
         if (CURRENT_AD_PLATFORM === 'apps-in-toss') {
-          await this.showAppsInTossBanner();
+          await this.showAppsInTossBanner(targetBottomMarginPx);
         } else if (CURRENT_AD_PLATFORM === 'admob-ios' || CURRENT_AD_PLATFORM === 'admob-android') {
           const canRequest = await ensureAdMobReady();
           if (!canRequest) {
             this.showStatus = 'failed';
             return;
           }
-          await this.showAdMobBanner();
+          await this.showAdMobBanner(targetBottomMarginPx);
         }
+        this.activeBottomMarginPx = targetBottomMarginPx;
         // AdSense는 AdBanner.tsx에서 직접 처리 (SSR/CSR 호환성 때문)
       } catch (error) {
         console.error('[BannerAdService] 배너 표시 실패:', error);
@@ -263,8 +278,18 @@ class BannerAdService {
       return;
     }
 
+    await this.hideCurrentBanner();
+  }
+
+  private normalizeBottomMarginPx(value: number | undefined): number {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return 0;
+    return Math.max(0, Math.round(value));
+  }
+
+  private async hideCurrentBanner(): Promise<void> {
     if (this.showStatus !== 'showing') {
       this.showStatus = 'idle';
+      this.activeBottomMarginPx = 0;
       return;
     }
 
@@ -286,6 +311,7 @@ class BannerAdService {
     } finally {
       this.showStatus = 'idle';
       this.hasTrackedAdMobImpressionForCurrentBanner = false;
+      this.activeBottomMarginPx = 0;
     }
   }
 }

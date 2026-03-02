@@ -128,40 +128,41 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         setSubmitError(null);
 
         if (gameMode === 'daily_challenge' && challengeDate) {
-            // 데일리 챌린지 전용 제출
-            const challengeResult = await submitDailyChallengeScore(
-                challengeDate,
-                trimmedName,
-                score,
-                moves,
-                duration,
-            );
             setIsSubmitting(false);
-            if (challengeResult?.success) {
-                // 첫 완료 보상: 스킨 조각
-                if (!hasClaimedTodayReward(challengeDate)) {
-                    const fragments = getFirstCompletionFragments();
-                    addFragments(fragments);
-                    markTodayRewardClaimed(challengeDate);
-                }
-                // 순위 정보 저장 (공유 카드용)
-                setLocalRank(challengeResult.rank);
-                setLocalTotal(challengeResult.total);
-                setSubmittedMessageOverride(
-                    String(t('modals:gameOver.challengeSubmitted', {
-                        rank: challengeResult.rank,
-                        total: challengeResult.total,
-                    } as any))
-                );
-                setStep('SUBMITTED');
-                // 미션 추적: 랭킹 제출 이벤트 (daily_challenge)
-                gameEventBus.emit('SCORE_SUBMITTED', {
-                    score, boardSize, mode: gameMode ?? 'normal',
-                    rank: challengeResult.rank, total: challengeResult.total,
-                });
-            } else {
-                setSubmitError(t('modals:rankingRegister.failureMessage'));
-            }
+            // 사용자 결정사항(임시 운영 정책):
+            // 데일리 챌린지 모드 및 데일리 챌린지 랭킹 제출을 사용자 증가 시점까지 비활성화한다.
+            // 재활성화 시 아래 기존 제출 로직을 복구한다.
+            //
+            // const challengeResult = await submitDailyChallengeScore(
+            //     challengeDate,
+            //     trimmedName,
+            //     score,
+            //     moves,
+            //     duration,
+            // );
+            // if (challengeResult?.success) {
+            //     if (!hasClaimedTodayReward(challengeDate)) {
+            //         const fragments = getFirstCompletionFragments();
+            //         addFragments(fragments);
+            //         markTodayRewardClaimed(challengeDate);
+            //     }
+            //     setLocalRank(challengeResult.rank);
+            //     setLocalTotal(challengeResult.total);
+            //     setSubmittedMessageOverride(
+            //         String(t('modals:gameOver.challengeSubmitted', {
+            //             rank: challengeResult.rank,
+            //             total: challengeResult.total,
+            //         } as any))
+            //     );
+            //     setStep('SUBMITTED');
+            //     gameEventBus.emit('SCORE_SUBMITTED', {
+            //         score, boardSize, mode: gameMode ?? 'normal',
+            //         rank: challengeResult.rank, total: challengeResult.total,
+            //     });
+            // } else {
+            //     setSubmitError(t('modals:rankingRegister.failureMessage'));
+            // }
+            setSubmitError('데일리 챌린지는 현재 임시 비활성화 상태입니다.');
             return;
         }
 

@@ -79,6 +79,14 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
   const [isAttemptUnlockAdReady, setIsAttemptUnlockAdReady] = useState(false);
   const [isAttemptUnlockAdInProgress, setIsAttemptUnlockAdInProgress] = useState(false);
   const [attemptUnlockNotice, setAttemptUnlockNotice] = useState<string | null>(null);
+  const formatRemainingText = useCallback((ms: number) => {
+    return formatEventRemaining(ms, {
+      endedLabel: String(t('game:weeklyEvent.time.ended')),
+      daySuffix: String(t('game:weeklyEvent.time.dayShort')),
+      hourSuffix: String(t('game:weeklyEvent.time.hourShort')),
+      minuteSuffix: String(t('game:weeklyEvent.time.minuteShort')),
+    });
+  }, [t]);
 
   // 이전 주 랭킹 탭
   const [showPrevWeek, setShowPrevWeek] = useState(false);
@@ -100,7 +108,7 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
     setAttemptUnlockNotice(null);
     setRewardClaimed(hasClaimedEventReward());
     setHasSavedGame(!!loadEventGameState());
-    setRemainingText(formatEventRemaining(current.remainingMs));
+    setRemainingText(formatRemainingText(current.remainingMs));
 
     // 서버 도전 횟수 동기화 (비동기, 로컬 > 서버면 무시)
     syncAttemptCountFromServer().then(count => {
@@ -114,17 +122,17 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
       setMyScore(result.myScore);
       setTotalParticipants(result.total);
     });
-  }, [isOpen]);
+  }, [isOpen, formatRemainingText]);
 
   // 카운트다운 타이머
   useEffect(() => {
     if (!isOpen || !event) return;
     const interval = setInterval(() => {
       const remaining = Math.max(0, event.endsAt - Date.now());
-      setRemainingText(formatEventRemaining(remaining));
+      setRemainingText(formatRemainingText(remaining));
     }, 60000); // 1분마다 갱신
     return () => clearInterval(interval);
-  }, [isOpen, event]);
+  }, [isOpen, event, formatRemainingText]);
 
   // 모달 닫힐 때 탭 초기화
   useEffect(() => {

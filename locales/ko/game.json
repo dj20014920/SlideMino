@@ -115,6 +115,12 @@
     "adUnlockDailyLimit": "오늘은 더 이상 도전 해금 광고를 볼 수 없습니다.",
     "adUnlockUnsupported": "현재 환경에서는 주간 이벤트 광고가 지원되지 않습니다.",
     "remainingInline": "남은 {{remaining}}회",
+    "time": {
+      "ended": "종료",
+      "dayShort": "일",
+      "hourShort": "시간",
+      "minuteShort": "분"
+    },
     "tags": {
       "noRotation": "회전 불가",
       "scoreBoost": "점수 부스트",

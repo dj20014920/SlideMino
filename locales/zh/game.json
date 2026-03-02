@@ -94,7 +94,7 @@
   "weeklyEvent": {
     "menuButton": "周活动",
     "menuTag": "EVENT",
-    "remaining": "剩余 {{days}}天 {{hours}}小时",
+    "remaining": "剩余",
     "myBest": "我的最高分",
     "myRank": "我的排名",
     "rankings": "排行榜",
@@ -115,23 +115,25 @@
     "adUnlockDailyLimit": "今日广告解锁次数已达上限。",
     "adUnlockUnsupported": "此平台不支持周活动广告功能。",
     "remainingInline": "剩余{{remaining}}次",
-    "rewardClaimed": "已领取奖励",
-    "banner": "周活动",
-    "attempt": "第{{n}}次",
-    "timerLabel": "时间",
+    "time": {
+      "ended": "结束",
+      "dayShort": "天",
+      "hourShort": "小时",
+      "minuteShort": "分"
+    },
     "tags": {
       "noRotation": "禁止旋转",
-      "scoreBoost": "分数×{{multiplier}}",
-      "tripleKill": "三连消+{{bonus}}",
-      "minutes": "{{min}}分钟",
-      "attempts": "{{n}}次机会",
+      "scoreBoost": "分数加成",
+      "tripleKill": "三连消",
+      "minutes": "分钟",
+      "attempts": "{{current}}/{{max}}次",
       "remainingAttempts": "剩余{{remaining}}/{{max}}次"
     },
     "rewards": {
       "participation": "参与奖励",
       "top10": "前10名奖励",
       "first": "第1名奖励",
-      "fragments": "{{n}}个碎片",
+      "fragments": "{{count}}个碎片",
       "title": "称号",
       "specialTitle": "特殊称号",
       "appOnlyBadge": "仅限App",

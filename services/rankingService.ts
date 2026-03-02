@@ -57,7 +57,8 @@ interface PendingScore {
 const STORAGE_KEY_NAME = 'slidemino_player_name';
 const STORAGE_KEY_QUEUE = 'slidemino_pending_scores_v1';
 const LEADERBOARD_ERROR_LOG_COOLDOWN_MS = 60_000;
-const REALTIME_RANKING_ONLY = true;
+// 기본값은 false(오프라인 큐 활성화). 필요 시 빌드 플래그로만 실시간 전용 모드 활성화.
+const REALTIME_RANKING_ONLY = import.meta.env.VITE_REALTIME_RANKING_ONLY === 'true';
 
 let lastLeaderboardErrorLogAt = 0;
 
@@ -361,7 +362,13 @@ export const rankingService = {
         rankingService.saveName(name);
         const payload = buildPayload(sessionId, name, score, difficulty, duration, moves, installId, levelBadge);
 
-        if (!isOnline()) return { success: false, offline: true };
+        if (!isOnline()) {
+            if (!REALTIME_RANKING_ONLY) {
+                enqueueScore(payload);
+                return { success: false, queued: true, offline: true };
+            }
+            return { success: false, offline: true };
+        }
 
         const result = await postScore(payload);
         if (result.success) {

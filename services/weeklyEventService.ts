@@ -242,16 +242,28 @@ export function getCurrentEvent(): CurrentEventInfo {
   };
 }
 
-/** 이벤트 종료까지 남은 시간 포맷 (Xd Xh Xm) */
-export function formatEventRemaining(ms: number): string {
-  if (ms <= 0) return '종료';
+interface EventRemainingLabelOptions {
+  endedLabel?: string;
+  daySuffix?: string;
+  hourSuffix?: string;
+  minuteSuffix?: string;
+}
+
+/** 이벤트 종료까지 남은 시간 포맷 */
+export function formatEventRemaining(ms: number, labels: EventRemainingLabelOptions = {}): string {
+  const endedLabel = labels.endedLabel ?? 'ended';
+  const daySuffix = labels.daySuffix ?? 'd';
+  const hourSuffix = labels.hourSuffix ?? 'h';
+  const minuteSuffix = labels.minuteSuffix ?? 'm';
+
+  if (ms <= 0) return endedLabel;
   const totalSec = Math.floor(ms / 1000);
   const days = Math.floor(totalSec / 86400);
   const hours = Math.floor((totalSec % 86400) / 3600);
   const mins = Math.floor((totalSec % 3600) / 60);
-  if (days > 0) return `${days}d ${hours}h`;
-  if (hours > 0) return `${hours}h ${mins}m`;
-  return `${mins}m`;
+  if (days > 0) return `${days}${daySuffix} ${hours}${hourSuffix}`;
+  if (hours > 0) return `${hours}${hourSuffix} ${mins}${minuteSuffix}`;
+  return `${mins}${minuteSuffix}`;
 }
 
 // ============================================

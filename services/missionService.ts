@@ -92,66 +92,66 @@ export interface MissionProgressInfo {
 
 const MISSION_POOL: readonly MissionDefinition[] = [
   // ─── 쉬움 (18개) ───
-  { id: 'e_score_300',   difficulty: 'easy', type: 'SCORE_ACCUMULATE',   target: 300,  nameKey: 'game:missions.pool.e_score_300',   conflictGroup: 'score' },
-  { id: 'e_score_500',   difficulty: 'easy', type: 'SCORE_ACCUMULATE',   target: 500,  nameKey: 'game:missions.pool.e_score_500',   conflictGroup: 'score' },
-  { id: 'e_score_1000',  difficulty: 'easy', type: 'SCORE_ACCUMULATE',   target: 1000, nameKey: 'game:missions.pool.e_score_1000',  conflictGroup: 'score' },
-  { id: 'e_block_i_3',   difficulty: 'easy', type: 'BLOCK_TYPE_COUNT',   target: 3, param: 'I', nameKey: 'game:missions.pool.e_block_i_3',   conflictGroup: 'block_i' },
-  { id: 'e_block_o_3',   difficulty: 'easy', type: 'BLOCK_TYPE_COUNT',   target: 3, param: 'O', nameKey: 'game:missions.pool.e_block_o_3',   conflictGroup: 'block_o' },
-  { id: 'e_block_t_3',   difficulty: 'easy', type: 'BLOCK_TYPE_COUNT',   target: 3, param: 'T', nameKey: 'game:missions.pool.e_block_t_3',   conflictGroup: 'block_t' },
-  { id: 'e_block_s_3',   difficulty: 'easy', type: 'BLOCK_TYPE_COUNT',   target: 3, param: 'S', nameKey: 'game:missions.pool.e_block_s_3',   conflictGroup: 'block_s' },
-  { id: 'e_block_z_3',   difficulty: 'easy', type: 'BLOCK_TYPE_COUNT',   target: 3, param: 'Z', nameKey: 'game:missions.pool.e_block_z_3',   conflictGroup: 'block_z' },
-  { id: 'e_block_j_3',   difficulty: 'easy', type: 'BLOCK_TYPE_COUNT',   target: 3, param: 'J', nameKey: 'game:missions.pool.e_block_j_3',   conflictGroup: 'block_j' },
-  { id: 'e_block_l_3',   difficulty: 'easy', type: 'BLOCK_TYPE_COUNT',   target: 3, param: 'L', nameKey: 'game:missions.pool.e_block_l_3',   conflictGroup: 'block_l' },
-  { id: 'e_slide_10',    difficulty: 'easy', type: 'SLIDE_COUNT',        target: 10, nameKey: 'game:missions.pool.e_slide_10',    conflictGroup: 'slide_count' },
-  { id: 'e_slide_15',    difficulty: 'easy', type: 'SLIDE_COUNT',        target: 15, nameKey: 'game:missions.pool.e_slide_15',    conflictGroup: 'slide_count' },
-  { id: 'e_submit',      difficulty: 'easy', type: 'SUBMIT_RANKING',     target: 1,  nameKey: 'game:missions.pool.e_submit',      conflictGroup: 'submit' },
-  { id: 'e_share',       difficulty: 'easy', type: 'SHARE_SCORE',        target: 1,  nameKey: 'game:missions.pool.e_share',       conflictGroup: 'share' },
-  { id: 'e_place_10',    difficulty: 'easy', type: 'BLOCK_PLACE_COUNT',  target: 10, nameKey: 'game:missions.pool.e_place_10',    conflictGroup: 'place_count' },
-  { id: 'e_place_15',    difficulty: 'easy', type: 'BLOCK_PLACE_COUNT',  target: 15, nameKey: 'game:missions.pool.e_place_15',    conflictGroup: 'place_count' },
-  { id: 'e_all_dirs',    difficulty: 'easy', type: 'SLIDE_ALL_DIRECTIONS', target: 1, nameKey: 'game:missions.pool.e_all_dirs',   conflictGroup: 'all_dirs' },
-  { id: 'e_tile_16',     difficulty: 'easy', type: 'TILE_VALUE_CREATE',  target: 16, nameKey: 'game:missions.pool.e_tile_16',     conflictGroup: 'tile_value' },
+  { id: 'e_score_300', difficulty: 'easy', type: 'SCORE_ACCUMULATE', target: 300, nameKey: 'game:missions.pool.e_score_300', conflictGroup: 'score' },
+  { id: 'e_score_500', difficulty: 'easy', type: 'SCORE_ACCUMULATE', target: 500, nameKey: 'game:missions.pool.e_score_500', conflictGroup: 'score' },
+  { id: 'e_score_1000', difficulty: 'easy', type: 'SCORE_ACCUMULATE', target: 1000, nameKey: 'game:missions.pool.e_score_1000', conflictGroup: 'score' },
+  { id: 'e_block_i_3', difficulty: 'easy', type: 'BLOCK_TYPE_COUNT', target: 3, param: 'I', nameKey: 'game:missions.pool.e_block_i_3', conflictGroup: 'block_i' },
+  { id: 'e_block_o_3', difficulty: 'easy', type: 'BLOCK_TYPE_COUNT', target: 3, param: 'O', nameKey: 'game:missions.pool.e_block_o_3', conflictGroup: 'block_o' },
+  { id: 'e_block_t_3', difficulty: 'easy', type: 'BLOCK_TYPE_COUNT', target: 3, param: 'T', nameKey: 'game:missions.pool.e_block_t_3', conflictGroup: 'block_t' },
+  { id: 'e_block_s_3', difficulty: 'easy', type: 'BLOCK_TYPE_COUNT', target: 3, param: 'S', nameKey: 'game:missions.pool.e_block_s_3', conflictGroup: 'block_s' },
+  { id: 'e_block_z_3', difficulty: 'easy', type: 'BLOCK_TYPE_COUNT', target: 3, param: 'Z', nameKey: 'game:missions.pool.e_block_z_3', conflictGroup: 'block_z' },
+  { id: 'e_block_j_3', difficulty: 'easy', type: 'BLOCK_TYPE_COUNT', target: 3, param: 'J', nameKey: 'game:missions.pool.e_block_j_3', conflictGroup: 'block_j' },
+  { id: 'e_block_l_3', difficulty: 'easy', type: 'BLOCK_TYPE_COUNT', target: 3, param: 'L', nameKey: 'game:missions.pool.e_block_l_3', conflictGroup: 'block_l' },
+  { id: 'e_slide_10', difficulty: 'easy', type: 'SLIDE_COUNT', target: 10, nameKey: 'game:missions.pool.e_slide_10', conflictGroup: 'slide_count' },
+  { id: 'e_slide_15', difficulty: 'easy', type: 'SLIDE_COUNT', target: 15, nameKey: 'game:missions.pool.e_slide_15', conflictGroup: 'slide_count' },
+  { id: 'e_submit', difficulty: 'easy', type: 'SUBMIT_RANKING', target: 1, nameKey: 'game:missions.pool.e_submit', conflictGroup: 'submit' },
+  { id: 'e_share', difficulty: 'easy', type: 'SHARE_SCORE', target: 1, nameKey: 'game:missions.pool.e_share', conflictGroup: 'share' },
+  { id: 'e_place_10', difficulty: 'easy', type: 'BLOCK_PLACE_COUNT', target: 10, nameKey: 'game:missions.pool.e_place_10', conflictGroup: 'place_count' },
+  { id: 'e_place_15', difficulty: 'easy', type: 'BLOCK_PLACE_COUNT', target: 15, nameKey: 'game:missions.pool.e_place_15', conflictGroup: 'place_count' },
+  { id: 'e_all_dirs', difficulty: 'easy', type: 'SLIDE_ALL_DIRECTIONS', target: 1, nameKey: 'game:missions.pool.e_all_dirs', conflictGroup: 'all_dirs' },
+  { id: 'e_tile_16', difficulty: 'easy', type: 'TILE_VALUE_CREATE', target: 16, nameKey: 'game:missions.pool.e_tile_16', conflictGroup: 'tile_value' },
 
   // ─── 보통 (19개) ───
-  { id: 'm_tile_256',    difficulty: 'medium', type: 'TILE_VALUE_CREATE',    target: 256,  nameKey: 'game:missions.pool.m_tile_256',    conflictGroup: 'tile_value' },
-  { id: 'm_tile_128',    difficulty: 'medium', type: 'TILE_VALUE_CREATE',    target: 128,  nameKey: 'game:missions.pool.m_tile_128',    conflictGroup: 'tile_value' },
-  { id: 'm_tile_64',     difficulty: 'medium', type: 'TILE_VALUE_CREATE',    target: 64,   nameKey: 'game:missions.pool.m_tile_64',     conflictGroup: 'tile_value' },
-  { id: 'm_merge_2',     difficulty: 'medium', type: 'MERGE_SIMULTANEOUS',   target: 2,    nameKey: 'game:missions.pool.m_merge_2',     conflictGroup: 'merge_sim' },
-  { id: 'm_score_3000',  difficulty: 'medium', type: 'SCORE_ACCUMULATE',     target: 3000, nameKey: 'game:missions.pool.m_score_3000',  conflictGroup: 'score' },
-  { id: 'm_score_5000',  difficulty: 'medium', type: 'SCORE_ACCUMULATE',     target: 5000, nameKey: 'game:missions.pool.m_score_5000',  conflictGroup: 'score' },
-  { id: 'm_score_7000',  difficulty: 'medium', type: 'SCORE_ACCUMULATE',     target: 7000, nameKey: 'game:missions.pool.m_score_7000',  conflictGroup: 'score' },
-  { id: 'm_no_rot_3',    difficulty: 'medium', type: 'NO_ROTATION_CONSECUTIVE', target: 3, nameKey: 'game:missions.pool.m_no_rot_3',   conflictGroup: 'no_rot' },
-  { id: 'm_no_rot_5',    difficulty: 'medium', type: 'NO_ROTATION_CONSECUTIVE', target: 5, nameKey: 'game:missions.pool.m_no_rot_5',   conflictGroup: 'no_rot' },
-  { id: 'm_block_t_5',   difficulty: 'medium', type: 'BLOCK_TYPE_COUNT',     target: 5, param: 'T', nameKey: 'game:missions.pool.m_block_t_5',  conflictGroup: 'block_t' },
-  { id: 'm_block_i_5',   difficulty: 'medium', type: 'BLOCK_TYPE_COUNT',     target: 5, param: 'I', nameKey: 'game:missions.pool.m_block_i_5',  conflictGroup: 'block_i' },
-  { id: 'm_block_o_5',   difficulty: 'medium', type: 'BLOCK_TYPE_COUNT',     target: 5, param: 'O', nameKey: 'game:missions.pool.m_block_o_5',  conflictGroup: 'block_o' },
-  { id: 'm_block_s_5',   difficulty: 'medium', type: 'BLOCK_TYPE_COUNT',     target: 5, param: 'S', nameKey: 'game:missions.pool.m_block_s_5',  conflictGroup: 'block_s' },
-  { id: 'm_block_j_5',   difficulty: 'medium', type: 'BLOCK_TYPE_COUNT',     target: 5, param: 'J', nameKey: 'game:missions.pool.m_block_j_5',  conflictGroup: 'block_j' },
-  { id: 'm_block_l_5',   difficulty: 'medium', type: 'BLOCK_TYPE_COUNT',     target: 5, param: 'L', nameKey: 'game:missions.pool.m_block_l_5',  conflictGroup: 'block_l' },
-  { id: 'm_place_30',    difficulty: 'medium', type: 'BLOCK_PLACE_COUNT',    target: 30, nameKey: 'game:missions.pool.m_place_30',   conflictGroup: 'place_count' },
-  { id: 'm_place_40',    difficulty: 'medium', type: 'BLOCK_PLACE_COUNT',    target: 40, nameKey: 'game:missions.pool.m_place_40',   conflictGroup: 'place_count' },
-  { id: 'm_slide_30',    difficulty: 'medium', type: 'SLIDE_COUNT',          target: 30, nameKey: 'game:missions.pool.m_slide_30',   conflictGroup: 'slide_count' },
-  { id: 'm_slide_50',    difficulty: 'medium', type: 'SLIDE_COUNT',          target: 50, nameKey: 'game:missions.pool.m_slide_50',   conflictGroup: 'slide_count' },
+  { id: 'm_tile_256', difficulty: 'medium', type: 'TILE_VALUE_CREATE', target: 256, nameKey: 'game:missions.pool.m_tile_256', conflictGroup: 'tile_value' },
+  { id: 'm_tile_128', difficulty: 'medium', type: 'TILE_VALUE_CREATE', target: 128, nameKey: 'game:missions.pool.m_tile_128', conflictGroup: 'tile_value' },
+  { id: 'm_tile_64', difficulty: 'medium', type: 'TILE_VALUE_CREATE', target: 64, nameKey: 'game:missions.pool.m_tile_64', conflictGroup: 'tile_value' },
+  { id: 'm_merge_2', difficulty: 'medium', type: 'MERGE_SIMULTANEOUS', target: 2, nameKey: 'game:missions.pool.m_merge_2', conflictGroup: 'merge_sim' },
+  { id: 'm_score_3000', difficulty: 'medium', type: 'SCORE_ACCUMULATE', target: 3000, nameKey: 'game:missions.pool.m_score_3000', conflictGroup: 'score' },
+  { id: 'm_score_5000', difficulty: 'medium', type: 'SCORE_ACCUMULATE', target: 5000, nameKey: 'game:missions.pool.m_score_5000', conflictGroup: 'score' },
+  { id: 'm_score_7000', difficulty: 'medium', type: 'SCORE_ACCUMULATE', target: 7000, nameKey: 'game:missions.pool.m_score_7000', conflictGroup: 'score' },
+  { id: 'm_no_rot_3', difficulty: 'medium', type: 'NO_ROTATION_CONSECUTIVE', target: 3, nameKey: 'game:missions.pool.m_no_rot_3', conflictGroup: 'no_rot' },
+  { id: 'm_no_rot_5', difficulty: 'medium', type: 'NO_ROTATION_CONSECUTIVE', target: 5, nameKey: 'game:missions.pool.m_no_rot_5', conflictGroup: 'no_rot' },
+  { id: 'm_block_t_5', difficulty: 'medium', type: 'BLOCK_TYPE_COUNT', target: 5, param: 'T', nameKey: 'game:missions.pool.m_block_t_5', conflictGroup: 'block_t' },
+  { id: 'm_block_i_5', difficulty: 'medium', type: 'BLOCK_TYPE_COUNT', target: 5, param: 'I', nameKey: 'game:missions.pool.m_block_i_5', conflictGroup: 'block_i' },
+  { id: 'm_block_o_5', difficulty: 'medium', type: 'BLOCK_TYPE_COUNT', target: 5, param: 'O', nameKey: 'game:missions.pool.m_block_o_5', conflictGroup: 'block_o' },
+  { id: 'm_block_s_5', difficulty: 'medium', type: 'BLOCK_TYPE_COUNT', target: 5, param: 'S', nameKey: 'game:missions.pool.m_block_s_5', conflictGroup: 'block_s' },
+  { id: 'm_block_j_5', difficulty: 'medium', type: 'BLOCK_TYPE_COUNT', target: 5, param: 'J', nameKey: 'game:missions.pool.m_block_j_5', conflictGroup: 'block_j' },
+  { id: 'm_block_l_5', difficulty: 'medium', type: 'BLOCK_TYPE_COUNT', target: 5, param: 'L', nameKey: 'game:missions.pool.m_block_l_5', conflictGroup: 'block_l' },
+  { id: 'm_place_30', difficulty: 'medium', type: 'BLOCK_PLACE_COUNT', target: 30, nameKey: 'game:missions.pool.m_place_30', conflictGroup: 'place_count' },
+  { id: 'm_place_40', difficulty: 'medium', type: 'BLOCK_PLACE_COUNT', target: 40, nameKey: 'game:missions.pool.m_place_40', conflictGroup: 'place_count' },
+  { id: 'm_slide_30', difficulty: 'medium', type: 'SLIDE_COUNT', target: 30, nameKey: 'game:missions.pool.m_slide_30', conflictGroup: 'slide_count' },
+  { id: 'm_slide_50', difficulty: 'medium', type: 'SLIDE_COUNT', target: 50, nameKey: 'game:missions.pool.m_slide_50', conflictGroup: 'slide_count' },
 
   // ─── 어려움 (19개) ───
-  { id: 'h_tile_512',      difficulty: 'hard', type: 'TILE_VALUE_CREATE',      target: 512,   nameKey: 'game:missions.pool.h_tile_512',      conflictGroup: 'tile_value' },
-  { id: 'h_tile_1024',     difficulty: 'hard', type: 'TILE_VALUE_CREATE',      target: 1024,  nameKey: 'game:missions.pool.h_tile_1024',     conflictGroup: 'tile_value' },
-  { id: 'h_tile_2048',     difficulty: 'hard', type: 'TILE_VALUE_CREATE',      target: 2048,  nameKey: 'game:missions.pool.h_tile_2048',     conflictGroup: 'tile_value' },
-  { id: 'h_merge_3',       difficulty: 'hard', type: 'MERGE_SIMULTANEOUS',     target: 3,     nameKey: 'game:missions.pool.h_merge_3',       conflictGroup: 'merge_sim' },
-  { id: 'h_merge_4',       difficulty: 'hard', type: 'MERGE_SIMULTANEOUS',     target: 4,     nameKey: 'game:missions.pool.h_merge_4',       conflictGroup: 'merge_sim' },
-  { id: 'h_score_10000',   difficulty: 'hard', type: 'SCORE_ACCUMULATE',       target: 10000, nameKey: 'game:missions.pool.h_score_10000',   conflictGroup: 'score' },
-  { id: 'h_score_15000',   difficulty: 'hard', type: 'SCORE_ACCUMULATE',       target: 15000, nameKey: 'game:missions.pool.h_score_15000',   conflictGroup: 'score' },
-  { id: 'h_score_20000',   difficulty: 'hard', type: 'SCORE_ACCUMULATE',       target: 20000, nameKey: 'game:missions.pool.h_score_20000',   conflictGroup: 'score' },
-  { id: 'h_score_25000',   difficulty: 'hard', type: 'SCORE_ACCUMULATE',       target: 25000, nameKey: 'game:missions.pool.h_score_25000',   conflictGroup: 'score' },
-  { id: 'h_score_30000',   difficulty: 'hard', type: 'SCORE_ACCUMULATE',       target: 30000, nameKey: 'game:missions.pool.h_score_30000',   conflictGroup: 'score' },
-  { id: 'h_no_tools_5000', difficulty: 'hard', type: 'NO_TOOLS_SCORE',         target: 5000,  nameKey: 'game:missions.pool.h_no_tools_5000', conflictGroup: 'no_tools' },
-  { id: 'h_no_tools_10000',difficulty: 'hard', type: 'NO_TOOLS_SCORE',         target: 10000, nameKey: 'game:missions.pool.h_no_tools_10000',conflictGroup: 'no_tools' },
-  { id: 'h_no_tools_15000',difficulty: 'hard', type: 'NO_TOOLS_SCORE',         target: 15000, nameKey: 'game:missions.pool.h_no_tools_15000',conflictGroup: 'no_tools' },
-  { id: 'h_no_rot_10',     difficulty: 'hard', type: 'NO_ROTATION_CONSECUTIVE',target: 10,    nameKey: 'game:missions.pool.h_no_rot_10',     conflictGroup: 'no_rot' },
-  { id: 'h_place_50',      difficulty: 'hard', type: 'BLOCK_PLACE_COUNT',      target: 50,    nameKey: 'game:missions.pool.h_place_50',      conflictGroup: 'place_count' },
-  { id: 'h_slide_80',      difficulty: 'hard', type: 'SLIDE_COUNT',            target: 80,    nameKey: 'game:missions.pool.h_slide_80',      conflictGroup: 'slide_count' },
-  { id: 'h_slide_100',     difficulty: 'hard', type: 'SLIDE_COUNT',            target: 100,   nameKey: 'game:missions.pool.h_slide_100',     conflictGroup: 'slide_count' },
-  { id: 'h_block_i_10',    difficulty: 'hard', type: 'BLOCK_TYPE_COUNT',       target: 10, param: 'I', nameKey: 'game:missions.pool.h_block_i_10', conflictGroup: 'block_i' },
-  { id: 'h_block_t_10',    difficulty: 'hard', type: 'BLOCK_TYPE_COUNT',       target: 10, param: 'T', nameKey: 'game:missions.pool.h_block_t_10', conflictGroup: 'block_t' },
+  { id: 'h_tile_512', difficulty: 'hard', type: 'TILE_VALUE_CREATE', target: 512, nameKey: 'game:missions.pool.h_tile_512', conflictGroup: 'tile_value' },
+  { id: 'h_tile_1024', difficulty: 'hard', type: 'TILE_VALUE_CREATE', target: 1024, nameKey: 'game:missions.pool.h_tile_1024', conflictGroup: 'tile_value' },
+  { id: 'h_tile_2048', difficulty: 'hard', type: 'TILE_VALUE_CREATE', target: 2048, nameKey: 'game:missions.pool.h_tile_2048', conflictGroup: 'tile_value' },
+  { id: 'h_merge_3', difficulty: 'hard', type: 'MERGE_SIMULTANEOUS', target: 3, nameKey: 'game:missions.pool.h_merge_3', conflictGroup: 'merge_sim' },
+  { id: 'h_merge_4', difficulty: 'hard', type: 'MERGE_SIMULTANEOUS', target: 4, nameKey: 'game:missions.pool.h_merge_4', conflictGroup: 'merge_sim' },
+  { id: 'h_score_10000', difficulty: 'hard', type: 'SCORE_ACCUMULATE', target: 10000, nameKey: 'game:missions.pool.h_score_10000', conflictGroup: 'score' },
+  { id: 'h_score_15000', difficulty: 'hard', type: 'SCORE_ACCUMULATE', target: 15000, nameKey: 'game:missions.pool.h_score_15000', conflictGroup: 'score' },
+  { id: 'h_score_20000', difficulty: 'hard', type: 'SCORE_ACCUMULATE', target: 20000, nameKey: 'game:missions.pool.h_score_20000', conflictGroup: 'score' },
+  { id: 'h_score_25000', difficulty: 'hard', type: 'SCORE_ACCUMULATE', target: 25000, nameKey: 'game:missions.pool.h_score_25000', conflictGroup: 'score' },
+  { id: 'h_score_30000', difficulty: 'hard', type: 'SCORE_ACCUMULATE', target: 30000, nameKey: 'game:missions.pool.h_score_30000', conflictGroup: 'score' },
+  { id: 'h_no_tools_5000', difficulty: 'hard', type: 'NO_TOOLS_SCORE', target: 5000, nameKey: 'game:missions.pool.h_no_tools_5000', conflictGroup: 'no_tools' },
+  { id: 'h_no_tools_10000', difficulty: 'hard', type: 'NO_TOOLS_SCORE', target: 10000, nameKey: 'game:missions.pool.h_no_tools_10000', conflictGroup: 'no_tools' },
+  { id: 'h_no_tools_15000', difficulty: 'hard', type: 'NO_TOOLS_SCORE', target: 15000, nameKey: 'game:missions.pool.h_no_tools_15000', conflictGroup: 'no_tools' },
+  { id: 'h_no_rot_10', difficulty: 'hard', type: 'NO_ROTATION_CONSECUTIVE', target: 10, nameKey: 'game:missions.pool.h_no_rot_10', conflictGroup: 'no_rot' },
+  { id: 'h_place_50', difficulty: 'hard', type: 'BLOCK_PLACE_COUNT', target: 50, nameKey: 'game:missions.pool.h_place_50', conflictGroup: 'place_count' },
+  { id: 'h_slide_80', difficulty: 'hard', type: 'SLIDE_COUNT', target: 80, nameKey: 'game:missions.pool.h_slide_80', conflictGroup: 'slide_count' },
+  { id: 'h_slide_100', difficulty: 'hard', type: 'SLIDE_COUNT', target: 100, nameKey: 'game:missions.pool.h_slide_100', conflictGroup: 'slide_count' },
+  { id: 'h_block_i_10', difficulty: 'hard', type: 'BLOCK_TYPE_COUNT', target: 10, param: 'I', nameKey: 'game:missions.pool.h_block_i_10', conflictGroup: 'block_i' },
+  { id: 'h_block_t_10', difficulty: 'hard', type: 'BLOCK_TYPE_COUNT', target: 10, param: 'T', nameKey: 'game:missions.pool.h_block_t_10', conflictGroup: 'block_t' },
 ];
 
 // 난이도별 풀 캐시
@@ -436,7 +436,7 @@ function updateMissionProgress(
 
   // 누적형 미션: 진행도에 amount 추가
   if (['SCORE_ACCUMULATE', 'BLOCK_TYPE_COUNT', 'SLIDE_COUNT', 'SUBMIT_RANKING',
-       'SHARE_SCORE', 'BLOCK_PLACE_COUNT'].includes(type)) {
+    'SHARE_SCORE', 'BLOCK_PLACE_COUNT'].includes(type)) {
     mission.progress = Math.min(mission.progress + amount, def.target);
   }
 
@@ -637,14 +637,6 @@ export function initMissionTracking(): void {
     })
   );
 
-  // 타일 생성 (슬라이드 시 병합으로 생성된 최대 타일 값)
-  unsubscribers.push(
-    gameEventBus.on('SCORE_CHANGED', (data) => {
-      // SCORE_CHANGED에서는 타일 값 추적만 담당
-      // (점수 누적은 SLIDE_PERFORMED에서 이미 처리)
-    })
-  );
-
   // 게임 오버
   unsubscribers.push(
     gameEventBus.on('GAME_OVER', () => {
@@ -829,8 +821,8 @@ function rerollMission(index: number, isDaily: boolean): ActiveMission | null {
 
   const pool = MISSION_POOL.filter(
     m => m.difficulty === oldDef.difficulty &&
-         m.id !== old.definitionId &&
-         !usedConflictGroups.has(m.conflictGroup)
+      m.id !== old.definitionId &&
+      !usedConflictGroups.has(m.conflictGroup)
   );
 
   if (pool.length === 0) return null;

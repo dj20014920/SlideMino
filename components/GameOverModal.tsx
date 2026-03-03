@@ -22,6 +22,7 @@ interface GameOverModalProps {
     duration: number;
     moves: number;
     playerName?: string;
+    lockedPlayerName?: string | null;
     canOfferRevive: boolean;
     reviveDestroyCount: number;
     isReviveAdReady: boolean;
@@ -37,6 +38,7 @@ interface GameOverModalProps {
     submittedTotal?: number;
     /** 제출 완료 후 랭킹 보기 (weekly_event 전용) */
     onViewRankings?: () => void;
+    onSessionNameLocked?: (name: string) => void;
 }
 
 export const GameOverModal: React.FC<GameOverModalProps> = ({
@@ -47,6 +49,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
     duration,
     moves,
     playerName,
+    lockedPlayerName,
     canOfferRevive,
     reviveDestroyCount,
     isReviveAdReady,
@@ -59,6 +62,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
     submittedRank,
     submittedTotal,
     onViewRankings,
+    onSessionNameLocked,
 }) => {
     const { t } = useTranslation();
     const [step, setStep] = useState<'INITIAL' | 'REGISTER' | 'SUBMITTED'>('INITIAL');
@@ -76,14 +80,14 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
 
     useEffect(() => {
         // Load saved name or use provided playerName
-        setName(playerName || rankingService.getSavedName());
+        setName(lockedPlayerName || playerName || rankingService.getSavedName());
         setNameError(null);
         setSubmitError(null);
         setSubmittedMessageOverride(null);
         setShareToast(null);
         setLocalRank(submittedRank);
         setLocalTotal(submittedTotal);
-    }, [playerName, submittedRank, submittedTotal]);
+    }, [lockedPlayerName, playerName, submittedRank, submittedTotal]);
 
     useEffect(() => {
         if (step === 'REGISTER') {
@@ -180,6 +184,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
             });
             setIsSubmitting(false);
             if (eventResult.success) {
+                onSessionNameLocked?.(trimmedName);
                 setLocalRank(eventResult.rank);
                 setLocalTotal(eventResult.total);
                 setSubmittedMessageOverride(
@@ -215,6 +220,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         );
         setIsSubmitting(false);
         if (result.success) {
+            onSessionNameLocked?.(trimmedName);
             setSubmittedMessageOverride(null);
             setStep('SUBMITTED');
             // 미션 추적: 랭킹 제출 이벤트 (normal)
@@ -223,6 +229,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
             });
         } else if (result.code === 'SESSION_ALREADY_SUBMITTED') {
             // 이미 등록된 세션이면 실패로 막지 않고 완료 단계로 전환한다.
+            onSessionNameLocked?.(trimmedName);
             setSubmittedMessageOverride(t('modals:rankingRegister.alreadySubmittedMessage'));
             setStep('SUBMITTED');
             // 이미 제출된 경우에도 미션 추적 (중간저장 등)
@@ -452,6 +459,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                                     }}
                                     placeholder={t('modals:nameInput.placeholder')}
                                     maxLength={PLAYER_NAME_MAX_LENGTH}
+                                    readOnly={Boolean(lockedPlayerName)}
                                     className="
                     w-full px-5 py-4 rounded-2xl
                     bg-white/80 border border-gray-200
@@ -462,6 +470,11 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                   "
                                     autoFocus
                                 />
+                                {lockedPlayerName && (
+                                    <p className="mt-1 text-xs text-gray-500 text-center">
+                                        {t('modals:activeGameExit.lockedNameNotice')}
+                                    </p>
+                                )}
                                 {nameError && (
                                     <p className="mt-1 text-xs text-red-500 font-medium text-center">
                                         {nameError}

@@ -3,10 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { Check, Medal, Send, Share2 } from 'lucide-react';
 import { rankingService } from '../services/rankingService';
 import { getAnalyticsInstallId } from '../services/analyticsService';
+import { submitEventScore } from '../services/weeklyEventService';
 import { shareGameResult, type ShareResult } from '../services/shareCardService';
 import { gameEventBus } from '../services/gameEventBus';
+import { getHighestLevelBadgeForLevel, loadXpData } from '../services/xpLevelService';
 import { PLAYER_NAME_MAX_LENGTH, normalizePlayerName, validatePlayerName } from '../utils/playerName';
-import type { BoardSize } from '../types';
+import type { BoardSize, GameMode } from '../types';
 
 export type ActiveGameExitContext = 'HOME' | 'NEW_GAME';
 
@@ -22,6 +24,10 @@ interface ActiveGameExitModalProps {
     playerName?: string;
     lockedPlayerName?: string | null;
     isWin98ThemeActive?: boolean;
+    /** 현재 게임 모드 (이벤트 모드 분기에 사용) */
+    gameMode?: GameMode;
+    /** 주간 이벤트 전용: 현재 도전 회차 */
+    eventAttemptNumber?: number;
     onCancel: () => void;
     onProceedWithoutRegister: () => void;
     onIntermediateSaveComplete: () => void;
@@ -41,6 +47,8 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
     playerName,
     lockedPlayerName,
     isWin98ThemeActive,
+    gameMode = 'normal',
+    eventAttemptNumber,
     onCancel,
     onProceedWithoutRegister,
     onIntermediateSaveComplete,
@@ -67,7 +75,7 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
             const result: ShareResult = await shareGameResult({
                 score,
                 boardSize,
-                mode: 'normal',
+                mode: gameMode,
                 playerName,
             });
             if (result === 'shared') {
@@ -102,6 +110,33 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
         setSubmitError(null);
         setSubmitIntent(intent);
 
+        // 이벤트 모드: 이벤트 전용 API로 제출
+        if (gameMode === 'weekly_event') {
+            const levelBadgeId = getHighestLevelBadgeForLevel(loadXpData().level)?.id;
+            const eventResult = await submitEventScore({
+                name: trimmedName,
+                score,
+                moves,
+                duration,
+                attemptNumber: eventAttemptNumber ?? 1,
+                levelBadge: levelBadgeId,
+                isIntermediate: intent === 'MID_SAVE',
+            });
+            setIsSubmitting(false);
+            if (eventResult.success) {
+                onSessionNameLocked?.(trimmedName);
+                setSubmittedMessageOverride(null);
+                setStep('SUBMITTED');
+                gameEventBus.emit('SCORE_SUBMITTED', {
+                    score, boardSize, mode: gameMode,
+                });
+            } else {
+                setSubmitError(t('modals:rankingRegister.failureMessage'));
+            }
+            return;
+        }
+
+        // 일반 모드: 기존 랭킹 API로 제출
         const result = await rankingService.submitScore(
             sessionId,
             trimmedName,
@@ -119,7 +154,7 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
             setStep('SUBMITTED');
             // 미션 추적: 랭킹 제출 이벤트 (중간저장/나가기)
             gameEventBus.emit('SCORE_SUBMITTED', {
-                score, boardSize, mode: 'normal' as const,
+                score, boardSize, mode: gameMode,
             });
             return;
         }
@@ -136,7 +171,7 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
             setStep('SUBMITTED');
             // 이미 제출된 경우에도 미션 추적
             gameEventBus.emit('SCORE_SUBMITTED', {
-                score, boardSize, mode: 'normal' as const,
+                score, boardSize, mode: gameMode,
             });
             return;
         }
@@ -231,142 +266,142 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                 )}
 
                 <div className={isWin98 ? 'window-body space-y-4 p-3' : ''}>
-                {step === 'CHOICE' && (
-                    <div className={isWin98 ? 'space-y-4' : 'space-y-5'}>
-                        <div className="space-y-2 text-center">
-                            <h3 className={isWin98 ? 'text-xl font-bold text-gray-900' : 'text-2xl font-bold text-gray-900'}>{t(titleKey)}</h3>
-                            <p className={isWin98 ? 'text-sm text-gray-700 whitespace-pre-line' : 'text-sm text-gray-500 whitespace-pre-line'}>{t(descriptionKey)}</p>
-                        </div>
-
-                        <div className={isWin98 ? 'sunken-panel px-3 py-2' : 'rounded-2xl border border-indigo-200/80 bg-gradient-to-br from-indigo-50 to-violet-50 px-5 py-4'}>
-                            <p className={isWin98 ? 'text-xs font-bold text-gray-700' : 'text-xs font-bold uppercase tracking-widest text-indigo-500'}>
-                                {t('modals:activeGameExit.scoreLabel')}
-                            </p>
-                            <p className={isWin98 ? 'mt-1 text-3xl font-black tracking-tight text-gray-900 tabular-nums' : 'mt-1 text-4xl font-black tracking-tight text-gray-900 tabular-nums'}>{score}</p>
-                            <p className={isWin98 ? 'mt-2 text-xs text-gray-700' : 'mt-2 text-xs text-gray-500'}>
-                                {difficulty} · {duration}s · {moves} moves
-                            </p>
-                        </div>
-
-                        <div className={isWin98 ? 'flex flex-col gap-2 pt-1' : 'flex flex-col gap-3 pt-1'}>
-                            <div className="flex flex-col items-center gap-1">
-                                <button
-                                    type="button"
-                                    onClick={onProceedWithoutRegister}
-                                    className={isWin98
-                                        ? 'w-full py-2 px-3 win98-menu-btn win98-exit-home-btn text-sm font-semibold'
-                                        : 'w-full py-3.5 rounded-2xl border border-amber-300 bg-gradient-to-br from-amber-50 to-orange-100 text-amber-900 font-semibold shadow-sm shadow-amber-100/70 hover:from-amber-100 hover:to-orange-200 hover:border-amber-400 active:scale-[0.98] transition-all duration-200'}
-                                >
-                                    {t(proceedWithoutKey)}
-                                </button>
-                                {context === 'HOME' && (
-                                    <p className={isWin98 ? 'text-xs text-gray-500' : 'text-xs text-gray-400'}>
-                                        {t('modals:activeGameExit.homeProceedHint')}
-                                    </p>
-                                )}
+                    {step === 'CHOICE' && (
+                        <div className={isWin98 ? 'space-y-4' : 'space-y-5'}>
+                            <div className="space-y-2 text-center">
+                                <h3 className={isWin98 ? 'text-xl font-bold text-gray-900' : 'text-2xl font-bold text-gray-900'}>{t(titleKey)}</h3>
+                                <p className={isWin98 ? 'text-sm text-gray-700 whitespace-pre-line' : 'text-sm text-gray-500 whitespace-pre-line'}>{t(descriptionKey)}</p>
                             </div>
 
-                            <div className="flex flex-col items-center gap-1">
-                                <button
-                                    type="button"
-                                    onClick={handleIntermediateSaveClick}
-                                    className={isWin98
-                                        ? 'w-full py-2 px-3 win98-menu-btn text-sm font-semibold'
-                                        : 'w-full py-4 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-bold text-lg shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/35 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200'}
-                                >
-                                    <span className="flex items-center justify-center gap-2">
-                                        <Send size={isWin98 ? 14 : 18} className={isWin98 ? '' : 'text-emerald-100'} />
-                                        {t('modals:activeGameExit.midSaveButton')}
-                                    </span>
-                                </button>
-                                <p className={isWin98 ? 'text-xs text-gray-500' : 'text-xs text-gray-400'}>
-                                    {t('modals:activeGameExit.midSaveButtonHint')}
+                            <div className={isWin98 ? 'sunken-panel px-3 py-2' : 'rounded-2xl border border-indigo-200/80 bg-gradient-to-br from-indigo-50 to-violet-50 px-5 py-4'}>
+                                <p className={isWin98 ? 'text-xs font-bold text-gray-700' : 'text-xs font-bold uppercase tracking-widest text-indigo-500'}>
+                                    {t('modals:activeGameExit.scoreLabel')}
+                                </p>
+                                <p className={isWin98 ? 'mt-1 text-3xl font-black tracking-tight text-gray-900 tabular-nums' : 'mt-1 text-4xl font-black tracking-tight text-gray-900 tabular-nums'}>{score}</p>
+                                <p className={isWin98 ? 'mt-2 text-xs text-gray-700' : 'mt-2 text-xs text-gray-500'}>
+                                    {difficulty} · {duration}s · {moves} moves
                                 </p>
                             </div>
 
-                            <button
-                                type="button"
-                                onClick={handleRegisterAndExitClick}
-                                className={isWin98
-                                    ? 'w-full py-2 px-3 win98-menu-btn text-sm font-semibold'
-                                    : 'w-full py-4 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-bold text-lg shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:shadow-indigo-500/35 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-200'}
-                            >
-                                <span className="flex items-center justify-center gap-2">
-                                    <Medal size={isWin98 ? 14 : 20} className={isWin98 ? '' : 'text-indigo-100'} />
-                                    {t('modals:activeGameExit.registerButton')}
-                                </span>
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={onCancel}
-                                className={isWin98
-                                    ? 'w-full py-2 px-3 win98-menu-btn win98-exit-cancel-btn text-sm font-semibold'
-                                    : 'w-full py-3.5 rounded-2xl border border-slate-300 bg-white text-slate-800 text-base font-semibold shadow-sm hover:bg-slate-50 hover:border-slate-400 active:scale-[0.98] transition-all duration-200'}
-                            >
-                                {t(cancelKey)}
-                            </button>
-                        </div>
-
-                        {submitError && (
-                            <div className="w-full text-center text-sm text-red-500">
-                                {submitError}
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {step === 'REGISTER' && (
-                    <form onSubmit={handleSubmit} className={isWin98 ? 'space-y-4' : 'space-y-5'}>
-                        <div className="space-y-2 text-center">
-                            <h3 className={isWin98 ? 'text-xl font-bold text-gray-900' : 'text-2xl font-bold text-gray-900'}>{t('modals:activeGameExit.registerTitle')}</h3>
-                            <p className={isWin98 ? 'text-sm text-gray-700 whitespace-pre-line' : 'text-sm text-gray-500 whitespace-pre-line'}>{t('modals:activeGameExit.registerDescription')}</p>
-                        </div>
-
-                        <div className={isWin98 ? 'sunken-panel p-2 text-xs leading-relaxed text-gray-700' : 'w-full p-3 rounded-xl border border-sky-200 bg-sky-50 text-xs text-sky-800 leading-relaxed'}>
-                            {t('modals:nameInput.privacyNotice')}
-                        </div>
-
-                        <div>
-                            {isWin98ThemeActive ? (
-                                <div className="field-row items-center gap-2">
-                                    <label htmlFor="active-game-exit-name" className="shrink-0">
-                                        {t('common:labels.name')}
-                                    </label>
-                                    <input
-                                        id="active-game-exit-name"
-                                        type="text"
-                                        value={name}
-                                        onChange={(e) => {
-                                            setName(e.target.value);
-                                            setNameError(null);
-                                            setSubmitError(null);
-                                        }}
-                                        placeholder={t('modals:nameInput.placeholder')}
-                                        maxLength={PLAYER_NAME_MAX_LENGTH}
-                                        readOnly={Boolean(lockedPlayerName)}
-                                        className="min-w-0 flex-1 px-2 py-1"
-                                        autoFocus
-                                    />
+                            <div className={isWin98 ? 'flex flex-col gap-2 pt-1' : 'flex flex-col gap-3 pt-1'}>
+                                <div className="flex flex-col items-center gap-1">
+                                    <button
+                                        type="button"
+                                        onClick={onProceedWithoutRegister}
+                                        className={isWin98
+                                            ? 'w-full py-2 px-3 win98-menu-btn win98-exit-home-btn text-sm font-semibold'
+                                            : 'w-full py-3.5 rounded-2xl border border-amber-300 bg-gradient-to-br from-amber-50 to-orange-100 text-amber-900 font-semibold shadow-sm shadow-amber-100/70 hover:from-amber-100 hover:to-orange-200 hover:border-amber-400 active:scale-[0.98] transition-all duration-200'}
+                                    >
+                                        {t(proceedWithoutKey)}
+                                    </button>
+                                    {context === 'HOME' && (
+                                        <p className={isWin98 ? 'text-xs text-gray-500' : 'text-xs text-gray-400'}>
+                                            {t('modals:activeGameExit.homeProceedHint')}
+                                        </p>
+                                    )}
                                 </div>
-                            ) : (
-                                <>
-                                    <label htmlFor="active-game-exit-name" className="block text-xs font-bold text-gray-500 uppercase ml-1 mb-1.5">
-                                        {t('common:labels.name')}
-                                    </label>
-                                    <input
-                                        id="active-game-exit-name"
-                                        type="text"
-                                        value={name}
-                                        onChange={(e) => {
-                                            setName(e.target.value);
-                                            setNameError(null);
-                                            setSubmitError(null);
-                                        }}
-                                        placeholder={t('modals:nameInput.placeholder')}
-                                        maxLength={PLAYER_NAME_MAX_LENGTH}
-                                        readOnly={Boolean(lockedPlayerName)}
-                                        className="
+
+                                <div className="flex flex-col items-center gap-1">
+                                    <button
+                                        type="button"
+                                        onClick={handleIntermediateSaveClick}
+                                        className={isWin98
+                                            ? 'w-full py-2 px-3 win98-menu-btn text-sm font-semibold'
+                                            : 'w-full py-4 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-bold text-lg shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/35 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200'}
+                                    >
+                                        <span className="flex items-center justify-center gap-2">
+                                            <Send size={isWin98 ? 14 : 18} className={isWin98 ? '' : 'text-emerald-100'} />
+                                            {t('modals:activeGameExit.midSaveButton')}
+                                        </span>
+                                    </button>
+                                    <p className={isWin98 ? 'text-xs text-gray-500' : 'text-xs text-gray-400'}>
+                                        {t('modals:activeGameExit.midSaveButtonHint')}
+                                    </p>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={handleRegisterAndExitClick}
+                                    className={isWin98
+                                        ? 'w-full py-2 px-3 win98-menu-btn text-sm font-semibold'
+                                        : 'w-full py-4 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-bold text-lg shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:shadow-indigo-500/35 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-200'}
+                                >
+                                    <span className="flex items-center justify-center gap-2">
+                                        <Medal size={isWin98 ? 14 : 20} className={isWin98 ? '' : 'text-indigo-100'} />
+                                        {t('modals:activeGameExit.registerButton')}
+                                    </span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={onCancel}
+                                    className={isWin98
+                                        ? 'w-full py-2 px-3 win98-menu-btn win98-exit-cancel-btn text-sm font-semibold'
+                                        : 'w-full py-3.5 rounded-2xl border border-slate-300 bg-white text-slate-800 text-base font-semibold shadow-sm hover:bg-slate-50 hover:border-slate-400 active:scale-[0.98] transition-all duration-200'}
+                                >
+                                    {t(cancelKey)}
+                                </button>
+                            </div>
+
+                            {submitError && (
+                                <div className="w-full text-center text-sm text-red-500">
+                                    {submitError}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {step === 'REGISTER' && (
+                        <form onSubmit={handleSubmit} className={isWin98 ? 'space-y-4' : 'space-y-5'}>
+                            <div className="space-y-2 text-center">
+                                <h3 className={isWin98 ? 'text-xl font-bold text-gray-900' : 'text-2xl font-bold text-gray-900'}>{t('modals:activeGameExit.registerTitle')}</h3>
+                                <p className={isWin98 ? 'text-sm text-gray-700 whitespace-pre-line' : 'text-sm text-gray-500 whitespace-pre-line'}>{t('modals:activeGameExit.registerDescription')}</p>
+                            </div>
+
+                            <div className={isWin98 ? 'sunken-panel p-2 text-xs leading-relaxed text-gray-700' : 'w-full p-3 rounded-xl border border-sky-200 bg-sky-50 text-xs text-sky-800 leading-relaxed'}>
+                                {t('modals:nameInput.privacyNotice')}
+                            </div>
+
+                            <div>
+                                {isWin98ThemeActive ? (
+                                    <div className="field-row items-center gap-2">
+                                        <label htmlFor="active-game-exit-name" className="shrink-0">
+                                            {t('common:labels.name')}
+                                        </label>
+                                        <input
+                                            id="active-game-exit-name"
+                                            type="text"
+                                            value={name}
+                                            onChange={(e) => {
+                                                setName(e.target.value);
+                                                setNameError(null);
+                                                setSubmitError(null);
+                                            }}
+                                            placeholder={t('modals:nameInput.placeholder')}
+                                            maxLength={PLAYER_NAME_MAX_LENGTH}
+                                            readOnly={Boolean(lockedPlayerName)}
+                                            className="min-w-0 flex-1 px-2 py-1"
+                                            autoFocus
+                                        />
+                                    </div>
+                                ) : (
+                                    <>
+                                        <label htmlFor="active-game-exit-name" className="block text-xs font-bold text-gray-500 uppercase ml-1 mb-1.5">
+                                            {t('common:labels.name')}
+                                        </label>
+                                        <input
+                                            id="active-game-exit-name"
+                                            type="text"
+                                            value={name}
+                                            onChange={(e) => {
+                                                setName(e.target.value);
+                                                setNameError(null);
+                                                setSubmitError(null);
+                                            }}
+                                            placeholder={t('modals:nameInput.placeholder')}
+                                            maxLength={PLAYER_NAME_MAX_LENGTH}
+                                            readOnly={Boolean(lockedPlayerName)}
+                                            className="
                                           w-full px-5 py-4 rounded-2xl
                                           bg-white/80 border border-gray-200
                                           text-xl font-bold text-gray-900 text-center
@@ -374,99 +409,99 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                                           focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500
                                           transition-all shadow-sm
                                         "
-                                        autoFocus
-                                    />
-                                </>
-                            )}
-                            {lockedPlayerName && (
-                                <p className={isWin98 ? 'mt-1 text-xs text-gray-700 text-center' : 'mt-1 text-xs text-gray-500 text-center'}>{t('modals:activeGameExit.lockedNameNotice')}</p>
-                            )}
-                            {nameError && (
-                                <p className="mt-1 text-xs text-red-500 font-medium text-center">{nameError}</p>
-                            )}
-                        </div>
-
-                        {submitError && (
-                            <div className="w-full text-center text-sm text-red-500">
-                                {submitError}
-                            </div>
-                        )}
-
-                        <div className="flex flex-col gap-3">
-                            <button
-                                type="submit"
-                                disabled={isSubmitting || (!lockedPlayerName && !name.trim())}
-                                className={isWin98
-                                    ? 'w-full py-2 px-3 win98-menu-btn text-sm font-semibold disabled:opacity-100'
-                                    : 'w-full py-4 rounded-2xl bg-gray-900 text-white font-bold text-lg shadow-lg hover:bg-gray-800 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 active:scale-[0.98] transition-all duration-200'}
-                            >
-                                {isSubmitting ? (
-                                    <span className="flex items-center justify-center gap-2">
-                                        <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        {t('modals:rankingRegister.submitting')}
-                                    </span>
-                                ) : (
-                                    <span className="flex items-center justify-center gap-2">
-                                        <Send size={18} />
-                                        {t('modals:rankingRegister.submit')}
-                                    </span>
+                                            autoFocus
+                                        />
+                                    </>
                                 )}
-                            </button>
+                                {lockedPlayerName && (
+                                    <p className={isWin98 ? 'mt-1 text-xs text-gray-700 text-center' : 'mt-1 text-xs text-gray-500 text-center'}>{t('modals:activeGameExit.lockedNameNotice')}</p>
+                                )}
+                                {nameError && (
+                                    <p className="mt-1 text-xs text-red-500 font-medium text-center">{nameError}</p>
+                                )}
+                            </div>
 
-                            <button
-                                type="button"
-                                onClick={() => setStep('CHOICE')}
-                                className={isWin98
-                                    ? 'w-full py-2 px-3 win98-menu-btn text-sm font-semibold'
-                                    : 'w-full py-2 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors'}
-                            >
-                                {t('common:buttons.cancel')}
-                            </button>
-                        </div>
-                    </form>
-                )}
+                            {submitError && (
+                                <div className="w-full text-center text-sm text-red-500">
+                                    {submitError}
+                                </div>
+                            )}
 
-                {step === 'SUBMITTED' && (
-                    <div className={isWin98 ? 'space-y-4 text-center' : 'space-y-6 text-center'}>
-                        <div className="mx-auto w-20 h-20 rounded-full bg-green-100 border border-green-200 flex items-center justify-center">
-                            <Check size={34} className="text-green-600" />
+                            <div className="flex flex-col gap-3">
+                                <button
+                                    type="submit"
+                                    disabled={isSubmitting || (!lockedPlayerName && !name.trim())}
+                                    className={isWin98
+                                        ? 'w-full py-2 px-3 win98-menu-btn text-sm font-semibold disabled:opacity-100'
+                                        : 'w-full py-4 rounded-2xl bg-gray-900 text-white font-bold text-lg shadow-lg hover:bg-gray-800 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 active:scale-[0.98] transition-all duration-200'}
+                                >
+                                    {isSubmitting ? (
+                                        <span className="flex items-center justify-center gap-2">
+                                            <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            {t('modals:rankingRegister.submitting')}
+                                        </span>
+                                    ) : (
+                                        <span className="flex items-center justify-center gap-2">
+                                            <Send size={18} />
+                                            {t('modals:rankingRegister.submit')}
+                                        </span>
+                                    )}
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setStep('CHOICE')}
+                                    className={isWin98
+                                        ? 'w-full py-2 px-3 win98-menu-btn text-sm font-semibold'
+                                        : 'w-full py-2 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors'}
+                                >
+                                    {t('common:buttons.cancel')}
+                                </button>
+                            </div>
+                        </form>
+                    )}
+
+                    {step === 'SUBMITTED' && (
+                        <div className={isWin98 ? 'space-y-4 text-center' : 'space-y-6 text-center'}>
+                            <div className="mx-auto w-20 h-20 rounded-full bg-green-100 border border-green-200 flex items-center justify-center">
+                                <Check size={34} className="text-green-600" />
+                            </div>
+                            <div className="space-y-2">
+                                <h3 className={isWin98 ? 'text-xl font-bold text-gray-900' : 'text-2xl font-bold text-gray-900'}>{t('modals:rankingRegister.success')}</h3>
+                                <p className={isWin98 ? 'text-sm text-gray-700 whitespace-pre-line' : 'text-sm text-gray-500 whitespace-pre-line'}>
+                                    {submittedMessage}
+                                </p>
+                            </div>
+                            <div className="flex gap-3 w-full">
+                                <button
+                                    type="button"
+                                    onClick={submitIntent === 'MID_SAVE' ? onIntermediateSaveComplete : onRegisteredAndProceed}
+                                    className={isWin98
+                                        ? 'flex-1 py-2 px-3 win98-menu-btn text-sm font-semibold'
+                                        : 'flex-1 py-4 rounded-2xl bg-gray-900 text-white font-bold text-lg shadow-lg hover:bg-gray-800 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200'}
+                                >
+                                    {submitIntent === 'MID_SAVE'
+                                        ? t('modals:activeGameExit.continueAfterMidSave')
+                                        : t(confirmKey)}
+                                </button>
+                                {/* 작은 공유 아이콘 */}
+                                <button
+                                    type="button"
+                                    onClick={handleShare}
+                                    disabled={isSharing}
+                                    aria-label={t('common:share.button')}
+                                    className={isWin98
+                                        ? 'px-3 py-2 win98-menu-btn text-sm'
+                                        : 'px-4 py-4 rounded-2xl border border-gray-200 bg-white text-gray-500 shadow-sm hover:bg-gray-50 hover:text-gray-900 disabled:opacity-50 active:scale-[0.97] transition-all duration-150'}
+                                >
+                                    <Share2 size={20} />
+                                </button>
+                            </div>
+                            {shareToast && (
+                                <p className="text-xs text-green-600 font-medium">{shareToast}</p>
+                            )}
                         </div>
-                        <div className="space-y-2">
-                            <h3 className={isWin98 ? 'text-xl font-bold text-gray-900' : 'text-2xl font-bold text-gray-900'}>{t('modals:rankingRegister.success')}</h3>
-                            <p className={isWin98 ? 'text-sm text-gray-700 whitespace-pre-line' : 'text-sm text-gray-500 whitespace-pre-line'}>
-                                {submittedMessage}
-                            </p>
-                        </div>
-                        <div className="flex gap-3 w-full">
-                            <button
-                                type="button"
-                                onClick={submitIntent === 'MID_SAVE' ? onIntermediateSaveComplete : onRegisteredAndProceed}
-                                className={isWin98
-                                    ? 'flex-1 py-2 px-3 win98-menu-btn text-sm font-semibold'
-                                    : 'flex-1 py-4 rounded-2xl bg-gray-900 text-white font-bold text-lg shadow-lg hover:bg-gray-800 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200'}
-                            >
-                                {submitIntent === 'MID_SAVE'
-                                    ? t('modals:activeGameExit.continueAfterMidSave')
-                                    : t(confirmKey)}
-                            </button>
-                            {/* 작은 공유 아이콘 */}
-                            <button
-                                type="button"
-                                onClick={handleShare}
-                                disabled={isSharing}
-                                aria-label={t('common:share.button')}
-                                className={isWin98
-                                    ? 'px-3 py-2 win98-menu-btn text-sm'
-                                    : 'px-4 py-4 rounded-2xl border border-gray-200 bg-white text-gray-500 shadow-sm hover:bg-gray-50 hover:text-gray-900 disabled:opacity-50 active:scale-[0.97] transition-all duration-150'}
-                            >
-                                <Share2 size={20} />
-                            </button>
-                        </div>
-                        {shareToast && (
-                            <p className="text-xs text-green-600 font-medium">{shareToast}</p>
-                        )}
-                    </div>
-                )}
+                    )}
                 </div>
             </div>
         </div>

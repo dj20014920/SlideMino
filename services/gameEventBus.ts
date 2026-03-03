@@ -6,10 +6,10 @@
  *
  * 사용법:
  *   gameEventBus.on('BLOCK_PLACED', (data) => { ... });
- *   gameEventBus.emit('BLOCK_PLACED', { pieceType: 'T', ... });
+ *   gameEventBus.emit('BLOCK_PLACED', { pieceType: 'T', cells: [...], ... });
  */
 
-import type { ShapeType, BoardSize, GameMode } from '../types';
+import type { ShapeType, BoardSize, GameMode, Coordinate } from '../types';
 import type { MissionCompleteInfo, MissionProgressInfo } from './missionService';
 import type { LevelBadge } from './xpLevelService';
 
@@ -25,6 +25,7 @@ export interface GameEventMap {
   /** 블록 보드에 배치됨 */
   BLOCK_PLACED: {
     pieceType: ShapeType;
+    cells: Coordinate[];
     rotation: number;
     initialRotation: number;
     value: number;

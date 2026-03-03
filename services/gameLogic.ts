@@ -36,7 +36,7 @@ export const getRotatedCells = (type: ShapeType, rotation: number): Coordinate[]
   return cells;
 };
 
-const getPieceShapeSignatureFromCells = (cells: Coordinate[]): string => {
+export const getPieceShapeSignatureFromCells = (cells: Coordinate[]): string => {
   const minX = Math.min(...cells.map((cell) => cell.x));
   const minY = Math.min(...cells.map((cell) => cell.y));
 
@@ -44,6 +44,31 @@ const getPieceShapeSignatureFromCells = (cells: Coordinate[]): string => {
     .map((cell) => `${cell.x - minX},${cell.y - minY}`)
     .sort()
     .join('|');
+};
+
+const CANONICAL_SHAPE_TYPES: readonly ShapeType[] = [...STANDARD_SHAPES, ShapeType.PLUS];
+
+const PIECE_TYPE_BY_SIGNATURE: ReadonlyMap<string, ShapeType> = (() => {
+  const bySignature = new Map<string, ShapeType>();
+
+  for (const type of CANONICAL_SHAPE_TYPES) {
+    const rotationCount = (type === ShapeType.O || type === ShapeType.PLUS) ? 1 : 4;
+    for (let rotation = 0; rotation < rotationCount; rotation += 1) {
+      const signature = getPieceShapeSignatureFromCells(getRotatedCells(type, rotation));
+      if (!bySignature.has(signature)) {
+        bySignature.set(signature, type);
+      }
+    }
+  }
+
+  return bySignature;
+})();
+
+/** 셀 좌표 기준으로 블록 타입을 판별한다. (회전/이동 무관) */
+export const resolvePieceTypeFromCells = (cells: Coordinate[]): ShapeType | null => {
+  if (cells.length === 0) return null;
+  const signature = getPieceShapeSignatureFromCells(cells);
+  return PIECE_TYPE_BY_SIGNATURE.get(signature) ?? null;
 };
 
 interface PieceVariant {

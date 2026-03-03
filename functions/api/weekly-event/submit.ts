@@ -5,6 +5,7 @@
  * - 3회 도전 제한 서버 강제
  * - 타이머 서버 검증 (30분 + 여유 30초)
  * - UPSERT: 최고점만 event_rankings에 반영
+ * - isIntermediate=true: 도전 횟수 소모 없이 랭킹만 업데이트 (중간 저장)
  */
 import {
   validateName,
@@ -95,6 +96,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const eventId = typeof data.eventId === 'string' ? data.eventId : '';
     const eventType = typeof data.eventType === 'string' ? data.eventType : '';
     const attemptNumber = typeof data.attemptNumber === 'number' ? data.attemptNumber : 0;
+    const isIntermediate = data.isIntermediate === true;
 
     if (!eventId || !eventType || attemptNumber < 1 || attemptNumber > 3) {
       return errorResponse('Invalid event parameters', 400, corsHeaders);
@@ -149,20 +151,87 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       return errorResponse(consistencyCheck.error ?? 'Inconsistent game data', 403, corsHeaders);
     }
 
-    // 3회 도전 제한 서버 검증
+    // 도전 횟수 조회 (중간 저장/최종 제출 공통)
     const attemptCountResult = await env.DB.prepare(
       `SELECT COUNT(*) as count FROM event_attempts
        WHERE event_id = ? AND install_id_hash = ?`
     ).bind(eventId, installIdHash).first();
 
     const currentCount = (attemptCountResult as { count: number } | null)?.count ?? 0;
+    const now = Date.now();
+
+    if (isIntermediate) {
+      // ── 중간 저장: 도전 횟수 소모 없이 랭킹만 UPSERT ──
+      try {
+        await env.DB.batch([
+          env.DB.prepare(
+            `INSERT INTO event_rankings (event_id, install_id_hash, name, score, moves, duration, submitted_at, updated_at)
+             SELECT ?, ?, ?, ?, ?, ?, ?, ?
+             WHERE NOT EXISTS (
+               SELECT 1 FROM event_rankings WHERE event_id = ? AND install_id_hash = ?
+             )`
+          ).bind(eventId, installIdHash, name, score, moves, duration, now, now, eventId, installIdHash),
+          env.DB.prepare(
+            `UPDATE event_rankings
+             SET score = ?, name = ?, moves = ?, duration = ?, updated_at = ?
+             WHERE event_id = ? AND install_id_hash = ?
+               AND (? > score
+                 OR (? = score AND ? < moves)
+                 OR (? = score AND ? = moves AND ? < duration))`
+          ).bind(
+            score, name, moves, duration, now,
+            eventId, installIdHash,
+            score, score, moves, score, moves, duration
+          ),
+        ]);
+
+        // 중간 저장에서도 배지 저장 (앱 크래시 대비)
+        if (levelBadge) {
+          await env.DB.prepare(
+            `INSERT INTO event_ranking_badges (event_id, install_id_hash, level_badge, updated_at)
+             VALUES (?, ?, ?, ?)
+             ON CONFLICT(event_id, install_id_hash) DO UPDATE SET
+               level_badge = excluded.level_badge,
+               updated_at = excluded.updated_at`
+          ).bind(eventId, installIdHash, levelBadge, now).run();
+        }
+
+        const rankResult = await env.DB.prepare(
+          `SELECT COUNT(*) + 1 as rank
+           FROM event_rankings
+           WHERE event_id = ?
+             AND (score > ? OR (score = ? AND moves < ?) OR (score = ? AND moves = ? AND duration < ?))`
+        ).bind(eventId, score, score, moves, score, moves, duration).first();
+
+        const totalResult = await env.DB.prepare(
+          `SELECT COUNT(*) as total FROM event_rankings WHERE event_id = ?`
+        ).bind(eventId).first();
+
+        const rank = (rankResult as { rank: number } | null)?.rank ?? 1;
+        const total = (totalResult as { total: number } | null)?.total ?? 1;
+
+        return new Response(JSON.stringify({
+          success: true,
+          rank,
+          total,
+          isIntermediate: true,
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } catch (dbError) {
+        console.error('[WeeklyEvent/submit] intermediate DB error:', dbError);
+        return errorResponse('Failed to save intermediate score', 500, corsHeaders);
+      }
+    }
+
+    // ── 최종 제출: 도전 횟수 소모 + 랭킹 UPSERT ──
     if (currentCount >= 3) {
       return errorResponse('Maximum attempts reached (3/3)', 403, corsHeaders);
     }
 
     // 실제 attempt_number 서버 결정 (클라이언트 값 무시)
     const serverAttemptNumber = currentCount + 1;
-    const now = Date.now();
 
     try {
       // 도전 기록 저장 (INSERT OR IGNORE: 동시 요청으로 인한 UNIQUE 충돌 방지)

@@ -4,15 +4,16 @@
  * - 하루 3개 미션 (쉬움·보통·어려움), 00:00 KST 리셋
  * - 주간 3개 미션 (쉬움·보통·어려움), 매주 월요일 00:00 KST 리셋
  * - 미션 풀 56개 (easy 18 / medium 19 / hard 19)
- * - 보상: 일일 1/1/1 + 보너스 3, 주간 3/5/8 조각
+ * - 보상: 일일 1/1/1 + 보너스 1, 주간 3/5/8 조각
  * - 하루 1회 무료 미션 다시굴리기
  * - 이벤트 버스 구독으로 자동 추적
  */
 
 import type { ShapeType } from '../types';
-import { gameEventBus, type GameEventMap } from './gameEventBus';
+import { gameEventBus } from './gameEventBus';
 import { addFragments } from './skinService';
 import { mulberry32 } from './prng';
+import { resolvePieceTypeFromCells } from './gameLogic';
 import { getKstDateString } from './streakService';
 import { getServerAdjustedNow } from './serverTimeService';
 import { KST_OFFSET_MS } from '../config/constants';
@@ -25,7 +26,7 @@ const STORAGE_KEY = 'slidemino.missions.v1';
 const DAILY_REWARD_EASY = 1;
 const DAILY_REWARD_MEDIUM = 1;
 const DAILY_REWARD_HARD = 1;
-const DAILY_BONUS_ALL_COMPLETE = 3;
+const DAILY_BONUS_ALL_COMPLETE = 1; // 올클 보너스 (3→1 조정: 조각 인플레이션 방지)
 const WEEKLY_REWARD_EASY = 3;
 const WEEKLY_REWARD_MEDIUM = 5;
 const WEEKLY_REWARD_HARD = 8;
@@ -577,7 +578,10 @@ export function initMissionTracking(): void {
   unsubscribers.push(
     gameEventBus.on('BLOCK_PLACED', (data) => {
       // 1) 블록 타입 카운트
-      const completed1 = processUpdate('BLOCK_TYPE_COUNT', 1, data.pieceType);
+      //    - cells 기반 canonical 타입으로 회전/좌표에 무관하게 판정
+      //    - 해석 실패 시 기존 pieceType 사용 (호환성)
+      const canonicalType = resolvePieceTypeFromCells(data.cells) ?? data.pieceType;
+      const completed1 = processUpdate('BLOCK_TYPE_COUNT', 1, canonicalType);
       // 2) 전체 블록 배치 카운트
       const completed2 = processUpdate('BLOCK_PLACE_COUNT', 1);
 

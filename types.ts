@@ -145,8 +145,10 @@ export interface SkinSettings {
   version: 2;
   ownedSkins: SkinItem[];
   activeSkinId: string | null;
-  fragments: number; // 스킨 조각 (중복 뽑기 시 획득, 교환에 사용)
-  scoreMilestoneCredits: number; // 점수 마일스톤으로 지급된 누적 조각 수(복구 정합성용)
+  fragments: number;              // 스킨 조각 (중복 뽑기 시 획득, 교환에 사용)
+  scoreMilestoneCredits: number;  // 점수 마일스톤으로 지급된 누적 조각 수 (복구 정합성용)
+  daily1024Date: string;          // KST YYYY-MM-DD: 1024타일 보상 당일 날짜
+  daily1024Earned: number;        // 당일 1024타일로 얻은 조각 수 (일일 CAP 확인용)
 }
 
 // 스킨 뽑기 결과

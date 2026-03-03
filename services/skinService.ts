@@ -18,6 +18,8 @@ export const DEFAULT_SKIN_SETTINGS: SkinSettings = {
   activeSkinId: null,
   fragments: 0,
   scoreMilestoneCredits: 0,
+  daily1024Date: '',
+  daily1024Earned: 0,
 };
 
 // 유효한 hex 색상인지 검증
@@ -79,7 +81,14 @@ export const loadSkinSettings = (): SkinSettings => {
         ? Math.max(0, Math.floor(obj.scoreMilestoneCredits))
         : 0;
 
-    return { version: 2, ownedSkins, activeSkinId, fragments, scoreMilestoneCredits };
+    const daily1024Date =
+      typeof obj.daily1024Date === 'string' ? obj.daily1024Date : '';
+    const daily1024Earned =
+      typeof obj.daily1024Earned === 'number' && Number.isFinite(obj.daily1024Earned)
+        ? Math.max(0, Math.floor(obj.daily1024Earned))
+        : 0;
+
+    return { version: 2, ownedSkins, activeSkinId, fragments, scoreMilestoneCredits, daily1024Date, daily1024Earned };
   } catch {
     return DEFAULT_SKIN_SETTINGS;
   }

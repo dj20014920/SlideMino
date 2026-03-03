@@ -321,6 +321,8 @@ export interface EventGameSaveData {
   /** 현재 도전 회차 (1, 2, 3) */
   attemptNumber: number;
   sessionId: string;
+  playerName?: string;
+  sessionLockedPlayerName?: string;
   startedAt: number;
   savedAt: number;
 }
@@ -557,7 +559,7 @@ export interface EventSubmitResult {
   error?: string;
 }
 
-/** 이벤트 점수 제출 */
+/** 이벤트 점수 제출 (isIntermediate=true면 도전 횟수 소모 없이 랭킹만 업데이트) */
 export async function submitEventScore(params: {
   name: string;
   score: number;
@@ -565,10 +567,12 @@ export async function submitEventScore(params: {
   duration: number;
   attemptNumber: number;
   levelBadge?: string;
+  isIntermediate?: boolean;
 }): Promise<EventSubmitResult> {
   try {
     const current = getCurrentEvent();
     const installId = getAnalyticsInstallId();
+    const { isIntermediate, ...scoreParams } = params;
     const res = await fetch(getApiUrl(`${API_BASE}/submit`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -576,11 +580,13 @@ export async function submitEventScore(params: {
         eventId: current.eventId,
         eventType: current.eventType,
         installId,
-        ...params,
+        ...scoreParams,
+        ...(isIntermediate ? { isIntermediate: true } : {}),
       }),
     });
     const data = await res.json() as EventSubmitResult;
-    if (data.success) {
+    if (data.success && !isIntermediate) {
+      // 중간 저장 시에는 도전 횟수를 증가시키지 않음
       incrementLocalAttemptCount(params.score);
     }
     return data;

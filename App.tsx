@@ -224,6 +224,8 @@ type OverlayModalKey =
   | 'active_game_exit'
   | 'help';
 
+type PendingSessionMode = 'normal' | 'weekly_event';
+
 const cloneGameSnapshot = (snapshot: GameSnapshot): GameSnapshot => ({
   grid: snapshot.grid.map((row) => row.map((tile) => (tile ? { ...tile } : null))),
   slots: snapshot.slots.map((piece) => (piece ? { ...piece, cells: [...piece.cells] } : null)),
@@ -901,6 +903,7 @@ const App: React.FC = () => {
   // Name Input State
   const [isNameInputOpen, setIsNameInputOpen] = useState(false);
   const [pendingDifficulty, setPendingDifficulty] = useState<number | null>(null);
+  const [pendingSessionMode, setPendingSessionMode] = useState<PendingSessionMode | null>(null);
   const [playerName, setPlayerName] = useState<string>(loadInitialPlayerName);
   const [sessionLockedPlayerName, setSessionLockedPlayerName] = useState<string | null>(null);
   const [showActiveGameWarning, setShowActiveGameWarning] = useState(false);
@@ -995,6 +998,31 @@ const App: React.FC = () => {
   const openNameInputModal = useCallback(() => {
     openExclusiveModal('name_input');
   }, [openExclusiveModal]);
+
+  const resetPendingSessionStart = useCallback(() => {
+    setPendingDifficulty(null);
+    setPendingSessionMode(null);
+    setShowActiveGameWarning(false);
+  }, []);
+
+  const closeNameInputModal = useCallback(() => {
+    setIsNameInputOpen(false);
+    resetPendingSessionStart();
+  }, [resetPendingSessionStart]);
+
+  const requestSessionNameForNormalStart = useCallback((size: BoardSize) => {
+    setPendingDifficulty(size);
+    setPendingSessionMode('normal');
+    setShowActiveGameWarning(false);
+    openNameInputModal();
+  }, [openNameInputModal]);
+
+  const requestSessionNameForWeeklyEventStart = useCallback(() => {
+    setPendingDifficulty(getCurrentEvent().rule.boardSize);
+    setPendingSessionMode('weekly_event');
+    setShowActiveGameWarning(false);
+    openNameInputModal();
+  }, [openNameInputModal]);
 
   const openActiveGameExitDialog = useCallback(() => {
     openExclusiveModal('active_game_exit');
@@ -1460,6 +1488,8 @@ const App: React.FC = () => {
           eventPlayedMs: getCurrentEventPlayedMs(),
           attemptNumber: eventAttemptNumberRef.current,
           sessionId: sessionIdRef.current,
+          playerName,
+          sessionLockedPlayerName: sessionLockedPlayerName ?? undefined,
           startedAt: gameStartTimeRef.current ?? Date.now(),
           savedAt: Date.now(),
         });
@@ -1568,7 +1598,10 @@ const App: React.FC = () => {
 
   const buildActiveGameRankingSnapshot = useCallback((): ActiveGameRankingSnapshot | null => {
     if (gameState === GameState.PLAYING || gameState === GameState.GAME_OVER) {
-      const elapsedSeconds = getCurrentActiveDurationSeconds();
+      // 이벤트 모드는 이벤트 전용 타이머 사용
+      const elapsedSeconds = gameModeRef.current === 'weekly_event'
+        ? toDurationSeconds(getCurrentEventPlayedMs())
+        : getCurrentActiveDurationSeconds();
       return {
         sessionId: sessionIdRef.current,
         score,
@@ -1601,28 +1634,11 @@ const App: React.FC = () => {
       playerName: saved.playerName ?? playerName,
       sessionLockedPlayerName: getReusablePlayerName(saved.sessionLockedPlayerName) ?? sessionLockedPlayerName,
     };
-  }, [gameState, score, boardSize, playerName, sessionLockedPlayerName, getCurrentActiveDurationSeconds]);
+  }, [gameState, score, boardSize, playerName, sessionLockedPlayerName, getCurrentActiveDurationSeconds, getCurrentEventPlayedMs]);
 
-  const resolveReusablePlayerName = useCallback((): string | null => {
-    return getReusablePlayerName(playerName) ?? getReusablePlayerName(rankingService.getSavedName());
-  }, [playerName]);
-
-  const startGameWithReusableNameOrPrompt = useCallback((size: BoardSize) => {
-    const reusableName = resolveReusablePlayerName();
-    if (reusableName) {
-      setPlayerName(reusableName);
-      rankingService.saveName(reusableName);
-      startGame(size);
-      setPendingDifficulty(null);
-      setIsNameInputOpen(false);
-      setShowActiveGameWarning(false);
-      return;
-    }
-
-    setShowActiveGameWarning(false);
-    setPendingDifficulty(size);
-    openNameInputModal();
-  }, [openNameInputModal, resolveReusablePlayerName, startGame]);
+  const startGameWithSessionNamePrompt = useCallback((size: BoardSize) => {
+    requestSessionNameForNormalStart(size);
+  }, [requestSessionNameForNormalStart]);
 
   const openActiveGameExitModal = useCallback((context: ActiveGameExitContext, nextDifficulty?: BoardSize) => {
     const snapshot = buildActiveGameRankingSnapshot();
@@ -1632,7 +1648,7 @@ const App: React.FC = () => {
         return;
       }
       if (typeof nextDifficulty === 'number') {
-        startGameWithReusableNameOrPrompt(nextDifficulty as BoardSize);
+        startGameWithSessionNamePrompt(nextDifficulty as BoardSize);
       }
       return;
     }
@@ -1643,7 +1659,7 @@ const App: React.FC = () => {
     setActiveGameExitContext(context);
     setActiveGameRankingSnapshot(snapshot);
     openActiveGameExitDialog();
-  }, [buildActiveGameRankingSnapshot, goToMenu, openActiveGameExitDialog, startGameWithReusableNameOrPrompt]);
+  }, [buildActiveGameRankingSnapshot, goToMenu, openActiveGameExitDialog, startGameWithSessionNamePrompt]);
 
   const handleGameOverClose = useCallback(() => {
     // 게임오버 결과 확인을 마치고 메뉴로 돌아갈 때 해당 모드의 복구 상태만 정리한다.
@@ -1689,6 +1705,7 @@ const App: React.FC = () => {
   const handleActiveGameExitCancel = useCallback(() => {
     if (activeGameExitContext === 'NEW_GAME') {
       setPendingDifficulty(null);
+      setPendingSessionMode(null);
     }
     setIsActiveGameExitModalOpen(false);
     setActiveGameRankingSnapshot(null);
@@ -1703,7 +1720,7 @@ const App: React.FC = () => {
         return;
       }
       if (isNameInputOpen) {
-        setIsNameInputOpen(false);
+        closeNameInputModal();
         return;
       }
       if (showHelpModal) {
@@ -1764,6 +1781,7 @@ const App: React.FC = () => {
     isStreakInfoOpen,
     isWeeklyEventModalOpen,
     isXpModalOpen,
+    closeNameInputModal,
     showHelpModal,
   ]);
 
@@ -1778,13 +1796,9 @@ const App: React.FC = () => {
     }
 
     if (typeof pendingDifficulty === 'number') {
-      startGameWithReusableNameOrPrompt(pendingDifficulty as BoardSize);
-      return;
+      startGameWithSessionNamePrompt(pendingDifficulty as BoardSize);
     }
-
-    setShowActiveGameWarning(false);
-    openNameInputModal();
-  }, [activeGameExitContext, goToMenu, openNameInputModal, pendingDifficulty, startGameWithReusableNameOrPrompt]);
+  }, [activeGameExitContext, goToMenu, pendingDifficulty, startGameWithSessionNamePrompt]);
 
   const handleActiveGameExitNameLocked = useCallback((name: string) => {
     setSessionLockedPlayerName(name);
@@ -1816,13 +1830,9 @@ const App: React.FC = () => {
     }
 
     if (typeof pendingDifficulty === 'number') {
-      startGameWithReusableNameOrPrompt(pendingDifficulty as BoardSize);
-      return;
+      startGameWithSessionNamePrompt(pendingDifficulty as BoardSize);
     }
-
-    setShowActiveGameWarning(false);
-    openNameInputModal();
-  }, [activeGameExitContext, gameMode, goToMenu, openNameInputModal, pendingDifficulty, startGameWithReusableNameOrPrompt]);
+  }, [activeGameExitContext, gameMode, goToMenu, pendingDifficulty, startGameWithSessionNamePrompt]);
 
   // 난이도 선택 시 진행중 게임 경고 -> 이름 입력 모달
   const tryStartGame = useCallback((size: BoardSize) => {
@@ -1833,21 +1843,29 @@ const App: React.FC = () => {
       return;
     }
 
-    startGameWithReusableNameOrPrompt(size);
-  }, [gameState, boardSize, openActiveGameExitModal, startGameWithReusableNameOrPrompt]);
+    startGameWithSessionNamePrompt(size);
+  }, [gameState, boardSize, openActiveGameExitModal, startGameWithSessionNamePrompt]);
 
   const handleNameSubmit = (name: string) => {
-    if (pendingDifficulty) {
+    if (pendingSessionMode === 'normal' && typeof pendingDifficulty === 'number') {
       setPlayerName(name);
+      setSessionLockedPlayerName(name);
       rankingService.saveName(name);
-      startGame(pendingDifficulty as BoardSize);
-      setIsNameInputOpen(false);
-      setPendingDifficulty(null);
-      setShowActiveGameWarning(false);
+      startGame(pendingDifficulty as BoardSize, name);
+      closeNameInputModal();
+      return;
+    }
+
+    if (pendingSessionMode === 'weekly_event') {
+      setPlayerName(name);
+      setSessionLockedPlayerName(name);
+      rankingService.saveName(name);
+      startWeeklyEvent(name);
+      closeNameInputModal();
     }
   };
 
-  function startGame(size: BoardSize) {
+  function startGame(size: BoardSize, sessionName?: string) {
     // 새 게임 시작 시 이전 게임 복구 데이터는 폐기한다.
     clearGameState();
     // 일반 모드로 리셋
@@ -1906,7 +1924,11 @@ const App: React.FC = () => {
     setIsReviveAdInProgress(false);
     setIsReviveAdReady(false);
     setIsBlockRefreshAdInProgress(false);
-    setSessionLockedPlayerName(null);
+    const normalizedSessionName = getReusablePlayerName(sessionName) ?? null;
+    setSessionLockedPlayerName(normalizedSessionName);
+    if (normalizedSessionName) {
+      setPlayerName(normalizedSessionName);
+    }
     // 출석 토스트 ref 초기화 (게임마다 새로)
     attendanceToastShownRef.current = false;
     attendanceHintShownRef.current = false;
@@ -2049,7 +2071,7 @@ const App: React.FC = () => {
 
   // --- 주간 이벤트 시작 ---
 
-  function startWeeklyEvent() {
+  function startWeeklyEvent(sessionName?: string) {
     const current = getCurrentEvent();
     const rule = current.rule;
     const localAttempts = getLocalAttemptCount();
@@ -2109,7 +2131,11 @@ const App: React.FC = () => {
     setIsReviveAdInProgress(false);
     setIsReviveAdReady(false);
     setIsBlockRefreshAdInProgress(false);
-    setSessionLockedPlayerName(null);
+    const normalizedSessionName = getReusablePlayerName(sessionName) ?? null;
+    setSessionLockedPlayerName(normalizedSessionName);
+    if (normalizedSessionName) {
+      setPlayerName(normalizedSessionName);
+    }
     attendanceToastShownRef.current = false;
     attendanceHintShownRef.current = false;
 
@@ -2191,7 +2217,12 @@ const App: React.FC = () => {
     setIsReviveAdInProgress(false);
     setIsReviveAdReady(false);
     setIsBlockRefreshAdInProgress(false);
-    setSessionLockedPlayerName(null);
+    setPlayerName(
+      getReusablePlayerName(saved.playerName) ??
+      getReusablePlayerName(rankingService.getSavedName()) ??
+      ''
+    );
+    setSessionLockedPlayerName(getReusablePlayerName(saved.sessionLockedPlayerName) ?? null);
     attendanceToastShownRef.current = false;
     attendanceHintShownRef.current = false;
 
@@ -3041,6 +3072,7 @@ const App: React.FC = () => {
           // 미션 이벤트: 블록 배치
           gameEventBus.emit('BLOCK_PLACED', {
             pieceType: draggingPiece.type,
+            cells: draggingPiece.cells,
             rotation: draggingPiece.rotation,
             initialRotation: draggingPiece.initialRotation,
             value: draggingPiece.value,
@@ -3909,7 +3941,7 @@ const App: React.FC = () => {
           { size: 7 as BoardSize, label: t('game:difficulties.beginner'), sizeLabel: t('game:boardSizes.7x7'), gradient: 'from-indigo-600 to-indigo-800', border: 'border-indigo-400/30', shadow: 'shadow-indigo-900/20', hoverShadow: 'hover:shadow-indigo-600/30', mutedColor: 'text-indigo-200/70' },
           { size: 8 as BoardSize, label: t('game:difficulties.easy'), sizeLabel: t('game:boardSizes.8x8'), gradient: 'from-gray-800 to-gray-900', border: 'border-white/10', shadow: 'shadow-lg', hoverShadow: '', mutedColor: 'text-gray-400' },
           { size: 10 as BoardSize, label: t('game:difficulties.infinite'), sizeLabel: t('game:boardSizes.10x10'), gradient: 'bg-black', border: 'border-white/10', shadow: 'shadow-lg', hoverShadow: '', mutedColor: 'text-gray-500', isBlack: true },
-        ] as Array<{size: BoardSize; label: string; sizeLabel: string; gradient: string; border: string; shadow: string; hoverShadow: string; mutedColor: string; id?: string; isBlack?: boolean}>).map((mode) => {
+        ] as Array<{ size: BoardSize; label: string; sizeLabel: string; gradient: string; border: string; shadow: string; hoverShadow: string; mutedColor: string; id?: string; isBlack?: boolean }>).map((mode) => {
           const hasResume = getActiveNormalGameBoardSize() === mode.size;
           return (
             <div key={mode.size} className="relative w-full">
@@ -4189,7 +4221,7 @@ const App: React.FC = () => {
             difficulty={pendingDifficulty}
             initialName={playerName || rankingService.getSavedName()}
             hasActiveGame={showActiveGameWarning}
-            onClose={() => setIsNameInputOpen(false)}
+            onClose={closeNameInputModal}
             onSubmit={handleNameSubmit}
           />
 
@@ -4206,6 +4238,8 @@ const App: React.FC = () => {
               playerName={activeGameRankingSnapshot.playerName}
               lockedPlayerName={activeGameRankingSnapshot.sessionLockedPlayerName}
               isWin98ThemeActive={isWin98ThemeActive}
+              gameMode={gameMode}
+              eventAttemptNumber={eventAttemptNumberRef.current}
               onCancel={handleActiveGameExitCancel}
               onProceedWithoutRegister={handleActiveGameExitProceedWithoutRegister}
               onIntermediateSaveComplete={handleActiveGameExitIntermediateSaveComplete}
@@ -4317,7 +4351,7 @@ const App: React.FC = () => {
           <WeeklyEventModal
             isOpen={isWeeklyEventModalOpen}
             onClose={() => setIsWeeklyEventModalOpen(false)}
-            onStartEvent={startWeeklyEvent}
+            onStartEvent={requestSessionNameForWeeklyEventStart}
             onContinueEvent={continueWeeklyEvent}
           />
         </div>
@@ -4798,11 +4832,13 @@ const App: React.FC = () => {
               : getCurrentActiveDurationSeconds()}
             moves={moveCountRef.current}
             playerName={playerName}
+            lockedPlayerName={sessionLockedPlayerName}
             canOfferRevive={canOfferRevive}
             reviveDestroyCount={reviveDestroyCount}
             isReviveAdReady={isReviveAdReady}
             isReviveInProgress={isReviveAdInProgress}
             onWatchReviveAd={handleWatchReviveAd}
+            onSessionNameLocked={handleActiveGameExitNameLocked}
             onClose={handleGameOverClose}
             gameMode={gameMode}
             challengeDate={challengeDateRef.current ?? undefined}
@@ -4824,6 +4860,8 @@ const App: React.FC = () => {
             playerName={activeGameRankingSnapshot.playerName}
             lockedPlayerName={activeGameRankingSnapshot.sessionLockedPlayerName}
             isWin98ThemeActive={isWin98ThemeActive}
+            gameMode={gameMode}
+            eventAttemptNumber={eventAttemptNumberRef.current}
             onCancel={handleActiveGameExitCancel}
             onProceedWithoutRegister={handleActiveGameExitProceedWithoutRegister}
             onIntermediateSaveComplete={handleActiveGameExitIntermediateSaveComplete}

@@ -447,11 +447,10 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
             <button
               onClick={handleWatchAttemptUnlockAd}
               disabled={isAttemptUnlockAdInProgress || !isAttemptUnlockAdReady}
-              className={`w-full py-3.5 rounded-xl font-bold text-base transition-all ${
-                isAttemptUnlockAdInProgress || !isAttemptUnlockAdReady
+              className={`w-full py-3.5 rounded-xl font-bold text-base transition-all ${isAttemptUnlockAdInProgress || !isAttemptUnlockAdReady
                   ? 'bg-gray-100 text-gray-500'
                   : 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5'
-              }`}
+                }`}
             >
               {isAttemptUnlockAdInProgress
                 ? t('game:weeklyEvent.adUnlockLoading')
@@ -473,8 +472,8 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
             <button
               onClick={onStartEvent}
               className={`w-full py-3.5 rounded-xl ${hasSavedGame
-                  ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  : `bg-gradient-to-r ${theme.gradient} text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5`
+                ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                : `bg-gradient-to-r ${theme.gradient} text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5`
                 } font-bold text-base transition-all`}
             >
               {hasSavedGame ? (
@@ -505,21 +504,19 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
           <div className="flex items-center gap-1 mb-3">
             <button
               onClick={() => setShowPrevWeek(false)}
-              className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                !showPrevWeek
+              className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${!showPrevWeek
                   ? `bg-gradient-to-r ${theme.gradient} text-white shadow-sm`
                   : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-              }`}
+                }`}
             >
               {t('game:weeklyEvent.thisWeek')}
             </button>
             <button
               onClick={() => setShowPrevWeek(true)}
-              className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                showPrevWeek
+              className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${showPrevWeek
                   ? `bg-gradient-to-r ${theme.gradient} text-white shadow-sm`
                   : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-              }`}
+                }`}
             >
               {t('game:weeklyEvent.lastWeek')}
             </button>
@@ -539,16 +536,14 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
                     return (
                       <div
                         key={idx}
-                        className={`flex items-center justify-between py-1.5 px-2.5 rounded-lg text-sm ${
-                          myRank === entry.rank ? 'bg-amber-50 font-semibold' : ''
-                        }`}
+                        className={`flex items-center justify-between py-1.5 px-2.5 rounded-lg text-sm ${myRank === entry.rank ? 'bg-amber-50 font-semibold' : ''
+                          }`}
                       >
                         <div className="flex items-center gap-2">
-                          <span className={`w-6 text-center font-bold ${
-                            entry.rank === 1 ? 'text-amber-500' :
-                            entry.rank === 2 ? 'text-gray-400' :
-                            entry.rank === 3 ? 'text-amber-700' : 'text-gray-400'
-                          }`}>
+                          <span className={`w-6 text-center font-bold ${entry.rank === 1 ? 'text-amber-500' :
+                              entry.rank === 2 ? 'text-gray-400' :
+                                entry.rank === 3 ? 'text-amber-700' : 'text-gray-400'
+                            }`}>
                             {entry.rank <= 3 ? ['🥇', '🥈', '🥉'][entry.rank - 1] : entry.rank}
                           </span>
                           <span className="text-gray-800 truncate max-w-[140px]">
@@ -585,16 +580,14 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
                     return (
                       <div
                         key={idx}
-                        className={`flex items-center justify-between py-1.5 px-2.5 rounded-lg text-sm ${
-                          prevMyRank === entry.rank ? 'bg-amber-50 font-semibold' : ''
-                        }`}
+                        className={`flex items-center justify-between py-1.5 px-2.5 rounded-lg text-sm ${prevMyRank === entry.rank ? 'bg-amber-50 font-semibold' : ''
+                          }`}
                       >
                         <div className="flex items-center gap-2">
-                          <span className={`w-6 text-center font-bold ${
-                            entry.rank === 1 ? 'text-amber-500' :
-                            entry.rank === 2 ? 'text-gray-400' :
-                            entry.rank === 3 ? 'text-amber-700' : 'text-gray-400'
-                          }`}>
+                          <span className={`w-6 text-center font-bold ${entry.rank === 1 ? 'text-amber-500' :
+                              entry.rank === 2 ? 'text-gray-400' :
+                                entry.rank === 3 ? 'text-amber-700' : 'text-gray-400'
+                            }`}>
                             {entry.rank <= 3 ? ['🥇', '🥈', '🥉'][entry.rank - 1] : entry.rank}
                           </span>
                           <span className="text-gray-800 truncate max-w-[140px]">

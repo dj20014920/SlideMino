@@ -107,9 +107,9 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
     const meshRows = toRows(mesh);
 
     return [
-      { titleKey: 'modals:skin.sectionPremium',  skins: premium, rows: premiumRows, rowOffset: 0 },
-      { titleKey: 'modals:skin.sectionMesh',     skins: mesh,    rows: meshRows,    rowOffset: premiumRows.length },
-      { titleKey: 'modals:skin.sectionNormal',   skins: normal,  rows: normalRows,  rowOffset: premiumRows.length + meshRows.length },
+      { titleKey: 'modals:skin.sectionPremium', skins: premium, rows: premiumRows, rowOffset: 0 },
+      { titleKey: 'modals:skin.sectionMesh', skins: mesh, rows: meshRows, rowOffset: premiumRows.length },
+      { titleKey: 'modals:skin.sectionNormal', skins: normal, rows: normalRows, rowOffset: premiumRows.length + meshRows.length },
     ];
   }, []);
 
@@ -269,111 +269,112 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                         <span style={{ marginLeft: '4px', fontWeight: 'normal' }}>({section.skins.length})</span>
                       </div>
                       {section.rows.map((rowSkins, rowIndex) => (
-                    <React.Fragment key={rowIndex}>
-                      <div className="grid grid-cols-6 gap-1">
-                        {rowSkins.map((entry) => {
-                          const isOwned = ownedIds.has(entry.id);
-                          const isActive = skinSettings.activeSkinId === entry.id;
-                          const isSelected = selectedSkinId === entry.id;
-                          const { className, style } = resolveSkinAppearance(16, entry);
+                        <React.Fragment key={rowIndex}>
+                          <div className="grid grid-cols-6 gap-1">
+                            {rowSkins.map((entry) => {
+                              const isOwned = ownedIds.has(entry.id);
+                              const isActive = skinSettings.activeSkinId === entry.id;
+                              const isSelected = selectedSkinId === entry.id;
+                              const { className, style } = resolveSkinAppearance(16, entry);
 
-                          return (
-                            <div
-                              key={entry.id}
-                              onClick={() => handleSkinTap(entry.id, entry.hex)}
-                              className={`
+                              return (
+                                <div
+                                  key={entry.id}
+                                  onClick={() => handleSkinTap(entry.id, entry.hex)}
+                                  className={`
                                 relative aspect-square flex items-center justify-center cursor-pointer border-2
-                                ${isSelected ? 'border-black' : isOwned ? 'border-transparent' : 'border-transparent opacity-50'}
+                                ${isSelected ? 'border-black' : 'border-transparent'}
                               `}
-                              style={{
-                                boxSizing: 'border-box',
-                                backgroundColor: '#c0c0c0', 
-                                boxShadow: isSelected 
-                                  ? 'inset 1px 1px #000, inset -1px -1px #fff' // Pressed look
-                                  : 'inset -1px -1px #000, inset 1px 1px #fff' // Raised look
-                              }}
-                            >
-                              <div className={`w-full h-full ${className}`} style={style} data-win98-allow-gradient="true" data-win98-allow-shadow="true" data-skin-swatch="true">
-                                {entry.premium && (
-                                  <div className="absolute top-0 right-0 z-20" style={{ fontSize: '8px', lineHeight: 1 }}>💎</div>
-                                )}
-                                {isActive && (
-                                  <div className="absolute inset-0 flex items-center justify-center">
-                                     <span style={{ color: '#000', fontWeight: 'bold', textShadow: '1px 1px 0 #fff' }}>v</span>
+                                  style={{
+                                    boxSizing: 'border-box',
+                                    backgroundColor: '#c0c0c0',
+                                    boxShadow: isSelected
+                                      ? 'inset 1px 1px #000, inset -1px -1px #fff' // Pressed look
+                                      : 'inset -1px -1px #000, inset 1px 1px #fff' // Raised look
+                                  }}
+                                >
+                                  <div className={`w-full h-full relative ${className}`} style={style} data-win98-allow-gradient="true" data-win98-allow-shadow="true" data-skin-swatch="true">
+                                    {!isOwned && <div className="absolute inset-0" style={{ backgroundColor: 'rgba(0,0,0,0.3)', zIndex: 5 }} />}
+                                    {entry.premium && (
+                                      <div className="absolute top-0 right-0 z-20" style={{ fontSize: '8px', lineHeight: 1 }}>💎</div>
+                                    )}
+                                    {isActive && (
+                                      <div className="absolute inset-0 flex items-center justify-center z-10">
+                                        <span style={{ color: '#000', fontWeight: 'bold', textShadow: '1px 1px 0 #fff' }}>v</span>
+                                      </div>
+                                    )}
+                                    {!isOwned && !isActive && (
+                                      <div className="absolute inset-0 flex items-center justify-center z-10">
+                                        <span style={{ fontSize: '18px', filter: 'drop-shadow(1px 1px 0 #fff) drop-shadow(-1px -1px 0 #fff)' }}>🔒</span>
+                                      </div>
+                                    )}
                                   </div>
-                                )}
-                                {!isOwned && !isActive && (
-                                   <div className="absolute inset-0 flex items-center justify-center">
-                                      <span style={{ fontSize: '10px' }}>🔒</span>
-                                   </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Preview for Win98 */}
+                          {selectedLocation?.sectionIdx === sectionIdx && selectedLocation?.rowIdx === rowIndex && selectedSkinId && (
+                            <div className="field-row-stacked" style={{ padding: '8px', border: '1px dotted #808080', margin: '4px 0' }}>
+                              <label>{getSkinDisplayName(previewSkin as any)}</label>
+                              <div className="flex gap-1 overflow-x-auto pb-2">
+                                {SKIN_PREVIEW_VALUES.map((v) => (
+                                  <SkinPreviewTile key={v} value={v} skin={previewSkin} tilePx={40} />
+                                ))}
+                              </div>
+                              <div style={{ textAlign: 'center', marginTop: '4px', fontSize: '11px' }}>
+                                {ownedIds.has(selectedSkinId) ? t('modals:skin.tapToApply') : (
+                                  <>
+                                    <div>{t('modals:skin.notOwned')}</div>
+                                    {(() => {
+                                      const cost = getFragmentCost(selectedSkinId);
+                                      const canAfford = skinSettings.fragments >= cost;
+                                      return (
+                                        <button
+                                          disabled={!canAfford}
+                                          onClick={() => handlePurchase(selectedSkinId)}
+                                          style={{ width: '100%', marginTop: '4px', fontWeight: canAfford ? 'bold' : 'normal' }}
+                                        >
+                                          {canAfford
+                                            ? String(t('modals:skin.purchaseButton', { cost } as any))
+                                            : String(t('modals:skin.insufficientFragments', { current: skinSettings.fragments, cost } as any))}
+                                        </button>
+                                      );
+                                    })()}
+                                  </>
                                 )}
                               </div>
                             </div>
-                          );
-                        })}
-                      </div>
-
-                      {/* Preview for Win98 */}
-                      {selectedLocation?.sectionIdx === sectionIdx && selectedLocation?.rowIdx === rowIndex && selectedSkinId && (
-                        <div className="field-row-stacked" style={{ padding: '8px', border: '1px dotted #808080', margin: '4px 0' }}>
-                          <label>{getSkinDisplayName(previewSkin as any)}</label>
-                          <div className="flex gap-1 overflow-x-auto pb-2">
-                             {SKIN_PREVIEW_VALUES.map((v) => (
-                               <SkinPreviewTile key={v} value={v} skin={previewSkin} tilePx={40} />
-                             ))}
-                          </div>
-                          <div style={{ textAlign: 'center', marginTop: '4px', fontSize: '11px' }}>
-                            {ownedIds.has(selectedSkinId) ? t('modals:skin.tapToApply') : (
-                              <>
-                                <div>{t('modals:skin.notOwned')}</div>
-                                {(() => {
-                                  const cost = getFragmentCost(selectedSkinId);
-                                  const canAfford = skinSettings.fragments >= cost;
-                                  return (
-                                    <button
-                                      disabled={!canAfford}
-                                      onClick={() => handlePurchase(selectedSkinId)}
-                                      style={{ width: '100%', marginTop: '4px', fontWeight: canAfford ? 'bold' : 'normal' }}
-                                    >
-                                      {canAfford
-                                        ? String(t('modals:skin.purchaseButton', { cost } as any))
-                                        : String(t('modals:skin.insufficientFragments', { current: skinSettings.fragments, cost } as any))}
-                                    </button>
-                                  );
-                                })()}
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </React.Fragment>
-                  ))}
+                          )}
+                        </React.Fragment>
+                      ))}
                     </div>
                   ))}
                 </div>
               </div>
 
               {isSkinRewardAdSupported() && (
-                 <div style={{ marginTop: '12px', textAlign: 'center' }}>
-                    {collectionComplete && (
-                      <div className="field-row bg-info text-center justify-center" style={{ marginBottom: '4px' }}>
-                         <p>{t('modals:skin.collectionComplete')}</p>
-                      </div>
-                    )}
-                    {remainingAds > 0 ? (
-                      <button onClick={handleDraw} style={{ width: '100%', height: '32px', fontWeight: 'bold' }}>
-                        {t('modals:skin.drawButton')} ({remainingAds}/{MAX_DAILY_SKIN_AD_VIEWS})
-                      </button>
-                    ) : (
-                      <button disabled style={{ width: '100%' }}>
-                        {t('modals:skin.dailyLimit')}
-                      </button>
-                    )}
-                     {adError && <p style={{ color: 'red', marginTop: '4px' }}>{adError}</p>}
-                 </div>
+                <div style={{ marginTop: '12px', textAlign: 'center' }}>
+                  {collectionComplete && (
+                    <div className="field-row bg-info text-center justify-center" style={{ marginBottom: '4px' }}>
+                      <p>{t('modals:skin.collectionComplete')}</p>
+                    </div>
+                  )}
+                  {remainingAds > 0 ? (
+                    <button onClick={handleDraw} style={{ width: '100%', height: '32px', fontWeight: 'bold' }}>
+                      {t('modals:skin.drawButton')} ({remainingAds}/{MAX_DAILY_SKIN_AD_VIEWS})
+                    </button>
+                  ) : (
+                    <button disabled style={{ width: '100%' }}>
+                      {t('modals:skin.dailyLimit')}
+                    </button>
+                  )}
+                  {adError && <p style={{ color: 'red', marginTop: '4px' }}>{adError}</p>}
+                </div>
               )}
             </div>
-            
+
             {/* Status Bar */}
             <div className="status-bar" style={{ marginTop: '4px' }}>
               <p className="status-bar-field">SlideMino 98</p>
@@ -381,20 +382,20 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
             </div>
           </div>
         </div>
-      
-      {/* 획득 애니메이션 오버레이 - Win98 스타일은 어떻게 할 것인가? 일단 그대로 유지 */}
-      <AnimatePresence>
-        {acquisitionSkin && (
-          <SkinAcquisitionOverlay
-             skin={acquisitionSkin}
-             isDuplicate={acquisitionIsDuplicate}
-             fragmentsEarned={acquisitionIsDuplicate ? FRAGMENTS_PER_DUPLICATE : undefined}
-             totalFragments={skinSettings.fragments}
-             onComplete={() => { setAcquisitionSkin(null); setAcquisitionIsDuplicate(false); }}
-          />
-        )}
-      </AnimatePresence>
-     </>
+
+        {/* 획득 애니메이션 오버레이 - Win98 스타일은 어떻게 할 것인가? 일단 그대로 유지 */}
+        <AnimatePresence>
+          {acquisitionSkin && (
+            <SkinAcquisitionOverlay
+              skin={acquisitionSkin}
+              isDuplicate={acquisitionIsDuplicate}
+              fragmentsEarned={acquisitionIsDuplicate ? FRAGMENTS_PER_DUPLICATE : undefined}
+              totalFragments={skinSettings.fragments}
+              onComplete={() => { setAcquisitionSkin(null); setAcquisitionIsDuplicate(false); }}
+            />
+          )}
+        </AnimatePresence>
+      </>
     )
   }
 
@@ -411,14 +412,14 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
         <div className="relative z-10 w-full max-w-lg max-h-[90dvh] modal-safe-panel rounded-3xl bg-white/90 backdrop-blur-sm border border-white/60 shadow-2xl overflow-hidden flex flex-col win98-window">
           {/* 헤더 */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-black/5 shrink-0">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">{t('modals:skin.title')}</h3>
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <span>{String(t('modals:skin.ownedCount', { owned: ownedCatalogCount, total: SKIN_CATALOG.length } as any))}</span>
-                  <span className="text-gray-300">|</span>
-                  <span>🧩 {skinSettings.fragments}</span>
-                </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">{t('modals:skin.title')}</h3>
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <span>{String(t('modals:skin.ownedCount', { owned: ownedCatalogCount, total: SKIN_CATALOG.length } as any))}</span>
+                <span className="text-gray-300">|</span>
+                <span>🧩 {skinSettings.fragments}</span>
               </div>
+            </div>
             <button
               type="button"
               className="p-2 rounded-xl bg-white/70 border border-white/60 text-gray-700 hover:bg-white shadow-sm transition-colors"
@@ -461,11 +462,13 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                                 className={`
                                   relative aspect-square rounded-2xl transition-all duration-150 overflow-hidden
                                   ${isSelected ? 'ring-2 ring-gray-900 ring-offset-2' : 'ring-1 ring-black/5'}
-                                  ${!isOwned ? 'opacity-40 grayscale' : ''}
                                   ${className}
                                 `}
                                 style={style}
                               >
+                                {!isOwned && (
+                                  <div className="absolute inset-0 bg-black/40 z-[5]" />
+                                )}
                                 {entry.premium && (
                                   <div className="absolute top-0.5 right-0.5 z-20 text-[8px] leading-none drop-shadow">💎</div>
                                 )}
@@ -478,7 +481,9 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                                 )}
                                 {!isOwned && !isActive && (
                                   <div className="absolute inset-0 flex items-center justify-center z-10">
-                                    <Lock size={12} className="text-white/70 drop-shadow-md" />
+                                    <div className="w-7 h-7 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center shadow-md border border-white/20">
+                                      <Lock size={14} className="text-white drop-shadow-md" />
+                                    </div>
                                   </div>
                                 )}
                               </button>
@@ -522,11 +527,10 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                                             type="button"
                                             disabled={!canAfford}
                                             onClick={(e) => { e.stopPropagation(); handlePurchase(selectedSkinId); }}
-                                            className={`w-full py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                                              canAfford
+                                            className={`w-full py-1.5 rounded-xl text-xs font-semibold transition-all ${canAfford
                                                 ? 'bg-gray-900 text-white hover:bg-gray-800 active:scale-[0.98]'
                                                 : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                            }`}
+                                              }`}
                                           >
                                             {canAfford
                                               ? String(t('modals:skin.purchaseButton', { cost } as any))

@@ -44,9 +44,9 @@ function formatTimeRemaining(ms: number): string {
 /** 난이도 라벨 & 색상 */
 function getDifficultyInfo(d: MissionDifficulty): { label: string; color: string; bg: string } {
   switch (d) {
-    case 'easy':   return { label: '⭐',   color: 'text-green-600', bg: 'bg-green-50' };
-    case 'medium': return { label: '⭐⭐',  color: 'text-amber-600', bg: 'bg-amber-50' };
-    case 'hard':   return { label: '⭐⭐⭐', color: 'text-red-600',   bg: 'bg-red-50' };
+    case 'easy': return { label: '⭐', color: 'text-green-600', bg: 'bg-green-50' };
+    case 'medium': return { label: '⭐⭐', color: 'text-amber-600', bg: 'bg-amber-50' };
+    case 'hard': return { label: '⭐⭐⭐', color: 'text-red-600', bg: 'bg-red-50' };
   }
 }
 
@@ -290,21 +290,19 @@ export const MissionModal: React.FC<MissionModalProps> = ({ open, onClose, onRew
         <div className="flex border-b border-gray-100">
           <button
             onClick={() => setTab('daily')}
-            className={`flex-1 py-3 text-sm font-semibold transition-colors ${
-              tab === 'daily'
+            className={`flex-1 py-3 text-sm font-semibold transition-colors ${tab === 'daily'
                 ? 'text-violet-600 border-b-2 border-violet-500 bg-violet-50/50'
                 : 'text-gray-500 hover:text-gray-700'
-            }`}
+              }`}
           >
             {t('game:missions.daily')} ({dailyCompleted}/3)
           </button>
           <button
             onClick={() => setTab('weekly')}
-            className={`flex-1 py-3 text-sm font-semibold transition-colors ${
-              tab === 'weekly'
+            className={`flex-1 py-3 text-sm font-semibold transition-colors ${tab === 'weekly'
                 ? 'text-blue-600 border-b-2 border-blue-500 bg-blue-50/50'
                 : 'text-gray-500 hover:text-gray-700'
-            }`}
+              }`}
           >
             {t('game:missions.weekly')} ({weeklyCompleted}/3)
           </button>

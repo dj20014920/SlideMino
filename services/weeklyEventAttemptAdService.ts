@@ -147,6 +147,7 @@ class WeeklyEventAttemptAdService {
 
     AdMob.addListener(RewardAdPluginEvents.Dismissed, () => {
       if (!this.isHandlingActiveShow()) return;
+      this.loadStatus = 'not_loaded';
       this.isProcessingShow = false;
       this.rewardIssuedForCurrentShow = false;
       if (this.admobCallbacks) {

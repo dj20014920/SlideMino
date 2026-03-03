@@ -4,9 +4,10 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Star, Award, TrendingUp, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Star, Award, TrendingUp, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import { gameEventBus } from '../services/gameEventBus';
+import { getAnalyticsInstallHash } from '../services/analyticsService';
 import {
   getXpProgress,
   getLevelBadges,
@@ -81,6 +82,8 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
   const [honorLevels, setHonorLevels] = useState<Record<string, number>>({});
   const [pendingRewards, setPendingRewards] = useState<string[]>([]);
   const [showLog, setShowLog] = useState(false);
+  const [installHash, setInstallHash] = useState<string | null>(null);
+  const [hashCopied, setHashCopied] = useState(false);
 
   const refresh = useCallback(() => {
     setProgress(getXpProgress());
@@ -89,6 +92,7 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
     setWeeklySummary(getWeeklyXpSummary());
     setHonorLevels(getHonorLevels());
     setPendingRewards(getPendingSpecialRewards());
+    setInstallHash(getAnalyticsInstallHash());
   }, []);
 
   useEffect(() => {
@@ -158,7 +162,26 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
             </div>
             <div className="flex-1">
               <div className="text-sm font-semibold opacity-90">Lv.{progress.level}</div>
-              <div className="text-xs opacity-70">{progress.seasonId}</div>
+              <button
+                type="button"
+                className="flex items-center gap-1 text-[10px] opacity-60 hover:opacity-90 transition-opacity"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const hash = installHash || progress.seasonId;
+                  if (installHash) {
+                    void navigator.clipboard?.writeText(hash).then(() => {
+                      setHashCopied(true);
+                      setTimeout(() => setHashCopied(false), 1500);
+                    });
+                  }
+                }}
+                title={installHash ? `ID: ${installHash}` : progress.seasonId}
+              >
+                <span className="font-mono truncate max-w-[120px]">
+                  {installHash ? `${installHash.slice(0, 8)}...${installHash.slice(-6)}` : progress.seasonId}
+                </span>
+                {installHash && (hashCopied ? <Check size={10} /> : <Copy size={10} />)}
+              </button>
             </div>
             <div className="text-right">
               <div className="text-xs opacity-70">{t('common:xp.seasonRemainingLabel')}</div>

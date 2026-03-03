@@ -300,7 +300,6 @@ interface GameLayoutProfile {
 
 interface LayoutChromeHeights {
   header: number;
-  banner: number;
 }
 
 interface OrientationLockMessage {
@@ -310,8 +309,11 @@ interface OrientationLockMessage {
 
 const DEFAULT_LAYOUT_CHROME_HEIGHTS: LayoutChromeHeights = {
   header: 104,
-  banner: 72,
 };
+
+// 배너 광고 높이를 boardScale 계산에 고정값으로 사용 (flex flow가 실제 레이아웃을 처리)
+// 광고 SDK의 비동기 로딩으로 인한 배너 높이 변동이 boardScale을 흔드는 것을 방지
+const STABLE_BANNER_RESERVE_PX = 60;
 
 const ORIENTATION_LOCK_MESSAGES: Record<string, OrientationLockMessage> = {
   ko: {
@@ -415,8 +417,9 @@ const getGameLayoutProfile = (
   const mainTopPaddingPx = Math.round(whitespacePx * 0.58);
   const mainBottomPaddingPx = Math.round(whitespacePx * 0.42);
   const measuredHeaderHeightPx = clamp(chromeHeights.header, 56, 180);
-  const measuredBottomAdHeightPx = clamp(chromeHeights.banner, 0, 160);
-  const availableMainHeightPx = Math.max(180, safeHeight - measuredHeaderHeightPx - measuredBottomAdHeightPx);
+  // 배너 높이는 고정값 사용: 광고 SDK 비동기 로딩에 의한 boardScale 변동 방지
+  // (실제 배너 레이아웃은 CSS flex가 정확하게 처리)
+  const availableMainHeightPx = Math.max(180, safeHeight - measuredHeaderHeightPx - STABLE_BANNER_RESERVE_PX);
   // 새로고침 버튼 행(min-h-10)과 두 번째 gap까지 포함해 정확하게 보드 높이 예산 계산
   const REFRESH_ROW_HEIGHT_PX = 40;
   const boardHeightBudgetPx =
@@ -1089,8 +1092,7 @@ const App: React.FC = () => {
   const [pressedSlotIndex, setPressedSlotIndex] = useState<number>(-1);
 
   // --- Refs ---
-  const headerRef = useRef<HTMLElement>(null);
-  const bottomBannerRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
   const boardRef = useRef<HTMLDivElement>(null);
   const boardHandleRef = useRef<BoardHandle | null>(null);
   const dragOverlayRef = useRef<HTMLDivElement>(null); // 드래그 오버레이 직접 제어용 Ref
@@ -1205,15 +1207,11 @@ const App: React.FC = () => {
 
     const updateChromeHeights = () => {
       const measuredHeader = headerRef.current?.getBoundingClientRect().height;
-      const measuredBanner = bottomBannerRef.current?.getBoundingClientRect().height;
 
       setLayoutChromeHeights((prev) => {
         const nextHeader = measuredHeader ? Math.max(56, measuredHeader) : prev.header;
-        const nextBanner = measuredBanner ? Math.max(0, measuredBanner) : prev.banner;
-        const headerChanged = Math.abs(prev.header - nextHeader) > 0.5;
-        const bannerChanged = Math.abs(prev.banner - nextBanner) > 0.5;
-        if (!headerChanged && !bannerChanged) return prev;
-        return { header: nextHeader, banner: nextBanner };
+        if (Math.abs(prev.header - nextHeader) <= 0.5) return prev;
+        return { header: nextHeader };
       });
     };
 
@@ -1229,7 +1227,6 @@ const App: React.FC = () => {
     if (typeof ResizeObserver !== 'undefined') {
       observer = new ResizeObserver(updateChromeHeights);
       if (headerRef.current) observer.observe(headerRef.current);
-      if (bottomBannerRef.current) observer.observe(bottomBannerRef.current);
     }
 
     const scheduleChromeSync = () => {
@@ -1392,10 +1389,6 @@ const App: React.FC = () => {
   }, [gameState, syncActivePlayTimer, syncEventTimer]);
 
   const restoreSavedGame = useCallback((saved: SavedGameState) => {
-    // 레이아웃 크롬 높이를 기본값으로 리셋 (이전 세션의 stale 값 방지)
-    // ResizeObserver가 PLAYING 전환 후 실제 값으로 재측정한다.
-    setLayoutChromeHeights(DEFAULT_LAYOUT_CHROME_HEIGHTS);
-
     // maxScoreThisRun: 저장값과 현재 score 중 큰 값으로 복원
     const restoredMaxScore = typeof saved.maxScoreThisRun === 'number' && Number.isFinite(saved.maxScoreThisRun)
       ? Math.max(0, Math.floor(saved.maxScoreThisRun), saved.score)
@@ -1938,9 +1931,6 @@ const App: React.FC = () => {
     }
     reviveDestroyEffectTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
     reviveDestroyEffectTimeoutsRef.current = [];
-
-    // 레이아웃 크롬 높이를 기본값으로 리셋 (MENU 상태의 stale 값 방지)
-    setLayoutChromeHeights(DEFAULT_LAYOUT_CHROME_HEIGHTS);
 
     setBoardSize(size);
     setGrid(createEmptyGrid(size));
@@ -2772,6 +2762,14 @@ const App: React.FC = () => {
     if (!isRewardAdSupported()) return;
 
     if (gameState === GameState.PLAYING) {
+      // 스킨 뽑기 모달에서는 스킨 전용 리워드 광고를 우선 사용한다.
+      // (Rewarded 광고 객체는 1회성이라 동시 선로딩 시 상태 충돌 가능)
+      if (isSkinOpen) {
+        rewardAdService.cleanup();
+        setIsAdReady(false);
+        return;
+      }
+
       // 되돌리기 횟수가 0 또는 1 이하일 때 광고 미리 로드
       if (undoRemaining <= 1) {
         rewardAdService.preloadAd();
@@ -2792,7 +2790,7 @@ const App: React.FC = () => {
       rewardAdService.cleanup();
       setIsAdReady(false);
     }
-  }, [gameState, undoRemaining]);
+  }, [gameState, undoRemaining, isSkinOpen]);
 
   useEffect(() => {
     if (blockRefreshRemaining > 0 && showBlockRefreshAdButton) {
@@ -3705,165 +3703,202 @@ const App: React.FC = () => {
     };
 
     const currentLang = normalizeLanguage(i18n.resolvedLanguage ?? i18n.language);
-    const win98UtilityButtons = (
-      <fieldset>
-        <legend>{premiumUi?.utilityLegend ?? '메뉴'}</legend>
 
-        {isFeatureUnlocked('streak') && (
-          <div className="field-row">
-            <input id="menu-action-streak" type="radio" name={premiumMenuActionRadioGroupName} onClick={openStreakInfoModal} readOnly />
-            <label htmlFor="menu-action-streak">
-              {todayAttended ? '🔥' : '🔥'} {t('common:streak.title')} ({streakCount})
-            </label>
+    const weeklyEventUnlocked = isFeatureUnlocked('weekly_event');
+    const win98WeeklyEventButton = (
+      <div className="relative w-full h-[52px] mb-3">
+        <button
+          onClick={() => {
+            if (weeklyEventUnlocked) {
+              openWeeklyEventModal();
+            } else {
+              showComboMessage(`🔒 ${String(t('game:actions.weeklyEventLocked', { count: 10 } as any))}`, 2000);
+            }
+          }}
+          className="w-full h-full text-left font-bold px-4 flex items-center justify-between"
+          style={{ fontSize: '16px' }}
+        >
+          <span>{weeklyEventUnlocked ? '🎯 ' : '🔒 '}{t('game:weeklyEvent.menuButton')}</span>
+          <span style={{ fontSize: '14px', fontWeight: 'normal', color: weeklyEventUnlocked ? 'inherit' : '#666', paddingRight: (weeklyEventUnlocked && hasActiveEventGame()) ? '48px' : '0' }}>
+            {weeklyEventUnlocked ? t('game:weeklyEvent.menuTag') : String(t('game:actions.weeklyEventLocked', { count: 10 } as any))}
+          </span>
+        </button>
+        {weeklyEventUnlocked && hasActiveEventGame() && (
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              continueWeeklyEvent();
+            }}
+            className="absolute flex items-center justify-center font-bold cursor-pointer"
+            style={{
+              right: '2px', top: '2px', bottom: '2px', width: '48px',
+              borderLeft: '1px solid #808080', boxShadow: '-1px 0 0 #fff',
+              fontSize: '18px'
+            }}
+            title={t('game:difficulties.continue')}
+          >
+            <span style={{ transform: 'scaleY(1.2)' }}>{'>'}</span>
           </div>
         )}
-
-        <div className="field-row">
-          <input id="menu-action-xplevel" type="radio" name={premiumMenuActionRadioGroupName} onClick={openXpModal} readOnly />
-          <label htmlFor="menu-action-xplevel">
-            ⭐ Lv.{xpLevel} ({xpPercent}%)
-          </label>
-        </div>
-
-        <div className="field-row">
-          <input id="menu-action-replay" type="radio" name={premiumMenuActionRadioGroupName} onClick={handleReplayTutorial} readOnly />
-          <label htmlFor="menu-action-replay">{t('common:actions.replayTutorial', '튜토리얼 다시보기')}</label>
-        </div>
-
-        <fieldset style={{ marginTop: '8px' }}>
-          <legend>{premiumUi?.languageLegend ?? '언어'}</legend>
-          {(Object.keys(LANGUAGE_CONFIGS) as SupportedLanguage[]).map((langCode) => (
-            <div key={langCode} className="field-row">
-              <input
-                id={`menu-lang-${langCode}`}
-                type="radio"
-                name={premiumLanguageRadioGroupName}
-                checked={currentLang === langCode}
-                onClick={() => setLanguageFromMenu(langCode)}
-                readOnly
-              />
-              <label htmlFor={`menu-lang-${langCode}`}>
-                {LANGUAGE_CONFIGS[langCode].displayName} {LANGUAGE_CONFIGS[langCode].flag}
-              </label>
-            </div>
-          ))}
-        </fieldset>
-      </fieldset>
+      </div>
     );
 
     const activeNormalSize = getActiveNormalGameBoardSize();
     const win98DifficultyRows = (
-      <>
-        <div className="field-row">
-          <input id="difficulty-4" type="radio" name={premiumDifficultyRadioGroupName} checked={boardSize === 4} onChange={() => tryStartGame(4)} />
-          <label htmlFor="difficulty-4" style={{ flex: 1 }}>{t('game:difficulties.expert')} ({t('game:boardSizes.4x4')})</label>
-          {activeNormalSize === 4 && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const saved = loadGameState();
-                if (saved) restoreSavedGame(saved);
-              }}
-              className="ml-2 px-2 py-0.5"
-              title={t('game:difficulties.continue')}
-              aria-label={t('game:difficulties.continue')}
-            >
-              {'>'}
-            </button>
+      <div className="flex flex-col gap-2 mt-2">
+        {([
+          { size: 4 as BoardSize, label: t('game:difficulties.expert'), sizeLabel: t('game:boardSizes.4x4'), emoji: '🔥' },
+          { size: 5 as BoardSize, label: t('game:difficulties.normal'), sizeLabel: t('game:boardSizes.5x5'), emoji: '' },
+          { size: 7 as BoardSize, label: t('game:difficulties.beginner'), sizeLabel: t('game:boardSizes.7x7'), emoji: '' },
+          { size: 8 as BoardSize, label: t('game:difficulties.easy'), sizeLabel: t('game:boardSizes.8x8'), emoji: '' },
+          { size: 10 as BoardSize, label: t('game:difficulties.infinite'), sizeLabel: t('game:boardSizes.10x10'), emoji: '' },
+        ]).map(mode => {
+          const hasResume = activeNormalSize === mode.size;
+          return (
+            <div key={mode.size} className="relative w-full h-[52px]">
+              <button
+                onClick={() => {
+                  tryStartGame(mode.size);
+                  if (mode.size === 5) localStorage.setItem('tutorial_game_mode_seen_v1', 'true');
+                }}
+                className="w-full h-full text-left font-bold px-4 flex items-center justify-between"
+                style={{ fontSize: '16px' }}
+              >
+                <span>{mode.emoji ? `${mode.emoji} ` : ''}{mode.label}</span>
+                <span style={{ fontSize: '14px', fontWeight: 'normal', color: '#666', paddingRight: hasResume ? '48px' : '0' }}>{mode.sizeLabel}</span>
+              </button>
+              {hasResume && (
+                <div
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const saved = loadGameState();
+                    if (saved) restoreSavedGame(saved);
+                  }}
+                  className="absolute flex items-center justify-center font-bold cursor-pointer"
+                  style={{
+                    right: '2px', top: '2px', bottom: '2px', width: '48px',
+                    borderLeft: '1px solid #808080', boxShadow: '-1px 0 0 #fff',
+                    fontSize: '18px'
+                  }}
+                  title={t('game:difficulties.continue')}
+                >
+                  <span style={{ transform: 'scaleY(1.2)' }}>{'>'}</span>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+
+    const win98UtilityButtons = (
+      <fieldset style={{ marginTop: '16px' }}>
+        <legend className="font-bold">{premiumUi?.utilityLegend ?? '메뉴'}</legend>
+        <div className="flex flex-col gap-2 mt-2">
+          {isFeatureUnlocked('streak') && (
+            <div className="relative w-full h-[52px]">
+              <button
+                className="w-full h-full text-left font-bold px-4 flex items-center"
+                style={{ fontSize: '16px' }}
+                onClick={openStreakInfoModal}
+              >
+                {todayAttended ? '🔥' : '🔥'} {t('common:streak.title')} ({streakCount})
+              </button>
+              <div
+                onClick={openStreakInfoModal}
+                className="absolute flex items-center justify-center font-bold cursor-pointer"
+                style={{
+                  right: '2px', top: '2px', bottom: '2px', width: '48px',
+                  borderLeft: '1px solid #808080', boxShadow: '-1px 0 0 #fff',
+                  fontSize: '18px'
+                }}
+              >
+                <span style={{ transform: 'scaleY(1.2)' }}>{'>'}</span>
+              </div>
+            </div>
           )}
-        </div>
-        <div className="field-row">
-          <input
-            id="difficulty-5"
-            type="radio"
-            name={premiumDifficultyRadioGroupName}
-            checked={boardSize === 5}
-            onChange={() => {
-              tryStartGame(5);
-              localStorage.setItem('tutorial_game_mode_seen_v1', 'true');
-            }}
-          />
-          <label htmlFor="difficulty-5" style={{ flex: 1 }}>{t('game:difficulties.normal')} ({t('game:boardSizes.5x5')})</label>
-          {activeNormalSize === 5 && (
+
+          <div className="relative w-full h-[52px]">
             <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const saved = loadGameState();
-                if (saved) restoreSavedGame(saved);
-              }}
-              className="ml-2 px-2 py-0.5"
-              title={t('game:difficulties.continue')}
-              aria-label={t('game:difficulties.continue')}
+              className="w-full h-full text-left font-bold px-4 flex items-center"
+              style={{ fontSize: '16px' }}
+              onClick={openXpModal}
             >
-              {'>'}
+              ⭐ Lv.{xpLevel} ({xpPercent}%)
             </button>
-          )}
-        </div>
-        <div className="field-row">
-          <input id="difficulty-7" type="radio" name={premiumDifficultyRadioGroupName} checked={boardSize === 7} onChange={() => tryStartGame(7)} />
-          <label htmlFor="difficulty-7" style={{ flex: 1 }}>{t('game:difficulties.beginner')} ({t('game:boardSizes.7x7')})</label>
-          {activeNormalSize === 7 && (
+            <div
+              onClick={openXpModal}
+              className="absolute flex items-center justify-center font-bold cursor-pointer"
+              style={{
+                right: '2px', top: '2px', bottom: '2px', width: '48px',
+                borderLeft: '1px solid #808080', boxShadow: '-1px 0 0 #fff',
+                fontSize: '18px'
+              }}
+            >
+              <span style={{ transform: 'scaleY(1.2)' }}>{'>'}</span>
+            </div>
+          </div>
+
+          <div className="relative w-full h-[52px]">
             <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const saved = loadGameState();
-                if (saved) restoreSavedGame(saved);
-              }}
-              className="ml-2 px-2 py-0.5"
-              title={t('game:difficulties.continue')}
-              aria-label={t('game:difficulties.continue')}
+              className="w-full h-full text-left font-bold px-4 flex items-center"
+              style={{ fontSize: '16px' }}
+              onClick={handleReplayTutorial}
             >
-              {'>'}
+              ✨ {t('common:actions.replayTutorial', '튜토리얼 다시보기')}
             </button>
-          )}
-        </div>
-        <div className="field-row">
-          <input id="difficulty-8" type="radio" name={premiumDifficultyRadioGroupName} checked={boardSize === 8} onChange={() => tryStartGame(8)} />
-          <label htmlFor="difficulty-8" style={{ flex: 1 }}>{t('game:difficulties.easy')} ({t('game:boardSizes.8x8')})</label>
-          {activeNormalSize === 8 && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const saved = loadGameState();
-                if (saved) restoreSavedGame(saved);
+            <div
+              onClick={handleReplayTutorial}
+              className="absolute flex items-center justify-center font-bold cursor-pointer"
+              style={{
+                right: '2px', top: '2px', bottom: '2px', width: '48px',
+                borderLeft: '1px solid #808080', boxShadow: '-1px 0 0 #fff',
+                fontSize: '18px'
               }}
-              className="ml-2 px-2 py-0.5"
-              title={t('game:difficulties.continue')}
-              aria-label={t('game:difficulties.continue')}
             >
-              {'>'}
-            </button>
-          )}
+              <span style={{ transform: 'scaleY(1.2)' }}>{'>'}</span>
+            </div>
+          </div>
+
+          <fieldset style={{ marginTop: '12px' }}>
+            <legend className="font-bold">{premiumUi?.languageLegend ?? '언어'}</legend>
+            <div className="flex flex-col gap-2 mt-2">
+              {(Object.keys(LANGUAGE_CONFIGS) as SupportedLanguage[]).map((langCode) => {
+                const isSelected = currentLang === langCode;
+                return (
+                  <div key={langCode} className="relative w-full h-[52px]">
+                    <button
+                      className="w-full h-full text-left px-4 flex items-center justify-between"
+                      onClick={() => setLanguageFromMenu(langCode)}
+                      style={{
+                        fontSize: '15px',
+                        fontWeight: isSelected ? 'bold' : 'normal',
+                        boxShadow: isSelected ? 'inset 1px 1px #000, inset -1px -1px #fff' : '',
+                        backgroundColor: isSelected ? '#d4d0c8' : ''
+                      }}
+                    >
+                      <span className="font-bold">{LANGUAGE_CONFIGS[langCode].displayName} {LANGUAGE_CONFIGS[langCode].flag}</span>
+                      {isSelected && <span style={{ fontSize: '14px', color: '#000', fontWeight: 'bold', paddingRight: '48px' }}>v</span>}
+                    </button>
+                    <div
+                      onClick={() => setLanguageFromMenu(langCode)}
+                      className="absolute flex items-center justify-center font-bold cursor-pointer"
+                      style={{
+                        right: '2px', top: '2px', bottom: '2px', width: '48px',
+                        borderLeft: '1px solid #808080', boxShadow: '-1px 0 0 #fff',
+                        fontSize: '18px'
+                      }}
+                    >
+                      <span style={{ transform: 'scaleY(1.2)' }}>{'>'}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </fieldset>
         </div>
-        <div className="field-row">
-          <input id="difficulty-10" type="radio" name={premiumDifficultyRadioGroupName} checked={boardSize === 10} onChange={() => tryStartGame(10)} />
-          <label htmlFor="difficulty-10" style={{ flex: 1 }}>{t('game:difficulties.infinite')} ({t('game:boardSizes.10x10')})</label>
-          {activeNormalSize === 10 && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const saved = loadGameState();
-                if (saved) restoreSavedGame(saved);
-              }}
-              className="ml-2 px-2 py-0.5"
-              title={t('game:difficulties.continue')}
-              aria-label={t('game:difficulties.continue')}
-            >
-              {'>'}
-            </button>
-          )}
-        </div>
-      </>
+      </fieldset>
     );
 
     const menuActionButtons = (
@@ -4164,9 +4199,10 @@ const App: React.FC = () => {
                 </div>
               </div>
               <div className="window-body">
-                <div className="win98-radio-group">
+                <div className="win98-radio-group p-1">
+                  {win98WeeklyEventButton}
                   <fieldset>
-                    <legend>{premiumUi?.difficultyLegend ?? '난이도 선택 메뉴'}</legend>
+                    <legend className="font-bold">{premiumUi?.difficultyLegend ?? '난이도 선택 메뉴'}</legend>
                     {win98DifficultyRows}
                   </fieldset>
                   {win98UtilityButtons}
@@ -4488,195 +4524,195 @@ const App: React.FC = () => {
       >
         {/* 상단 크롬 래퍼: safe-area + 이벤트/데일리 배너 + 헤더를 하나로 측정 */}
         <div ref={headerRef} className="w-full flex flex-col items-center shrink-0" style={{ paddingTop: 'var(--game-safe-top)' }}>
-        {isWin98ThemeActive && (
-          <div
-            className="window w-full"
-            style={{
-              maxWidth: `${gameLayoutProfile.columnWidthPx}px`,
-              marginTop: '8px',
-            }}
-          >
-            <div className="title-bar">
-              <div className="title-bar-text">{premiumTopWindowTitleSingleLine}</div>
-              <div className="title-bar-controls">
-                <button aria-label="Help" onClick={openHelpModal} />
-                <button aria-label="Close" onClick={handleHomeButtonClick} disabled={isAnimating} />
+          {isWin98ThemeActive && (
+            <div
+              className="window w-full"
+              style={{
+                maxWidth: `${gameLayoutProfile.columnWidthPx}px`,
+                marginTop: '8px',
+              }}
+            >
+              <div className="title-bar">
+                <div className="title-bar-text">{premiumTopWindowTitleSingleLine}</div>
+                <div className="title-bar-controls">
+                  <button aria-label="Help" onClick={openHelpModal} />
+                  <button aria-label="Close" onClick={handleHomeButtonClick} disabled={isAnimating} />
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* 데일리 챌린지 배너 */}
-        {gameMode === 'daily_challenge' && (
-          <div
-            className="w-full text-center py-1.5 bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-white text-xs font-bold tracking-wide"
-            style={{
-              maxWidth: `${gameLayoutProfile.columnWidthPx}px`,
-            }}
-          >
-            🏆 {t('game:dailyChallenge.banner')}
-          </div>
-        )}
+          {/* 데일리 챌린지 배너 */}
+          {gameMode === 'daily_challenge' && (
+            <div
+              className="w-full text-center py-1.5 bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-white text-xs font-bold tracking-wide"
+              style={{
+                maxWidth: `${gameLayoutProfile.columnWidthPx}px`,
+              }}
+            >
+              🏆 {t('game:dailyChallenge.banner')}
+            </div>
+          )}
 
-        {/* 주간 이벤트 배너 */}
-        {gameMode === 'weekly_event' && eventRuleRef.current && (
-          <div
-            className="w-full text-center py-1.5 bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 text-white text-xs font-bold tracking-wide flex items-center justify-center gap-2"
-            style={{
-              maxWidth: `${gameLayoutProfile.columnWidthPx}px`,
-            }}
-          >
-            <span>{t(`game:weeklyEvent.events.${eventRuleRef.current.type}.name`)}</span>
-            {eventTimerDisplay && (
-              <span className="px-2 py-0.5 bg-white/20 rounded-full text-[10px] tabular-nums">
-                ⏱ {eventTimerDisplay}
+          {/* 주간 이벤트 배너 */}
+          {gameMode === 'weekly_event' && eventRuleRef.current && (
+            <div
+              className="w-full text-center py-1.5 bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 text-white text-xs font-bold tracking-wide flex items-center justify-center gap-2"
+              style={{
+                maxWidth: `${gameLayoutProfile.columnWidthPx}px`,
+              }}
+            >
+              <span>{t(`game:weeklyEvent.events.${eventRuleRef.current.type}.name`)}</span>
+              {eventTimerDisplay && (
+                <span className="px-2 py-0.5 bg-white/20 rounded-full text-[10px] tabular-nums">
+                  ⏱ {eventTimerDisplay}
+                </span>
+              )}
+              <span className="text-[10px] opacity-80">
+                {String(t('game:weeklyEvent.tags.attempts', { current: eventAttemptNumberRef.current, max: 3 } as any))}
               </span>
-            )}
-            <span className="text-[10px] opacity-80">
-              {String(t('game:weeklyEvent.tags.attempts', { current: eventAttemptNumberRef.current, max: 3 } as any))}
-            </span>
-          </div>
-        )}
+            </div>
+          )}
 
-        {/* Header */}
-        <header
-          className={`w-full flex justify-between items-center p-4 ${isWin98ThemeActive ? 'win98-game-header' : ''}`}
-          style={{
-            maxWidth: `${gameLayoutProfile.columnWidthPx}px`,
-            // safe-top은 상단 래퍼가 일괄 담당하므로 헤더는 내부 여백만 설정
-            paddingTop: isWin98ThemeActive ? '8px' : '16px',
-            // 앱인토스: 우측 상단 공통 내비게이션 영역 확보
-            paddingRight: 'calc(16px + var(--appintos-nav-safe-right))'
-          }}
-        >
-          <div className="flex items-center gap-3">
-            {/* Home Button */}
-            <button
-              type="button"
-              onClick={handleHomeButtonClick}
-              disabled={isAnimating}
-              className={`
+          {/* Header */}
+          <header
+            className={`w-full flex justify-between items-center p-4 ${isWin98ThemeActive ? 'win98-game-header' : ''}`}
+            style={{
+              maxWidth: `${gameLayoutProfile.columnWidthPx}px`,
+              // safe-top은 상단 래퍼가 일괄 담당하므로 헤더는 내부 여백만 설정
+              paddingTop: isWin98ThemeActive ? '8px' : '16px',
+              // 앱인토스: 우측 상단 공통 내비게이션 영역 확보
+              paddingRight: 'calc(16px + var(--appintos-nav-safe-right))'
+            }}
+          >
+            <div className="flex items-center gap-3">
+              {/* Home Button */}
+              <button
+                type="button"
+                onClick={handleHomeButtonClick}
+                disabled={isAnimating}
+                className={`
               p-2.5 rounded-full flex items-center justify-center win98-icon-btn
               border shadow-sm transition-all duration-200
               ${isAnimating
-                  ? 'bg-gray-100/50 text-gray-300 border-gray-200/50 cursor-not-allowed'
-                  : 'bg-white/70 hover:bg-white text-gray-700 border-white/50 hover:shadow-md active:scale-95'
-                }
+                    ? 'bg-gray-100/50 text-gray-300 border-gray-200/50 cursor-not-allowed'
+                    : 'bg-white/70 hover:bg-white text-gray-700 border-white/50 hover:shadow-md active:scale-95'
+                  }
             `}
-              aria-label={t('common:aria.home')}
-            >
-              <Home size={18} />
-            </button>
-            <div className="space-y-0.5">
-              <h2 className="text-sm font-medium text-gray-400 uppercase tracking-wider">
-                {t('common:labels.score')}
-                {liveRankEstimate !== null && gameState === GameState.PLAYING
-                  && score > 0 && liveRankEstimate.totalEntries >= 2 && (
-                    <span className="ml-2 text-xs font-semibold text-blue-600">
-                      {String(t('game:liveRank.estimatedRank', { rank: liveRankEstimate.rank } as any))}
-                    </span>
-                  )}
-              </h2>
-              <p className="text-3xl font-bold text-gray-900 tabular-nums">{score}</p>
-              {currentLevelBadge && (
-                <p className="text-xs font-semibold text-purple-600">
-                  {currentLevelBadge.emoji} Lv.{currentLevelBadge.level}
-                </p>
-              )}
-              {liveRankEstimate !== null && gameState === GameState.PLAYING
-                && score > 0 && liveRankEstimate.totalEntries >= 2 && (
-                  <p className="text-xs font-semibold text-blue-500">
-                    {liveRankEstimate.pointsToNext > 0
-                      ? String(t('game:liveRank.pointsToNext', { points: liveRankEstimate.pointsToNext } as any))
-                      : t('game:liveRank.topRank')}
+                aria-label={t('common:aria.home')}
+              >
+                <Home size={18} />
+              </button>
+              <div className="space-y-0.5">
+                <h2 className="text-sm font-medium text-gray-400 uppercase tracking-wider">
+                  {t('common:labels.score')}
+                  {liveRankEstimate !== null && gameState === GameState.PLAYING
+                    && score > 0 && liveRankEstimate.totalEntries >= 2 && (
+                      <span className="ml-2 text-xs font-semibold text-blue-600">
+                        {String(t('game:liveRank.estimatedRank', { rank: liveRankEstimate.rank } as any))}
+                      </span>
+                    )}
+                </h2>
+                <p className="text-3xl font-bold text-gray-900 tabular-nums">{score}</p>
+                {currentLevelBadge && (
+                  <p className="text-xs font-semibold text-purple-600">
+                    {currentLevelBadge.emoji} Lv.{currentLevelBadge.level}
                   </p>
                 )}
+                {liveRankEstimate !== null && gameState === GameState.PLAYING
+                  && score > 0 && liveRankEstimate.totalEntries >= 2 && (
+                    <p className="text-xs font-semibold text-blue-500">
+                      {liveRankEstimate.pointsToNext > 0
+                        ? String(t('game:liveRank.pointsToNext', { points: liveRankEstimate.pointsToNext } as any))
+                        : t('game:liveRank.topRank')}
+                    </p>
+                  )}
+              </div>
             </div>
-          </div>
-          <div className="flex flex-col items-end gap-2 transition-all duration-200">
-            {/* Phase Indicator - Glass Pill */}
-            <div className={`
+            <div className="flex flex-col items-end gap-2 transition-all duration-200">
+              {/* Phase Indicator - Glass Pill */}
+              <div className={`
             px-4 py-2 rounded-full text-sm font-semibold flex items-center justify-center gap-2 win98-pill-btn
             ${isWin98ThemeActive ? 'win98-header-main-btn' : ''}
             transition-all duration-200 ease-out
             ${phaseIndicatorInteractivityClass}
             ${isPlacePhase
-                ? 'bg-emerald-50/90 backdrop-blur-sm border border-emerald-200/90 text-emerald-700 shadow-sm'
-                : 'bg-slate-100/90 backdrop-blur-sm border border-slate-300/80 text-slate-700 shadow-sm'
-              }
+                  ? 'bg-emerald-50/90 backdrop-blur-sm border border-emerald-200/90 text-emerald-700 shadow-sm'
+                  : 'bg-slate-100/90 backdrop-blur-sm border border-slate-300/80 text-slate-700 shadow-sm'
+                }
           `}
-              aria-disabled={!isPlacePhase}
-              tabIndex={isPlacePhase ? 0 : -1}
-            >
-              {isPlacePhase ? t('game:phases.place') : t('game:phases.swipe')}
-              {isSwipePhase && <Move size={14} />}
-            </div>
+                aria-disabled={!isPlacePhase}
+                tabIndex={isPlacePhase ? 0 : -1}
+              >
+                {isPlacePhase ? t('game:phases.place') : t('game:phases.swipe')}
+                {isSwipePhase && <Move size={14} />}
+              </div>
 
-            {/* Help & Undo Buttons - Same Row */}
-            <div className="flex items-center gap-2">
-              {/* Help Button */}
-              <button
-                type="button"
-                onClick={openHelpModal}
-                disabled={isReviveSelectionMode}
-                className={`
+              {/* Help & Undo Buttons - Same Row */}
+              <div className="flex items-center gap-2">
+                {/* Help Button */}
+                <button
+                  type="button"
+                  onClick={openHelpModal}
+                  disabled={isReviveSelectionMode}
+                  className={`
                   p-2 rounded-full text-gray-600 win98-icon-btn ${isWin98ThemeActive ? 'win98-header-icon-btn' : ''}
                   flex items-center justify-center leading-none
                   bg-white/70 hover:bg-white border border-white/50
                   shadow-sm hover:shadow-md transition-all duration-200 active:scale-95
                   ${(isSwipeFocusMode || isReviveSelectionMode) ? 'opacity-35 grayscale pointer-events-none select-none' : ''}
                 `}
-                aria-label={t('common:aria.help')}
-              >
-                <HelpCircle size={18} className="block" />
-              </button>
+                  aria-label={t('common:aria.help')}
+                >
+                  <HelpCircle size={18} className="block" />
+                </button>
 
-              {/* Undo / Recharge Button (single slot) */}
-              <button
-                id="game-undo-btn"
-                type="button"
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                }}
-                onClick={canUseUndoRechargeAd ? handleWatchRewardAd : executeUndo}
-                disabled={
-                  canUseUndoRechargeAd
-                    ? (isAnimating || isReviveSelectionMode)
-                    : (isUndoLockedByMode || !lastSnapshot || undoRemaining <= 0 || isAnimating || isReviveSelectionMode)
-                }
-                aria-label={
-                  canUseUndoRechargeAd
-                    ? t('game:rewardAd.watchButtonFull')
-                    : t('game:actions.undo')
-                }
-                className={`
+                {/* Undo / Recharge Button (single slot) */}
+                <button
+                  id="game-undo-btn"
+                  type="button"
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                  }}
+                  onClick={canUseUndoRechargeAd ? handleWatchRewardAd : executeUndo}
+                  disabled={
+                    canUseUndoRechargeAd
+                      ? (isAnimating || isReviveSelectionMode)
+                      : (isUndoLockedByMode || !lastSnapshot || undoRemaining <= 0 || isAnimating || isReviveSelectionMode)
+                  }
+                  aria-label={
+                    canUseUndoRechargeAd
+                      ? t('game:rewardAd.watchButtonFull')
+                      : t('game:actions.undo')
+                  }
+                  className={`
                 px-3 py-1.5 rounded-full text-xs font-semibold flex items-center justify-center gap-2 win98-game-btn ${isWin98ThemeActive ? 'win98-header-action-btn' : ''}
                 border shadow-sm transition-all duration-200
                 ${undoFocusSurfaceClass}
                 pointer-events-auto
                 ${canUseUndoRechargeAd
-                    ? `bg-gradient-to-r from-yellow-500 to-amber-500 text-white border-yellow-400/50 shadow-md active:scale-95 ${isSwipeFocusMode ? 'opacity-35 grayscale pointer-events-none select-none' : ''} ${(isAnimating || isReviveSelectionMode) ? 'opacity-50 cursor-not-allowed' : 'hover:from-yellow-600 hover:to-amber-600 hover:shadow-lg'}`
-                    : (isUndoLockedByMode || !lastSnapshot || undoRemaining <= 0 || isAnimating || isReviveSelectionMode)
-                      ? 'bg-gray-100/50 text-gray-300 border-gray-200/50 cursor-not-allowed'
-                      : 'bg-white/70 hover:bg-white text-gray-700 border-white/50 hover:shadow-md active:scale-95'
-                  }
+                      ? `bg-gradient-to-r from-yellow-500 to-amber-500 text-white border-yellow-400/50 shadow-md active:scale-95 ${isSwipeFocusMode ? 'opacity-35 grayscale pointer-events-none select-none' : ''} ${(isAnimating || isReviveSelectionMode) ? 'opacity-50 cursor-not-allowed' : 'hover:from-yellow-600 hover:to-amber-600 hover:shadow-lg'}`
+                      : (isUndoLockedByMode || !lastSnapshot || undoRemaining <= 0 || isAnimating || isReviveSelectionMode)
+                        ? 'bg-gray-100/50 text-gray-300 border-gray-200/50 cursor-not-allowed'
+                        : 'bg-white/70 hover:bg-white text-gray-700 border-white/50 hover:shadow-md active:scale-95'
+                    }
               `}
-              >
-                {canUseUndoRechargeAd ? (
-                  <>
-                    <span>📺</span>
-                    <span>{t('game:rewardAd.watchButton')}</span>
-                  </>
-                ) : (
-                  <>
-                    <Undo2 size={14} />
-                    <span className="tabular-nums">{undoRemaining}</span>
-                  </>
-                )}
-              </button>
+                >
+                  {canUseUndoRechargeAd ? (
+                    <>
+                      <span>📺</span>
+                      <span>{t('game:rewardAd.watchButton')}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Undo2 size={14} />
+                      <span className="tabular-nums">{undoRemaining}</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
-          </div>
-        </header>
+          </header>
         </div>{/* /상단 크롬 래퍼 */}
 
         {/* Main Game Area */}
@@ -4855,7 +4891,7 @@ const App: React.FC = () => {
         <HelpModal isOpen={showHelpModal} onClose={() => setShowHelpModal(false)} />
 
         {/* Ad Banner for Game Screen: flex flow 기반으로 하단에 배치 (fixed 제거 → 레이아웃 shift 방지) */}
-        <div ref={bottomBannerRef} className="w-full shrink-0">
+        <div className="w-full shrink-0">
           <div className={`
           w-full bg-white/50 backdrop-blur-sm border-t border-white/20
           transition-opacity duration-200

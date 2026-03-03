@@ -87,10 +87,15 @@ class SkinRewardAdService {
   private lastLoadError: AdMobError | null = null;
   private isProcessingShow = false;
   private rewardIssuedForCurrentShow = false;
+  private adClosedForCurrentShow = false;
+  private adClosedNotifiedForCurrentShow = false;
   private admobCallbacks: SkinRewardAdCallbacks | null = null;
+  private finalizeAfterDismissTimer: ReturnType<typeof setTimeout> | null = null;
   private dailyLimiter = new SkinDailyAdLimiter();
   private readonly loadRetryBackoff = new RetryBackoffScheduler();
   private readonly showCooldown = new CooldownGate(7000);
+  // 일부 광고 네트워크는 close/reward 콜백 순서가 뒤바뀔 수 있어 짧은 유예를 둔다.
+  private readonly lateRewardGraceMs = 2500;
   // 시간당 최대 8회 노출 제한 (일일 3회 한도의 안전 마진)
   private readonly hourlyFrequencyCap = new HourlyFrequencyCap(8);
   // 90초 내 5회 초과 시 2분 차단 (정상 사용은 도달 불가, 자동 스크립트만 감지)
@@ -131,33 +136,30 @@ class SkinRewardAdService {
     AdMob.addListener(RewardAdPluginEvents.FailedToShow, () => {
       if (!this.isHandlingActiveShow()) return;
       this.loadStatus = 'failed';
-      this.isProcessingShow = false;
-      this.rewardIssuedForCurrentShow = false;
-      if (this.admobCallbacks) {
-        this.admobCallbacks.onError(new Error('스킨 광고 표시 실패'));
-        this.admobCallbacks = null;
-      }
+      const callbacks = this.admobCallbacks;
+      this.finalizeActiveShowSession();
+      callbacks?.onError(new Error('스킨 광고 표시 실패'));
     });
 
-    AdMob.addListener(RewardAdPluginEvents.Rewarded, (_reward: AdMobRewardItem) => {
-      if (this.admobCallbacks && !this.rewardIssuedForCurrentShow) {
-        if (this.dailyLimiter.recordWatch()) {
-          this.hourlyFrequencyCap.record();
-          this.abuseGuard.record();
-          this.rewardIssuedForCurrentShow = true;
-          this.admobCallbacks.onRewardEarned();
-        }
-      }
+    AdMob.addListener(RewardAdPluginEvents.Rewarded, (reward: AdMobRewardItem) => {
+      this.handleRewardEarned(reward);
     });
 
     AdMob.addListener(RewardAdPluginEvents.Dismissed, () => {
       if (!this.isHandlingActiveShow()) return;
+      // 보상형 광고는 1회성 오브젝트라서 닫힌 시점에 즉시 무효화해야 다음 preload가 정상 동작한다.
+      this.loadStatus = 'not_loaded';
       this.isProcessingShow = false;
-      this.rewardIssuedForCurrentShow = false;
-      if (this.admobCallbacks) {
-        this.admobCallbacks.onAdClosed();
-        this.admobCallbacks = null;
+
+      this.adClosedForCurrentShow = true;
+      this.notifyAdClosedOnce();
+
+      if (this.rewardIssuedForCurrentShow) {
+        this.finalizeActiveShowSession();
+      } else {
+        this.scheduleFinalizeAfterDismiss();
       }
+
       setTimeout(() => this.preloadAd(), 100);
     });
   }
@@ -247,8 +249,11 @@ class SkinRewardAdService {
     }
 
     this.showCooldown.mark();
+    this.clearFinalizeAfterDismissTimer();
     this.isProcessingShow = true;
     this.rewardIssuedForCurrentShow = false;
+    this.adClosedForCurrentShow = false;
+    this.adClosedNotifiedForCurrentShow = false;
     this.admobCallbacks = callbacks;
 
     void this.showAdMobAd(callbacks);
@@ -256,13 +261,12 @@ class SkinRewardAdService {
 
   private async showAdMobAd(callbacks: SkinRewardAdCallbacks): Promise<void> {
     try {
-      await AdMob.showRewardVideoAd();
+      const reward = await AdMob.showRewardVideoAd();
       this.loadStatus = 'not_loaded';
+      this.handleRewardEarned(reward);
     } catch (error) {
       this.loadStatus = 'failed';
-      this.isProcessingShow = false;
-      this.rewardIssuedForCurrentShow = false;
-      this.admobCallbacks = null;
+      this.finalizeActiveShowSession();
       callbacks.onError(error as Error);
     }
   }
@@ -277,6 +281,54 @@ class SkinRewardAdService {
 
   private isHandlingActiveShow(): boolean {
     return this.isProcessingShow || this.admobCallbacks !== null;
+  }
+
+  private handleRewardEarned(_reward: AdMobRewardItem): void {
+    if (!this.admobCallbacks || this.rewardIssuedForCurrentShow) return;
+
+    if (!this.dailyLimiter.recordWatch()) {
+      this.admobCallbacks.onDailyLimitReached?.();
+      this.finalizeActiveShowSession();
+      return;
+    }
+
+    this.hourlyFrequencyCap.record();
+    this.abuseGuard.record();
+    this.rewardIssuedForCurrentShow = true;
+    this.admobCallbacks.onRewardEarned();
+
+    if (this.adClosedForCurrentShow) {
+      this.finalizeActiveShowSession();
+    }
+  }
+
+  private notifyAdClosedOnce(): void {
+    if (!this.admobCallbacks || this.adClosedNotifiedForCurrentShow) return;
+    this.adClosedNotifiedForCurrentShow = true;
+    this.admobCallbacks.onAdClosed();
+  }
+
+  private scheduleFinalizeAfterDismiss(): void {
+    this.clearFinalizeAfterDismissTimer();
+    this.finalizeAfterDismissTimer = setTimeout(() => {
+      this.finalizeAfterDismissTimer = null;
+      this.finalizeActiveShowSession();
+    }, this.lateRewardGraceMs);
+  }
+
+  private clearFinalizeAfterDismissTimer(): void {
+    if (!this.finalizeAfterDismissTimer) return;
+    clearTimeout(this.finalizeAfterDismissTimer);
+    this.finalizeAfterDismissTimer = null;
+  }
+
+  private finalizeActiveShowSession(): void {
+    this.clearFinalizeAfterDismissTimer();
+    this.isProcessingShow = false;
+    this.rewardIssuedForCurrentShow = false;
+    this.adClosedForCurrentShow = false;
+    this.adClosedNotifiedForCurrentShow = false;
+    this.admobCallbacks = null;
   }
 
   private normalizeAdMobError(error: unknown): AdMobError {

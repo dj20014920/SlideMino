@@ -89,17 +89,15 @@ export const StreakInfoModal: React.FC<StreakInfoModalProps> = ({ open, onClose 
               <span className="text-sm text-gray-600">{t('common:streak.autoFreeze')}</span>
               <button
                 onClick={handleAutoFreezeToggle}
-                className={`relative inline-flex h-6 w-12 shrink-0 items-center rounded-full transition-colors ${
-                  data.autoFreezeEnabled ? 'bg-blue-500' : 'bg-gray-300'
-                }`}
+                className={`relative inline-flex h-6 w-12 shrink-0 items-center rounded-full transition-colors ${data.autoFreezeEnabled ? 'bg-blue-500' : 'bg-gray-300'
+                  }`}
                 role="switch"
                 aria-checked={data.autoFreezeEnabled}
                 aria-label={t('common:streak.autoFreeze')}
               >
                 <span
-                  className={`pointer-events-none absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                    data.autoFreezeEnabled ? 'translate-x-6' : 'translate-x-0'
-                  }`}
+                  className={`pointer-events-none absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${data.autoFreezeEnabled ? 'translate-x-6' : 'translate-x-0'
+                    }`}
                 />
               </button>
             </div>
@@ -119,9 +117,8 @@ export const StreakInfoModal: React.FC<StreakInfoModalProps> = ({ open, onClose 
                 return (
                   <div
                     key={milestone.id}
-                    className={`flex items-center justify-between rounded-xl px-4 py-3 ${
-                      earned ? 'bg-amber-50 border border-amber-200' : 'bg-gray-50 border border-gray-100'
-                    }`}
+                    className={`flex items-center justify-between rounded-xl px-4 py-3 ${earned ? 'bg-amber-50 border border-amber-200' : 'bg-gray-50 border border-gray-100'
+                      }`}
                   >
                     <div className="flex items-center gap-3">
                       <span className={`text-xl ${earned ? '' : 'opacity-30 grayscale'}`}>

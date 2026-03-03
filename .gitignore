@@ -145,6 +145,11 @@ functions/api/skin-gifts/
 functions/utils/adminAuth.ts
 functions/utils/cors.ts
 pages/AdminAnalytics.tsx
+components/AdminConsoleLog.tsx
 services/adminAnalyticsService.ts
+services/adminLogsService.ts
 services/analyticsService.ts
 services/skinGiftService.ts
+
+# Dev server log
+.devserver.log

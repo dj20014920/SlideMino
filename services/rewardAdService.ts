@@ -319,6 +319,7 @@ class RewardAdService {
       if (!this.isHandlingActiveShow()) return;
       console.log('[RewardAdService] AdMob 광고 닫힘');
       this.showStatus = 'closed';
+      this.loadStatus = 'not_loaded';
       this.isProcessingShow = false;
 
       if (this.admobCallbacks) {

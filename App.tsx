@@ -75,7 +75,7 @@ import {
 } from './services/gameStorage';
 import { rankingService, type LiveRankEstimate } from './services/rankingService';
 import { getCurrentRoute, onRouteChange, updatePageMeta, type Route } from './utils/routing';
-import { isNativeApp, isAppIntoS, isAndroidApp } from './utils/platform';
+import { isNativeApp, isAppIntoS, isAndroidApp, isLikelyIOSInAppBrowser } from './utils/platform';
 import { normalizeLanguage } from './i18n/constants';
 import { LANGUAGE_CONFIGS, type SupportedLanguage } from './i18n/constants';
 import { openNativePrivacyOptionsForm } from './services/admob';
@@ -336,6 +336,8 @@ const LEGACY_PORTRAIT_ASPECT = 16 / 9;
 const MODERN_PHONE_PORTRAIT_ASPECT = 19.5 / 9;
 const APP_RESUME_EVENT = 'slidemino:app-resume';
 const VIEWPORT_RECOVERY_DELAYS_MS = [120, 320, 600] as const;
+const IOS_IN_APP_BROWSER_TOP_CHROME_FALLBACK_PX = 44;
+const IOS_IN_APP_BROWSER_TOP_CHROME_MAX_PX = 88;
 
 const lerp = (from: number, to: number, t: number): number => from + (to - from) * t;
 
@@ -477,6 +479,21 @@ const App: React.FC = () => {
       return Number.isFinite(parsed) ? parsed : 0;
     };
 
+    const readVisualViewportTopPx = () => {
+      const raw = window.visualViewport?.offsetTop ?? 0;
+      return Number.isFinite(raw) ? Math.max(0, raw) : 0;
+    };
+
+    const readInAppBrowserTopChromePx = () => {
+      if (!isLikelyIOSInAppBrowser()) return 0;
+      const visualTop = readVisualViewportTopPx();
+      return clamp(
+        Math.max(IOS_IN_APP_BROWSER_TOP_CHROME_FALLBACK_PX, visualTop),
+        IOS_IN_APP_BROWSER_TOP_CHROME_FALLBACK_PX,
+        IOS_IN_APP_BROWSER_TOP_CHROME_MAX_PX
+      );
+    };
+
     const clearRetryTimers = () => {
       retryTimerIds.forEach((timerId) => window.clearTimeout(timerId));
       retryTimerIds.length = 0;
@@ -484,8 +501,10 @@ const App: React.FC = () => {
 
     const updateGameSafeTop = () => {
       const safeTop = readSafeTopPx();
-      const nextTop = Math.max(minTopPx, safeTop);
+      const inAppBrowserTop = readInAppBrowserTopChromePx();
+      const nextTop = Math.max(minTopPx, safeTop + inAppBrowserTop);
       root.style.setProperty('--game-safe-top', `${nextTop}px`);
+      root.style.setProperty('--ui-safe-top', `${nextTop}px`);
     };
 
     const scheduleSafeTopSync = () => {
@@ -509,6 +528,8 @@ const App: React.FC = () => {
     window.addEventListener(APP_RESUME_EVENT, scheduleSafeTopSync);
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.visualViewport?.addEventListener('resize', updateGameSafeTop);
+    window.visualViewport?.addEventListener('scroll', updateGameSafeTop);
+    window.addEventListener('scroll', updateGameSafeTop);
     return () => {
       clearRetryTimers();
       window.removeEventListener('resize', updateGameSafeTop);
@@ -518,6 +539,8 @@ const App: React.FC = () => {
       window.removeEventListener(APP_RESUME_EVENT, scheduleSafeTopSync);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.visualViewport?.removeEventListener('resize', updateGameSafeTop);
+      window.visualViewport?.removeEventListener('scroll', updateGameSafeTop);
+      window.removeEventListener('scroll', updateGameSafeTop);
     };
   }, []);
 
@@ -4046,7 +4069,7 @@ const App: React.FC = () => {
           <div
             role="status"
             aria-live="polite"
-            className="pointer-events-none fixed left-1/2 top-[calc(12px+var(--app-safe-top))] z-[120] w-max max-w-[92vw] -translate-x-1/2 rounded-2xl bg-stone-900 px-5 py-2.5 text-center text-[12px] font-semibold text-stone-100 shadow-2xl ring-1 ring-stone-600/70 whitespace-pre-line"
+            className="pointer-events-none fixed left-1/2 top-[calc(12px+var(--ui-safe-top))] z-[120] w-max max-w-[92vw] -translate-x-1/2 rounded-2xl bg-stone-900 px-5 py-2.5 text-center text-[12px] font-semibold text-stone-100 shadow-2xl ring-1 ring-stone-600/70 whitespace-pre-line"
           >
             {comboMessage}
           </div>
@@ -4054,7 +4077,7 @@ const App: React.FC = () => {
         <div
           className={`${isWin98ThemeActive ? 'win98-app-shell' : ''} min-h-screen min-h-[100dvh] flex flex-col items-center justify-center p-6 space-y-6`}
           style={{
-            paddingTop: 'calc(0.5rem + var(--app-safe-top))',
+            paddingTop: 'calc(0.5rem + var(--ui-safe-top))',
             paddingBottom: isNative
               ? 'calc(var(--bottom-chrome-height, 80px) + 8px)'
               : '24px',
@@ -4427,7 +4450,7 @@ const App: React.FC = () => {
         <div
           role="status"
           aria-live="polite"
-          className="pointer-events-none fixed left-1/2 top-[calc(12px+var(--app-safe-top))] z-[120] w-max max-w-[92vw] -translate-x-1/2 rounded-2xl bg-stone-900 px-5 py-2.5 text-center text-[12px] font-semibold text-stone-100 shadow-2xl ring-1 ring-stone-600/70 whitespace-pre-line"
+          className="pointer-events-none fixed left-1/2 top-[calc(12px+var(--ui-safe-top))] z-[120] w-max max-w-[92vw] -translate-x-1/2 rounded-2xl bg-stone-900 px-5 py-2.5 text-center text-[12px] font-semibold text-stone-100 shadow-2xl ring-1 ring-stone-600/70 whitespace-pre-line"
         >
           {comboMessage}
         </div>

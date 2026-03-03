@@ -23,9 +23,14 @@
   },
   "leaderboard": {
     "title": "Leaderboard",
+    "modeTabs": {
+      "normal": "普通模式",
+      "weeklyEvent": "每周活动"
+    },
     "tabs": {
       "all": "全部"
     },
+    "separateNotice": "普通模式与每周活动排行榜为独立统计。",
     "empty": "暂无排名记录。\n成为第一个冠军吧！",
     "error": "排行榜加载失败。",
     "offline": "当前离线，恢复连接后将刷新排行榜。",

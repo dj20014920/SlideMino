@@ -25,6 +25,38 @@ export const isNativeApp = (): boolean => getNativePlatform() !== 'web';
 
 export const isAndroidApp = (): boolean => getNativePlatform() === 'android';
 
+const isIOSLikeWebDevice = (): boolean => {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent;
+  if (/iPhone|iPad|iPod/i.test(ua)) return true;
+  // iPadOS 13+ reports MacIntel; touch point count distinguishes it from macOS.
+  return navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+};
+
+const IOS_IN_APP_BROWSER_UA_RE = /KAKAOTALK|FBAN|FBAV|Instagram|Line|NAVER|DaumApps|Twitter|MicroMessenger/i;
+
+/**
+ * iOS 인앱 브라우저(카카오톡/페이스북 등) 여부를 추정.
+ * Safe-area env 값만으로 상단 chrome 높이가 반영되지 않는 케이스를 보정할 때 사용한다.
+ */
+export const isLikelyIOSInAppBrowser = (): boolean => {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+  if (isNativeApp()) return false;
+  if (!isIOSLikeWebDevice()) return false;
+
+  const ua = navigator.userAgent;
+  const isStandalonePwa = window.matchMedia?.('(display-mode: standalone)').matches === true
+    || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+  if (isStandalonePwa) return false;
+
+  if (IOS_IN_APP_BROWSER_UA_RE.test(ua)) return true;
+
+  // iOS WebView UA는 대개 AppleWebKit 이면서 Safari 토큰이 빠진다.
+  const hasAppleWebKit = /AppleWebKit/i.test(ua);
+  const hasSafariToken = /Safari/i.test(ua);
+  return hasAppleWebKit && !hasSafariToken;
+};
+
 /**
  * 앱인토스 환경에서 실행 중인지 런타임 감지
  * 토스 앱 내에서 실행될 때 hostname이 다음과 같음:

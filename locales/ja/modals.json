@@ -23,9 +23,14 @@
   },
   "leaderboard": {
     "title": "Leaderboard",
+    "modeTabs": {
+      "normal": "通常モード",
+      "weeklyEvent": "週間イベント"
+    },
     "tabs": {
       "all": "全体"
     },
+    "separateNotice": "通常モードと週間イベントのランキングは別々に集計されます。",
     "empty": "まだランキングがありません。\n最初のチャンピオンになりましょう！",
     "error": "ランキングの読み込みに失敗しました。",
     "offline": "オフラインです。再接続後にランキングが更新されます。",

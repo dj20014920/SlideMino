@@ -609,6 +609,8 @@ export interface EventRankingsResult {
   myRank?: number;
   myScore?: number;
   total: number;
+  error?: 'network' | 'http';
+  status?: number;
 }
 
 /** 이전 주 이벤트 정보 (종료된 이벤트의 랭킹 조회용) */
@@ -635,11 +637,18 @@ export async function fetchEventRankings(eventId?: string): Promise<EventRanking
   try {
     const resolvedEventId = eventId ?? getCurrentEvent().eventId;
     const installId = getAnalyticsInstallId();
-    const res = await fetch(getApiUrl(`${API_BASE}/rankings?eventId=${encodeURIComponent(resolvedEventId)}&installId=${encodeURIComponent(installId)}`));
-    if (!res.ok) return { rankings: [], total: 0 };
+    const baseUrl = typeof window !== 'undefined'
+      ? window.location.origin
+      : 'https://slidemino.emozleep.space';
+    const url = new URL(getApiUrl(`${API_BASE}/rankings`), baseUrl);
+    url.searchParams.set('eventId', resolvedEventId);
+    url.searchParams.set('installId', installId);
+    url.searchParams.set('_ts', String(Date.now()));
+    const res = await fetch(url.toString(), { cache: 'no-store' });
+    if (!res.ok) return { rankings: [], total: 0, error: 'http', status: res.status };
     return await res.json() as EventRankingsResult;
   } catch {
-    return { rankings: [], total: 0 };
+    return { rankings: [], total: 0, error: 'network' };
   }
 }
 

@@ -21,10 +21,13 @@ const resolvePathRoute = (): Route | null => {
  */
 export const getCurrentRoute = (): Route => {
   const pathRoute = resolvePathRoute();
-  if (pathRoute) return pathRoute;
-
   const hash = window.location.hash.slice(1) || '/';
-  return VALID_ROUTES.includes(hash as Route) ? (hash as Route) : '/';
+  const hashRoute = VALID_ROUTES.includes(hash as Route) ? (hash as Route) : null;
+
+  // path가 명시된 경우 우선한다. 단, 루트("/")에서는 hash fallback을 허용한다.
+  if (pathRoute && pathRoute !== '/') return pathRoute;
+  if (hashRoute) return hashRoute;
+  return pathRoute ?? '/';
 };
 
 /**

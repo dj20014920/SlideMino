@@ -23,9 +23,14 @@
   },
   "leaderboard": {
     "title": "Leaderboard",
+    "modeTabs": {
+      "normal": "Normal Mode",
+      "weeklyEvent": "Weekly Event"
+    },
     "tabs": {
       "all": "All"
     },
+    "separateNotice": "Normal mode and weekly event rankings are tracked separately.",
     "empty": "No rankings yet.\nBe the first champion!",
     "error": "Failed to load leaderboard.",
     "offline": "You are offline. The leaderboard will refresh when you reconnect.",

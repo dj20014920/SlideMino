@@ -23,9 +23,14 @@
   },
   "leaderboard": {
     "title": "Leaderboard",
+    "modeTabs": {
+      "normal": "일반 모드",
+      "weeklyEvent": "주간 이벤트"
+    },
     "tabs": {
       "all": "전체"
     },
+    "separateNotice": "일반 모드와 주간 이벤트 랭킹은 별도로 집계됩니다.",
     "empty": "아직 등록된 랭킹이 없습니다.\n첫 주인공이 되어보세요!",
     "error": "랭킹을 불러오는데 실패했습니다.",
     "offline": "오프라인 상태입니다. 네트워크 연결 후 최신 랭킹이 업데이트됩니다.",

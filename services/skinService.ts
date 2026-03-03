@@ -136,7 +136,7 @@ export const drawSkin = (settings: SkinSettings): SkinDrawResult | null => {
 };
 
 /**
- * 스킨 교환에 필요한 조각 수 (일반: 10, 프리미엄: 30)
+ * 스킨 교환에 필요한 조각 수 (일반: 15, 프리미엄: 50)
  */
 export const getFragmentCost = (skinId: string): number => {
   const entry = SKIN_CATALOG.find(e => e.id === skinId);

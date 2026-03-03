@@ -6,6 +6,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, RefreshCw, Check, Gift, Clock, Star } from 'lucide-react';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
+import { useBlockCustomization } from '../context/BlockCustomizationContext';
 import { SHAPES } from '../constants';
 import { ShapeType } from '../types';
 import {
@@ -119,7 +120,8 @@ const MissionRow: React.FC<{
   onReroll?: (index: number) => void;
   index: number;
   canReroll: boolean;
-}> = ({ mission, isDaily, onClaim, onReroll, index, canReroll }) => {
+  isWin98?: boolean;
+}> = ({ mission, isDaily, onClaim, onReroll, index, canReroll, isWin98 }) => {
   const { t } = useTranslation();
   const def = getMissionDefinition(mission.definitionId);
   if (!def) return null;
@@ -131,11 +133,14 @@ const MissionRow: React.FC<{
   const blockShapeType = def.type === 'BLOCK_TYPE_COUNT' ? toShapeType(def.param) : null;
 
   return (
-    <div className={`rounded-2xl p-3.5 ${mission.completed ? 'bg-emerald-50 border border-emerald-200' : 'bg-gray-50 border border-gray-100'}`}>
+    <div className={isWin98
+      ? `win98-sunken p-2 ${mission.completed ? 'bg-[#c0c0c0]' : ''}`
+      : `rounded-2xl p-3.5 ${mission.completed ? 'bg-emerald-50 border border-emerald-200' : 'bg-gray-50 border border-gray-100'}`
+    }>
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-1">
-            <span className="text-xs">{diffInfo.label}</span>
+            <span className="text-xs">{isWin98 ? diffInfo.label.replace(/⭐/g, '★') : diffInfo.label}</span>
             {blockShapeType && <BlockShapeBadge type={blockShapeType} />}
             <span className="text-sm font-semibold text-gray-800 truncate">
               {t(def.nameKey as any)}
@@ -144,9 +149,9 @@ const MissionRow: React.FC<{
           {/* 프로그레스 바 */}
           {!mission.completed && (
             <div className="mt-1.5">
-              <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+              <div className={isWin98 ? 'win98-progress-track' : 'h-1.5 bg-gray-200 rounded-full overflow-hidden'}>
                 <div
-                  className="h-full bg-gradient-to-r from-blue-400 to-blue-500 rounded-full transition-all duration-300"
+                  className={isWin98 ? 'win98-progress-fill' : 'h-full bg-gradient-to-r from-blue-400 to-blue-500 rounded-full transition-all duration-300'}
                   style={{ width: `${pct}%` }}
                 />
               </div>
@@ -159,12 +164,15 @@ const MissionRow: React.FC<{
 
         <div className="flex items-center gap-1.5 shrink-0">
           {/* 보상 표시 */}
-          <span className="text-xs font-semibold text-amber-600">+{reward}💎</span>
+          <span className={`text-xs font-semibold ${isWin98 ? '' : 'text-amber-600'}`}>+{reward}{isWin98 ? '♦' : '💎'}</span>
 
           {mission.completed && !mission.claimed && (
             <button
               onClick={() => onClaim(mission.definitionId)}
-              className="px-3 py-1.5 rounded-xl bg-emerald-500 text-white text-xs font-bold shadow-sm hover:bg-emerald-600 active:scale-95 transition-all"
+              className={isWin98
+                ? 'px-3 py-1 text-xs font-bold'
+                : 'px-3 py-1.5 rounded-xl bg-emerald-500 text-white text-xs font-bold shadow-sm hover:bg-emerald-600 active:scale-95 transition-all'
+              }
             >
               <Gift size={12} className="inline mr-0.5" />
               {t('game:missions.claim')}
@@ -181,7 +189,7 @@ const MissionRow: React.FC<{
           {!mission.completed && canReroll && onReroll && (
             <button
               onClick={() => onReroll(index)}
-              className="p-1.5 rounded-lg hover:bg-gray-200/60 text-gray-400 hover:text-gray-600 transition-colors"
+              className={isWin98 ? 'p-1' : 'p-1.5 rounded-lg hover:bg-gray-200/60 text-gray-400 hover:text-gray-600 transition-colors'}
               aria-label={t('game:missions.reroll')}
               title={t('game:missions.reroll')}
             >
@@ -197,6 +205,8 @@ const MissionRow: React.FC<{
 export const MissionModal: React.FC<MissionModalProps> = ({ open, onClose, onRewardClaimed }) => {
   const { t } = useTranslation();
   useBodyScrollLock(open);
+  const { isWin98ThemeActive } = useBlockCustomization();
+  const isWin98 = Boolean(isWin98ThemeActive);
   const [dailyMissions, setDailyMissions] = useState<ActiveMission[]>([]);
   const [weeklyMissions, setWeeklyMissions] = useState<ActiveMission[]>([]);
   const [dailyRerollAvailableSlots, setDailyRerollAvailableSlots] = useState<boolean[]>([]);
@@ -272,44 +282,64 @@ export const MissionModal: React.FC<MissionModalProps> = ({ open, onClose, onRew
   const weeklyRerollAvailable = weeklyRerollAvailableSlots.some(Boolean);
 
   return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 modal-safe-overlay">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden max-h-[85vh] modal-safe-panel flex flex-col">
+    <div className={`fixed inset-0 z-[300] flex items-center justify-center p-4 modal-safe-overlay ${isWin98 ? 'win98-modal-overlay' : ''}`}>
+      <div className={`absolute inset-0 ${isWin98 ? '' : 'bg-black/40 backdrop-blur-sm'}`} onClick={onClose} />
+      <div className={isWin98
+        ? 'window relative w-full max-w-sm overflow-hidden max-h-[85vh] modal-safe-panel flex flex-col'
+        : 'relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden max-h-[85vh] modal-safe-panel flex flex-col'
+      }>
         {/* 헤더 */}
-        <div className="p-5 pb-3 flex justify-between items-center bg-gradient-to-r from-violet-50 to-blue-50 border-b border-violet-100">
-          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-            <Star className="text-violet-500" size={22} />
-            {t('game:missions.title')}
-          </h2>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-200/50 text-gray-500">
-            <X size={18} />
-          </button>
-        </div>
+        {isWin98 ? (
+          <div className="title-bar">
+            <div className="title-bar-text">☆ {t('game:missions.title')}</div>
+            <div className="title-bar-controls">
+              <button aria-label="Close" onClick={onClose} />
+            </div>
+          </div>
+        ) : (
+          <div className="p-5 pb-3 flex justify-between items-center bg-gradient-to-r from-violet-50 to-blue-50 border-b border-violet-100">
+            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+              <Star className="text-violet-500" size={22} />
+              {t('game:missions.title')}
+            </h2>
+            <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-200/50 text-gray-500">
+              <X size={18} />
+            </button>
+          </div>
+        )}
 
         {/* 탭 */}
-        <div className="flex border-b border-gray-100">
+        <div className={isWin98 ? 'win98-tabstrip' : 'flex border-b border-gray-100'}>
           <button
             onClick={() => setTab('daily')}
-            className={`flex-1 py-3 text-sm font-semibold transition-colors ${tab === 'daily'
-                ? 'text-violet-600 border-b-2 border-violet-500 bg-violet-50/50'
-                : 'text-gray-500 hover:text-gray-700'
-              }`}
+            data-active={tab === 'daily'}
+            className={isWin98
+              ? 'win98-tabstrip-tab'
+              : `flex-1 py-3 text-sm font-semibold transition-colors ${tab === 'daily'
+                  ? 'text-violet-600 border-b-2 border-violet-500 bg-violet-50/50'
+                  : 'text-gray-500 hover:text-gray-700'
+                }`
+            }
           >
             {t('game:missions.daily')} ({dailyCompleted}/3)
           </button>
           <button
             onClick={() => setTab('weekly')}
-            className={`flex-1 py-3 text-sm font-semibold transition-colors ${tab === 'weekly'
-                ? 'text-blue-600 border-b-2 border-blue-500 bg-blue-50/50'
-                : 'text-gray-500 hover:text-gray-700'
-              }`}
+            data-active={tab === 'weekly'}
+            className={isWin98
+              ? 'win98-tabstrip-tab'
+              : `flex-1 py-3 text-sm font-semibold transition-colors ${tab === 'weekly'
+                  ? 'text-blue-600 border-b-2 border-blue-500 bg-blue-50/50'
+                  : 'text-gray-500 hover:text-gray-700'
+                }`
+            }
           >
             {t('game:missions.weekly')} ({weeklyCompleted}/3)
           </button>
         </div>
 
         {/* 미션 목록 */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
+        <div className={isWin98 ? 'window-body flex-1 overflow-y-auto p-2 space-y-1.5' : 'flex-1 overflow-y-auto p-4 space-y-2.5'}>
           {/* 남은 시간 */}
           <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-2">
             <Clock size={12} />
@@ -332,21 +362,28 @@ export const MissionModal: React.FC<MissionModalProps> = ({ open, onClose, onRew
                   onReroll={handleDailyReroll}
                   index={idx}
                   canReroll={dailyRerollAvailableSlots[idx] ?? false}
+                  isWin98={isWin98}
                 />
               ))}
 
               {/* 전체 완료 보너스 */}
               {dailyCompleted === 3 && (
-                <div className="mt-3 rounded-2xl p-4 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 text-center">
-                  <div className="text-sm font-bold text-amber-700 mb-2">
-                    🎉 {t('game:missions.allComplete')}
+                <div className={isWin98
+                  ? 'mt-2 win98-sunken p-3 text-center'
+                  : 'mt-3 rounded-2xl p-4 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 text-center'
+                }>
+                  <div className={`text-sm font-bold mb-2 ${isWin98 ? '' : 'text-amber-700'}`}>
+                    {isWin98 ? '★' : '🎉'} {t('game:missions.allComplete')}
                   </div>
                   {bonusAvailable ? (
                     <button
                       onClick={handleDailyBonus}
-                      className="px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-sm font-bold shadow-md hover:shadow-lg active:scale-95 transition-all"
+                      className={isWin98
+                        ? 'px-5 py-1 text-sm font-bold'
+                        : 'px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-sm font-bold shadow-md hover:shadow-lg active:scale-95 transition-all'
+                      }
                     >
-                      +3💎 {t('game:missions.claimBonus')}
+                      +3{isWin98 ? '♦' : '💎'} {t('game:missions.claimBonus')}
                     </button>
                   ) : (
                     <span className="text-xs text-amber-600">{t('game:missions.bonusClaimed')}</span>
@@ -364,6 +401,7 @@ export const MissionModal: React.FC<MissionModalProps> = ({ open, onClose, onRew
                 onReroll={handleWeeklyReroll}
                 index={idx}
                 canReroll={weeklyRerollAvailableSlots[idx] ?? false}
+                isWin98={isWin98}
               />
             ))
           )}
@@ -371,14 +409,14 @@ export const MissionModal: React.FC<MissionModalProps> = ({ open, onClose, onRew
 
         {/* 다시굴리기 안내 */}
         {tab === 'daily' && dailyRerollAvailable && (
-          <div className="px-4 pb-3 pt-1 border-t border-gray-100">
+          <div className={isWin98 ? 'px-2 pb-2 pt-1' : 'px-4 pb-3 pt-1 border-t border-gray-100'}>
             <p className="text-xs text-gray-400 text-center">
               {t('game:missions.rerollHint')}
             </p>
           </div>
         )}
         {tab === 'weekly' && weeklyRerollAvailable && (
-          <div className="px-4 pb-3 pt-1 border-t border-gray-100">
+          <div className={isWin98 ? 'px-2 pb-2 pt-1' : 'px-4 pb-3 pt-1 border-t border-gray-100'}>
             <p className="text-xs text-gray-400 text-center">
               {t('game:missions.weeklyRerollHint')}
             </p>

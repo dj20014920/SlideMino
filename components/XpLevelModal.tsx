@@ -6,6 +6,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Star, Award, TrendingUp, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
+import { useBlockCustomization } from '../context/BlockCustomizationContext';
 import { gameEventBus } from '../services/gameEventBus';
 import { getAnalyticsInstallHash } from '../services/analyticsService';
 import {
@@ -74,6 +75,8 @@ const XP_METHOD_GUIDE: readonly XpMethodGuideItem[] = [
 
 export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpecialRewardClaim }) => {
   const { t } = useTranslation();
+  const { isWin98ThemeActive } = useBlockCustomization();
+  const isWin98 = Boolean(isWin98ThemeActive);
   useBodyScrollLock(open);
   const [progress, setProgress] = useState<XpProgress>(() => getXpProgress());
   const [badges, setBadges] = useState<LevelBadge[]>([]);
@@ -140,87 +143,147 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
   const maxBarXp = weeklySummary.reduce((max, d) => Math.max(max, d.total), 1);
 
   return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 modal-safe-overlay" onClick={onClose}>
+    <div
+      className={`fixed inset-0 z-[300] flex items-center justify-center p-4 modal-safe-overlay ${isWin98 ? 'win98-modal-overlay' : 'bg-black/50 backdrop-blur-sm'}`}
+      onClick={onClose}
+    >
       <div
-        className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[85vh] modal-safe-panel overflow-hidden flex flex-col"
+        className={isWin98
+          ? 'window w-full max-w-md max-h-[85vh] modal-safe-panel overflow-hidden flex flex-col'
+          : 'bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[85vh] modal-safe-panel overflow-hidden flex flex-col'}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Win98 타이틀 바 */}
+        {isWin98 && (
+          <div className="title-bar">
+            <div className="title-bar-text">Lv.{progress.level} — XP</div>
+            <div className="title-bar-controls">
+              <button aria-label="Close" onClick={onClose} />
+            </div>
+          </div>
+        )}
+
         {/* 헤더 */}
-        <div className="relative bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 px-6 py-5 text-white">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 p-1.5 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
-            aria-label={t('common:buttons.close')}
-          >
-            <X size={16} />
-          </button>
-
-          {/* 레벨 + XP 바 */}
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center text-xl font-black">
-              {progress.level}
-            </div>
-            <div className="flex-1">
-              <div className="text-sm font-semibold opacity-90">Lv.{progress.level}</div>
-              <button
-                type="button"
-                className="flex items-center gap-1 text-[10px] opacity-60 hover:opacity-90 transition-opacity"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const hash = installHash || progress.seasonId;
-                  if (installHash) {
-                    void navigator.clipboard?.writeText(hash).then(() => {
-                      setHashCopied(true);
-                      setTimeout(() => setHashCopied(false), 1500);
-                    });
-                  }
-                }}
-                title={installHash ? `ID: ${installHash}` : progress.seasonId}
-              >
-                <span className="font-mono truncate max-w-[120px]">
-                  {installHash ? `${installHash.slice(0, 8)}...${installHash.slice(-6)}` : progress.seasonId}
-                </span>
-                {installHash && (hashCopied ? <Check size={10} /> : <Copy size={10} />)}
-              </button>
-            </div>
-            <div className="text-right">
-              <div className="text-xs opacity-70">{t('common:xp.seasonRemainingLabel')}</div>
-              <div className="text-sm font-bold">{formatSeasonRemaining(seasonRemMs)}</div>
+        {isWin98 ? (
+          <div className="px-3 pt-3 pb-2">
+            <div className="win98-sunken p-2">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-base">Lv.{progress.level}</span>
+                  <button
+                    type="button"
+                    className="text-[10px] hover:underline"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (installHash) {
+                        void navigator.clipboard?.writeText(installHash).then(() => {
+                          setHashCopied(true);
+                          setTimeout(() => setHashCopied(false), 1500);
+                        });
+                      }
+                    }}
+                    title={installHash ? `ID: ${installHash}` : progress.seasonId}
+                  >
+                    {installHash ? `${installHash.slice(0, 8)}...${installHash.slice(-6)}` : progress.seasonId}
+                    {installHash && (hashCopied ? ' \u2713' : ' [copy]')}
+                  </button>
+                </div>
+                <div className="text-right text-xs">
+                  <div>{t('common:xp.seasonRemainingLabel')}</div>
+                  <div className="font-bold">{formatSeasonRemaining(seasonRemMs)}</div>
+                </div>
+              </div>
+              {!progress.isMaxLevel ? (
+                <div>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span>{progress.xp} / {progress.xpRequired} XP</span>
+                    <span>{progress.progressPercent}%</span>
+                  </div>
+                  <div className="win98-progress-track">
+                    <div className="win98-progress-fill" style={{ width: `${progress.progressPercent}%` }} />
+                  </div>
+                  <div className="text-xs mt-1">
+                    {t('common:xp.nextLevel')}: {xpRequiredForLevel(progress.level + 1) - progress.xp} XP
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center text-sm font-bold">MAX LEVEL</div>
+              )}
+              <div className="mt-1 text-xs">
+                {t('common:xp.todayXp')}: <span className="font-bold">+{todayTotalXp} XP</span>
+              </div>
             </div>
           </div>
-
-          {/* XP 프로그레스 바 */}
-          {!progress.isMaxLevel ? (
-            <div>
-              <div className="flex justify-between text-xs mb-1 opacity-80">
-                <span>{progress.xp} / {progress.xpRequired} XP</span>
-                <span>{progress.progressPercent}%</span>
+        ) : (
+          <div className="relative bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 px-6 py-5 text-white">
+            <button
+              onClick={onClose}
+              className="absolute top-4 right-4 p-1.5 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+              aria-label={t('common:buttons.close')}
+            >
+              <X size={16} />
+            </button>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center text-xl font-black">
+                {progress.level}
               </div>
-              <div className="h-2.5 bg-white/20 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-yellow-300 to-amber-400 rounded-full transition-all duration-500"
-                  style={{ width: `${progress.progressPercent}%` }}
-                />
+              <div className="flex-1">
+                <div className="text-sm font-semibold opacity-90">Lv.{progress.level}</div>
+                <button
+                  type="button"
+                  className="flex items-center gap-1 text-[10px] opacity-60 hover:opacity-90 transition-opacity"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (installHash) {
+                      void navigator.clipboard?.writeText(installHash).then(() => {
+                        setHashCopied(true);
+                        setTimeout(() => setHashCopied(false), 1500);
+                      });
+                    }
+                  }}
+                  title={installHash ? `ID: ${installHash}` : progress.seasonId}
+                >
+                  <span className="font-mono truncate max-w-[120px]">
+                    {installHash ? `${installHash.slice(0, 8)}...${installHash.slice(-6)}` : progress.seasonId}
+                  </span>
+                  {installHash && (hashCopied ? <Check size={10} /> : <Copy size={10} />)}
+                </button>
               </div>
-              <div className="text-xs text-white/60 mt-1">
-                {t('common:xp.nextLevel')}: {xpRequiredForLevel(progress.level + 1) - progress.xp} XP
+              <div className="text-right">
+                <div className="text-xs opacity-70">{t('common:xp.seasonRemainingLabel')}</div>
+                <div className="text-sm font-bold">{formatSeasonRemaining(seasonRemMs)}</div>
               </div>
             </div>
-          ) : (
-            <div className="text-center text-sm font-semibold text-yellow-200">
-              🏆 {t('common:xp.maxLevel')}
+            {!progress.isMaxLevel ? (
+              <div>
+                <div className="flex justify-between text-xs mb-1 opacity-80">
+                  <span>{progress.xp} / {progress.xpRequired} XP</span>
+                  <span>{progress.progressPercent}%</span>
+                </div>
+                <div className="h-2.5 bg-white/20 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-yellow-300 to-amber-400 rounded-full transition-all duration-500"
+                    style={{ width: `${progress.progressPercent}%` }}
+                  />
+                </div>
+                <div className="text-xs text-white/60 mt-1">
+                  {t('common:xp.nextLevel')}: {xpRequiredForLevel(progress.level + 1) - progress.xp} XP
+                </div>
+              </div>
+            ) : (
+              <div className="text-center text-sm font-semibold text-yellow-200">
+                {'\u{1F3C6}'} {t('common:xp.maxLevel')}
+              </div>
+            )}
+            <div className="mt-2 text-xs opacity-70">
+              {t('common:xp.todayXp')}: <span className="font-bold text-yellow-200">+{todayTotalXp} XP</span>
             </div>
-          )}
-
-          {/* 오늘 XP */}
-          <div className="mt-2 text-xs opacity-70">
-            {t('common:xp.todayXp')}: <span className="font-bold text-yellow-200">+{todayTotalXp} XP</span>
           </div>
-        </div>
+        )}
 
         {/* 본문 */}
         <div
-          className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-4"
+          className={isWin98 ? 'window-body flex-1 min-h-0 overflow-y-auto p-3 space-y-3' : 'flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-4'}
           style={{
             WebkitOverflowScrolling: 'touch',
             touchAction: 'pan-y',
@@ -256,7 +319,7 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
           {/* 레벨 배지 */}
           <div>
             <h3 className="text-sm font-bold text-gray-800 flex items-center gap-1 mb-2">
-              <Star size={14} className="text-purple-500" />
+              {isWin98 ? '\u2606' : <Star size={14} className="text-purple-500" />}
               {t('common:xp.badges')}
             </h3>
             <div className="grid grid-cols-5 gap-2">
@@ -265,8 +328,10 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
                 return (
                   <div
                     key={b.id}
-                    className={`flex flex-col items-center gap-0.5 p-2 rounded-xl text-center transition-all
-                      ${earned ? 'bg-purple-50 border border-purple-200' : 'bg-gray-50 border border-gray-100 opacity-40 grayscale'}`}
+                    className={isWin98
+                      ? `flex flex-col items-center gap-0.5 p-2 text-center ${earned ? 'win98-sunken' : 'opacity-40'}`
+                      : `flex flex-col items-center gap-0.5 p-2 rounded-xl text-center transition-all
+                        ${earned ? 'bg-purple-50 border border-purple-200' : 'bg-gray-50 border border-gray-100 opacity-40 grayscale'}`}
                   >
                     <span className="text-lg">{b.emoji}</span>
                     <span className="text-[10px] font-semibold text-gray-700">Lv.{b.level}</span>
@@ -296,7 +361,7 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
           {/* 주간 XP 그래프 */}
           <div>
             <h3 className="text-sm font-bold text-gray-800 mb-2">{t('common:xp.weeklyXp')}</h3>
-            <div className="flex items-end gap-1 h-20">
+            <div className={`flex items-end gap-1 h-20 ${isWin98 ? 'win98-sunken p-1' : ''}`}>
               {weeklySummary.map((day, i) => {
                 const pct = maxBarXp > 0 ? (day.total / maxBarXp) * 100 : 0;
                 const isToday = i === weeklySummary.length - 1;
@@ -305,7 +370,9 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
                     <span className="text-[9px] text-gray-400 tabular-nums">{day.total > 0 ? day.total : ''}</span>
                     <div className="w-full relative" style={{ height: '48px' }}>
                       <div
-                        className={`absolute bottom-0 w-full rounded-t transition-all duration-300 ${isToday ? 'bg-purple-500' : 'bg-purple-200'}`}
+                        className={`absolute bottom-0 w-full transition-all duration-300 ${isWin98
+                          ? (isToday ? 'bg-[#000080]' : 'bg-[#808080]')
+                          : (isToday ? 'bg-purple-500 rounded-t' : 'bg-purple-200 rounded-t')}`}
                         style={{ height: `${Math.max(pct, day.total > 0 ? 4 : 0)}%` }}
                       />
                     </div>
@@ -346,14 +413,16 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
             <h3 className="text-sm font-bold text-gray-800 mb-2">{t('common:xp.earnMethodsTitle')}</h3>
             <div className="space-y-1.5">
               {XP_METHOD_GUIDE.map((item) => (
-                <div key={item.source} className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+                <div key={item.source} className={isWin98 ? 'win98-sunken px-3 py-2' : 'rounded-lg border border-gray-100 bg-gray-50 px-3 py-2'}>
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-xs font-semibold text-gray-700">
                       {getSourceLabel(item.source, t as (key: string) => string)}
                     </span>
                     <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-bold text-purple-600">{item.amountLabel}</span>
-                      <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${item.dailyLimit === 'once' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                      <span className={`text-xs font-bold ${isWin98 ? '' : 'text-purple-600'}`}>{item.amountLabel}</span>
+                      <span className={isWin98
+                        ? 'win98-badge'
+                        : `rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${item.dailyLimit === 'once' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
                         {item.dailyLimit === 'once' ? t('common:xp.limitDailyOnce') : t('common:xp.limitUnlimited')}
                       </span>
                     </div>

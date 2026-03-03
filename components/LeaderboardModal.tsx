@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CalendarClock, Trophy, X } from 'lucide-react';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
+import { useBlockCustomization } from '../context/BlockCustomizationContext';
 import { rankingService, RankEntry } from '../services/rankingService';
 import {
   fetchEventRankings,
@@ -54,6 +55,8 @@ const formatDifficultyLabel = (difficulty?: string): string | null => {
 export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClose }) => {
   const { t } = useTranslation();
   useBodyScrollLock(open);
+  const { isWin98ThemeActive } = useBlockCustomization();
+  const isWin98 = Boolean(isWin98ThemeActive);
 
   const [modeTab, setModeTab] = useState<LeaderboardModeTab>('NORMAL');
   const [activeTab, setActiveTab] = useState<NormalLeaderboardTab>('ALL');
@@ -270,48 +273,68 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
   const eventOffline = typeof navigator !== 'undefined' ? !navigator.onLine : false;
 
   return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 modal-safe-overlay">
+    <div className={`fixed inset-0 z-[300] flex items-center justify-center p-4 modal-safe-overlay ${isWin98 ? 'win98-modal-overlay' : ''}`}>
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fade-in"
+        className={`absolute inset-0 ${isWin98 ? '' : 'bg-black/40 backdrop-blur-sm'} animate-fade-in`}
         onClick={onClose}
       />
 
       {/* Modal Content */}
-      <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden animate-scale-in flex flex-col max-h-[80vh] modal-safe-panel win98-window">
+      <div className={isWin98
+        ? 'window relative w-full max-w-md overflow-hidden flex flex-col max-h-[80vh] modal-safe-panel'
+        : 'relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden animate-scale-in flex flex-col max-h-[80vh] modal-safe-panel'
+      }>
         {/* Header */}
-        <div className="p-6 pb-2 flex justify-between items-center bg-gray-50 border-b border-gray-100">
-          <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <Trophy className="text-yellow-500 fill-yellow-500" />
-            {t('modals:leaderboard.title')}
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-full hover:bg-gray-200/50 text-gray-500 transition-colors"
-          >
-            <X size={20} />
-          </button>
-        </div>
+        {isWin98 ? (
+          <div className="title-bar">
+            <div className="title-bar-text">◆ {t('modals:leaderboard.title')}</div>
+            <div className="title-bar-controls">
+              <button aria-label="Close" onClick={onClose} />
+            </div>
+          </div>
+        ) : (
+          <div className="p-6 pb-2 flex justify-between items-center bg-gray-50 border-b border-gray-100">
+            <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+              <Trophy className="text-yellow-500 fill-yellow-500" />
+              {t('modals:leaderboard.title')}
+            </h2>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-full hover:bg-gray-200/50 text-gray-500 transition-colors"
+            >
+              <X size={20} />
+            </button>
+          </div>
+        )}
 
         {/* 랭킹 모드 분리 탭: 일반 / 주간 이벤트 */}
-        <div className="flex items-center gap-2 border-b border-gray-100 bg-white px-4 py-3">
+        <div className={isWin98 ? 'win98-tabstrip' : 'flex items-center gap-2 border-b border-gray-100 bg-white px-4 py-3'}>
           <button
             onClick={() => setModeTab('NORMAL')}
-            className={`px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${
-              modeTab === 'NORMAL'
-                ? 'bg-gray-900 text-white shadow-md'
-                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-            }`}
+            data-active={modeTab === 'NORMAL'}
+            className={isWin98
+              ? 'win98-tabstrip-tab'
+              : `px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${
+                  modeTab === 'NORMAL'
+                    ? 'bg-gray-900 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                }`
+            }
           >
             {t('modals:leaderboard.modeTabs.normal')}
           </button>
           <button
             onClick={() => setModeTab('WEEKLY_EVENT')}
-            className={`px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${
-              modeTab === 'WEEKLY_EVENT'
-                ? 'bg-orange-500 text-white shadow-md'
-                : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-            }`}
+            data-active={modeTab === 'WEEKLY_EVENT'}
+            className={isWin98
+              ? 'win98-tabstrip-tab'
+              : `px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${
+                  modeTab === 'WEEKLY_EVENT'
+                    ? 'bg-orange-500 text-white shadow-md'
+                    : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                }`
+            }
           >
             {t('modals:leaderboard.modeTabs.weeklyEvent')}
           </button>
@@ -333,18 +356,20 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
             </div>
 
             {/* 일반 모드 세부 탭 */}
-            <div className="flex items-center gap-2 overflow-x-auto overflow-y-visible border-b border-gray-100 bg-white px-4 py-3">
+            <div className={isWin98 ? 'win98-tabstrip' : 'flex items-center gap-2 overflow-x-auto overflow-y-visible border-b border-gray-100 bg-white px-4 py-3'}>
               {NORMAL_TABS.map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`
-                    px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all
-                    ${activeTab === tab
-                      ? 'bg-gray-900 text-white shadow-md'
-                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                    }
-                  `}
+                  data-active={activeTab === tab}
+                  className={isWin98
+                    ? 'win98-tabstrip-tab'
+                    : `px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all
+                      ${activeTab === tab
+                        ? 'bg-gray-900 text-white shadow-md'
+                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                      }`
+                  }
                 >
                   {tab === 'ALL' ? t('modals:leaderboard.tabs.all') : tab}
                 </button>
@@ -352,7 +377,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
             </div>
 
             {/* 일반 모드 랭킹 리스트 */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-50/50">
+            <div className={isWin98 ? 'window-body flex-1 overflow-y-auto p-2 space-y-1' : 'flex-1 overflow-y-auto p-4 space-y-2 bg-gray-50/50'}>
               {(isOffline || fromCache) && (
                 <div className="px-4 py-2 rounded-xl text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200">
                   {isOffline ? t('modals:leaderboard.offline') : t('modals:leaderboard.cached')}
@@ -372,7 +397,10 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
                   return (
                     <div
                       key={`${entry.name}-${entry.score}-${entry.timestamp}-${index}`}
-                      className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between"
+                      className={isWin98
+                        ? 'win98-list-item flex items-center justify-between p-1.5'
+                        : 'bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between'
+                      }
                     >
                       <div className="flex items-center gap-4">
                         <div className={`
@@ -407,7 +435,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
         ) : (
           <>
             {/* 이벤트 요약 */}
-            <div className="mx-4 mt-3 p-3 rounded-2xl border border-orange-200 bg-gradient-to-r from-orange-50 via-amber-50 to-rose-50">
+            <div className={isWin98 ? 'mx-2 mt-2 win98-sunken p-2' : 'mx-4 mt-3 p-3 rounded-2xl border border-orange-200 bg-gradient-to-r from-orange-50 via-amber-50 to-rose-50'}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-[11px] font-semibold text-orange-600 uppercase tracking-wide">
@@ -437,35 +465,39 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
             </div>
 
             {/* 이벤트 기간 탭 */}
-            <div className="flex items-center gap-2 overflow-x-auto overflow-y-visible border-b border-gray-100 bg-white px-4 py-3 mt-3">
+            <div className={isWin98 ? 'win98-tabstrip mt-2' : 'flex items-center gap-2 overflow-x-auto overflow-y-visible border-b border-gray-100 bg-white px-4 py-3 mt-3'}>
               <button
                 onClick={() => setEventPeriodTab('CURRENT')}
-                className={`
-                  px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all
-                  ${eventPeriodTab === 'CURRENT'
-                    ? 'bg-orange-500 text-white shadow-md'
-                    : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                  }
-                `}
+                data-active={eventPeriodTab === 'CURRENT'}
+                className={isWin98
+                  ? 'win98-tabstrip-tab'
+                  : `px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all
+                    ${eventPeriodTab === 'CURRENT'
+                      ? 'bg-orange-500 text-white shadow-md'
+                      : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                    }`
+                }
               >
                 {t('game:weeklyEvent.thisWeek')}
               </button>
               <button
                 onClick={() => setEventPeriodTab('PREVIOUS')}
-                className={`
-                  px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all
-                  ${eventPeriodTab === 'PREVIOUS'
-                    ? 'bg-gray-900 text-white shadow-md'
-                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                  }
-                `}
+                data-active={eventPeriodTab === 'PREVIOUS'}
+                className={isWin98
+                  ? 'win98-tabstrip-tab'
+                  : `px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all
+                    ${eventPeriodTab === 'PREVIOUS'
+                      ? 'bg-gray-900 text-white shadow-md'
+                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                    }`
+                }
               >
                 {t('game:weeklyEvent.lastWeek')}
               </button>
             </div>
 
             {/* 이벤트 랭킹 리스트 */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-orange-50/40">
+            <div className={isWin98 ? 'window-body flex-1 overflow-y-auto p-2 space-y-1' : 'flex-1 overflow-y-auto p-4 space-y-2 bg-orange-50/40'}>
               {eventOffline && (
                 <div className="px-4 py-2 rounded-xl text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200">
                   {t('modals:leaderboard.offline')}
@@ -484,9 +516,12 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
                   return (
                     <div
                       key={`${entry.rank}-${entry.name}-${index}`}
-                      className={`bg-white p-4 rounded-2xl shadow-sm border flex items-center justify-between ${
-                        isMyRank ? 'border-orange-300 bg-orange-50/70' : 'border-gray-100'
-                      }`}
+                      className={isWin98
+                        ? `win98-list-item flex items-center justify-between p-1.5 ${isMyRank ? 'win98-list-item-highlight' : ''}`
+                        : `bg-white p-4 rounded-2xl shadow-sm border flex items-center justify-between ${
+                            isMyRank ? 'border-orange-300 bg-orange-50/70' : 'border-gray-100'
+                          }`
+                      }
                     >
                       <div className="flex items-center gap-4 min-w-0">
                         <div className={`
@@ -495,7 +530,10 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
                             entry.rank === 2 ? 'bg-gray-100 text-gray-600' :
                               entry.rank === 3 ? 'bg-orange-100 text-orange-600' : 'bg-gray-50 text-gray-400'}
                         `}>
-                          {entry.rank <= 3 ? ['🥇', '🥈', '🥉'][entry.rank - 1] : entry.rank}
+                          {isWin98
+                            ? (entry.rank <= 3 ? ['[1]', '[2]', '[3]'][entry.rank - 1] : entry.rank)
+                            : (entry.rank <= 3 ? ['🥇', '🥈', '🥉'][entry.rank - 1] : entry.rank)
+                          }
                         </div>
                         <div className="min-w-0">
                           <div className="font-bold text-gray-800 max-w-[170px] truncate" title={entry.name}>

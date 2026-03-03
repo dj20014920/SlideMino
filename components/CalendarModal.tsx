@@ -7,6 +7,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Calendar, X, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
+import { useBlockCustomization } from '../context/BlockCustomizationContext';
 import {
   getCalendarItems,
   formatTimeRemaining,
@@ -29,7 +30,18 @@ interface CalendarModalProps {
 }
 
 /** 항목 타입별 아이콘 */
-function getItemIcon(type: CalendarItem['type']): string {
+function getItemIcon(type: CalendarItem['type'], isWin98 = false): string {
+  if (isWin98) {
+    switch (type) {
+      case 'daily_challenge': return '◆';
+      case 'weekly_event':    return '◇';
+      case 'season_end':      return '◷';
+      case 'attendance':      return '■';
+      case 'daily_mission':   return '☐';
+      case 'weekly_mission':  return '☐';
+      default: return '●';
+    }
+  }
   switch (type) {
     case 'daily_challenge': return '🏆';
     case 'weekly_event':    return '🎯';
@@ -44,6 +56,8 @@ function getItemIcon(type: CalendarItem['type']): string {
 export const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onAction }) => {
   const { t } = useTranslation();
   useBodyScrollLock(open);
+  const { isWin98ThemeActive } = useBlockCustomization();
+  const isWin98 = Boolean(isWin98ThemeActive);
   const [items, setItems] = useState<CalendarItem[]>([]);
   const [dailyMissions, setDailyMissions] = useState<ActiveMission[]>([]);
   const [weeklyMissions, setWeeklyMissions] = useState<ActiveMission[]>([]);
@@ -131,44 +145,56 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onA
     } => Boolean(row));
 
   return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 modal-safe-overlay" onClick={onClose}>
+    <div className={`fixed inset-0 z-[300] flex items-center justify-center p-4 modal-safe-overlay ${isWin98 ? 'win98-modal-overlay' : 'bg-black/50 backdrop-blur-sm'}`} onClick={onClose}>
       <div
-        className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[80vh] modal-safe-panel overflow-hidden flex flex-col"
+        className={isWin98
+          ? 'window w-full max-w-md max-h-[80vh] modal-safe-panel overflow-hidden flex flex-col'
+          : 'bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[80vh] modal-safe-panel overflow-hidden flex flex-col'
+        }
         onClick={(e) => e.stopPropagation()}
       >
         {/* 헤더 */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            <Calendar size={18} className="text-blue-500" />
-            <h2 className="text-base font-bold text-gray-800">{t('common:calendar.title')}</h2>
+        {isWin98 ? (
+          <div className="title-bar">
+            <div className="title-bar-text">☐ {t('common:calendar.title')}</div>
+            <div className="title-bar-controls">
+              <button aria-label="Close" onClick={onClose} />
+            </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-gray-100 transition-colors"
-            aria-label="close"
-          >
-            <X size={16} className="text-gray-400" />
-          </button>
-        </div>
+        ) : (
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <div className="flex items-center gap-2">
+              <Calendar size={18} className="text-blue-500" />
+              <h2 className="text-base font-bold text-gray-800">{t('common:calendar.title')}</h2>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-full hover:bg-gray-100 transition-colors"
+              aria-label="close"
+            >
+              <X size={16} className="text-gray-400" />
+            </button>
+          </div>
+        )}
 
         {/* 항목 목록 */}
-        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2.5">
+        <div className={isWin98 ? 'window-body flex-1 overflow-y-auto px-2 py-2 space-y-2' : 'flex-1 overflow-y-auto px-4 py-3 space-y-2.5'}>
           <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-2.5 py-2">
-              <div className="text-[10px] font-semibold text-emerald-700">
+            <div className={isWin98 ? 'win98-sunken px-2 py-1.5' : 'rounded-xl border border-emerald-100 bg-emerald-50 px-2.5 py-2'}>
+              <div className={`text-[10px] font-semibold ${isWin98 ? '' : 'text-emerald-700'}`}>
                 {t('common:calendar.attendance')}
               </div>
-              <div className="mt-0.5 text-[11px] text-emerald-800 truncate">
+              <div className={`mt-0.5 text-[11px] ${isWin98 ? '' : 'text-emerald-800'} truncate`}>
                 {attendanceItem?.isCompleted
                   ? t('common:calendar.attendanceComplete')
                   : t('common:calendar.attendanceIncomplete')}
               </div>
             </div>
-            <div className="rounded-xl border border-blue-100 bg-blue-50 px-2.5 py-2">
-              <div className="text-[10px] font-semibold text-blue-700">
+            <div className={isWin98 ? 'win98-sunken px-2 py-1.5' : 'rounded-xl border border-blue-100 bg-blue-50 px-2.5 py-2'}>
+              <div className={`text-[10px] font-semibold ${isWin98 ? '' : 'text-blue-700'}`}>
                 {t('common:calendar.seasonEnd')}
               </div>
-              <div className="mt-0.5 text-[11px] text-blue-800 tabular-nums">
+              <div className={`mt-0.5 text-[11px] ${isWin98 ? '' : 'text-blue-800'} tabular-nums`}>
                 {seasonEndItem?.endsAt ? formatTimeRemaining(seasonEndItem.endsAt) : '-'}
               </div>
             </div>
@@ -179,11 +205,14 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onA
               onAction?.('mission');
               onClose();
             }}
-            className="w-full text-left rounded-2xl border border-gray-100 bg-gray-50 px-3 py-2.5 transition-colors hover:bg-gray-100"
+            className={isWin98
+              ? 'w-full text-left win98-sunken px-2 py-2 mb-0.5'
+              : 'w-full text-left rounded-2xl border border-gray-100 bg-gray-50 px-3 py-2.5 transition-colors hover:bg-gray-100'
+            }
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
-                <span className="text-sm">📋</span>
+                <span className="text-sm">{isWin98 ? '☐' : '📋'}</span>
                 <span className="text-xs font-bold text-gray-800">{t('common:calendar.dailyMission')}</span>
               </div>
               <div className="flex items-center gap-2">
@@ -211,11 +240,14 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onA
               onAction?.('weekly_event');
               onClose();
             }}
-            className="w-full text-left rounded-2xl border border-violet-100 bg-violet-50 px-3 py-2.5 transition-colors hover:bg-violet-100/80"
+            className={isWin98
+              ? 'w-full text-left win98-sunken px-2 py-2 mb-0.5'
+              : 'w-full text-left rounded-2xl border border-violet-100 bg-violet-50 px-3 py-2.5 transition-colors hover:bg-violet-100/80'
+            }
           >
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 min-w-0">
-                <span className="text-sm">🎯</span>
+                <span className="text-sm">{isWin98 ? '◇' : '🎯'}</span>
                 <span className="text-xs font-bold text-gray-800 truncate">{t('common:calendar.weeklyEvent')}</span>
               </div>
               <span className="text-[10px] font-semibold text-violet-600 tabular-nums">
@@ -227,7 +259,7 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onA
             </p>
             <div className="mt-1.5 flex flex-wrap gap-1">
               {eventRuleTags.slice(0, 4).map((tag) => (
-                <span key={tag} className="rounded-full bg-white/70 border border-violet-200 px-1.5 py-0.5 text-[10px] text-violet-700">
+                <span key={tag} className={isWin98 ? 'win98-badge text-[10px]' : 'rounded-full bg-white/70 border border-violet-200 px-1.5 py-0.5 text-[10px] text-violet-700'}>
                   {tag}
                 </span>
               ))}
@@ -239,11 +271,14 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onA
               onAction?.('mission');
               onClose();
             }}
-            className="w-full text-left rounded-2xl border border-gray-100 bg-gray-50 px-3 py-2.5 transition-colors hover:bg-gray-100"
+            className={isWin98
+              ? 'w-full text-left win98-sunken px-2 py-2 mb-0.5'
+              : 'w-full text-left rounded-2xl border border-gray-100 bg-gray-50 px-3 py-2.5 transition-colors hover:bg-gray-100'
+            }
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
-                <span className="text-sm">📅</span>
+                <span className="text-sm">{isWin98 ? '☐' : '📅'}</span>
                 <span className="text-xs font-bold text-gray-800">{t('common:calendar.weeklyMission')}</span>
               </div>
               <div className="flex items-center gap-2">
@@ -289,6 +324,8 @@ interface CalendarCardProps {
  */
 export const CalendarCard: React.FC<CalendarCardProps> = ({ onAction, onExpand }) => {
   const { t } = useTranslation();
+  const { isWin98ThemeActive } = useBlockCustomization();
+  const isWin98 = Boolean(isWin98ThemeActive);
   const [items, setItems] = useState<CalendarItem[]>([]);
   const [expanded, setExpanded] = useState(false);
 
@@ -304,7 +341,7 @@ export const CalendarCard: React.FC<CalendarCardProps> = ({ onAction, onExpand }
   if (items.length === 0) return null;
 
   return (
-    <div className="w-full rounded-2xl bg-white/60 backdrop-blur-sm border border-white/50 shadow-sm overflow-hidden">
+    <div className={isWin98 ? 'w-full win98-sunken overflow-hidden' : 'w-full rounded-2xl bg-white/60 backdrop-blur-sm border border-white/50 shadow-sm overflow-hidden'}>
       <div className="px-4 py-2.5 flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <Calendar size={14} className="text-blue-500" />
@@ -329,7 +366,7 @@ export const CalendarCard: React.FC<CalendarCardProps> = ({ onAction, onExpand }
               ${item.isUrgent ? 'bg-red-50' : item.isCompleted ? 'bg-emerald-50' : 'hover:bg-gray-100'}
             `}
           >
-            <span className="text-sm">{getItemIcon(item.type)}</span>
+            <span className="text-sm">{getItemIcon(item.type, isWin98)}</span>
             <span className="flex-1 text-xs text-gray-700 truncate">
               {t(item.titleKey as any)}
             </span>

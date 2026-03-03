@@ -29,9 +29,26 @@
   font-style: normal;
 }
 
+/* 한국어 픽셀 폰트 — Latin은 MS Sans Serif, CJK는 Galmuri11로 자동 폴백 */
+@font-face {
+  font-family: "Galmuri11";
+  src: url("https://cdn.jsdelivr.net/npm/galmuri@3/dist/Galmuri11.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Galmuri11";
+  src: url("https://cdn.jsdelivr.net/npm/galmuri@3/dist/Galmuri11-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 body.theme-win98,
 body.theme-win98 * {
-  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-family: "Pixelated MS Sans Serif", "Galmuri11", Arial, sans-serif;
   -webkit-font-smoothing: none;
 }
 
@@ -257,7 +274,7 @@ body.theme-win98 [data-board-bg-slot="true"] {
 body.theme-win98 [data-tile-kind],
 body.theme-win98 [data-skin-preview-tile="true"],
 body.theme-win98 .win98-tile-number {
-  font-family: "Pixelated MS Sans Serif", Arial, sans-serif !important;
+  font-family: "Pixelated MS Sans Serif", "Galmuri11", Arial, sans-serif !important;
   font-weight: 700 !important;
   letter-spacing: 0 !important;
   text-shadow: none !important;
@@ -383,4 +400,312 @@ body.theme-win98 .win98-ghost-invalid {
   0% { filter: brightness(1); }
   50% { filter: brightness(1.12); }
   100% { filter: brightness(1); }
+}
+
+/* ===========================================================
+   Win98 타이틀 바 그라데이션 (Win98 Plus! 스타일)
+   =========================================================== */
+body.theme-win98 .title-bar {
+  background: linear-gradient(90deg, #000080, #1084d0) !important;
+}
+
+body.theme-win98 .title-bar-text {
+  color: #fff !important;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+/* ===========================================================
+   포커스 점선 아웃라인 (Win98 고유의 선택 표시)
+   =========================================================== */
+body.theme-win98 .window button:focus-visible,
+body.theme-win98 .win98-window button:focus-visible {
+  outline: 1px dotted #000 !important;
+  outline-offset: -4px;
+}
+
+body.theme-win98 .win98-tab-active {
+  position: relative;
+}
+
+body.theme-win98 .win98-tab-active::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 1px dotted #000;
+  pointer-events: none;
+}
+
+/* ===========================================================
+   Win98 모달 오버레이/패널 공용
+   =========================================================== */
+body.theme-win98 .win98-modal-overlay {
+  background: rgba(0, 0, 0, 0.45) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* ===========================================================
+   Win98 프로그레스 바
+   =========================================================== */
+body.theme-win98 .win98-progress-track {
+  height: 16px;
+  border-radius: 0 !important;
+  background: #fff !important;
+  box-shadow: inset -1px -1px var(--win98-button-highlight), inset 1px 1px var(--win98-button-shadow),
+    inset -2px -2px var(--win98-button-face), inset 2px 2px var(--win98-window-frame) !important;
+  overflow: hidden;
+}
+
+body.theme-win98 .win98-progress-fill {
+  height: 100%;
+  border-radius: 0 !important;
+  background: repeating-linear-gradient(
+    -45deg,
+    #000080 0,
+    #000080 4px,
+    #1084d0 4px,
+    #1084d0 8px
+  ) !important;
+  transition: width 0.3s ease;
+}
+
+/* ===========================================================
+   Win98 sunken 패널 (재사용 가능 — 98.css sunken-panel 보강)
+   =========================================================== */
+body.theme-win98 .win98-sunken {
+  border-radius: 0 !important;
+  background: #fff !important;
+  border: none !important;
+  box-shadow: inset -1px -1px var(--win98-button-highlight), inset 1px 1px var(--win98-button-shadow),
+    inset -2px -2px var(--win98-button-face), inset 2px 2px var(--win98-window-frame) !important;
+  padding: 6px;
+}
+
+/* ===========================================================
+   Win98 분할 구역 버튼 (Compartment) 입체감 강화
+   =========================================================== */
+body.theme-win98 .win98-compartment {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  min-height: 20px;
+  box-shadow: inset -1px -1px var(--win98-window-frame), inset 1px 1px var(--win98-button-highlight),
+    inset -2px -2px var(--win98-button-shadow), inset 2px 2px var(--win98-button-face) !important;
+  background: var(--win98-surface) !important;
+  cursor: pointer;
+}
+
+body.theme-win98 .win98-compartment:active {
+  box-shadow: inset -1px -1px var(--win98-button-highlight), inset 1px 1px var(--win98-window-frame),
+    inset -2px -2px var(--win98-button-face), inset 2px 2px var(--win98-button-shadow) !important;
+}
+
+/* ===========================================================
+   Win98 리스트 아이템 (랭킹 항목 등)
+   =========================================================== */
+body.theme-win98 .win98-list-item {
+  border-radius: 0 !important;
+  border: none !important;
+  border-bottom: 1px solid #808080 !important;
+  background: #fff !important;
+  padding: 6px 8px;
+  color: var(--win98-text-color) !important;
+}
+
+body.theme-win98 .win98-list-item-highlight {
+  background: #000080 !important;
+  color: #fff !important;
+}
+
+/* ===========================================================
+   Win98 배지/태그
+   =========================================================== */
+body.theme-win98 .win98-badge {
+  border-radius: 0 !important;
+  border: 1px solid var(--win98-button-shadow) !important;
+  background: var(--win98-surface) !important;
+  color: var(--win98-text-color) !important;
+  padding: 1px 6px;
+  font-size: 11px;
+}
+
+/* ===========================================================
+   Win98 필드셋 (그룹박스)
+   =========================================================== */
+body.theme-win98 .win98-fieldset {
+  border: 1px solid var(--win98-button-shadow) !important;
+  border-top: 1px solid var(--win98-text-color) !important;
+  border-radius: 0 !important;
+  padding: 8px;
+  margin-top: 8px;
+}
+
+/* ===========================================================
+   Win98 탭 스타일
+   =========================================================== */
+body.theme-win98 .win98-tabstrip {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--win98-surface);
+  padding: 0 4px;
+}
+
+body.theme-win98 .win98-tabstrip-tab {
+  padding: 4px 16px !important;
+  border-radius: 0 !important;
+  font-size: 12px !important;
+  border: none !important;
+  background: var(--win98-button-face) !important;
+  color: var(--win98-text-color) !important;
+  box-shadow: inset 0 1px var(--win98-button-highlight),
+    inset -1px 0 var(--win98-button-shadow),
+    inset 1px 0 var(--win98-button-highlight) !important;
+  margin-bottom: -2px;
+  position: relative;
+}
+
+body.theme-win98 .win98-tabstrip-tab[data-active="true"] {
+  background: var(--win98-surface) !important;
+  font-weight: 700 !important;
+  box-shadow: inset 0 1px var(--win98-button-highlight),
+    inset -1px 0 var(--win98-button-shadow),
+    inset 1px 0 var(--win98-button-highlight),
+    0 2px 0 var(--win98-surface) !important;
+  z-index: 1;
+}
+
+/* ===========================================================
+   Win98 전역 모던 스타일 강제 제거 — .window / .win98-window 내부
+   모던 Tailwind 색상·라운드·블러를 일괄 Win98 톤으로 변환
+   =========================================================== */
+
+/* 모던 컬러 배경 → 투명 (Win98 surface 기본값으로 대체) */
+body.theme-win98 .window [class*="bg-orange"],
+body.theme-win98 .window [class*="bg-amber"],
+body.theme-win98 .window [class*="bg-yellow"],
+body.theme-win98 .window [class*="bg-blue"],
+body.theme-win98 .window [class*="bg-sky"],
+body.theme-win98 .window [class*="bg-indigo"],
+body.theme-win98 .window [class*="bg-purple"],
+body.theme-win98 .window [class*="bg-violet"],
+body.theme-win98 .window [class*="bg-green"],
+body.theme-win98 .window [class*="bg-emerald"],
+body.theme-win98 .window [class*="bg-red"],
+body.theme-win98 .window [class*="bg-pink"],
+body.theme-win98 .win98-window [class*="bg-orange"],
+body.theme-win98 .win98-window [class*="bg-amber"],
+body.theme-win98 .win98-window [class*="bg-yellow"],
+body.theme-win98 .win98-window [class*="bg-blue"],
+body.theme-win98 .win98-window [class*="bg-sky"],
+body.theme-win98 .win98-window [class*="bg-indigo"],
+body.theme-win98 .win98-window [class*="bg-purple"],
+body.theme-win98 .win98-window [class*="bg-violet"],
+body.theme-win98 .win98-window [class*="bg-green"],
+body.theme-win98 .win98-window [class*="bg-emerald"],
+body.theme-win98 .win98-window [class*="bg-red"],
+body.theme-win98 .win98-window [class*="bg-pink"] {
+  background-color: transparent !important;
+}
+
+/* bg-white → Win98 표면 (#fff 대신 surface) — .win98-sunken 등 예외 */
+body.theme-win98 .window > *:not(.title-bar) [class*="bg-white"]:not(.win98-sunken):not(.win98-list-item):not(.win98-progress-track),
+body.theme-win98 .win98-window [class*="bg-white"]:not(.win98-sunken):not(.win98-list-item):not(.win98-progress-track) {
+  background-color: var(--win98-surface) !important;
+}
+
+/* backdrop-filter 제거 */
+body.theme-win98 .window [class*="backdrop-blur"],
+body.theme-win98 .win98-window [class*="backdrop-blur"] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* 모던 border 컬러 → Win98 시스템 그레이 */
+body.theme-win98 .window [class*="border-orange"],
+body.theme-win98 .window [class*="border-amber"],
+body.theme-win98 .window [class*="border-yellow"],
+body.theme-win98 .window [class*="border-blue"]:not(.title-bar),
+body.theme-win98 .window [class*="border-sky"],
+body.theme-win98 .window [class*="border-indigo"],
+body.theme-win98 .window [class*="border-purple"],
+body.theme-win98 .window [class*="border-violet"],
+body.theme-win98 .window [class*="border-green"],
+body.theme-win98 .window [class*="border-emerald"],
+body.theme-win98 .window [class*="border-red"],
+body.theme-win98 .window [class*="border-pink"],
+body.theme-win98 .window [class*="border-white"],
+body.theme-win98 .win98-window [class*="border-orange"],
+body.theme-win98 .win98-window [class*="border-amber"],
+body.theme-win98 .win98-window [class*="border-yellow"],
+body.theme-win98 .win98-window [class*="border-blue"],
+body.theme-win98 .win98-window [class*="border-sky"],
+body.theme-win98 .win98-window [class*="border-indigo"],
+body.theme-win98 .win98-window [class*="border-purple"],
+body.theme-win98 .win98-window [class*="border-violet"],
+body.theme-win98 .win98-window [class*="border-green"],
+body.theme-win98 .win98-window [class*="border-emerald"],
+body.theme-win98 .win98-window [class*="border-red"],
+body.theme-win98 .win98-window [class*="border-pink"],
+body.theme-win98 .win98-window [class*="border-white"] {
+  border-color: var(--win98-button-shadow) !important;
+}
+
+/* 모던 텍스트 색상 → Win98 시스템 블랙 (강조 텍스트 유지) */
+body.theme-win98 .window [class*="text-orange"],
+body.theme-win98 .window [class*="text-amber"],
+body.theme-win98 .window [class*="text-blue"],
+body.theme-win98 .window [class*="text-sky"],
+body.theme-win98 .window [class*="text-indigo"],
+body.theme-win98 .window [class*="text-purple"],
+body.theme-win98 .window [class*="text-violet"],
+body.theme-win98 .window [class*="text-pink"],
+body.theme-win98 .win98-window [class*="text-orange"],
+body.theme-win98 .win98-window [class*="text-amber"],
+body.theme-win98 .win98-window [class*="text-blue"],
+body.theme-win98 .win98-window [class*="text-sky"],
+body.theme-win98 .win98-window [class*="text-indigo"],
+body.theme-win98 .win98-window [class*="text-purple"],
+body.theme-win98 .win98-window [class*="text-violet"],
+body.theme-win98 .win98-window [class*="text-pink"] {
+  color: var(--win98-text-color) !important;
+}
+
+/* 성공/실패 텍스트만 약간의 컬러 허용 */
+body.theme-win98 .window [class*="text-emerald"],
+body.theme-win98 .window [class*="text-green"],
+body.theme-win98 .win98-window [class*="text-emerald"],
+body.theme-win98 .win98-window [class*="text-green"] {
+  color: #006400 !important;
+}
+
+body.theme-win98 .window [class*="text-red"],
+body.theme-win98 .win98-window [class*="text-red"] {
+  color: #8b0000 !important;
+}
+
+/* 볼드 컬러 배경 버튼(bg-gray-900 등) → Win98 기본 버튼 */
+body.theme-win98 .window [class*="bg-gray-9"],
+body.theme-win98 .win98-window [class*="bg-gray-9"] {
+  background: var(--win98-surface) !important;
+  color: var(--win98-text-color) !important;
+}
+
+/* shadow-lg, shadow-xl 등 남은 쉐도우 제거 */
+body.theme-win98 .win98-window [class*="shadow"] {
+  box-shadow: none !important;
+}
+
+/* 모던 transition/transform 효과 제거 */
+body.theme-win98 .window [class*="hover:-translate"],
+body.theme-win98 .window [class*="active:scale"],
+body.theme-win98 .win98-window [class*="hover:-translate"],
+body.theme-win98 .win98-window [class*="active:scale"] {
+  transform: none !important;
+}
+
+/* Win98 윈도우 내부 모든 라운드 강제 0 (win98-window 포함) */
+body.theme-win98 .win98-window [class*="rounded-"] {
+  border-radius: 0 !important;
 }

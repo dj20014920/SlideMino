@@ -13,6 +13,7 @@ import { getHighestLevelBadgeForLevel, loadXpData } from '../services/xpLevelSer
 import { PLAYER_NAME_MAX_LENGTH, normalizePlayerName, validatePlayerName } from '../utils/playerName';
 import type { GameMode, BoardSize } from '../types';
 import AdBanner from './AdBanner';
+import { useBlockCustomization } from '../context/BlockCustomizationContext';
 
 interface GameOverModalProps {
     sessionId: string;
@@ -77,6 +78,8 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
     const [localRank, setLocalRank] = useState<number | undefined>(submittedRank);
     const [localTotal, setLocalTotal] = useState<number | undefined>(submittedTotal);
     const levelBadgeId = getHighestLevelBadgeForLevel(loadXpData().level)?.id;
+    const { isWin98ThemeActive } = useBlockCustomization();
+    const isWin98 = Boolean(isWin98ThemeActive);
 
     useEffect(() => {
         // Load saved name or use provided playerName
@@ -274,14 +277,28 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
     return (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6">
             {/* Backdrop */}
-            <div className="absolute inset-0 bg-white/80 backdrop-blur-xl animate-fade-in" />
+            <div className={isWin98 ? 'absolute inset-0 win98-modal-overlay' : 'absolute inset-0 bg-white/80 backdrop-blur-xl animate-fade-in'} />
 
             {/* Content */}
-            <div className="relative z-10 flex flex-col items-center w-full max-w-sm animate-slide-up win98-window p-5">
+            <div className={isWin98
+                ? 'window relative z-10 flex flex-col items-center w-full max-w-sm animate-slide-up'
+                : 'relative z-10 flex flex-col items-center w-full max-w-sm animate-slide-up win98-window p-5'}>
+                {isWin98 && (
+                    <div className="title-bar w-full">
+                        <div className="title-bar-text">{t('modals:gameOver.title')}</div>
+                        <div className="title-bar-controls">
+                            <button aria-label="Close" onClick={onClose} />
+                        </div>
+                    </div>
+                )}
+              <div className={isWin98 ? 'window-body w-full p-3' : 'w-full'}>
 
                 {step === 'INITIAL' && (
                     <div className="flex flex-col items-center space-y-8 w-full">
                         {/* Trophy Icon */}
+                        {isWin98 ? (
+                            <div className="text-4xl">{'\u25A3'}</div>
+                        ) : (
                         <div className="
               w-24 h-24 rounded-full 
               bg-gradient-to-br from-amber-100 to-yellow-200
@@ -291,17 +308,20 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
             ">
                             <Trophy size={40} className="text-amber-600 drop-shadow-sm" />
                         </div>
+                        )}
 
                         {/* Title */}
                         <h2 className="text-4xl font-bold text-gray-900 tracking-tight">{t('modals:gameOver.title')}</h2>
 
                         {/* Score Display */}
-                        <div className="
+                        <div className={isWin98
+                            ? 'w-full text-center px-4 py-6 win98-sunken'
+                            : `
               w-full text-center px-6 py-8 rounded-3xl
               bg-white/60 backdrop-blur-md
               border border-white/60
               shadow-lg
-            ">
+            `}>
                             <p className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-2">
                                 {t('common:labels.finalScore')}
                             </p>
@@ -534,6 +554,9 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
 
                 {step === 'SUBMITTED' && (
                     <div className="flex flex-col items-center space-y-8 w-full animate-pop-in">
+                        {isWin98 ? (
+                            <div className="text-4xl">[{' \u2713 '}]</div>
+                        ) : (
                         <div className="
               w-24 h-24 rounded-full
               bg-green-100 border border-green-200
@@ -541,6 +564,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
             ">
                             <Check size={40} className="text-green-600" />
                         </div>
+                        )}
 
                         <div className="text-center space-y-2">
                             <h3 className="text-2xl font-bold text-gray-900">{t('modals:rankingRegister.success')}</h3>
@@ -618,6 +642,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                 <div className="w-full mt-4">
                     <AdBanner />
                 </div>
+              </div>
             </div>
         </div>
     );

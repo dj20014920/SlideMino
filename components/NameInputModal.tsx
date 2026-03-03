@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { X, Play } from 'lucide-react';
 import { PLAYER_NAME_MAX_LENGTH, validatePlayerName, normalizePlayerName } from '../utils/playerName';
 import { isAndroidApp } from '../utils/platform';
+import { useBlockCustomization } from '../context/BlockCustomizationContext';
 
 interface NameInputModalProps {
     open: boolean;
@@ -18,6 +19,8 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({ open, difficulty
     const [name, setName] = useState('');
     const [error, setError] = useState<string | null>(null);
     const isAndroid = isAndroidApp();
+    const { isWin98ThemeActive } = useBlockCustomization();
+    const isWin98 = Boolean(isWin98ThemeActive);
 
     useEffect(() => {
         if (open) {
@@ -50,16 +53,26 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({ open, difficulty
     if (!open) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+        <div className={isWin98 ? 'fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4' : 'fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4'}>
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
+                className={isWin98 ? 'absolute inset-0 win98-modal-overlay' : 'absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in'}
                 onClick={onClose}
             />
 
-            {/* Modal Content - 키보드 오버랩 방지를 위해 모바일에서는 하단 정렬 */}
-            <div className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden animate-scale-in mb-safe win98-window">
-                <div className="p-6">
+            <div className={isWin98
+                ? 'window relative w-full max-w-sm overflow-hidden animate-scale-in mb-safe'
+                : 'relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden animate-scale-in mb-safe win98-window'}>
+                {isWin98 && (
+                    <div className="title-bar">
+                        <div className="title-bar-text">{String(t('modals:nameInput.title', { difficulty } as any))}</div>
+                        <div className="title-bar-controls">
+                            <button aria-label="Close" onClick={onClose} />
+                        </div>
+                    </div>
+                )}
+                <div className={isWin98 ? 'window-body p-4' : 'p-6'}>
+                    {!isWin98 && (
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-xl font-bold text-gray-800">
                             {String(t('modals:nameInput.title', { difficulty } as any))}
@@ -71,6 +84,7 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({ open, difficulty
                             <X size={20} />
                         </button>
                     </div>
+                    )}
 
                     {hasActiveGame && (
                         <div className="mb-6 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800 flex flex-col gap-1">

@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, ChevronLeft, ChevronRight, Smartphone, Mouse, RotateCw, Undo2, Zap, AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useBlockCustomization } from '../context/BlockCustomizationContext';
 import { LANGUAGE_CONFIGS, SUPPORTED_LANGUAGES, normalizeLanguage, type SupportedLanguage } from '../i18n/constants';
 
 interface HelpModalProps {
@@ -176,6 +177,8 @@ const languageOrder: Language[] = [...SUPPORTED_LANGUAGES];
 
 export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
     const { i18n, t } = useTranslation();
+    const { isWin98ThemeActive } = useBlockCustomization();
+    const isWin98 = Boolean(isWin98ThemeActive);
     const currentLang = normalizeLanguage(i18n.resolvedLanguage ?? i18n.language);
 
     if (!isOpen) return null;
@@ -194,59 +197,88 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
     };
 
     return (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+        <div className={`fixed inset-0 z-[10000] flex items-center justify-center p-4 ${isWin98 ? 'win98-modal-overlay' : 'bg-black/60 backdrop-blur-sm'} animate-fadeIn`}>
             <div
-                className="relative w-full max-w-md max-h-[85vh] overflow-hidden rounded-3xl shadow-2xl border border-white/50 win98-window"
-                style={{
+                className={isWin98
+                    ? 'window relative w-full max-w-md max-h-[85vh] overflow-hidden'
+                    : 'relative w-full max-w-md max-h-[85vh] overflow-hidden rounded-3xl shadow-2xl border border-white/50'
+                }
+                style={isWin98 ? undefined : {
                     background: 'rgba(255, 255, 255, 0.85)',
                     backdropFilter: 'blur(24px)',
                     WebkitBackdropFilter: 'blur(24px)',
                 }}
             >
                 {/* Header */}
-                <div className="relative px-6 py-5 bg-gradient-to-b from-gray-800 to-gray-900 border-b border-white/10">
-                    {/* Close Button */}
-                    <button
-                        onClick={onClose}
-                        className="absolute top-4 right-4 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
-                    >
-                        <X size={20} className="text-white" />
-                    </button>
-
-                    {/* Language Switcher */}
-                    <div className="flex items-center justify-center gap-4 mb-3">
+                {isWin98 ? (
+                    <>
+                        <div className="title-bar">
+                            <div className="title-bar-text">{currentContent.title}</div>
+                            <div className="title-bar-controls">
+                                <button aria-label="Close" onClick={onClose} />
+                            </div>
+                        </div>
+                        <div className="window-body p-2">
+                            <div className="flex items-center justify-center gap-3 mb-2">
+                                <button onClick={prevLang} className="px-1">
+                                    <ChevronLeft size={16} />
+                                </button>
+                                <span className="text-xs font-semibold px-2 py-0.5 win98-badge">
+                                    {LANGUAGE_CONFIGS[currentLang]?.displayName ?? currentLang}
+                                </span>
+                                <button onClick={nextLang} className="px-1">
+                                    <ChevronRight size={16} />
+                                </button>
+                            </div>
+                            <p className="text-xs text-center mb-2">
+                                {currentContent.subtitle}
+                            </p>
+                        </div>
+                    </>
+                ) : (
+                    <div className="relative px-6 py-5 bg-gradient-to-b from-gray-800 to-gray-900 border-b border-white/10">
                         <button
-                            onClick={prevLang}
-                            className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+                            onClick={onClose}
+                            className="absolute top-4 right-4 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
                         >
-                            <ChevronLeft size={18} className="text-white" />
+                            <X size={20} className="text-white" />
                         </button>
-                        <span className="text-white font-medium text-sm px-3 py-1 bg-white/20 rounded-full min-w-[80px] text-center">
-                            {LANGUAGE_CONFIGS[currentLang]?.displayName ?? currentLang}
-                        </span>
-                        <button
-                            onClick={nextLang}
-                            className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
-                        >
-                            <ChevronRight size={18} className="text-white" />
-                        </button>
+                        <div className="flex items-center justify-center gap-4 mb-3">
+                            <button
+                                onClick={prevLang}
+                                className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+                            >
+                                <ChevronLeft size={18} className="text-white" />
+                            </button>
+                            <span className="text-white font-medium text-sm px-3 py-1 bg-white/20 rounded-full min-w-[80px] text-center">
+                                {LANGUAGE_CONFIGS[currentLang]?.displayName ?? currentLang}
+                            </span>
+                            <button
+                                onClick={nextLang}
+                                className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+                            >
+                                <ChevronRight size={18} className="text-white" />
+                            </button>
+                        </div>
+                        <h2 className="text-2xl font-bold text-white text-center">
+                            {currentContent.title}
+                        </h2>
+                        <p className="text-white/80 text-center text-sm mt-1">
+                            {currentContent.subtitle}
+                        </p>
                     </div>
-
-                    <h2 className="text-2xl font-bold text-white text-center">
-                        {currentContent.title}
-                    </h2>
-                    <p className="text-white/80 text-center text-sm mt-1">
-                        {currentContent.subtitle}
-                    </p>
-                </div>
+                )}
 
                 {/* Content */}
-                <div className="px-5 py-4 overflow-y-auto max-h-[calc(85vh-180px)]">
-                    <div className="space-y-4">
+                <div className={isWin98 ? 'px-2 py-2 overflow-y-auto max-h-[calc(85vh-140px)]' : 'px-5 py-4 overflow-y-auto max-h-[calc(85vh-180px)]'}>
+                    <div className={isWin98 ? 'space-y-2' : 'space-y-4'}>
                         {currentContent.sections.map((section, index) => (
                             <div
                                 key={index}
-                                className="p-4 rounded-2xl bg-white/80 shadow-sm border border-gray-100/50 hover:shadow-md transition-shadow"
+                                className={isWin98
+                                    ? 'win98-sunken p-2'
+                                    : 'p-4 rounded-2xl bg-white/80 shadow-sm border border-gray-100/50 hover:shadow-md transition-shadow'
+                                }
                             >
                                 <div className="flex items-center gap-2 mb-2">
                                     <span className="text-blue-500">{section.icon}</span>
@@ -260,7 +292,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                     </div>
 
                     {/* Tip */}
-                    <div className="mt-5 p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/50">
+                    <div className={isWin98 ? 'mt-3 win98-sunken p-2' : 'mt-5 p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/50'}>
                         <p className="text-amber-800 text-sm font-medium">
                             {currentContent.tip}
                         </p>
@@ -268,10 +300,13 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                 </div>
 
                 {/* Footer */}
-                <div className="px-6 py-4 border-t border-gray-100">
+                <div className={isWin98 ? 'px-2 py-2' : 'px-6 py-4 border-t border-gray-100'}>
                     <button
                         onClick={onClose}
-                        className="w-full py-3 rounded-xl font-bold text-white bg-gradient-to-br from-gray-800 to-gray-900 hover:from-gray-900 hover:to-black transition-all shadow-lg hover:shadow-xl active:scale-[0.98] border border-white/10"
+                        className={isWin98
+                            ? 'w-full py-1.5 font-bold'
+                            : 'w-full py-3 rounded-xl font-bold text-white bg-gradient-to-br from-gray-800 to-gray-900 hover:from-gray-900 hover:to-black transition-all shadow-lg hover:shadow-xl active:scale-[0.98] border border-white/10'
+                        }
                     >
                         {t('common:buttons.confirm')}
                     </button>

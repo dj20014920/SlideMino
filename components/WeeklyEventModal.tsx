@@ -12,6 +12,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Trophy, Play, Clock, Flame, Zap, X } from 'lucide-react';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
+import { useBlockCustomization } from '../context/BlockCustomizationContext';
 import {
   getCurrentEvent,
   getPreviousEvent,
@@ -68,6 +69,8 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
 }) => {
   const { t } = useTranslation(['game', 'common']);
   useBodyScrollLock(isOpen);
+  const { isWin98ThemeActive } = useBlockCustomization();
+  const isWin98 = Boolean(isWin98ThemeActive);
   const [event, setEvent] = useState<CurrentEventInfo | null>(null);
   const [rankings, setRankings] = useState<EventRankingEntry[]>([]);
   const [myRank, setMyRank] = useState<number | undefined>();
@@ -280,66 +283,84 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
   const isApp = isNativeApp();
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl">
+    <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 ${isWin98 ? 'win98-modal-overlay' : 'bg-black/60 backdrop-blur-sm'}`}>
+      <div className={isWin98
+        ? 'window relative w-full max-w-md max-h-[90vh] overflow-y-auto'
+        : 'relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl'
+      }>
         {/* 헤더 */}
-        <div className={`relative bg-gradient-to-br ${theme.gradient} px-5 py-5 text-white rounded-t-2xl`}>
-          <button
-            onClick={onClose}
-            className="absolute top-3 right-3 p-1.5 rounded-full bg-white/20 hover:bg-white/30 transition"
-            aria-label={t('common:buttons.close')}
-          >
-            <X size={18} />
-          </button>
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">{theme.icon}</span>
-            <div>
-              <h2 className="text-xl font-bold">{t(`game:weeklyEvent.events.${event.eventType}.name`)}</h2>
-              <p className="text-sm text-white/80 mt-0.5">
-                <Clock size={12} className="inline mr-1" />
-                {remainingText} {t('game:weeklyEvent.remaining')}
-              </p>
+        {isWin98 ? (
+          <div className="title-bar">
+            <div className="title-bar-text">{t(`game:weeklyEvent.events.${event.eventType}.name`)}</div>
+            <div className="title-bar-controls">
+              <button aria-label="Close" onClick={onClose} />
             </div>
           </div>
-        </div>
+        ) : (
+          <div className={`relative bg-gradient-to-br ${theme.gradient} px-5 py-5 text-white rounded-t-2xl`}>
+            <button
+              onClick={onClose}
+              className="absolute top-3 right-3 p-1.5 rounded-full bg-white/20 hover:bg-white/30 transition"
+              aria-label={t('common:buttons.close')}
+            >
+              <X size={18} />
+            </button>
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">{theme.icon}</span>
+              <div>
+                <h2 className="text-xl font-bold">{t(`game:weeklyEvent.events.${event.eventType}.name`)}</h2>
+                <p className="text-sm text-white/80 mt-0.5">
+                  <Clock size={12} className="inline mr-1" />
+                  {remainingText} {t('game:weeklyEvent.remaining')}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 규칙 설명 */}
-        <div className="px-5 pt-4 pb-3">
+        <div className={isWin98 ? 'window-body px-3 pt-2 pb-2' : 'px-5 pt-4 pb-3'}>
+          {isWin98 && (
+            <p className="text-xs mb-2">
+              <Clock size={12} className="inline mr-1" />
+              {remainingText} {t('game:weeklyEvent.remaining')}
+            </p>
+          )}
           <p className="text-sm text-gray-600 leading-relaxed">
             {t(`game:weeklyEvent.events.${event.eventType}.desc`)}
           </p>
 
           {/* 규칙 태그 */}
           <div className="flex flex-wrap gap-1.5 mt-3">
-            <span className={`text-xs px-2 py-0.5 rounded-full ${theme.badge}`}>
+            <span className={isWin98 ? 'win98-badge text-xs' : `text-xs px-2 py-0.5 rounded-full ${theme.badge}`}>
               {rule.boardSize}×{rule.boardSize}
             </span>
             {rule.disableRotation && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
-                🔒 {t('game:weeklyEvent.tags.noRotation')}
+              <span className={isWin98 ? 'win98-badge text-xs' : 'text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600'}>
+                {isWin98 ? '▣' : '🔒'} {t('game:weeklyEvent.tags.noRotation')}
               </span>
             )}
             {rule.scoreMultiplier > 1 && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
+              <span className={isWin98 ? 'win98-badge text-xs' : 'text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700'}>
                 ×{rule.scoreMultiplier} {t('game:weeklyEvent.tags.scoreBoost')}
               </span>
             )}
             {rule.tripleKillBonus > 0 && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-pink-100 text-pink-700">
+              <span className={isWin98 ? 'win98-badge text-xs' : 'text-xs px-2 py-0.5 rounded-full bg-pink-100 text-pink-700'}>
                 +{rule.tripleKillBonus}pt {t('game:weeklyEvent.tags.tripleKill')}
               </span>
             )}
-            <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+            <span className={isWin98 ? 'win98-badge text-xs' : 'text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600'}>
               ⏱ {Math.floor(rule.timeLimitSeconds / 60)}{t('game:weeklyEvent.tags.minutes')}
             </span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
-              🎯 {remainingTagText}
+            <span className={isWin98 ? 'win98-badge text-xs' : 'text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600'}>
+              {isWin98 ? '◇' : '🎯'} {remainingTagText}
             </span>
           </div>
         </div>
 
         {/* 보상 */}
-        <div className="px-5 pb-3">
+        <div className={isWin98 ? 'px-3 pb-2' : 'px-5 pb-3'}>
           {isApp ? (
             // 앱: 구체적인 조각 수량 표시
             <>
@@ -398,7 +419,7 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
 
         {/* 내 정보 */}
         {hasPlayed && (
-          <div className="mx-5 mb-3 p-3 rounded-xl bg-gray-50">
+          <div className={isWin98 ? 'mx-3 mb-2 win98-sunken p-2' : 'mx-5 mb-3 p-3 rounded-xl bg-gray-50'}>
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">{t('game:weeklyEvent.myBest')}</span>
               <span className="font-bold text-gray-800">{myScore?.toLocaleString() ?? '-'}</span>
@@ -416,7 +437,7 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
 
         {/* 이전 주 참여 보상 수령 — 서버 검증, 이벤트 로테이션 후 전주 결과 기반 지급 (앱 전용) */}
         {isApp && prevEventParticipated && !rewardClaimed && (
-          <div className="mx-5 mb-3">
+          <div className={isWin98 ? 'mx-3 mb-2' : 'mx-5 mb-3'}>
             <p className="text-xs text-gray-500 mb-1.5 flex items-center gap-1">
               <Trophy size={12} className="text-amber-500" />
               {t('game:weeklyEvent.prevWeekRewardLabel')}
@@ -429,11 +450,14 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
             <button
               onClick={handleClaimReward}
               disabled={isClaimingReward}
-              className="w-full py-2.5 rounded-xl bg-amber-500 text-white font-semibold text-sm hover:bg-amber-600 transition disabled:opacity-50"
+              className={isWin98
+                ? 'w-full py-2 font-semibold text-sm'
+                : 'w-full py-2.5 rounded-xl bg-amber-500 text-white font-semibold text-sm hover:bg-amber-600 transition disabled:opacity-50'
+              }
             >
               {isClaimingReward
                 ? t('common:labels.loading')
-                : `🎁 ${t('game:weeklyEvent.claimReward')}`}
+                : `${isWin98 ? '■' : '🎁'} ${t('game:weeklyEvent.claimReward')}`}
             </button>
             {claimError && (
               <p className="mt-1.5 text-xs text-red-500 text-center">{claimError}</p>
@@ -442,15 +466,18 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
         )}
 
         {/* 시작/이어하기 버튼 */}
-        <div className="px-5 pb-3 space-y-2">
+        <div className={isWin98 ? 'px-3 pb-2 space-y-1.5' : 'px-5 pb-3 space-y-2'}>
           {!hasSavedGame && canUnlockByAd && isAttemptUnlockAdSupported && (
             <button
               onClick={handleWatchAttemptUnlockAd}
               disabled={isAttemptUnlockAdInProgress || !isAttemptUnlockAdReady}
-              className={`w-full py-3.5 rounded-xl font-bold text-base transition-all ${isAttemptUnlockAdInProgress || !isAttemptUnlockAdReady
-                  ? 'bg-gray-100 text-gray-500'
-                  : 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5'
-                }`}
+              className={isWin98
+                ? `w-full py-2 font-bold text-base ${isAttemptUnlockAdInProgress || !isAttemptUnlockAdReady ? 'bg-gray-100 text-gray-500' : ''}`
+                : `w-full py-3.5 rounded-xl font-bold text-base transition-all ${isAttemptUnlockAdInProgress || !isAttemptUnlockAdReady
+                    ? 'bg-gray-100 text-gray-500'
+                    : 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5'
+                  }`
+              }
             >
               {isAttemptUnlockAdInProgress
                 ? t('game:weeklyEvent.adUnlockLoading')
@@ -462,7 +489,10 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
           {hasSavedGame && (
             <button
               onClick={onContinueEvent}
-              className={`w-full py-3.5 rounded-xl bg-gradient-to-r ${theme.gradient} text-white font-bold text-base shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all`}
+              className={isWin98
+                ? `w-full py-2 font-bold text-base`
+                : `w-full py-3.5 rounded-xl bg-gradient-to-r ${theme.gradient} text-white font-bold text-base shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all`
+              }
             >
               <Play size={16} className="inline mr-1 -mt-0.5" />
               {t('game:weeklyEvent.continueGame')}
@@ -471,10 +501,13 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
           {canStart && (
             <button
               onClick={onStartEvent}
-              className={`w-full py-3.5 rounded-xl ${hasSavedGame
-                ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                : `bg-gradient-to-r ${theme.gradient} text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5`
-                } font-bold text-base transition-all`}
+              className={isWin98
+                ? `w-full py-2 ${hasSavedGame ? '' : ''} font-bold text-base`
+                : `w-full py-3.5 rounded-xl ${hasSavedGame
+                    ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    : `bg-gradient-to-r ${theme.gradient} text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5`
+                  } font-bold text-base transition-all`
+              }
             >
               {hasSavedGame ? (
                 <>{t('game:weeklyEvent.newAttempt')} ({remainingInlineText})</>
@@ -499,24 +532,32 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
         </div>
 
         {/* 랭킹 */}
-        <div className="px-5 pb-5">
+        <div className={isWin98 ? 'px-3 pb-3' : 'px-5 pb-5'}>
           {/* 주차 탭 토글 */}
-          <div className="flex items-center gap-1 mb-3">
+          <div className={isWin98 ? 'win98-tabstrip mb-2' : 'flex items-center gap-1 mb-3'}>
             <button
               onClick={() => setShowPrevWeek(false)}
-              className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${!showPrevWeek
-                  ? `bg-gradient-to-r ${theme.gradient} text-white shadow-sm`
-                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                }`}
+              data-active={!showPrevWeek}
+              className={isWin98
+                ? 'win98-tabstrip-tab'
+                : `flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${!showPrevWeek
+                    ? `bg-gradient-to-r ${theme.gradient} text-white shadow-sm`
+                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                  }`
+              }
             >
               {t('game:weeklyEvent.thisWeek')}
             </button>
             <button
               onClick={() => setShowPrevWeek(true)}
-              className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${showPrevWeek
-                  ? `bg-gradient-to-r ${theme.gradient} text-white shadow-sm`
-                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                }`}
+              data-active={showPrevWeek}
+              className={isWin98
+                ? 'win98-tabstrip-tab'
+                : `flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${showPrevWeek
+                    ? `bg-gradient-to-r ${theme.gradient} text-white shadow-sm`
+                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                  }`
+              }
             >
               {t('game:weeklyEvent.lastWeek')}
             </button>
@@ -530,21 +571,26 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
                   <Trophy size={14} className="text-amber-500" />
                   {t('game:weeklyEvent.rankings')}
                 </h3>
-                <div className="space-y-1 max-h-60 overflow-y-auto">
+                <div className={isWin98 ? 'win98-sunken space-y-0 max-h-60 overflow-y-auto' : 'space-y-1 max-h-60 overflow-y-auto'}>
                   {rankings.slice(0, 20).map((entry, idx) => {
                     const levelBadgeEmoji = getLevelBadgeById(entry.levelBadge ?? null)?.emoji;
                     return (
                       <div
                         key={idx}
-                        className={`flex items-center justify-between py-1.5 px-2.5 rounded-lg text-sm ${myRank === entry.rank ? 'bg-amber-50 font-semibold' : ''
-                          }`}
+                        className={isWin98
+                          ? `win98-list-item flex items-center justify-between py-1 px-2 text-sm ${myRank === entry.rank ? 'win98-list-item-highlight' : ''}`
+                          : `flex items-center justify-between py-1.5 px-2.5 rounded-lg text-sm ${myRank === entry.rank ? 'bg-amber-50 font-semibold' : ''}`
+                        }
                       >
                         <div className="flex items-center gap-2">
                           <span className={`w-6 text-center font-bold ${entry.rank === 1 ? 'text-amber-500' :
                               entry.rank === 2 ? 'text-gray-400' :
                                 entry.rank === 3 ? 'text-amber-700' : 'text-gray-400'
                             }`}>
-                            {entry.rank <= 3 ? ['🥇', '🥈', '🥉'][entry.rank - 1] : entry.rank}
+                            {isWin98
+                              ? (entry.rank <= 3 ? ['[1]', '[2]', '[3]'][entry.rank - 1] : entry.rank)
+                              : (entry.rank <= 3 ? ['🥇', '🥈', '🥉'][entry.rank - 1] : entry.rank)
+                            }
                           </span>
                           <span className="text-gray-800 truncate max-w-[140px]">
                             {levelBadgeEmoji ? `${levelBadgeEmoji} ${entry.name}` : entry.name}
@@ -574,21 +620,26 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
                   {t('common:labels.loading')}
                 </p>
               ) : prevRankings.length > 0 ? (
-                <div className="space-y-1 max-h-60 overflow-y-auto">
+                <div className={isWin98 ? 'win98-sunken space-y-0 max-h-60 overflow-y-auto' : 'space-y-1 max-h-60 overflow-y-auto'}>
                   {prevRankings.slice(0, 20).map((entry, idx) => {
                     const levelBadgeEmoji = getLevelBadgeById(entry.levelBadge ?? null)?.emoji;
                     return (
                       <div
                         key={idx}
-                        className={`flex items-center justify-between py-1.5 px-2.5 rounded-lg text-sm ${prevMyRank === entry.rank ? 'bg-amber-50 font-semibold' : ''
-                          }`}
+                        className={isWin98
+                          ? `win98-list-item flex items-center justify-between py-1 px-2 text-sm ${prevMyRank === entry.rank ? 'win98-list-item-highlight' : ''}`
+                          : `flex items-center justify-between py-1.5 px-2.5 rounded-lg text-sm ${prevMyRank === entry.rank ? 'bg-amber-50 font-semibold' : ''}`
+                        }
                       >
                         <div className="flex items-center gap-2">
                           <span className={`w-6 text-center font-bold ${entry.rank === 1 ? 'text-amber-500' :
                               entry.rank === 2 ? 'text-gray-400' :
                                 entry.rank === 3 ? 'text-amber-700' : 'text-gray-400'
                             }`}>
-                            {entry.rank <= 3 ? ['🥇', '🥈', '🥉'][entry.rank - 1] : entry.rank}
+                            {isWin98
+                              ? (entry.rank <= 3 ? ['[1]', '[2]', '[3]'][entry.rank - 1] : entry.rank)
+                              : (entry.rank <= 3 ? ['🥇', '🥈', '🥉'][entry.rank - 1] : entry.rank)
+                            }
                           </span>
                           <span className="text-gray-800 truncate max-w-[140px]">
                             {levelBadgeEmoji ? `${levelBadgeEmoji} ${entry.name}` : entry.name}

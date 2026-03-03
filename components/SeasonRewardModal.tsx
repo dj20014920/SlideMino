@@ -9,6 +9,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Gift } from 'lucide-react';
 import { isNativeApp } from '../utils/platform';
+import { useBlockCustomization } from '../context/BlockCustomizationContext';
 import type { SeasonReward } from '../services/seasonService';
 
 interface SeasonRewardModalProps {
@@ -35,6 +36,8 @@ export const SeasonRewardModal: React.FC<SeasonRewardModalProps> = ({
   const [claiming, setClaiming] = useState(false);
   const [claimed, setClaimed] = useState(false);
   const [totalClaimed, setTotalClaimed] = useState(0);
+  const { isWin98ThemeActive } = useBlockCustomization();
+  const isWin98 = Boolean(isWin98ThemeActive);
 
   if (!open || rewards.length === 0) return null;
 
@@ -51,27 +54,38 @@ export const SeasonRewardModal: React.FC<SeasonRewardModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden">
-        {/* 헤더 */}
-        <div className="p-5 pb-3 flex justify-between items-center bg-gradient-to-r from-amber-50 to-yellow-50 border-b border-amber-100">
-          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-            <Gift className="text-amber-500" size={22} />
-            {t('common:season.rewardTitle')}
-          </h2>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-200/50 text-gray-500">
-            <X size={18} />
-          </button>
-        </div>
+      <div className={isWin98 ? 'absolute inset-0 win98-modal-overlay' : 'absolute inset-0 bg-black/40 backdrop-blur-sm'} onClick={onClose} />
+      <div className={isWin98
+        ? 'window relative w-full max-w-sm overflow-hidden'
+        : 'relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden'}>
+        {/* Win98 타이틀 바 / 일반 헤더 */}
+        {isWin98 ? (
+          <div className="title-bar">
+            <div className="title-bar-text">{'◇ '}{t('common:season.rewardTitle')}</div>
+            <div className="title-bar-controls">
+              <button aria-label="Close" onClick={onClose} />
+            </div>
+          </div>
+        ) : (
+          <div className="p-5 pb-3 flex justify-between items-center bg-gradient-to-r from-amber-50 to-yellow-50 border-b border-amber-100">
+            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+              <Gift className="text-amber-500" size={22} />
+              {t('common:season.rewardTitle')}
+            </h2>
+            <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-200/50 text-gray-500">
+              <X size={18} />
+            </button>
+          </div>
+        )}
 
         {/* 보상 목록 */}
-        <div className="p-5 space-y-3">
+        <div className={isWin98 ? 'window-body p-3 space-y-3' : 'p-5 space-y-3'}>
           <p className="text-sm text-gray-500">{t('common:season.rewardDesc')}</p>
 
           {rewards.map((reward, i) => (
             <div
               key={`${reward.season_id}-${reward.difficulty}-${i}`}
-              className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3"
+              className={isWin98 ? 'win98-list-item flex items-center justify-between px-3 py-2' : 'flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3'}
             >
               <div>
                 <span className="text-sm font-semibold text-gray-700">

@@ -17,6 +17,7 @@ import {
 import { hashInstallId } from '../../utils/hash';
 import { checkRateLimit, getClientIp } from '../../utils/rateLimit';
 import { buildCorsHeaders } from '../../utils/cors';
+import { getCurrentEventId } from '../../utils/eventSchedule';
 
 interface Env {
   DB: D1Database;
@@ -107,6 +108,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       return errorResponse('Invalid event type', 400, corsHeaders);
     }
 
+    // 이벤트 ID 서버 검증 — 현재 진행 중인 이벤트만 점수 제출 가능
+    // (과거 이벤트 ID로 사기 제출하여 보상 편취 방지)
+    if (eventId !== getCurrentEventId()) {
+      return errorResponse('Event has ended or invalid event', 403, corsHeaders);
+    }
+
     const nameV = validateName(data.name);
     if (!nameV.valid) return errorResponse(nameV.error!, 400, corsHeaders);
     const name = nameV.sanitized!;
@@ -162,6 +169,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     if (isIntermediate) {
       // ── 중간 저장: 도전 횟수 소모 없이 랭킹만 UPSERT ──
+      // ⚠️ 3회 제한: 최종 제출 소진 후 isIntermediate=true로 무한 갱신 악용 차단
+      if (currentCount >= 3) {
+        return errorResponse('Maximum attempts reached (3/3)', 403, corsHeaders);
+      }
       try {
         await env.DB.batch([
           env.DB.prepare(
@@ -269,16 +280,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           score, score, moves, score, moves, duration
         ),
       ]);
-
-      await env.DB.prepare(
-        `CREATE TABLE IF NOT EXISTS event_ranking_badges (
-           event_id TEXT NOT NULL,
-           install_id_hash TEXT NOT NULL,
-           level_badge TEXT NOT NULL,
-           updated_at INTEGER NOT NULL,
-           PRIMARY KEY (event_id, install_id_hash)
-         )`
-      ).run();
 
       if (levelBadge) {
         await env.DB.prepare(

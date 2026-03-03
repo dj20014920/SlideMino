@@ -106,6 +106,8 @@
     "newAttempt": "New Attempt",
     "maxAttempts": "All 3 attempts used",
     "claimReward": "Claim Participation Reward",
+    "prevWeekRewardLabel": "Last week's event reward",
+    "claimFailed": "Failed to claim reward. Please try again later.",
     "watchAdForAttempt": "Watch Ad for +1 Attempt",
     "adUnlockPreparing": "Preparing ad...",
     "adUnlockLoading": "Watching ad...",

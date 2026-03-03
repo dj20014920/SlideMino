@@ -645,6 +645,22 @@ function resolveExplicitPaletteSkin(
   }
   applySkinStyleOverrides(style, styleData);
 
+  if (skinId === 'skin_digital_win98') {
+    // Win98 스킨은 customCss에서 border:none이 들어와 기본 테두리가 사라지므로,
+    // 값 전 구간에서 보더 대비를 다시 강하게 맞춘다.
+    const lum = relativeLuminance(paletteRgb);
+    const outerBorder = lum >= 0.62 ? '#3f3f3f' : lum >= 0.4 ? '#2f2f2f' : '#bfbfbf';
+    const bevelDark = lum >= 0.62 ? '#5c5c5c' : '#3d3d3d';
+    const bevelLight = lum >= 0.62 ? '#ffffff' : '#d5d5d5';
+    style.border = `1px solid ${outerBorder}`;
+    style.boxShadow = [
+      `inset -1px -1px ${bevelDark}`,
+      `inset 1px 1px ${bevelLight}`,
+      'inset -2px -2px rgba(0,0,0,0.32)',
+      'inset 2px 2px rgba(255,255,255,0.24)',
+    ].join(', ');
+  }
+
   // Apply animation
   const anim = SKIN_ANIMATIONS[skinId];
   if (anim) {

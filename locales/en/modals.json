@@ -68,9 +68,10 @@
     "homeTitle": "Leave This Run?",
     "homeDescription": "Before going back to the menu, you can register your current score.",
     "newGameTitle": "Register Before New Run",
-    "newGameDescription": "If you want to keep this run's score, register it before starting a new game.",
+    "newGameDescription": "Starting a new run immediately overwrites the current normal-mode session, so it cannot be resumed.\nRegister now if you want to keep this run score.",
     "scoreLabel": "Current Score",
     "registerButton": "Register and End Run",
+    "registerButtonNewGame": "Register and Start New Run",
     "homeProceed": "Go Home",
     "homeProceedHint": "You can resume anytime",
     "midSaveButton": "Mid-save",
@@ -87,7 +88,12 @@
     "alreadySubmittedExitMessage": "This session is already registered. Keeping the existing entry and moving to the next step.",
     "continueAfterMidSave": "Keep Playing",
     "confirmHome": "Go To Menu",
-    "confirmNewGame": "Start New Game"
+    "confirmNewGame": "Start New Game",
+    "newGameOverwriteNoticeTitle": "Important: Only one normal session is kept",
+    "newGameOverwriteNoticeBody": "The moment a new run actually starts, resume data for the previous normal run is deleted.\nMid-save records score only; once you start a new run, the previous run cannot be restored.",
+    "midSaveButtonHintNewGame": "Record the score only and keep the current run. New run start is canceled.",
+    "midSaveSubmittedMessageNewGame": "Current score was recorded. Your existing run is still kept, and you can resume it from the menu.",
+    "confirmMidSaveNewGame": "Back To Menu"
   },
   "updateRequired": {
     "title": "Update Required",

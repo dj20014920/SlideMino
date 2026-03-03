@@ -106,6 +106,8 @@
     "newAttempt": "新しい挑戦",
     "maxAttempts": "3回の挑戦完了",
     "claimReward": "参加報酬を受け取る",
+    "prevWeekRewardLabel": "先週のイベント参加報酬",
+    "claimFailed": "報酬の受け取りに失敗しました。しばらくしてからもう一度お試しください。",
     "watchAdForAttempt": "広告を見て+1回追加",
     "adUnlockPreparing": "広告を準備中...",
     "adUnlockLoading": "広告を視聴中...",

@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, ChevronLeft, ChevronRight, Smartphone, Mouse, RotateCw, Undo2, Zap } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Smartphone, Mouse, RotateCw, Undo2, Zap, AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { LANGUAGE_CONFIGS, SUPPORTED_LANGUAGES, normalizeLanguage, type SupportedLanguage } from '../i18n/constants';
 
@@ -50,6 +50,11 @@ const content: Record<Language, LocalizedContent> = {
                 icon: <Undo2 size={20} />,
                 title: '↩️ 되돌리기',
                 content: '실수했다면 우측 상단의 되돌리기 버튼을 누르세요. 게임당 1회까지 사용할 수 있습니다.'
+            },
+            {
+                icon: <AlertTriangle size={20} />,
+                title: '⚠️ 새 게임 시작 안내',
+                content: '일반 모드는 동시에 1개 세션만 저장됩니다. 새 게임을 시작하면 이전 일반 게임 이어하기 데이터가 덮어써집니다. 점수를 남기려면 먼저 랭킹 등록 또는 중간 저장을 완료하세요.'
             }
         ],
         tip: '💡 팁: 높은 숫자 블록을 한쪽 구석에 모으면 더 큰 숫자를 만들기 쉬워요!'
@@ -82,6 +87,11 @@ const content: Record<Language, LocalizedContent> = {
                 icon: <Undo2 size={20} />,
                 title: '↩️ Undo',
                 content: 'Made a mistake? Tap the undo button at the top right. You can use it once per game.'
+            },
+            {
+                icon: <AlertTriangle size={20} />,
+                title: '⚠️ Starting a New Run',
+                content: 'Normal mode keeps only one resumable session at a time. Starting a new run overwrites the previous normal run. If you want to keep your score, submit ranking or use mid-save first.'
             }
         ],
         tip: '💡 Tip: Keep high-value blocks in one corner to build bigger numbers easily!'
@@ -114,6 +124,11 @@ const content: Record<Language, LocalizedContent> = {
                 icon: <Undo2 size={20} />,
                 title: '↩️ 元に戻す',
                 content: '間違えた場合は、右上の戻るボタンをタップしてください。1ゲームにつき1回まで使用できます。'
+            },
+            {
+                icon: <AlertTriangle size={20} />,
+                title: '⚠️ 新しいゲーム開始の注意',
+                content: '通常モードは同時に1つのセッションのみ保存されます。新しいゲームを開始すると、以前の通常プレイ再開データは上書きされます。スコアを残したい場合は、先にランキング登録または途中保存を行ってください。'
             }
         ],
         tip: '💡 ヒント：高い数字のブロックを一つの角に集めると、より大きな数字が作りやすくなります！'
@@ -146,6 +161,11 @@ const content: Record<Language, LocalizedContent> = {
                 icon: <Undo2 size={20} />,
                 title: '↩️ 撤销',
                 content: '操作失误？点击右上角的撤销按钮。每局游戏可使用1次。'
+            },
+            {
+                icon: <AlertTriangle size={20} />,
+                title: '⚠️ 开始新局说明',
+                content: '普通模式同一时间只保留1个可续玩会话。开始新一局会覆盖上一局普通模式数据。若想保留分数，请先完成排行榜登记或中途保存。'
             }
         ],
         tip: '💡 提示：将高数值方块集中在一个角落，更容易创造更大的数字！'

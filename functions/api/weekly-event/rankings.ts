@@ -44,16 +44,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
 
     // TOP 100 랭킹 조회
-    await env.DB.prepare(
-      `CREATE TABLE IF NOT EXISTS event_ranking_badges (
-         event_id TEXT NOT NULL,
-         install_id_hash TEXT NOT NULL,
-         level_badge TEXT NOT NULL,
-         updated_at INTEGER NOT NULL,
-         PRIMARY KEY (event_id, install_id_hash)
-       )`
-    ).run();
-
     const rankings = await env.DB.prepare(
       `SELECT er.name, er.score, er.moves, er.duration, erb.level_badge as levelBadge
        FROM event_rankings er

@@ -237,14 +237,25 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
     const proceedWithoutKey = context === 'HOME'
         ? 'modals:activeGameExit.homeProceed'
         : 'modals:activeGameExit.newGameProceed';
+    const registerButtonKey = context === 'HOME'
+        ? 'modals:activeGameExit.registerButton'
+        : 'modals:activeGameExit.registerButtonNewGame';
     const cancelKey = context === 'HOME'
         ? 'modals:activeGameExit.cancelHome'
         : 'modals:activeGameExit.cancelNewGame';
     const confirmKey = context === 'HOME'
         ? 'modals:activeGameExit.confirmHome'
         : 'modals:activeGameExit.confirmNewGame';
+    const midSaveHintKey = context === 'HOME'
+        ? 'modals:activeGameExit.midSaveButtonHint'
+        : 'modals:activeGameExit.midSaveButtonHintNewGame';
+    const midSaveConfirmKey = context === 'HOME'
+        ? 'modals:activeGameExit.continueAfterMidSave'
+        : 'modals:activeGameExit.confirmMidSaveNewGame';
     const submittedMessage = submittedMessageOverride ?? (submitIntent === 'MID_SAVE'
-        ? t('modals:activeGameExit.midSaveSubmittedMessage')
+        ? (context === 'HOME'
+            ? t('modals:activeGameExit.midSaveSubmittedMessage')
+            : t('modals:activeGameExit.midSaveSubmittedMessageNewGame'))
         : t('modals:activeGameExit.submittedMessage'));
     const isWin98 = Boolean(isWin98ThemeActive);
 
@@ -272,6 +283,19 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                                 <h3 className={isWin98 ? 'text-xl font-bold text-gray-900' : 'text-2xl font-bold text-gray-900'}>{t(titleKey)}</h3>
                                 <p className={isWin98 ? 'text-sm text-gray-700 whitespace-pre-line' : 'text-sm text-gray-500 whitespace-pre-line'}>{t(descriptionKey)}</p>
                             </div>
+
+                            {context === 'NEW_GAME' && (
+                                <div className={isWin98
+                                    ? 'sunken-panel px-3 py-2 text-left'
+                                    : 'rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-left'}>
+                                    <p className={isWin98 ? 'text-xs font-bold text-rose-700' : 'text-xs font-bold uppercase tracking-wide text-rose-700'}>
+                                        {t('modals:activeGameExit.newGameOverwriteNoticeTitle')}
+                                    </p>
+                                    <p className={isWin98 ? 'mt-1 text-xs text-rose-700 whitespace-pre-line' : 'mt-1 text-xs text-rose-700 whitespace-pre-line'}>
+                                        {t('modals:activeGameExit.newGameOverwriteNoticeBody')}
+                                    </p>
+                                </div>
+                            )}
 
                             <div className={isWin98 ? 'sunken-panel px-3 py-2' : 'rounded-2xl border border-indigo-200/80 bg-gradient-to-br from-indigo-50 to-violet-50 px-5 py-4'}>
                                 <p className={isWin98 ? 'text-xs font-bold text-gray-700' : 'text-xs font-bold uppercase tracking-widest text-indigo-500'}>
@@ -315,7 +339,7 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                                         </span>
                                     </button>
                                     <p className={isWin98 ? 'text-xs text-gray-500' : 'text-xs text-gray-400'}>
-                                        {t('modals:activeGameExit.midSaveButtonHint')}
+                                        {t(midSaveHintKey)}
                                     </p>
                                 </div>
 
@@ -328,7 +352,7 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                                 >
                                     <span className="flex items-center justify-center gap-2">
                                         <Medal size={isWin98 ? 14 : 20} className={isWin98 ? '' : 'text-indigo-100'} />
-                                        {t('modals:activeGameExit.registerButton')}
+                                        {t(registerButtonKey)}
                                     </span>
                                 </button>
 
@@ -480,9 +504,7 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                                         ? 'flex-1 py-2 px-3 win98-menu-btn text-sm font-semibold'
                                         : 'flex-1 py-4 rounded-2xl bg-gray-900 text-white font-bold text-lg shadow-lg hover:bg-gray-800 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200'}
                                 >
-                                    {submitIntent === 'MID_SAVE'
-                                        ? t('modals:activeGameExit.continueAfterMidSave')
-                                        : t(confirmKey)}
+                                    {submitIntent === 'MID_SAVE' ? t(midSaveConfirmKey) : t(confirmKey)}
                                 </button>
                                 {/* 작은 공유 아이콘 */}
                                 <button

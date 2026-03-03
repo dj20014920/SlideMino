@@ -362,11 +362,16 @@ const getViewportSize = (): ViewportSize => {
   const visualWidth = window.visualViewport?.width ?? layoutWidth;
   const visualHeight = window.visualViewport?.height ?? layoutHeight;
   const hasFocusedEditable = isEditableElementFocused();
+  const shouldStabilizeForLockedGame =
+    typeof document !== 'undefined' &&
+    document.body.classList.contains('scroll-locked') &&
+    !hasFocusedEditable;
   const shouldStabilizeForNative = isNativeApp() && !hasFocusedEditable;
+  const shouldStabilizeViewport = shouldStabilizeForNative || shouldStabilizeForLockedGame;
 
   return {
-    width: shouldStabilizeForNative ? Math.max(layoutWidth, visualWidth) : visualWidth,
-    height: shouldStabilizeForNative ? Math.max(layoutHeight, visualHeight) : visualHeight,
+    width: shouldStabilizeViewport ? Math.max(layoutWidth, visualWidth) : visualWidth,
+    height: shouldStabilizeViewport ? Math.max(layoutHeight, visualHeight) : visualHeight,
   };
 };
 
@@ -502,7 +507,8 @@ const App: React.FC = () => {
     const updateGameSafeTop = () => {
       const safeTop = readSafeTopPx();
       const inAppBrowserTop = readInAppBrowserTopChromePx();
-      const nextTop = Math.max(minTopPx, safeTop + inAppBrowserTop);
+      // safe-area와 인앱 브라우저 chrome 높이는 동일 축의 값이므로 합산하면 과보정이 발생한다.
+      const nextTop = Math.max(minTopPx, safeTop, inAppBrowserTop);
       root.style.setProperty('--game-safe-top', `${nextTop}px`);
       root.style.setProperty('--ui-safe-top', `${nextTop}px`);
     };
@@ -1211,7 +1217,13 @@ const App: React.FC = () => {
       });
     };
 
+    // 즉시 1회 측정 + 지연 재측정으로 DOM 렌더링 완료 후 정확한 값 보장
+    // (메뉴→게임 전환 시 조건부 배너가 아직 마운트 전일 수 있음)
     updateChromeHeights();
+    const stabilizationTimerIds: number[] = [];
+    VIEWPORT_RECOVERY_DELAYS_MS.forEach((delayMs) => {
+      stabilizationTimerIds.push(window.setTimeout(updateChromeHeights, delayMs));
+    });
 
     let observer: ResizeObserver | null = null;
     if (typeof ResizeObserver !== 'undefined') {
@@ -1239,6 +1251,7 @@ const App: React.FC = () => {
     window.visualViewport?.addEventListener('scroll', updateChromeHeights);
 
     return () => {
+      stabilizationTimerIds.forEach((id) => window.clearTimeout(id));
       observer?.disconnect();
       window.removeEventListener('resize', updateChromeHeights);
       window.removeEventListener(APP_RESUME_EVENT, scheduleChromeSync);
@@ -1379,6 +1392,10 @@ const App: React.FC = () => {
   }, [gameState, syncActivePlayTimer, syncEventTimer]);
 
   const restoreSavedGame = useCallback((saved: SavedGameState) => {
+    // 레이아웃 크롬 높이를 기본값으로 리셋 (이전 세션의 stale 값 방지)
+    // ResizeObserver가 PLAYING 전환 후 실제 값으로 재측정한다.
+    setLayoutChromeHeights(DEFAULT_LAYOUT_CHROME_HEIGHTS);
+
     // maxScoreThisRun: 저장값과 현재 score 중 큰 값으로 복원
     const restoredMaxScore = typeof saved.maxScoreThisRun === 'number' && Number.isFinite(saved.maxScoreThisRun)
       ? Math.max(0, Math.floor(saved.maxScoreThisRun), saved.score)
@@ -1830,9 +1847,13 @@ const App: React.FC = () => {
   }, []);
 
   const handleActiveGameExitIntermediateSaveComplete = useCallback(() => {
+    if (activeGameExitContext === 'NEW_GAME') {
+      setPendingDifficulty(null);
+      setPendingSessionMode(null);
+    }
     setIsActiveGameExitModalOpen(false);
     setActiveGameRankingSnapshot(null);
-  }, []);
+  }, [activeGameExitContext]);
 
   const handleActiveGameExitRegisteredAndProceed = useCallback(() => {
     const context = activeGameExitContext;
@@ -1917,6 +1938,9 @@ const App: React.FC = () => {
     }
     reviveDestroyEffectTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
     reviveDestroyEffectTimeoutsRef.current = [];
+
+    // 레이아웃 크롬 높이를 기본값으로 리셋 (MENU 상태의 stale 값 방지)
+    setLayoutChromeHeights(DEFAULT_LAYOUT_CHROME_HEIGHTS);
 
     setBoardSize(size);
     setGrid(createEmptyGrid(size));
@@ -4462,12 +4486,14 @@ const App: React.FC = () => {
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}
       >
+        {/* 상단 크롬 래퍼: safe-area + 이벤트/데일리 배너 + 헤더를 하나로 측정 */}
+        <div ref={headerRef} className="w-full flex flex-col items-center shrink-0" style={{ paddingTop: 'var(--game-safe-top)' }}>
         {isWin98ThemeActive && (
           <div
             className="window w-full"
             style={{
               maxWidth: `${gameLayoutProfile.columnWidthPx}px`,
-              marginTop: 'calc(8px + var(--game-safe-top))',
+              marginTop: '8px',
             }}
           >
             <div className="title-bar">
@@ -4486,7 +4512,6 @@ const App: React.FC = () => {
             className="w-full text-center py-1.5 bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-white text-xs font-bold tracking-wide"
             style={{
               maxWidth: `${gameLayoutProfile.columnWidthPx}px`,
-              marginTop: isWin98ThemeActive ? '0' : 'calc(var(--game-safe-top))',
             }}
           >
             🏆 {t('game:dailyChallenge.banner')}
@@ -4499,7 +4524,6 @@ const App: React.FC = () => {
             className="w-full text-center py-1.5 bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 text-white text-xs font-bold tracking-wide flex items-center justify-center gap-2"
             style={{
               maxWidth: `${gameLayoutProfile.columnWidthPx}px`,
-              marginTop: isWin98ThemeActive ? '0' : 'calc(var(--game-safe-top))',
             }}
           >
             <span>{t(`game:weeklyEvent.events.${eventRuleRef.current.type}.name`)}</span>
@@ -4516,11 +4540,11 @@ const App: React.FC = () => {
 
         {/* Header */}
         <header
-          ref={headerRef}
           className={`w-full flex justify-between items-center p-4 ${isWin98ThemeActive ? 'win98-game-header' : ''}`}
           style={{
             maxWidth: `${gameLayoutProfile.columnWidthPx}px`,
-            paddingTop: isWin98ThemeActive ? '8px' : 'calc(16px + var(--game-safe-top))',
+            // safe-top은 상단 래퍼가 일괄 담당하므로 헤더는 내부 여백만 설정
+            paddingTop: isWin98ThemeActive ? '8px' : '16px',
             // 앱인토스: 우측 상단 공통 내비게이션 영역 확보
             paddingRight: 'calc(16px + var(--appintos-nav-safe-right))'
           }}
@@ -4653,6 +4677,7 @@ const App: React.FC = () => {
             </div>
           </div>
         </header>
+        </div>{/* /상단 크롬 래퍼 */}
 
         {/* Main Game Area */}
         <main
@@ -4829,14 +4854,14 @@ const App: React.FC = () => {
         <GameFeaturesTutorial tutorialStep={tutorialStep} />
         <HelpModal isOpen={showHelpModal} onClose={() => setShowHelpModal(false)} />
 
-        {/* Ad Banner for Game Screen */}
-        <div ref={bottomBannerRef} className="w-full">
+        {/* Ad Banner for Game Screen: flex flow 기반으로 하단에 배치 (fixed 제거 → 레이아웃 shift 방지) */}
+        <div ref={bottomBannerRef} className="w-full shrink-0">
           <div className={`
-          w-full shrink-0 z-10 bg-white/50 backdrop-blur-sm border-t border-white/20
+          w-full bg-white/50 backdrop-blur-sm border-t border-white/20
           transition-opacity duration-200
           ${isSwipeFocusMode ? 'opacity-20 pointer-events-none' : 'opacity-100'}
         `}>
-            <AdBanner />
+            <AdBanner includeSafeBottomInReservedSpace={false} />
           </div>
         </div>
 

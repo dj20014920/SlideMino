@@ -8,9 +8,9 @@
  * 4. 이벤트 결과 + 점수 제출 (게임오버 시)
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Trophy, Play, Clock, Shield, Flame, Zap, Target, X } from 'lucide-react';
+import { Trophy, Play, Clock, Flame, Zap, X } from 'lucide-react';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import {
   getCurrentEvent,
@@ -26,7 +26,9 @@ import {
   syncAttemptCountFromServer,
   fetchEventRankings,
   hasClaimedEventReward,
-  markEventRewardClaimed,
+  hasParticipatedInPreviousEvent,
+  fetchEventRewardStatus,
+  claimEventRewardFromServer,
   loadEventGameState,
   type CurrentEventInfo,
   type EventRankingEntry,
@@ -73,6 +75,12 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
   const [totalParticipants, setTotalParticipants] = useState(0);
   const [attemptCount, setAttemptCount] = useState(0);
   const [rewardClaimed, setRewardClaimed] = useState(false);
+  /** 이전 주 이벤트 참여 여부 (서버 검증 기반) */
+  const [prevEventParticipated, setPrevEventParticipated] = useState(false);
+  /** 서버가 결정한 보상 조각 수 */
+  const [rewardFragments, setRewardFragments] = useState(2);
+  /** 서버가 결정한 이전 주 순위 */
+  const [prevEventRank, setPrevEventRank] = useState<number | null>(null);
   const [remainingText, setRemainingText] = useState('');
   const [hasSavedGame, setHasSavedGame] = useState(false);
   const [isAdBonusUnlocked, setIsAdBonusUnlocked] = useState(false);
@@ -100,28 +108,42 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
     if (!isOpen) return;
     const current = getCurrentEvent();
     setEvent(current);
-    // 우선 로컬 캐시로 즉시 표시하고, 서버 동기화 후 갱신 (로컬스토리지 클리어 등 방어)
+    // 우선 로컬 캐시로 즉시 표시하고, 서버 동기화 후 갱신
     setAttemptCount(getLocalAttemptCount());
     setIsAdBonusUnlocked(isEventAttemptAdBonusUnlocked());
     setIsAttemptUnlockAdReady(weeklyEventAttemptAdService.isAdReady());
     setIsAttemptUnlockAdInProgress(false);
     setAttemptUnlockNotice(null);
     setRewardClaimed(hasClaimedEventReward());
+    setPrevEventParticipated(hasParticipatedInPreviousEvent());
     setHasSavedGame(!!loadEventGameState());
     setRemainingText(formatRemainingText(current.remainingMs));
 
-    // 서버 도전 횟수 동기화 (비동기, 로컬 > 서버면 무시)
+    // 서버 도전 횟수 동기화
     syncAttemptCountFromServer().then(count => {
       setAttemptCount(count);
     }).catch(() => { /* 오프라인 등 실패 시 로컬 값 유지 */ });
 
-    // 랭킹 비동기 로딩
+    // 이번 주 랭킹 로딩
     fetchEventRankings().then(result => {
       setRankings(result.rankings);
       setMyRank(result.myRank);
       setMyScore(result.myScore);
       setTotalParticipants(result.total);
     });
+
+    // 서버에서 이전 주 이벤트 보상 상태 조회 (참여 여부·순위·수령 여부 한 번에 확인)
+    // AbortController: 모달이 닫히기 전 언마운트 시 setState 호출 방지
+    let rewardStatusCancelled = false;
+    fetchEventRewardStatus().then(status => {
+      if (rewardStatusCancelled) return;
+      setPrevEventParticipated(status.participated);
+      setRewardClaimed(status.claimed);
+      setRewardFragments(status.fragments);
+      setPrevEventRank(status.rank);
+    }).catch(() => { /* 실패 시 로컬 폴백 유지 */ });
+
+    return () => { rewardStatusCancelled = true; };
   }, [isOpen, formatRemainingText]);
 
   // 카운트다운 타이머
@@ -171,28 +193,42 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
     }).finally(() => setPrevLoading(false));
   }, [isOpen, showPrevWeek, prevRankings.length, prevLoading]);
 
-  // 참여 보상 수령 — 스킨 시스템이 있는 앱에서만 실제 지급
+  // 참여 보상 수령 — 서버 검증 + 서버가 조각 수 결정
   const [isClaimingReward, setIsClaimingReward] = useState(false);
+  /** useRef로 stale closure 문제 없이 동시 클릭/재진입 차단 */
+  const isClaimingRef = useRef(false);
+  const [claimError, setClaimError] = useState<string | null>(null);
 
-  const handleClaimReward = useCallback(() => {
-    // 이중 클릭 / 재진입 차단
-    if (isClaimingReward || rewardClaimed) return;
-    // localStorage 기반 재검증 (탭 간 중복 방지)
+  const handleClaimReward = useCallback(async () => {
+    // isClaimingRef.current으로 stale closure 없이 즉시 재진입 차단
+    if (isClaimingRef.current || rewardClaimed) return;
     if (hasClaimedEventReward()) {
       setRewardClaimed(true);
       return;
     }
-    if (attemptCount === 0) return;
+    if (!prevEventParticipated) return;
 
+    isClaimingRef.current = true;
     setIsClaimingReward(true);
-    // 먼저 수령 기록을 저장한 뒤 조각 지급 (중단 시에도 중복 수령 불가)
-    markEventRewardClaimed();
-    setRewardClaimed(true);
-    if (isNativeApp()) {
-      addFragments(2);
+    setClaimError(null);
+    try {
+      // 서버에 보상 수령 요청 — 서버가 참여·순위·중복을 모두 검증
+      const result = await claimEventRewardFromServer();
+      if (result.success) {
+        setRewardClaimed(true);
+        if (!result.alreadyClaimed && result.fragments > 0 && isNativeApp()) {
+          // 서버가 결정한 조각 수만큼 지급
+          addFragments(result.fragments, 'weekly_event_reward');
+        }
+      } else {
+        // 서버 에러 / 네트워크 오류 — 재시도 가능하도록 에러 메시지 표시
+        setClaimError(String(t('game:weeklyEvent.claimFailed')));
+      }
+    } finally {
+      isClaimingRef.current = false;
+      setIsClaimingReward(false);
     }
-    setIsClaimingReward(false);
-  }, [isClaimingReward, rewardClaimed, attemptCount]);
+  }, [rewardClaimed, prevEventParticipated, t]);
 
   const handleWatchAttemptUnlockAd = useCallback(() => {
     if (isAttemptUnlockAdInProgress) return;
@@ -378,16 +414,30 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
           </div>
         )}
 
-        {/* 참여 보상 수령 — 앱 전용 */}
-        {isApp && hasPlayed && !rewardClaimed && (
+        {/* 이전 주 참여 보상 수령 — 서버 검증, 이벤트 로테이션 후 전주 결과 기반 지급 (앱 전용) */}
+        {isApp && prevEventParticipated && !rewardClaimed && (
           <div className="mx-5 mb-3">
+            <p className="text-xs text-gray-500 mb-1.5 flex items-center gap-1">
+              <Trophy size={12} className="text-amber-500" />
+              {t('game:weeklyEvent.prevWeekRewardLabel')}
+              {prevEventRank && (
+                <span className="ml-1 font-semibold text-amber-600">#{prevEventRank}</span>
+              )}
+              {' · '}
+              {t('game:weeklyEvent.rewards.fragments', { count: rewardFragments })}
+            </p>
             <button
               onClick={handleClaimReward}
               disabled={isClaimingReward}
               className="w-full py-2.5 rounded-xl bg-amber-500 text-white font-semibold text-sm hover:bg-amber-600 transition disabled:opacity-50"
             >
-              🎁 {t('game:weeklyEvent.claimReward')}
+              {isClaimingReward
+                ? t('common:labels.loading')
+                : `🎁 ${t('game:weeklyEvent.claimReward')}`}
             </button>
+            {claimError && (
+              <p className="mt-1.5 text-xs text-red-500 text-center">{claimError}</p>
+            )}
           </div>
         )}
 

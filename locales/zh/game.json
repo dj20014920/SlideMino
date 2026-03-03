@@ -106,6 +106,8 @@
     "newAttempt": "新挑战 ({{current}}/{{max}})",
     "maxAttempts": "已用完所有尝试次数",
     "claimReward": "领取参与奖励",
+    "prevWeekRewardLabel": "上周活动参与奖励",
+    "claimFailed": "领取奖励失败，请稍后再试。",
     "watchAdForAttempt": "看广告 +1次机会",
     "adUnlockPreparing": "广告准备中...",
     "adUnlockLoading": "正在观看广告...",

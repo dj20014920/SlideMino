@@ -129,7 +129,8 @@ const About: React.FC = () => {
               <h3>Auto-Save Progress</h3>
               <p>
                 Your game progress is automatically saved locally on your device. Close the browser and come 
-                back anytime to continue exactly where you left off. No account required!
+                back anytime to continue where you left off. Starting a new normal-mode game overwrites the
+                previous normal run, so register score first if you want to keep it. No account required!
               </p>
             </div>
           </div>
@@ -330,7 +331,8 @@ const About: React.FC = () => {
             <h3>Q: What happens if I close my browser?</h3>
             <p>
               <strong>A:</strong> Your active game is automatically saved. When you return, you'll be able to 
-              continue exactly where you left off. No progress is lost!
+              continue where you left off. Starting a new normal-mode run will overwrite the previous normal
+              run, so register your score first if needed.
             </p>
           </div>
 

@@ -106,6 +106,8 @@
     "newAttempt": "새 도전",
     "maxAttempts": "3회 도전 완료",
     "claimReward": "참여 보상 받기",
+    "prevWeekRewardLabel": "지난 주 이벤트 참여 보상",
+    "claimFailed": "보상 수령에 실패했습니다. 잠시 후 다시 시도해주세요.",
     "watchAdForAttempt": "광고 보고 +1회 기회 얻기",
     "adUnlockPreparing": "광고 준비 중...",
     "adUnlockLoading": "광고 시청 중...",

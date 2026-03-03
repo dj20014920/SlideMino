@@ -484,7 +484,7 @@ export function getLocalAttemptCount(): number {
   return Math.max(0, Math.min(WEEKLY_EVENT_MAX_ATTEMPTS, local.count));
 }
 
-/** 로컬 도전 횟수 증가 */
+/** 로컬 도전 횟수 증가 + 참여 히스토리 기록 */
 export function incrementLocalAttemptCount(score: number): void {
   const current = getCurrentEvent();
   const local = loadLocalAttempts();
@@ -494,8 +494,14 @@ export function incrementLocalAttemptCount(score: number): void {
   prev.count = Math.min(WEEKLY_EVENT_MAX_ATTEMPTS, prev.count + 1);
   prev.bestScore = Math.max(prev.bestScore, score);
   saveLocalAttempts(prev);
+  // 이벤트 참여 기록 저장 (로테이션 후 보상 지급을 위해)
+  saveEventParticipation(current.eventId, score);
 }
+// ============================================
+// 서버 API 호출
+// ============================================
 
+const API_BASE = '/api/weekly-event';
 /**
  * 서버에서 실제 도전 횟수를 조회해 로컬 캐시와 동기화한다.
  * 서버 값을 권위 원장으로 신뢰하여 로컬 조작값을 무시한다.
@@ -524,31 +530,168 @@ export async function syncAttemptCountFromServer(): Promise<number> {
   }
 }
 
-/** 현재 이벤트 참여 보상 수령 여부 */
+// ============================================
+// 이벤트 참여 히스토리 (로테이션 후 보상 지급을 위해)
+// ============================================
+
+const EVENT_PARTICIPATION_HISTORY_KEY = 'slidemino.event_participation_history.v1';
+
+interface EventParticipationRecord {
+  eventId: string;
+  bestScore: number;
+  participatedAt: number;
+}
+
+function loadEventParticipationHistory(): EventParticipationRecord[] {
+  try {
+    const raw = localStorage.getItem(EVENT_PARTICIPATION_HISTORY_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
+}
+
+/** 이벤트 참여 기록 저장 (점수 제출 시 호출) */
+function saveEventParticipation(eventId: string, score: number): void {
+  try {
+    const history = loadEventParticipationHistory();
+    const idx = history.findIndex(r => r.eventId === eventId);
+    if (idx >= 0) {
+      history[idx].bestScore = Math.max(history[idx].bestScore, score);
+    } else {
+      history.push({ eventId, bestScore: score, participatedAt: Date.now() });
+    }
+    // 최근 3개만 유지 (현재 + 이전 + 여유)
+    const trimmed = history.slice(-3);
+    localStorage.setItem(EVENT_PARTICIPATION_HISTORY_KEY, JSON.stringify(trimmed));
+  } catch { /* ignore */ }
+}
+
+/**
+ * 이전 주 이벤트에 참여했는지 로컬 확인.
+ * 참여 히스토리 → 로컬 도전 횟수 캐시 순으로 폴백 확인.
+ */
+export function hasParticipatedInPreviousEvent(): boolean {
+  const prev = getPreviousEvent();
+  // 1차: 참여 히스토리 확인
+  const history = loadEventParticipationHistory();
+  if (history.some(r => r.eventId === prev.eventId)) return true;
+  // 2차 폴백: 로컬 도전 횟수 캐시에 이전 이벤트 데이터가 남아있는 경우
+  const local = loadLocalAttempts();
+  if (local && local.eventId === prev.eventId && local.count > 0) return true;
+  return false;
+}
+
+/**
+ * 이전 주 이벤트 참여 보상 수령 여부 (로컬 캐시).
+ * 서버 응답을 캐시하여 모달 재열림 시 즉시 표시.
+ */
 export function hasClaimedEventReward(): boolean {
   try {
     const raw = localStorage.getItem('slidemino.event_reward_claimed.v1');
     if (!raw) return false;
     const data = JSON.parse(raw);
-    return data.eventId === getCurrentEvent().eventId;
+    const prev = getPreviousEvent();
+    return data.eventId === prev.eventId;
   } catch { return false; }
 }
 
-/** 이벤트 참여 보상 수령 표시 */
+/** 로컬 캐시에 보상 수령 기록 (서버 수령 성공 후 호출) */
 export function markEventRewardClaimed(): void {
   try {
+    const prev = getPreviousEvent();
     localStorage.setItem('slidemino.event_reward_claimed.v1', JSON.stringify({
-      eventId: getCurrentEvent().eventId,
+      eventId: prev.eventId,
       claimedAt: Date.now(),
     }));
   } catch { /* ignore */ }
 }
 
 // ============================================
-// 서버 API 호출
+// 서버 기반 이벤트 보상 API
 // ============================================
 
-const API_BASE = '/api/weekly-event';
+export interface EventRewardStatus {
+  participated: boolean;
+  claimed: boolean;
+  rank: number | null;
+  fragments: number;
+  eventId: string | null;
+}
+
+/**
+ * 서버에서 이전 주 이벤트 보상 상태를 조회한다.
+ * - participated: 이전 이벤트 참여 여부 (서버 DB 기반)
+ * - claimed: 보상 수령 여부
+ * - rank: 순위 (보상 수량 결정)
+ * - fragments: 받을 조각 수
+ */
+export async function fetchEventRewardStatus(): Promise<EventRewardStatus> {
+  const fallback: EventRewardStatus = {
+    participated: hasParticipatedInPreviousEvent(),
+    claimed: hasClaimedEventReward(),
+    rank: null,
+    fragments: 2,
+    eventId: null,
+  };
+  try {
+    const installId = getAnalyticsInstallId();
+    const res = await fetch(
+      getApiUrl(`${API_BASE}/reward-status?installId=${encodeURIComponent(installId)}&_ts=${Date.now()}`),
+      { cache: 'no-store' }
+    );
+    if (!res.ok) return fallback;
+    const data = await res.json() as EventRewardStatus;
+    return {
+      participated: data.participated ?? false,
+      claimed: data.claimed ?? false,
+      rank: data.rank ?? null,
+      fragments: data.fragments ?? 2,
+      eventId: data.eventId ?? null,
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+export interface EventClaimResult {
+  success: boolean;
+  fragments: number;
+  rank?: number;
+  alreadyClaimed?: boolean;
+  error?: string;
+}
+
+/**
+ * 서버에 이전 주 이벤트 참여 보상 수령을 요청한다.
+ * 서버가 참여 여부·순위·중복 여부를 모두 검증하고, 지급할 조각 수를 결정한다.
+ * 클라이언트는 서버 응답의 fragments 값만큼 addFragments()를 호출한다.
+ */
+export async function claimEventRewardFromServer(): Promise<EventClaimResult> {
+  try {
+    const installId = getAnalyticsInstallId();
+    const res = await fetch(getApiUrl(`${API_BASE}/claim-reward`), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ installId }),
+    });
+    if (!res.ok) {
+      return { success: false, fragments: 0, error: `http_${res.status}` };
+    }
+    const data = await res.json() as EventClaimResult;
+    if (data.success) {
+      // 서버 수령 성공 → 로컬 캐시 동기화
+      markEventRewardClaimed();
+    }
+    return data;
+  } catch (e) {
+    return { success: false, fragments: 0, error: 'network_error' };
+  }
+}
+
+// ============================================
+// 서버 API 호출
+// ============================================
 
 export interface EventSubmitResult {
   success: boolean;

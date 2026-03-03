@@ -68,9 +68,10 @@
     "homeTitle": "要结束当前对局吗？",
     "homeDescription": "返回菜单前，您可以先把当前分数登记到排行榜。",
     "newGameTitle": "开始新游戏前先登记",
-    "newGameDescription": "如果要保留当前对局分数，请在开始新游戏前先进行排行榜登记。",
+    "newGameDescription": "一旦开始新的一局，当前普通模式会话会立刻被覆盖，无法继续。\n如果想保留本局分数，请先完成排行榜登记。",
     "scoreLabel": "当前分数",
     "registerButton": "登记后结束本局",
+    "registerButtonNewGame": "登记后开始新一局",
     "homeProceed": "返回首页",
     "homeProceedHint": "随时可以继续游戏",
     "midSaveButton": "中途保存",
@@ -87,7 +88,12 @@
     "alreadySubmittedExitMessage": "该会话已登记。将保留已有记录并进入下一步。",
     "continueAfterMidSave": "继续游戏",
     "confirmHome": "前往菜单",
-    "confirmNewGame": "开始新游戏"
+    "confirmNewGame": "开始新游戏",
+    "newGameOverwriteNoticeTitle": "重要：普通模式只保留1个会话",
+    "newGameOverwriteNoticeBody": "真正开始新一局的瞬间，旧普通对局的续玩数据会被删除。\n中途保存仅用于记录分数；开始新局后，上一局无法恢复。",
+    "midSaveButtonHintNewGame": "仅记录分数并保留当前对局。新开一局会被取消。",
+    "midSaveSubmittedMessageNewGame": "当前分数已记录。原对局仍保留，可在菜单中选择继续。",
+    "confirmMidSaveNewGame": "返回菜单"
   },
   "updateRequired": {
     "title": "需要更新到新版本",

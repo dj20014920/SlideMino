@@ -37,7 +37,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     const url = new URL(request.url);
     const installId = url.searchParams.get('installId');
-    if (!installId || installId.length < 8) {
+    if (!installId || installId.length < 8 || installId.length > 128) {
       return new Response(JSON.stringify({ error: 'Missing installId' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

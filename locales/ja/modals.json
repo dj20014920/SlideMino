@@ -68,9 +68,10 @@
     "homeTitle": "このプレイを終了しますか？",
     "homeDescription": "メニューに戻る前に、現在のスコアをランキング登録できます。",
     "newGameTitle": "新しいゲーム開始前に登録",
-    "newGameDescription": "今のスコアを残したい場合は、新しいゲーム開始前にランキング登録してください。",
+    "newGameDescription": "新しいゲームを開始すると、現在の通常モードセッションは即座に上書きされ、再開できません。\n今のスコアを残す場合は開始前にランキング登録してください。",
     "scoreLabel": "現在のスコア",
     "registerButton": "ランキング登録後にゲーム終了",
+    "registerButtonNewGame": "ランキング登録後に新しいゲーム開始",
     "homeProceed": "ホームへ移動",
     "homeProceedHint": "あとで再開できます",
     "midSaveButton": "途中保存",
@@ -87,7 +88,12 @@
     "alreadySubmittedExitMessage": "このセッションは既に登録済みです。既存記録を維持したまま次のステップへ進みます。",
     "continueAfterMidSave": "プレイを続ける",
     "confirmHome": "メニューへ移動",
-    "confirmNewGame": "新しいゲーム開始"
+    "confirmNewGame": "新しいゲーム開始",
+    "newGameOverwriteNoticeTitle": "重要: 通常モードの保存は1セッションのみです",
+    "newGameOverwriteNoticeBody": "新しいゲームを実際に開始した時点で、以前の通常プレイの再開データは削除されます。\n途中保存はスコア記録用であり、新しいゲーム開始後は前のプレイを復元できません。",
+    "midSaveButtonHintNewGame": "スコアだけを記録して現在のプレイを保持します。新しいゲーム開始はキャンセルされます。",
+    "midSaveSubmittedMessageNewGame": "現在のスコアを記録しました。既存のプレイは保持され、メニューから再開できます。",
+    "confirmMidSaveNewGame": "メニューに戻る"
   },
   "updateRequired": {
     "title": "新しいバージョンへの更新が必要です",

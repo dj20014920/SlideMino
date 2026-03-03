@@ -41,16 +41,14 @@ export const checkRateLimit = async (
     }
   }
 
-  await db.prepare(
+  // RETURNING count으로 증가와 읽기를 원자적으로 처리 (TOCTOU race 방지)
+  const result = await db.prepare(
     `INSERT INTO rate_limits (key, window_start, count)
      VALUES (?, ?, 1)
-     ON CONFLICT(key) DO UPDATE SET count = count + 1`
-  ).bind(bucketKey, windowStart).run();
+     ON CONFLICT(key) DO UPDATE SET count = count + 1
+     RETURNING count`
+  ).bind(bucketKey, windowStart).first<{ count: number }>();
 
-  const row = await db.prepare(
-    `SELECT count FROM rate_limits WHERE key = ?`
-  ).bind(bucketKey).first<{ count: number }>();
-
-  const count = row?.count ?? 0;
+  const count = result?.count ?? 0;
   return { allowed: count <= limit, count };
 };

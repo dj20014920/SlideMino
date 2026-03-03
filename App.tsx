@@ -3706,7 +3706,7 @@ const App: React.FC = () => {
 
     const weeklyEventUnlocked = isFeatureUnlocked('weekly_event');
     const win98WeeklyEventButton = (
-      <div className="relative w-full h-[52px] mb-3">
+      <div className="relative w-full h-[52px] mb-3" style={{ backgroundColor: '#fff' }}>
         <button
           onClick={() => {
             if (weeklyEventUnlocked) {
@@ -3755,7 +3755,7 @@ const App: React.FC = () => {
         ]).map(mode => {
           const hasResume = activeNormalSize === mode.size;
           return (
-            <div key={mode.size} className="relative w-full h-[52px]">
+            <div key={mode.size} className="relative w-full h-[52px]" style={{ backgroundColor: '#fff' }}>
               <button
                 onClick={() => {
                   tryStartGame(mode.size);
@@ -3797,7 +3797,7 @@ const App: React.FC = () => {
         <legend className="font-bold">{premiumUi?.utilityLegend ?? '메뉴'}</legend>
         <div className="flex flex-col gap-2 mt-2">
           {isFeatureUnlocked('streak') && (
-            <div className="relative w-full h-[52px]">
+            <div className="relative w-full h-[52px]" style={{ backgroundColor: '#fff' }}>
               <button
                 className="w-full h-full text-left font-bold px-4 flex items-center"
                 style={{ fontSize: '16px' }}
@@ -3819,7 +3819,7 @@ const App: React.FC = () => {
             </div>
           )}
 
-          <div className="relative w-full h-[52px]">
+          <div className="relative w-full h-[52px]" style={{ backgroundColor: '#fff' }}>
             <button
               className="w-full h-full text-left font-bold px-4 flex items-center"
               style={{ fontSize: '16px' }}
@@ -3840,7 +3840,7 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          <div className="relative w-full h-[52px]">
+          <div className="relative w-full h-[52px]" style={{ backgroundColor: '#fff' }}>
             <button
               className="w-full h-full text-left font-bold px-4 flex items-center"
               style={{ fontSize: '16px' }}
@@ -3867,7 +3867,7 @@ const App: React.FC = () => {
               {(Object.keys(LANGUAGE_CONFIGS) as SupportedLanguage[]).map((langCode) => {
                 const isSelected = currentLang === langCode;
                 return (
-                  <div key={langCode} className="relative w-full h-[52px]">
+                  <div key={langCode} className="relative w-full h-[52px]" style={{ backgroundColor: '#fff' }}>
                     <button
                       className="w-full h-full text-left px-4 flex items-center justify-between"
                       onClick={() => setLanguageFromMenu(langCode)}
@@ -3875,7 +3875,7 @@ const App: React.FC = () => {
                         fontSize: '15px',
                         fontWeight: isSelected ? 'bold' : 'normal',
                         boxShadow: isSelected ? 'inset 1px 1px #000, inset -1px -1px #fff' : '',
-                        backgroundColor: isSelected ? '#d4d0c8' : ''
+                        backgroundColor: isSelected ? '#d4d0c8' : '#fff'
                       }}
                     >
                       <span className="font-bold">{LANGUAGE_CONFIGS[langCode].displayName} {LANGUAGE_CONFIGS[langCode].flag}</span>
@@ -4161,34 +4161,48 @@ const App: React.FC = () => {
           )}
 
           {/* 로고 영역 */}
-          <div className="text-center space-y-3 animate-fade-in">
-            <h1 className="text-5xl font-bold text-gray-900 tracking-tight">
-              {isWin98ThemeActive ? (
-                (() => {
-                  const titleText = String(t('game:title'));
-                  const matched = titleText.match(/^(.*)\s\((.*)\)$/);
-                  if (!matched) return titleText;
-                  return (
-                    <>
-                      {matched[1]}
-                      <br />
-                      ({matched[2]})
-                    </>
-                  );
-                })()
-              ) : (
-                t('game:title')
-              )}
-            </h1>
-            <p className="text-gray-500 text-lg max-w-xs mx-auto leading-relaxed">
-              {tagline.split('\n').map((line, index, arr) => (
-                <React.Fragment key={`${line}-${index}`}>
-                  {line}
-                  {index < arr.length - 1 && <br />}
-                </React.Fragment>
-              ))}
-            </p>
-          </div>
+          {isWin98ThemeActive ? (
+            <div className="window w-full max-w-md animate-fade-in">
+              <div className="window-body" style={{ textAlign: 'center', padding: '20px 16px', backgroundColor: '#fff' }}>
+                <h1 className="text-5xl font-bold tracking-tight" style={{ lineHeight: 1.2 }}>
+                  {(() => {
+                    const titleText = String(t('game:title'));
+                    const matched = titleText.match(/^(.*)\s\((.*)\)$/);
+                    if (!matched) return titleText;
+                    return (
+                      <>
+                        {matched[1]}
+                        <br />
+                        ({matched[2]})
+                      </>
+                    );
+                  })()}
+                </h1>
+                <p style={{ color: '#555', fontSize: '14px', marginTop: '10px', lineHeight: 1.6 }}>
+                  {tagline.split('\n').map((line, index, arr) => (
+                    <React.Fragment key={`${line}-${index}`}>
+                      {line}
+                      {index < arr.length - 1 && <br />}
+                    </React.Fragment>
+                  ))}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center space-y-3 animate-fade-in">
+              <h1 className="text-5xl font-bold text-gray-900 tracking-tight">
+                {t('game:title')}
+              </h1>
+              <p className="text-gray-500 text-lg max-w-xs mx-auto leading-relaxed">
+                {tagline.split('\n').map((line, index, arr) => (
+                  <React.Fragment key={`${line}-${index}`}>
+                    {line}
+                    {index < arr.length - 1 && <br />}
+                  </React.Fragment>
+                ))}
+              </p>
+            </div>
+          )}
 
           {isWin98ThemeActive ? (
             <div className="window w-full max-w-md animate-slide-up win98-menu-window">

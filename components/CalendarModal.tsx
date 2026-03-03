@@ -156,7 +156,7 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onA
         {/* 헤더 */}
         {isWin98 ? (
           <div className="title-bar">
-            <div className="title-bar-text">☐ {t('common:calendar.title')}</div>
+            <div className="title-bar-text"><span style={{color:'#FFD700',fontWeight:'bold'}}>★</span>{' '}{t('common:calendar.title')}</div>
             <div className="title-bar-controls">
               <button aria-label="Close" onClick={onClose} />
             </div>
@@ -206,13 +206,13 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onA
               onClose();
             }}
             className={isWin98
-              ? 'w-full text-left win98-sunken px-2 py-2 mb-0.5'
+              ? 'w-full text-left win98-sunken-white px-2 py-2 mb-0.5'
               : 'w-full text-left rounded-2xl border border-gray-100 bg-gray-50 px-3 py-2.5 transition-colors hover:bg-gray-100'
             }
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
-                <span className="text-sm">{isWin98 ? '☐' : '📋'}</span>
+                <span className="text-sm">{isWin98 ? <span style={{color:'#ea580c',fontWeight:'bold'}}>&#9632;</span> : '📋'}</span>
                 <span className="text-xs font-bold text-gray-800">{t('common:calendar.dailyMission')}</span>
               </div>
               <div className="flex items-center gap-2">
@@ -241,13 +241,13 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onA
               onClose();
             }}
             className={isWin98
-              ? 'w-full text-left win98-sunken px-2 py-2 mb-0.5'
+              ? 'w-full text-left win98-sunken-white px-2 py-2 mb-0.5'
               : 'w-full text-left rounded-2xl border border-violet-100 bg-violet-50 px-3 py-2.5 transition-colors hover:bg-violet-100/80'
             }
           >
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 min-w-0">
-                <span className="text-sm">{isWin98 ? '◇' : '🎯'}</span>
+                <span className="text-sm">{isWin98 ? <span style={{color:'#7c3aed',fontWeight:'bold'}}>&#9670;</span> : '🎯'}</span>
                 <span className="text-xs font-bold text-gray-800 truncate">{t('common:calendar.weeklyEvent')}</span>
               </div>
               <span className="text-[10px] font-semibold text-violet-600 tabular-nums">
@@ -272,13 +272,13 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onA
               onClose();
             }}
             className={isWin98
-              ? 'w-full text-left win98-sunken px-2 py-2 mb-0.5'
+              ? 'w-full text-left win98-sunken-white px-2 py-2 mb-0.5'
               : 'w-full text-left rounded-2xl border border-gray-100 bg-gray-50 px-3 py-2.5 transition-colors hover:bg-gray-100'
             }
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
-                <span className="text-sm">{isWin98 ? '☐' : '📅'}</span>
+                <span className="text-sm">{isWin98 ? <span style={{color:'#2563eb',fontWeight:'bold'}}>&#9632;</span> : '📅'}</span>
                 <span className="text-xs font-bold text-gray-800">{t('common:calendar.weeklyMission')}</span>
               </div>
               <div className="flex items-center gap-2">

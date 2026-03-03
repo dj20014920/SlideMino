@@ -248,6 +248,31 @@ body.theme-win98 .win98-panel button:disabled {
   opacity: 1 !important;
 }
 
+/* win98-sunken 버튼은 흰색 sunken 유지 (button 전역 gray 오버라이드보다 후순위로 재지정) */
+body.theme-win98 .window button.win98-sunken,
+body.theme-win98 .win98-window button.win98-sunken {
+  background: #ffffff !important;
+  box-shadow: inset -1px -1px var(--win98-button-highlight), inset 1px 1px var(--win98-button-shadow),
+    inset -2px -2px var(--win98-button-face), inset 2px 2px var(--win98-window-frame) !important;
+}
+
+/* win98-sunken-white: 흰 배경의 sunken 패널 (버튼 포함) */
+body.theme-win98 .win98-sunken-white {
+  border-radius: 0 !important;
+  background: #ffffff !important;
+  border: none !important;
+  box-shadow: inset -1px -1px var(--win98-button-highlight), inset 1px 1px var(--win98-button-shadow),
+    inset -2px -2px var(--win98-button-face), inset 2px 2px var(--win98-window-frame) !important;
+  padding: 6px;
+}
+
+body.theme-win98 .window button.win98-sunken-white,
+body.theme-win98 .win98-window button.win98-sunken-white {
+  background: #ffffff !important;
+  box-shadow: inset -1px -1px var(--win98-button-highlight), inset 1px 1px var(--win98-button-shadow),
+    inset -2px -2px var(--win98-button-face), inset 2px 2px var(--win98-window-frame) !important;
+}
+
 body.theme-win98 .window input,
 body.theme-win98 .window textarea,
 body.theme-win98 .window select,

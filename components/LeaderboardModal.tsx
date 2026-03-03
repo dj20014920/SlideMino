@@ -288,7 +288,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
         {/* Header */}
         {isWin98 ? (
           <div className="title-bar">
-            <div className="title-bar-text">◆ {t('modals:leaderboard.title')}</div>
+            <div className="title-bar-text"><span style={{color:'#1084d0',fontWeight:'bold'}}>◆</span> {t('modals:leaderboard.title')}</div>
             <div className="title-bar-controls">
               <button aria-label="Close" onClick={onClose} />
             </div>
@@ -531,7 +531,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
                               entry.rank === 3 ? 'bg-orange-100 text-orange-600' : 'bg-gray-50 text-gray-400'}
                         `}>
                           {isWin98
-                            ? (entry.rank <= 3 ? ['[1]', '[2]', '[3]'][entry.rank - 1] : entry.rank)
+                            ? (entry.rank === 1 ? <span style={{color:'#FFD700',fontWeight:'bold'}}>[1]</span> : entry.rank === 2 ? <span style={{color:'#a0a0a0',fontWeight:'bold'}}>[2]</span> : entry.rank === 3 ? <span style={{color:'#f97316',fontWeight:'bold'}}>[3]</span> : entry.rank)
                             : (entry.rank <= 3 ? ['🥇', '🥈', '🥉'][entry.rank - 1] : entry.rank)
                           }
                         </div>

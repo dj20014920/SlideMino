@@ -61,7 +61,7 @@ export const SeasonRewardModal: React.FC<SeasonRewardModalProps> = ({
         {/* Win98 타이틀 바 / 일반 헤더 */}
         {isWin98 ? (
           <div className="title-bar">
-            <div className="title-bar-text">{'◇ '}{t('common:season.rewardTitle')}</div>
+            <div className="title-bar-text"><span style={{color:'#f59e0b',fontWeight:'bold'}}>◇</span>{' '}{t('common:season.rewardTitle')}</div>
             <div className="title-bar-controls">
               <button aria-label="Close" onClick={onClose} />
             </div>

@@ -291,7 +291,7 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
         {/* 헤더 */}
         {isWin98 ? (
           <div className="title-bar">
-            <div className="title-bar-text">{t(`game:weeklyEvent.events.${event.eventType}.name`)}</div>
+            <div className="title-bar-text"><span style={{color:'#7c3aed',fontWeight:'bold'}}>◆</span>{' '}{t(`game:weeklyEvent.events.${event.eventType}.name`)}</div>
             <div className="title-bar-controls">
               <button aria-label="Close" onClick={onClose} />
             </div>
@@ -337,7 +337,7 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
             </span>
             {rule.disableRotation && (
               <span className={isWin98 ? 'win98-badge text-xs' : 'text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600'}>
-                {isWin98 ? '▣' : '🔒'} {t('game:weeklyEvent.tags.noRotation')}
+                {isWin98 ? <span style={{color:'#6b7280',fontWeight:'bold'}}>▣</span> : '🔒'} {t('game:weeklyEvent.tags.noRotation')}
               </span>
             )}
             {rule.scoreMultiplier > 1 && (
@@ -354,7 +354,7 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
               ⏱ {Math.floor(rule.timeLimitSeconds / 60)}{t('game:weeklyEvent.tags.minutes')}
             </span>
             <span className={isWin98 ? 'win98-badge text-xs' : 'text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600'}>
-              {isWin98 ? '◇' : '🎯'} {remainingTagText}
+              {isWin98 ? <span style={{color:'#7c3aed',fontWeight:'bold'}}>◆</span> : '🎯'} {remainingTagText}
             </span>
           </div>
         </div>
@@ -457,7 +457,9 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
             >
               {isClaimingReward
                 ? t('common:labels.loading')
-                : `${isWin98 ? '■' : '🎁'} ${t('game:weeklyEvent.claimReward')}`}
+                : isWin98
+                  ? <><span style={{color:'#f59e0b',fontWeight:'bold'}}>&#9632;</span>{' '}{t('game:weeklyEvent.claimReward')}</>
+                  : `🎁 ${t('game:weeklyEvent.claimReward')}`}
             </button>
             {claimError && (
               <p className="mt-1.5 text-xs text-red-500 text-center">{claimError}</p>

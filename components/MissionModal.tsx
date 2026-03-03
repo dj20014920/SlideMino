@@ -164,7 +164,7 @@ const MissionRow: React.FC<{
 
         <div className="flex items-center gap-1.5 shrink-0">
           {/* 보상 표시 */}
-          <span className={`text-xs font-semibold ${isWin98 ? '' : 'text-amber-600'}`}>+{reward}{isWin98 ? '♦' : '💎'}</span>
+          <span className={`text-xs font-semibold ${isWin98 ? '' : 'text-amber-600'}`}>+{reward}{isWin98 ? <span style={{color:'#f59e0b',fontWeight:'bold'}}>♦</span> : '💎'}</span>
 
           {mission.completed && !mission.claimed && (
             <button
@@ -291,7 +291,7 @@ export const MissionModal: React.FC<MissionModalProps> = ({ open, onClose, onRew
         {/* 헤더 */}
         {isWin98 ? (
           <div className="title-bar">
-            <div className="title-bar-text">☆ {t('game:missions.title')}</div>
+            <div className="title-bar-text"><span style={{color:'#FFD700',fontWeight:'bold'}}>★</span>{' '}{t('game:missions.title')}</div>
             <div className="title-bar-controls">
               <button aria-label="Close" onClick={onClose} />
             </div>
@@ -373,7 +373,7 @@ export const MissionModal: React.FC<MissionModalProps> = ({ open, onClose, onRew
                   : 'mt-3 rounded-2xl p-4 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 text-center'
                 }>
                   <div className={`text-sm font-bold mb-2 ${isWin98 ? '' : 'text-amber-700'}`}>
-                    {isWin98 ? '★' : '🎉'} {t('game:missions.allComplete')}
+                    {isWin98 ? <span style={{color:'#FFD700',fontWeight:'bold'}}>★</span> : '🎉'} {t('game:missions.allComplete')}
                   </div>
                   {bonusAvailable ? (
                     <button
@@ -383,7 +383,7 @@ export const MissionModal: React.FC<MissionModalProps> = ({ open, onClose, onRew
                         : 'px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-sm font-bold shadow-md hover:shadow-lg active:scale-95 transition-all'
                       }
                     >
-                      +3{isWin98 ? '♦' : '💎'} {t('game:missions.claimBonus')}
+                      +3{isWin98 ? <span style={{color:'#f59e0b',fontWeight:'bold'}}>♦</span> : '💎'} {t('game:missions.claimBonus')}
                     </button>
                   ) : (
                     <span className="text-xs text-amber-600">{t('game:missions.bonusClaimed')}</span>

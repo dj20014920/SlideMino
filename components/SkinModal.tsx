@@ -260,17 +260,18 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                 {' | 🧩 '}{skinSettings.fragments}
               </p>
 
-              <div className="sunken-panel" style={{ height: '100%', minHeight: '180px', overflowY: 'scroll', padding: '6px', backgroundColor: '#c0c0c0' }}>
+              <div className="sunken-panel" style={{ height: '100%', minHeight: '180px', overflowY: 'scroll', padding: '8px', backgroundColor: '#ffffff' }}>
                 <div className="space-y-4">
                   {skinSections.map((section, sectionIdx) => (
                     <div key={sectionIdx}>
-                      <div style={{ fontSize: '10px', fontWeight: 'bold', marginBottom: '4px', borderBottom: '1px solid #808080', paddingBottom: '2px', color: '#000' }}>
-                        {t(section.titleKey as any)}{sectionIdx === 0 ? ' 💎' : sectionIdx === 1 ? ' ✦' : ''}
-                        <span style={{ marginLeft: '4px', fontWeight: 'normal' }}>({section.skins.length})</span>
+                      <div style={{ fontSize: '10px', fontWeight: 'bold', marginBottom: '6px', borderBottom: '1px solid #808080', paddingBottom: '2px', color: '#000', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        {sectionIdx === 0 ? <span style={{color:'#1084d0'}}>&#9670;</span> : sectionIdx === 1 ? <span style={{color:'#7c3aed'}}>&#9670;</span> : <span style={{color:'#808080'}}>&#9632;</span>}
+                        {t(section.titleKey as any)}
+                        <span style={{ marginLeft: '2px', fontWeight: 'normal' }}>({section.skins.length})</span>
                       </div>
                       {section.rows.map((rowSkins, rowIndex) => (
                         <React.Fragment key={rowIndex}>
-                          <div className="grid grid-cols-6 gap-1">
+                          <div className="grid grid-cols-6 gap-2" style={{backgroundColor:'#ffffff'}}>
                             {rowSkins.map((entry) => {
                               const isOwned = ownedIds.has(entry.id);
                               const isActive = skinSettings.activeSkinId === entry.id;
@@ -281,19 +282,17 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                                 <div
                                   key={entry.id}
                                   onClick={() => handleSkinTap(entry.id, entry.hex)}
-                                  className={`
-                                relative aspect-square flex items-center justify-center cursor-pointer border-2
-                                ${isSelected ? 'border-black' : 'border-transparent'}
-                              `}
+                                  className="relative aspect-square flex items-center justify-center cursor-pointer"
                                   style={{
                                     boxSizing: 'border-box',
                                     backgroundColor: '#c0c0c0',
                                     boxShadow: isSelected
-                                      ? 'inset 1px 1px #000, inset -1px -1px #fff' // Pressed look
-                                      : 'inset -1px -1px #000, inset 1px 1px #fff' // Raised look
-                                  }}
-                                >
-                                  <div className={`w-full h-full relative ${className}`} style={style} data-win98-allow-gradient="true" data-win98-allow-shadow="true" data-skin-swatch="true">
+                                      ? 'inset -1px -1px #ffffff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080'
+                                      : 'inset -1px -1px #0a0a0a, inset 1px 1px #ffffff, inset -2px -2px #808080, inset 2px 2px #dfdfdf',
+                                    outline: isSelected ? '1px dotted #000' : 'none',
+                                    outlineOffset: '-4px',
+                                  }}>
+                                  <div className={`w-full h-full relative ${className}`} style={{...style, borderRadius: 0}} data-win98-allow-gradient="true" data-win98-allow-shadow="true" data-skin-swatch="true">
                                     {!isOwned && <div className="absolute inset-0" style={{ backgroundColor: 'rgba(0,0,0,0.3)', zIndex: 5 }} />}
                                     {entry.premium && (
                                       <div className="absolute top-0 right-0 z-20" style={{ fontSize: '8px', lineHeight: 1 }}>💎</div>

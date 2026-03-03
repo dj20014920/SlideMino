@@ -45,7 +45,7 @@ export const StreakInfoModal: React.FC<StreakInfoModalProps> = ({ open, onClose 
         {/* Win98 타이틀 바 / 일반 헤더 */}
         {isWin98 ? (
           <div className="title-bar">
-            <div className="title-bar-text">{'▣ '}{t('common:streak.title')}</div>
+            <div className="title-bar-text"><span style={{color:'#ea580c',fontWeight:'bold'}}>▣</span>{' '}{t('common:streak.title')}</div>
             <div className="title-bar-controls">
               <button aria-label="Close" onClick={onClose} />
             </div>
@@ -147,7 +147,7 @@ export const StreakInfoModal: React.FC<StreakInfoModalProps> = ({ open, onClose 
                   >
                     <div className="flex items-center gap-3">
                       <span className={isWin98 ? `text-base ${earned ? '' : 'opacity-30'}` : `text-xl ${earned ? '' : 'opacity-30 grayscale'}`}>
-                        {isWin98 ? '◆' : milestone.emoji}
+                        {isWin98 ? <span style={{color: earned ? '#f59e0b' : '#9ca3af',fontWeight:'bold'}}>◆</span> : milestone.emoji}
                       </span>
                       <div>
                         <span className={`text-sm font-semibold ${earned ? 'text-gray-800' : 'text-gray-400'}`}>

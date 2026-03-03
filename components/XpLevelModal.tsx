@@ -156,7 +156,7 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
         {/* Win98 타이틀 바 */}
         {isWin98 && (
           <div className="title-bar">
-            <div className="title-bar-text">Lv.{progress.level} — XP</div>
+            <div className="title-bar-text"><span style={{color:'#FFD700',fontWeight:'bold'}}>★</span>{' '}Lv.{progress.level} — XP</div>
             <div className="title-bar-controls">
               <button aria-label="Close" onClick={onClose} />
             </div>
@@ -319,7 +319,7 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
           {/* 레벨 배지 */}
           <div>
             <h3 className="text-sm font-bold text-gray-800 flex items-center gap-1 mb-2">
-              {isWin98 ? '\u2606' : <Star size={14} className="text-purple-500" />}
+              {isWin98 ? <span style={{color:'#FFD700',fontWeight:'bold'}}>★</span> : <Star size={14} className="text-purple-500" />}
               {t('common:xp.badges')}
             </h3>
             <div className="grid grid-cols-5 gap-2">

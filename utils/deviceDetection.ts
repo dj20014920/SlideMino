@@ -1,44 +1,61 @@
 /**
  * 디바이스 환경 감지 유틸리티
  * - 에뮬레이터/시뮬레이터 감지
+ * - 개발용 자동 해금 분기
  */
 
 import { Device } from '@capacitor/device';
 import { Capacitor } from '@capacitor/core';
 
 let cachedIsEmulator: boolean | null = null;
+let cachedIsDevDevice: boolean | null = null;
+let cachedShouldAutoUnlockAllSkinsForDev: boolean | null = null;
 
-// 테스트용 시뮬레이터 디바이스 ID (iPhone 13 Pro Max)
-const DEV_DEVICE_IDS = [
-  '68C93E0B-8569-49E9-87E9-E0847909932C',
+// 본인 개발 에뮬레이터 식별자 allowlist
+// 필요 시 .env.local 에 VITE_DEV_EMULATOR_IDS="ID1,ID2" 형태로 추가 가능
+const BASE_DEV_DEVICE_IDS = [
+  'C73B6020-1526-46B8-A178-8399EA3AF094',
 ];
 
-let cachedIsDevDevice: boolean | null = null;
+const readExtraDevDeviceIds = (): string[] => {
+  const raw = import.meta.env?.VITE_DEV_EMULATOR_IDS;
+  if (typeof raw !== 'string') return [];
+  return raw
+    .split(',')
+    .map((v) => v.trim())
+    .filter(Boolean);
+};
+
+const DEV_DEVICE_IDS = Array.from(
+  new Set([...BASE_DEV_DEVICE_IDS, ...readExtraDevDeviceIds()].map((id) => id.toUpperCase()))
+);
 
 /**
  * 개발용 테스트 디바이스인지 확인.
- * 해당 디바이스에서는 모든 스킨이 해금됨.
+ * - 실기기는 항상 false
+ * - 에뮬레이터/시뮬레이터에서 ID allowlist 일치 시 true
  */
 export const isDevDevice = async (): Promise<boolean> => {
   if (Capacitor.getPlatform() === 'web') return false;
-  if (cachedIsDevDevice !== null) return cachedIsDevDevice;
+  if (cachedIsDevDevice === true) return true;
 
   try {
-    // 시뮬레이터/에뮬레이터가 아니면 무조건 false (실기기 보호)
     const deviceInfo = await Device.getInfo();
-    console.log('[DevDevice] isVirtual:', deviceInfo.isVirtual, 'platform:', deviceInfo.platform);
     if (!deviceInfo.isVirtual) {
       cachedIsDevDevice = false;
       return false;
     }
+
     const idResult = await Device.getId();
     const deviceId = idResult.identifier?.toUpperCase() ?? '';
-    console.log('[DevDevice] identifier:', deviceId);
-    cachedIsDevDevice = DEV_DEVICE_IDS.some(id => deviceId.includes(id.toUpperCase()));
-    console.log('[DevDevice] matched:', cachedIsDevDevice);
+    cachedIsDevDevice = DEV_DEVICE_IDS.some((id) => deviceId === id);
+
+    if (import.meta.env.DEV) {
+      console.log('[DevDevice] platform:', deviceInfo.platform, 'identifier:', deviceId, 'matched:', cachedIsDevDevice);
+    }
+
     return cachedIsDevDevice;
   } catch {
-    cachedIsDevDevice = false;
     return false;
   }
 };
@@ -47,18 +64,16 @@ export const isDevDevice = async (): Promise<boolean> => {
  * 현재 디바이스가 에뮬레이터/시뮬레이터인지 확인
  * - iOS 시뮬레이터
  * - Android 에뮬레이터
- * 
+ *
  * 결과는 캐시되어 한 세션 동안 재사용됨.
  */
 export const isEmulator = async (): Promise<boolean> => {
-  // 웹 환경이면 에뮬레이터 아님
   if (Capacitor.getPlatform() === 'web') {
     return false;
   }
 
-  // 이미 확인했으면 캐시된 값 반환
-  if (cachedIsEmulator !== null) {
-    return cachedIsEmulator;
+  if (cachedIsEmulator === true) {
+    return true;
   }
 
   try {
@@ -66,14 +81,40 @@ export const isEmulator = async (): Promise<boolean> => {
     cachedIsEmulator = Boolean(deviceInfo.isVirtual);
     return cachedIsEmulator;
   } catch {
-    cachedIsEmulator = false;
     return false;
   }
 };
 
 /**
- * 에뮬레이터 캐시 초기화 (테스트용)
+ * 스킨 자동 전체 해금 허용 여부.
+ *
+ * 허용 조건:
+ * 1) 웹 아님
+ * 2) 에뮬레이터/시뮬레이터임
+ * 3) 등록된 본인 개발 에뮬레이터 식별자와 일치
+ *
+ * 따라서 배포된 사용자 실기기에서는 항상 false.
+ */
+export const shouldAutoUnlockAllSkinsForDev = async (): Promise<boolean> => {
+  if (Capacitor.getPlatform() === 'web') return false;
+  if (cachedShouldAutoUnlockAllSkinsForDev === true) return true;
+
+  const emulator = await isEmulator();
+  if (!emulator) return false;
+
+  const devDevice = await isDevDevice();
+  if (devDevice) {
+    cachedShouldAutoUnlockAllSkinsForDev = true;
+    return true;
+  }
+  return false;
+};
+
+/**
+ * 에뮬레이터/개발 캐시 초기화 (테스트용)
  */
 export const resetEmulatorCache = (): void => {
   cachedIsEmulator = null;
+  cachedIsDevDevice = null;
+  cachedShouldAutoUnlockAllSkinsForDev = null;
 };

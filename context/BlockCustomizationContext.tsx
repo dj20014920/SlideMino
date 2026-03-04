@@ -14,7 +14,7 @@ import {
 } from '../services/skinService';
 import { getFeatureGateDecision, type FeatureGateDecision } from '../services/featureGates';
 import { SKIN_CATALOG, FRAGMENT_COST_NORMAL, FRAGMENT_COST_PREMIUM, DAILY_1024_FRAGMENT_CAP } from '../constants';
-import { isDevDevice } from '../utils/deviceDetection';
+import { shouldAutoUnlockAllSkinsForDev } from '../utils/deviceDetection';
 import { gameEventBus } from '../services/gameEventBus';
 import { getKstDateString } from '../services/streakService';
 import { getServerAdjustedNow } from '../services/serverTimeService';
@@ -73,11 +73,14 @@ export function BlockCustomizationProvider({ children }: { children: React.React
     return unsubscribe;
   }, []);
 
-  // 개발 디바이스: 모든 스킨 자동 해금
+  // 개발용 에뮬레이터에서만 카탈로그 전체 스킨 자동 해금
   useEffect(() => {
     let cancelled = false;
-    isDevDevice().then(isDev => {
-      if (cancelled || !isDev) return;
+    const timeoutIds: number[] = [];
+
+    const tryUnlockAllSkins = async (): Promise<void> => {
+      const allowAutoUnlock = await shouldAutoUnlockAllSkinsForDev();
+      if (cancelled || !allowAutoUnlock) return;
       setSkinSettings(prev => {
         const ownedIds = new Set(prev.ownedSkins.map(s => s.id));
         const missing = SKIN_CATALOG.filter(e => !ownedIds.has(e.id));
@@ -91,8 +94,20 @@ export function BlockCustomizationProvider({ children }: { children: React.React
           ],
         };
       });
+    };
+
+    // Capacitor bridge 초기화 타이밍을 고려해 짧게 재시도한다.
+    [0, 500, 1500].forEach((delayMs) => {
+      const timeoutId = window.setTimeout(() => {
+        void tryUnlockAllSkins();
+      }, delayMs);
+      timeoutIds.push(timeoutId);
     });
-    return () => { cancelled = true; };
+
+    return () => {
+      cancelled = true;
+      timeoutIds.forEach((id) => window.clearTimeout(id));
+    };
   }, []);
 
   // 블록 커스터마이징 설정 자동 저장

@@ -700,7 +700,7 @@ const App: React.FC = () => {
       const now = Date.now();
       if (now - missionProgressThrottleRef.current < 3000) return;
       missionProgressThrottleRef.current = now;
-      showComboMessage(`📋 ${t(info.nameKey as any)} (${info.current}/${info.target})`, 2000);
+      showComboMessage(`📋 ${t(info.nameKey as any)} ${info.milestonePercent}% (${info.current}/${info.target})`, 2000);
     });
 
     return () => { unsubComplete(); unsubProgress(); };

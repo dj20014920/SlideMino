@@ -70,6 +70,8 @@ export interface ActiveMission {
   progress: number;
   completed: boolean;
   claimed: boolean;
+  /** 마지막으로 notice를 노출한 진행률 milestone(%) */
+  lastProgressNoticePercent?: number;
 }
 
 /** 미션 완료 알림 정보 */
@@ -87,6 +89,8 @@ export interface MissionProgressInfo {
   current: number;
   target: number;
   remaining: number;
+  milestonePercent: number;
+  progressPercent: number;
 }
 
 // ====== 미션 풀 (56개) ======
@@ -160,6 +164,7 @@ const EASY_POOL = MISSION_POOL.filter(m => m.difficulty === 'easy');
 const MEDIUM_POOL = MISSION_POOL.filter(m => m.difficulty === 'medium');
 const HARD_POOL = MISSION_POOL.filter(m => m.difficulty === 'hard');
 const SLOT_DIFFICULTIES: readonly MissionDifficulty[] = ['easy', 'medium', 'hard'];
+const PROGRESS_NOTICE_MILESTONES = [10, 25, 50, 75, 90, 100] as const;
 
 // ====== 저장 데이터 구조 ======
 
@@ -233,6 +238,38 @@ function normalizeRerollUsedSlots(value: unknown, fallbackAllUsed = false): bool
   return Array(MISSION_SLOT_COUNT).fill(false);
 }
 
+function getMissionProgressPercent(progress: number, target: number): number {
+  if (target <= 0) return 0;
+  return Math.min(100, Math.floor((progress / target) * 100));
+}
+
+function getLatestMilestoneAtOrBelowPercent(percent: number): number {
+  let latest = 0;
+  for (const milestone of PROGRESS_NOTICE_MILESTONES) {
+    if (percent >= milestone) latest = milestone;
+  }
+  return latest;
+}
+
+function getReachedProgressMilestone(currentPercent: number, lastNotifiedPercent: number): number | null {
+  let reached: number | null = null;
+  for (const milestone of PROGRESS_NOTICE_MILESTONES) {
+    if (milestone <= lastNotifiedPercent) continue;
+    if (currentPercent >= milestone) reached = milestone;
+  }
+  return reached;
+}
+
+function normalizeLoadedMissionNoticePercent(mission: ActiveMission, def?: MissionDefinition): number {
+  const currentPercent = def ? getMissionProgressPercent(mission.progress, def.target) : 0;
+  const baselineMilestone = getLatestMilestoneAtOrBelowPercent(currentPercent);
+  const raw = Number(mission.lastProgressNoticePercent);
+  const storedMilestone = Number.isFinite(raw)
+    ? getLatestMilestoneAtOrBelowPercent(Math.max(0, Math.min(100, raw)))
+    : 0;
+  return Math.max(storedMilestone, baselineMilestone);
+}
+
 /** 시드 기반으로 난이도별 미션 3개 선택 (충돌 그룹 고려) */
 function selectMissions(seed: number): string[] {
   const rng = mulberry32(seed);
@@ -276,7 +313,13 @@ function repairInvalidMissions(
   let changed = false;
   const normalized = missions.slice(0, MISSION_SLOT_COUNT);
   while (normalized.length < MISSION_SLOT_COUNT) {
-    normalized.push({ definitionId: '', progress: 0, completed: false, claimed: false });
+    normalized.push({
+      definitionId: '',
+      progress: 0,
+      completed: false,
+      claimed: false,
+      lastProgressNoticePercent: 0,
+    });
     changed = true;
   }
 
@@ -289,7 +332,14 @@ function repairInvalidMissions(
   for (let index = 0; index < MISSION_SLOT_COUNT; index += 1) {
     const mission = normalized[index];
     const existingDef = getMissionDefinition(mission.definitionId);
-    if (existingDef) continue;
+    if (existingDef) {
+      const normalizedNoticePercent = normalizeLoadedMissionNoticePercent(mission, existingDef);
+      if (mission.lastProgressNoticePercent !== normalizedNoticePercent) {
+        mission.lastProgressNoticePercent = normalizedNoticePercent;
+        changed = true;
+      }
+      continue;
+    }
 
     const difficulty = SLOT_DIFFICULTIES[index] ?? 'easy';
     const pool = getPoolByDifficulty(difficulty);
@@ -305,6 +355,7 @@ function repairInvalidMissions(
       progress: 0,
       completed: false,
       claimed: false,
+      lastProgressNoticePercent: 0,
     };
     usedConflictGroups.add(selected.conflictGroup);
     changed = true;
@@ -380,6 +431,7 @@ function ensureMissionsUpToDate(): void {
       progress: 0,
       completed: false,
       claimed: false,
+      lastProgressNoticePercent: 0,
     }));
     state.dailyRerollUsedSlots = Array(MISSION_SLOT_COUNT).fill(false);
     state.dailyBonusClaimed = false;
@@ -396,6 +448,7 @@ function ensureMissionsUpToDate(): void {
       progress: 0,
       completed: false,
       claimed: false,
+      lastProgressNoticePercent: 0,
     }));
     state.weeklyRerollUsedSlots = Array(MISSION_SLOT_COUNT).fill(false);
     changed = true;
@@ -623,10 +676,10 @@ export function initMissionTracking(): void {
       if (data.scoreGained > 0) {
         state.gameScore += data.scoreGained;
         const completed4 = processUpdate('SCORE_ACCUMULATE', data.scoreGained);
-        emitCompletions([...completed1, ...completed2, ...completed3, ...completed4]);
-
-        // 점수 미션 진행도 알림 (비침습적)
+        // 점수 미션 진행도 notice를 먼저 계산한 뒤 완료 알림을 발행해,
+        // 100% 도달 시에도 완료 notice가 최종적으로 노출되게 유지한다.
         emitScoreProgress();
+        emitCompletions([...completed1, ...completed2, ...completed3, ...completed4]);
       } else {
         emitCompletions([...completed1, ...completed2, ...completed3]);
       }
@@ -718,25 +771,34 @@ function emitCompletions(completions: MissionCompleteInfo[]): void {
   }
 }
 
-/** 점수 미션의 잔여 진행도를 비침습적 알림으로 발행 */
+/** 점수 미션 진행도가 milestone(10/25/50/75/90/100%)를 넘을 때만 알림 발행 */
 function emitScoreProgress(): void {
   const allMissions = [...state.dailyMissions, ...state.weeklyMissions];
   for (const mission of allMissions) {
-    if (mission.completed || mission.claimed) continue;
+    if (mission.claimed) continue;
     const def = getMissionDefinition(mission.definitionId);
     if (!def || def.type !== 'SCORE_ACCUMULATE') continue;
 
+    const progressPercent = getMissionProgressPercent(mission.progress, def.target);
+    if (progressPercent <= 0) continue;
+
+    const lastNotifiedPercent = Number.isFinite(mission.lastProgressNoticePercent)
+      ? Number(mission.lastProgressNoticePercent)
+      : 0;
+    const reachedMilestone = getReachedProgressMilestone(progressPercent, lastNotifiedPercent);
+    if (reachedMilestone == null) continue;
+
+    mission.lastProgressNoticePercent = reachedMilestone;
     const remaining = def.target - mission.progress;
-    if (remaining > 0 && remaining < def.target * 0.8) {
-      // 20% 이상 진행되었을 때만 알림
-      gameEventBus.emit('MISSION_PROGRESS', {
-        definitionId: def.id,
-        nameKey: def.nameKey,
-        current: mission.progress,
-        target: def.target,
-        remaining,
-      });
-    }
+    gameEventBus.emit('MISSION_PROGRESS', {
+      definitionId: def.id,
+      nameKey: def.nameKey,
+      current: mission.progress,
+      target: def.target,
+      remaining,
+      milestonePercent: reachedMilestone,
+      progressPercent,
+    });
   }
 }
 
@@ -838,6 +900,7 @@ function rerollMission(index: number, isDaily: boolean): ActiveMission | null {
     progress: 0,
     completed: false,
     claimed: false,
+    lastProgressNoticePercent: 0,
   };
   rerollUsedSlots[index] = true;
   saveState();

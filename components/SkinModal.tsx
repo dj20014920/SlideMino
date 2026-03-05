@@ -12,6 +12,7 @@ import { drawSkin, isCollectionComplete, getFragmentCost } from '../services/ski
 import { skinRewardAdService } from '../services/skinRewardAdService';
 import { isSkinRewardAdSupported } from '../services/adConfig';
 import { trackAnalyticsEvent } from '../services/analyticsService';
+import { getSkinFallbackDisplayName } from '../services/skinDisplayName';
 import { SkinAcquisitionOverlay } from './SkinAcquisitionOverlay';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 
@@ -51,7 +52,7 @@ const SkinPreviewTile = React.memo<{ value: number; skin: { id?: string; hex: st
 );
 
 export function SkinModal({ open, onClose }: SkinModalProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   useBodyScrollLock(open);
   const {
     skinSettings,
@@ -100,19 +101,19 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
     [skinSettings]
   );
 
-  // 스킨 이름 표시 헬퍼 (메쉬 스킨은 M#XXXXXX 형태)
+  // 스킨 이름 표시 헬퍼
   const getSkinDisplayName = useCallback((skin: { id?: string; hex: string; nameKey?: string }) => {
-    const isMeshSwatch = skin.id?.startsWith('skin_mesh_swatch');
+    const fallbackName = getSkinFallbackDisplayName(skin, i18n.language);
     if ('nameKey' in skin && skin.nameKey) {
-      return t(`skins:${skin.nameKey}`, skin.hex.toUpperCase());
+      return t(`skins:${skin.nameKey}`, fallbackName);
     }
-    return isMeshSwatch
-      ? `M${skin.hex.toUpperCase()}`
-      : skin.hex.toUpperCase();
-  }, [t]);
+    return fallbackName;
+  }, [i18n.language, t]);
 
   // 섹션별 그룹화 (일반 / 프리미엄 / 메쉬 그라디언트)
   const COLS = 6;
+  const isMeshSwatchSkin = (id: string) => id.startsWith('skin_mesh_swatch');
+  const isLiquidGlassSkin = (id: string) => id.startsWith('skin_digital_liquid_glass');
   type SkinSection = {
     titleKey: string;
     skins: typeof SKIN_CATALOG[number][];
@@ -120,9 +121,12 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
     rowOffset: number; // 전체 행 기준 offset (selectedRowIndex 계산용)
   };
   const skinSections = useMemo((): SkinSection[] => {
-    const normal = SKIN_CATALOG.filter(e => !e.premium && !e.id.startsWith('skin_mesh_swatch'));
+    const liquidGlass = SKIN_CATALOG.filter(e => isLiquidGlassSkin(e.id));
+    const mesh = SKIN_CATALOG.filter(e => isMeshSwatchSkin(e.id));
     const premium = SKIN_CATALOG.filter(e => e.premium);
-    const mesh = SKIN_CATALOG.filter(e => e.id.startsWith('skin_mesh_swatch'));
+    const normal = SKIN_CATALOG.filter(
+      (e) => !e.premium && !isMeshSwatchSkin(e.id) && !isLiquidGlassSkin(e.id)
+    );
 
     const toRows = (arr: typeof SKIN_CATALOG[number][]) => {
       const r: typeof SKIN_CATALOG[number][][] = [];
@@ -130,14 +134,31 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
       return r;
     };
 
+    const liquidGlassRows = toRows(liquidGlass);
+    const meshRows = toRows(mesh);
     const normalRows = toRows(normal);
     const premiumRows = toRows(premium);
-    const meshRows = toRows(mesh);
 
     return [
       { titleKey: 'modals:skin.sectionPremium', skins: premium, rows: premiumRows, rowOffset: 0 },
-      { titleKey: 'modals:skin.sectionMesh', skins: mesh, rows: meshRows, rowOffset: premiumRows.length },
-      { titleKey: 'modals:skin.sectionNormal', skins: normal, rows: normalRows, rowOffset: premiumRows.length + meshRows.length },
+      {
+        titleKey: 'modals:skin.sectionLiquidGlass',
+        skins: liquidGlass,
+        rows: liquidGlassRows,
+        rowOffset: premiumRows.length,
+      },
+      {
+        titleKey: 'modals:skin.sectionMesh',
+        skins: mesh,
+        rows: meshRows,
+        rowOffset: premiumRows.length + liquidGlassRows.length,
+      },
+      {
+        titleKey: 'modals:skin.sectionNormal',
+        skins: normal,
+        rows: normalRows,
+        rowOffset: premiumRows.length + liquidGlassRows.length + meshRows.length,
+      },
     ];
   }, []);
 
@@ -306,7 +327,8 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                               const isOwned = ownedIds.has(entry.id);
                               const isActive = skinSettings.activeSkinId === entry.id;
                               const isSelected = selectedSkinId === entry.id;
-                              const { className, style } = resolveSkinAppearance(16, entry);
+                              const swatchPreviewValue = isLiquidGlassSkin(entry.id) ? 64 : 16;
+                              const { className, style } = resolveSkinAppearance(swatchPreviewValue, entry);
 
                               return (
                                 <div
@@ -475,7 +497,8 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                             const isOwned = ownedIds.has(entry.id);
                             const isActive = skinSettings.activeSkinId === entry.id;
                             const isSelected = selectedSkinId === entry.id;
-                            const { className, style } = resolveSkinAppearance(16, entry);
+                            const swatchPreviewValue = isLiquidGlassSkin(entry.id) ? 64 : 16;
+                            const { className, style } = resolveSkinAppearance(swatchPreviewValue, entry);
 
                             return (
                               <button

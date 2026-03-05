@@ -351,6 +351,44 @@ const toRgba = (rgb: Rgb, alpha: number): string => {
   return `rgba(${Math.round(clamp(rgb.r, 0, 255))}, ${Math.round(clamp(rgb.g, 0, 255))}, ${Math.round(clamp(rgb.b, 0, 255))}, ${a})`;
 };
 
+// Schlick Fresnel approximation:
+// F = F0 + (1 - F0) * (1 - cosTheta)^5
+const fresnelSchlick = (cosTheta: number, f0: number): number => {
+  const c = clamp(cosTheta, 0, 1);
+  const base = clamp(f0, 0, 1);
+  return base + (1 - base) * Math.pow(1 - c, 5);
+};
+
+// Beer-Lambert attenuation (transmittance):
+// T = exp(-sigma * distance)
+const beerLambertTransmittance = (distance: number, sigma: number): number => {
+  const d = Math.max(0, distance);
+  const s = Math.max(0, sigma);
+  return Math.exp(-s * d);
+};
+
+const buildFresnelEdgeGradient = (
+  direction: 'to bottom' | 'to top' | 'to right' | 'to left',
+  tintRgb: Rgb,
+  strength: number,
+  edgeSpreadPct: number,
+  peakAlpha: number,
+  f0: number,
+  attenuationSigma: number,
+): string => {
+  // Near edge(0) -> strong Fresnel reflection, inward -> fast attenuation.
+  const samples = [0, 0.08, 0.16, 0.28, 0.44, 0.62, 0.78, 0.92];
+  const stops = samples.map((d) => {
+    const fresnel = fresnelSchlick(d, f0);
+    const transmittance = beerLambertTransmittance(d, attenuationSigma);
+    const alpha = peakAlpha * strength * fresnel * transmittance;
+    const pct = (d * edgeSpreadPct).toFixed(2);
+    return `${toRgba(tintRgb, alpha)} ${pct}%`;
+  });
+  stops.push(`${toRgba(tintRgb, 0)} ${edgeSpreadPct}%`);
+  return `linear-gradient(${direction}, ${stops.join(', ')})`;
+};
+
 export const getSkinColorForValue = (value: number, skinHex: string, maxExponent = 15): string => {
   const skinRgb = hexToRgb(skinHex);
   const exp = Math.log2(value);
@@ -474,53 +512,90 @@ const buildMeshSkinStyle = (value: number, seedHex: string, options?: { circular
   return buildMeshLayerStyle(baseHex, { ...options, seed: seedHex });
 };
 
-const LIQUID_GLASS_SKIN_ID = 'skin_digital_liquid_glass';
+const LIQUID_GLASS_SKIN_PREFIX = 'skin_digital_liquid_glass_';
+const LEGACY_LIQUID_GLASS_SKIN_ID = 'skin_digital_liquid_glass';
 
-const buildLiquidGlassTileStyle = (value: number): CSSProperties => {
+const isLiquidGlassSkinId = (skinId: string): boolean => (
+  skinId === LEGACY_LIQUID_GLASS_SKIN_ID || skinId.startsWith(LIQUID_GLASS_SKIN_PREFIX)
+);
+
+const buildLiquidGlassTileStyle = (value: number, tintHex: string): CSSProperties => {
   const exponent = getValueExponent(value);
-  const t = clamp(exponent / 19, 0, 1);
-  const isBaseValue = value <= 1;
+  const tintRgb = hexToRgb(tintHex);
+  const finalToneExponent = 11; // 2048(2^11)의 현재 강도를 최종 강도로 사용
 
-  // 1 타일은 "완전 투명"으로 시작하고, 값이 높아질수록 내부 농도/깊이감을 증가시킨다.
-  const fillAlpha = isBaseValue ? 0 : 0.04 + t * 0.2;
-  const smokeAlpha = isBaseValue ? 0 : 0.02 + t * 0.14;
+  // 1은 완전 투명.
+  // 2부터는 최소 가시값(floor)으로 시작하고 2차함수 계열(power)로 점진 상승.
+  // 2048(exp=11)에서 100% 도달, 이후는 고정.
+  const normalizedProgress = exponent <= 0 ? 0 : clamp(exponent / finalToneExponent, 0, 1);
+  const minVisible = 0.018;
+  const curveExp = 2.4;
+  const strength = exponent <= 0
+    ? 0
+    : minVisible + (1 - minVisible) * Math.pow(normalizedProgress, curveExp);
 
-  // 요청사항: 숫자가 커질수록 테두리 블러(글로우) 강화
-  const rimAlpha = 0.42 + t * 0.4;
-  const rimGlowBlurPx = 3 + t * 24;
-  const rimGlowAlpha = 0.08 + t * 0.28;
+  // 광학 파라미터
+  // - 보통 유리 IOR ~= 1.5 -> F0 ~= 0.04
+  // - 모서리(사선 시야)에서 Fresnel 반사가 강해지고, 안쪽으로는 Beer-Lambert로 빠르게 감쇠.
+  const f0 = 0.04;
+  const edgeSpreadPct = 20; // 테두리에서 블록 폭의 1/5 지점까지 색 분포
+  const attenuationSigma = 4.6;
+  const peakEdgeAlpha = 0.64;
+  const glowAlpha = 0.32 * strength;
+  const dropShadowAlpha = 0.16 * strength;
 
-  const dropShadowAlpha = 0.08 + t * 0.2;
-  const blurPx = 6 + t * 16;
-  const saturation = 1.08 + t * 0.24;
-  const contrast = 1.02 + t * 0.12;
+  const edgeGradients = [
+    buildFresnelEdgeGradient('to bottom', tintRgb, strength, edgeSpreadPct, peakEdgeAlpha, f0, attenuationSigma),
+    buildFresnelEdgeGradient('to top', tintRgb, strength, edgeSpreadPct, peakEdgeAlpha, f0, attenuationSigma),
+    buildFresnelEdgeGradient('to right', tintRgb, strength, edgeSpreadPct, peakEdgeAlpha, f0, attenuationSigma),
+    buildFresnelEdgeGradient('to left', tintRgb, strength, edgeSpreadPct, peakEdgeAlpha, f0, attenuationSigma),
+  ];
 
-  // 요청사항: 1/2/4도 8 이상과 동일한 숫자 색감으로 통일
+  // 미세한 스펙큘러/코너 카스틱으로 "유리 표면" 감각을 보강.
+  const cornerCausticAlpha = 0.225 * strength;
+  const cornerCaustic = [
+    `radial-gradient(circle at 0% 0%, ${toRgba(tintRgb, cornerCausticAlpha)} 0%, ${toRgba(tintRgb, 0)} 34%)`,
+    `radial-gradient(circle at 100% 0%, ${toRgba(tintRgb, cornerCausticAlpha)} 0%, ${toRgba(tintRgb, 0)} 34%)`,
+    `radial-gradient(circle at 0% 100%, ${toRgba(tintRgb, cornerCausticAlpha)} 0%, ${toRgba(tintRgb, 0)} 34%)`,
+    `radial-gradient(circle at 100% 100%, ${toRgba(tintRgb, cornerCausticAlpha)} 0%, ${toRgba(tintRgb, 0)} 34%)`,
+  ];
+
+  const borderAlpha = exponent <= 0
+    ? 0
+    : clamp(0.02 + 0.62 * Math.pow(strength, 0.78), 0, 0.66);
+  const borderColor = toRgba(tintRgb, borderAlpha);
+  const glowColor = toRgba(tintRgb, glowAlpha);
+  const rimGlowBlurPx = 13;
+  const blurPx = 7 + 6 * strength;
+  const saturation = 1.055 + 0.115 * strength;
+  const contrast = 1.033 + 0.052 * strength;
+  const brightness = 0.968 + 0.023 * strength;
   const textColor = '#f8fafc';
-  const textShadow = '0 1px 2px rgba(0,0,0,0.52), 0 0 10px rgba(255,255,255,0.16)';
+  const textShadow = [
+    '0 1px 2px rgba(0,0,0,0.62)',
+    '0 0 1px rgba(0,0,0,0.84)',
+    '0 0 10px rgba(255,255,255,0.18)',
+  ].join(', ');
 
   return {
-    backgroundColor: `rgba(255,255,255,${fillAlpha.toFixed(3)})`,
-    backgroundImage: isBaseValue
-      ? 'none'
-      : [
-          'linear-gradient(145deg, rgba(255,255,255,0.58) 0%, rgba(255,255,255,0.2) 38%, rgba(255,255,255,0.03) 100%)',
-          'radial-gradient(130% 95% at 20% 10%, rgba(255,255,255,0.72) 0%, rgba(255,255,255,0) 52%)',
-          'radial-gradient(120% 100% at 82% 90%, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 60%)',
-          `linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,${smokeAlpha.toFixed(3)}) 100%)`,
-        ].join(', '),
-    border: `${(1 + t * 0.35).toFixed(2)}px solid rgba(255,255,255,${rimAlpha.toFixed(3)})`,
+    // 중앙은 완전 투명 유지
+    backgroundColor: 'rgba(255,255,255,0)',
+    backgroundImage: [...edgeGradients, ...cornerCaustic].join(', '),
+    border: `1.1px solid ${borderColor}`,
     boxShadow: [
-      `inset 0 1px 0 rgba(255,255,255,${(0.78 + t * 0.14).toFixed(3)})`,
-      `inset 0 -1px 0 rgba(255,255,255,${(0.12 + t * 0.16).toFixed(3)})`,
-      `inset 1px 0 0 rgba(255,255,255,${(0.24 + t * 0.14).toFixed(3)})`,
-      `0 10px 22px rgba(0,0,0,${dropShadowAlpha.toFixed(3)})`,
-      `0 0 0 1px rgba(255,255,255,${(rimAlpha * 0.24).toFixed(3)})`,
-      `0 0 ${rimGlowBlurPx.toFixed(1)}px rgba(255,255,255,${rimGlowAlpha.toFixed(3)})`,
+      // 볼록(raised) 질감: 상/좌는 밝게, 하/우는 어둡게
+      `inset 0 1px 0 rgba(255,255,255,${(0.74 * strength).toFixed(3)})`,
+      `inset 1px 0 0 rgba(255,255,255,${(0.22 * strength).toFixed(3)})`,
+      `inset 0 -1px 0 rgba(0,0,0,${(0.14 * strength).toFixed(3)})`,
+      `inset -1px 0 0 rgba(0,0,0,${(0.08 * strength).toFixed(3)})`,
+      `0 -1px 2px rgba(255,255,255,${(0.16 * strength).toFixed(3)})`,
+      `0 0 ${rimGlowBlurPx}px ${glowColor}`,
+      `0 8px 16px rgba(0,0,0,${dropShadowAlpha.toFixed(3)})`,
     ].join(', '),
-    backdropFilter: `blur(${blurPx.toFixed(1)}px) saturate(${saturation.toFixed(2)}) contrast(${contrast.toFixed(2)})`,
-    WebkitBackdropFilter: `blur(${blurPx.toFixed(1)}px) saturate(${saturation.toFixed(2)}) contrast(${contrast.toFixed(2)})`,
+    backdropFilter: `blur(${blurPx.toFixed(2)}px) saturate(${saturation.toFixed(3)}) contrast(${contrast.toFixed(3)}) brightness(${brightness.toFixed(3)})`,
+    WebkitBackdropFilter: `blur(${blurPx.toFixed(2)}px) saturate(${saturation.toFixed(3)}) contrast(${contrast.toFixed(3)}) brightness(${brightness.toFixed(3)})`,
     color: textColor,
+    WebkitTextStroke: '0.45px rgba(0,0,0,0.42)',
     textShadow,
   };
 };
@@ -536,12 +611,16 @@ export const resolveSkinAppearance = (value: number, skin: { id?: string; hex: s
     if (entry) styleData = entry.style;
   }
 
-  if (skinId === LIQUID_GLASS_SKIN_ID) {
-    const style = buildLiquidGlassTileStyle(value);
+  if (isLiquidGlassSkinId(skinId)) {
+    const style = buildLiquidGlassTileStyle(value, skin.hex);
     if (styleData?.customCss) {
       applyStructuralCss(style, styleData.customCss as string);
     }
-    applySkinStyleOverrides(style, styleData);
+    // Liquid Glass는 동적 테두리/글로우가 핵심이므로 border/shadow 오버라이드는 막고,
+    // 텍스트 컬러만 선택적으로 허용한다.
+    if (typeof styleData?.textColor === 'string' && styleData.textColor) {
+      style.color = styleData.textColor;
+    }
     return {
       className: getTileColor(value),
       style: sanitizeTileAppearanceStyle(style),

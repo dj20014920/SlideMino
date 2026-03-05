@@ -2,6 +2,8 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { hexToRgb, resolveSkinAppearance } from '../services/blockCustomization';
+import { SKIN_CATALOG } from '../constants';
+import { getSkinFallbackDisplayName } from '../services/skinDisplayName';
 
 type SkinAcquisitionOverlayProps = {
   skin: { id?: string; hex: string; style?: any };
@@ -31,11 +33,22 @@ export const SkinAcquisitionOverlay: React.FC<SkinAcquisitionOverlayProps> = ({
   totalFragments = 0,
   onComplete,
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [phase, setPhase] = useState(0); // 0=준비, 1=힘겹게 합성, 2=임계 플래시, 3=결과 노출
   const [canDismiss, setCanDismiss] = useState(false); // 클릭해서 닫을 수 있는지 여부
   const skinHex = skin.hex;
   const appearance = useMemo(() => resolveSkinAppearance(2048, skin), [skin]);
+  const displayName = useMemo(() => {
+    const catalogEntry = skin.id ? SKIN_CATALOG.find((entry) => entry.id === skin.id) : undefined;
+    const fallbackName = getSkinFallbackDisplayName(
+      { id: skin.id, hex: skin.hex, nameKey: catalogEntry?.nameKey },
+      i18n.language
+    );
+    if (catalogEntry?.nameKey) {
+      return t(`skins:${catalogEntry.nameKey}`, fallbackName);
+    }
+    return fallbackName;
+  }, [i18n.language, skin.hex, skin.id, t]);
 
   const colors = useMemo(() => {
     const rgb = hexToRgb(skinHex);
@@ -352,7 +365,7 @@ export const SkinAcquisitionOverlay: React.FC<SkinAcquisitionOverlayProps> = ({
             >
               {isDuplicate
                 ? String(t('modals:skinAcquisition.fragmentEarned', { count: fragmentsEarned } as any))
-                : skinHex.toUpperCase()}
+                : displayName}
             </div>
             
             <div className="text-base text-white/70 font-medium">

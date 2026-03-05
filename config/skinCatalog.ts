@@ -1,34 +1,87 @@
 import { SkinCatalogEntry } from '../types';
 
 const MESH_STAGE_SWATCHES = [
-  '#FF9A9E', // 1 (Warm Pink)
-  '#FECFEF', // 2 (Soft Pink)
-  '#F6D365', // 4 (Sunny Yellow)
-  '#84FAB0', // 8 (Mint)
-  '#8FD3F4', // 16 (Sky Blue)
-  '#A18CD1', // 32 (Soft Purple)
-  '#FFD1FF', // 64 (Pink White)
-  '#5EE7DF', // 128 (Aqua)
-  '#66A6FF', // 256 (Blue)
-  '#9FA5D5', // 512 (Lavender)
-  '#F11712', // 1024 (Bright Red)
-  '#00C9FF', // 2048 (Bright Cyan)
-  '#92FE9D', // 4096 (Light Green)
-  '#FC00FF', // 8192 (Neon Magenta)
-  '#00DBDE', // 16384 (Teal)
-  '#F9D423', // 32768 (Golden Yellow)
-  '#FF4E50', // 65536 (Sunset Red)
-  '#85FFBD', // 131072 (Lime)
-  '#CBB4D4', // 262144 (Muted Rose)
-  '#FA709A', // 524288 (Vibrant Pink - Replaces #09153B)
+  { hex: '#FF9A9E', nameKey: 'meshPeachCloud' },
+  { hex: '#FECFEF', nameKey: 'meshCottonLilac' },
+  { hex: '#F6D365', nameKey: 'meshSunshineVelvet' },
+  { hex: '#84FAB0', nameKey: 'meshMintBreeze' },
+  { hex: '#8FD3F4', nameKey: 'meshSkySorbet' },
+  { hex: '#A18CD1', nameKey: 'meshLavenderDrift' },
+  { hex: '#FFD1FF', nameKey: 'meshPinkMist' },
+  { hex: '#5EE7DF', nameKey: 'meshAquaHaze' },
+  { hex: '#66A6FF', nameKey: 'meshBlueCandy' },
+  { hex: '#9FA5D5', nameKey: 'meshLilacFrost' },
+  { hex: '#F11712', nameKey: 'meshRubyFlash' },
+  { hex: '#00C9FF', nameKey: 'meshCyanFlash' },
+  { hex: '#92FE9D', nameKey: 'meshLimeSplash' },
+  { hex: '#FC00FF', nameKey: 'meshNeonBerry' },
+  { hex: '#00DBDE', nameKey: 'meshTealFlash' },
+  { hex: '#F9D423', nameKey: 'meshGoldenPop' },
+  { hex: '#FF4E50', nameKey: 'meshSunsetBerry' },
+  { hex: '#85FFBD', nameKey: 'meshLimeCream' },
+  { hex: '#CBB4D4', nameKey: 'meshRoseFog' },
+  { hex: '#FA709A', nameKey: 'meshBerryGlow' },
 ] as const;
 
-const MESH_STAGE_SINGLE_COLOR_SKINS: SkinCatalogEntry[] = MESH_STAGE_SWATCHES.map((hex, index) => ({
+// Liquid Glass 전용 팔레트:
+// 미묘한 차이가 아닌, 사용자 체감이 확실한 고대비/고채도 분포로 구성.
+const LIQUID_GLASS_SWATCHES = [
+  { hex: '#FF3B30', nameKey: 'liquidGlassCrimsonOrbit' },
+  { hex: '#F43F5E', nameKey: 'liquidGlassRoseComet' },
+  { hex: '#FF6D00', nameKey: 'liquidGlassEmberTangerine' },
+  { hex: '#FF8A3D', nameKey: 'liquidGlassApricotBeam' },
+  { hex: '#FFB300', nameKey: 'liquidGlassAmberPulse' },
+  { hex: '#FFD600', nameKey: 'liquidGlassSolarFizz' },
+  { hex: '#D4E157', nameKey: 'liquidGlassLimeAurora' },
+  { hex: '#C6FF00', nameKey: 'liquidGlassNeonSprout' },
+  { hex: '#84CC16', nameKey: 'liquidGlassLeafPrism' },
+  { hex: '#22C55E', nameKey: 'liquidGlassEmeraldWave' },
+  { hex: '#00A86B', nameKey: 'liquidGlassJadeRipple' },
+  { hex: '#3FA34D', nameKey: 'liquidGlassForestMist' },
+  { hex: '#00BFA5', nameKey: 'liquidGlassTealCurrent' },
+  { hex: '#2A9D8F', nameKey: 'liquidGlassSeaGlass' },
+  { hex: '#00ACC1', nameKey: 'liquidGlassCyanHarbor' },
+  { hex: '#00C9FF', nameKey: 'liquidGlassSkyLaser' },
+  { hex: '#00A3FF', nameKey: 'liquidGlassAzureSpark' },
+  { hex: '#118AB2', nameKey: 'liquidGlassOceanDepth' },
+  { hex: '#1E88E5', nameKey: 'liquidGlassCobaltRay' },
+  { hex: '#2563EB', nameKey: 'liquidGlassRoyalCurrent' },
+  { hex: '#3949AB', nameKey: 'liquidGlassIndigoFlux' },
+  { hex: '#5C6BC0', nameKey: 'liquidGlassPeriwinkleEcho' },
+  { hex: '#6366F1', nameKey: 'liquidGlassElectricNova' },
+  { hex: '#4F46E5', nameKey: 'liquidGlassDeepIris' },
+  { hex: '#7C4DFF', nameKey: 'liquidGlassVioletSurge' },
+  { hex: '#9333EA', nameKey: 'liquidGlassPurpleBloom' },
+  { hex: '#AA00FF', nameKey: 'liquidGlassNeonOrchid' },
+  { hex: '#C026D3', nameKey: 'liquidGlassMagentaShift' },
+  { hex: '#D946EF', nameKey: 'liquidGlassFuchsiaGlow' },
+  { hex: '#EC4899', nameKey: 'liquidGlassPinkVolt' },
+  { hex: '#E76F51', nameKey: 'liquidGlassTerracottaHeat' },
+  { hex: '#8D6E63', nameKey: 'liquidGlassCocoaSmoke' },
+] as const;
+
+const MESH_STAGE_SINGLE_COLOR_SKINS: SkinCatalogEntry[] = MESH_STAGE_SWATCHES.map(({ hex, nameKey }, index) => ({
   id: `skin_mesh_swatch_${index + 1}`,
   hex,
   category: 'art',
-  nameKey: `meshGradientHex${hex.slice(1)}`,
+  nameKey,
   premium: false,
+}));
+
+const LIQUID_GLASS_PARALLEL_SKINS: SkinCatalogEntry[] = LIQUID_GLASS_SWATCHES.map(({ hex, nameKey }, index) => ({
+  id: `skin_digital_liquid_glass_${index + 1}`,
+  hex,
+  category: 'digital',
+  nameKey,
+  premium: false,
+  style: {
+    type: 'css-pattern',
+    value: 'linear-gradient(145deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.18) 38%, rgba(255,255,255,0.05) 100%)',
+    textColor: '#f8fafc',
+    customCss: [
+      'border-width: 1px',
+    ].join('; ') + ';',
+  },
 }));
 
 // ==========================================
@@ -89,23 +142,7 @@ export const ADDITIONAL_SKIN_CATALOG: SkinCatalogEntry[] = [
       ].join('; ') + ';',
     },
   },
-  {
-    id: 'skin_digital_liquid_glass',
-    hex: '#f1f3f5',
-    category: 'digital',
-    nameKey: 'liquidGlassClear',
-    premium: true,
-    style: {
-      type: 'css-pattern',
-      value: 'linear-gradient(145deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.18) 38%, rgba(255,255,255,0.05) 100%)',
-      textColor: '#ffffff',
-      borderColor: 'rgba(255,255,255,0.75)',
-      shadow: 'inset 0 1px 0 rgba(255,255,255,0.82), inset 0 -1px 0 rgba(255,255,255,0.22), 0 10px 24px rgba(0,0,0,0.14)',
-      customCss: [
-        'border-width: 1px',
-      ].join('; ') + ';',
-    },
-  },
+  ...LIQUID_GLASS_PARALLEL_SKINS,
 
   {
     id: 'skin_art_mesh',

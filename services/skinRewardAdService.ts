@@ -94,8 +94,9 @@ class SkinRewardAdService {
   private dailyLimiter = new SkinDailyAdLimiter();
   private readonly loadRetryBackoff = new RetryBackoffScheduler();
   private readonly showCooldown = new CooldownGate(7000);
-  // 일부 광고 네트워크는 close/reward 콜백 순서가 뒤바뀔 수 있어 짧은 유예를 둔다.
-  private readonly lateRewardGraceMs = 2500;
+  // 일부 네트워크(특히 멀티 스텝 1/2·2/2 광고)는 dismiss 이후 reward 콜백이 지연될 수 있다.
+  private readonly lateRewardGraceMs = 5000;
+  private readonly rewardNotEarnedMessage = '광고를 끝까지 시청해야 보상이 지급됩니다.';
   // 시간당 최대 8회 노출 제한 (일일 3회 한도의 안전 마진)
   private readonly hourlyFrequencyCap = new HourlyFrequencyCap(8);
   // 90초 내 5회 초과 시 2분 차단 (정상 사용은 도달 불가, 자동 스크립트만 감지)
@@ -214,7 +215,7 @@ class SkinRewardAdService {
       return;
     }
 
-    if (this.isProcessingShow) return;
+    if (this.isHandlingActiveShow()) return;
 
     // 클릭 어뷰징 감지 (60초 내 과도한 요청 → 5분 차단)
     if (!this.abuseGuard.canProceed()) {
@@ -312,6 +313,9 @@ class SkinRewardAdService {
     this.clearFinalizeAfterDismissTimer();
     this.finalizeAfterDismissTimer = setTimeout(() => {
       this.finalizeAfterDismissTimer = null;
+      if (!this.rewardIssuedForCurrentShow && this.admobCallbacks) {
+        this.admobCallbacks.onError(new Error(this.rewardNotEarnedMessage));
+      }
       this.finalizeActiveShowSession();
     }, this.lateRewardGraceMs);
   }

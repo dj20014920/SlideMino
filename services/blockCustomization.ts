@@ -122,7 +122,7 @@ const hslToRgb = (hsl: Hsl): Rgb => {
   else if (hp >= 2 && hp < 3) [r1, g1, b1] = [0, c, x];
   else if (hp >= 3 && hp < 4) [r1, g1, b1] = [0, x, c];
   else if (hp >= 4 && hp < 5) [r1, g1, b1] = [x, 0, c];
-  else [r1, g1, b1] = [c, 0, x];
+  else[r1, g1, b1] = [c, 0, x];
 
   const m = l - c / 2;
   return {
@@ -379,7 +379,7 @@ const buildMeshLayerStyle = (baseHex: string, options?: { circular?: boolean, se
   const genColor = (hShift: number, sShift: number, lShift: number) => {
     return rgbToHex(hslToRgb({
       h: (baseHsl.h + hShift + 360) % 360,
-      s: clamp(baseHsl.s + sShift, 40, 95), 
+      s: clamp(baseHsl.s + sShift, 40, 95),
       l: clamp(baseHsl.l + lShift, 40, 90),
     }));
   };
@@ -438,13 +438,13 @@ const buildMeshLayerStyle = (baseHex: string, options?: { circular?: boolean, se
   // But keep strategy consistent (Color Palette variety)
   const colors = [c1, c2, c3, c4, c5];
   for (let i = colors.length - 1; i > 0; i--) {
-      const j = Math.floor(tileRand() * (i + 1));
-      [colors[i], colors[j]] = [colors[j], colors[i]];
+    const j = Math.floor(tileRand() * (i + 1));
+    [colors[i], colors[j]] = [colors[j], colors[i]];
   }
 
   // Randomized positions for organic "Mesh" feel
   const pos = (min: number, max: number) => Math.floor(min + tileRand() * (max - min)) + '%';
-  
+
   const style: CSSProperties = {
     backgroundColor: baseHex,
     backgroundImage: [
@@ -463,7 +463,7 @@ const buildMeshLayerStyle = (baseHex: string, options?: { circular?: boolean, se
 
   Object.assign(style, getAutoTextColor(baseRgb));
   style.textShadow = '0 1px 2px rgba(0,0,0,0.2)';
-  
+
   return style;
 };
 
@@ -632,7 +632,7 @@ function resolveExplicitPaletteSkin(
       style.borderColor = '#1a1a1a';
       style.boxShadow = `inset 0 0 8px rgba(0,0,0,0.45), ${getValueShadow(t)}`;
     }
-    
+
     // Mesh Gradient: use the same stable renderer as mesh swatch skins.
     if (skinId === 'skin_art_mesh') {
       Object.assign(style, buildMeshLayerStyle(paletteHex));

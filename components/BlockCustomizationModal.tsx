@@ -29,7 +29,9 @@ const TileSwatch = React.memo<{
   onSelect: () => void;
 }>(({ value, tilePx, selected, overrideKind, onSelect }) => {
   const { t } = useTranslation();
-  const { resolveTileAppearance } = useBlockCustomization();
+  const { resolveTileAppearance, isPremiumUiThemeActive, premiumUiObjects } = useBlockCustomization();
+  const premiumUiTileFaceClassName = premiumUiObjects.extended.text.tileFaceClassName;
+  const premiumUiTileNumberClassName = premiumUiObjects.extended.text.tileNumberClassName;
   const appearance = resolveTileAppearance(value);
   const { text, fontPx } = getTileNumberLayout(value, tilePx);
 
@@ -45,7 +47,7 @@ const TileSwatch = React.memo<{
     >
       <div
         className={`
-          rounded-2xl win98-tile-face flex items-center justify-center font-semibold overflow-hidden text-center select-none
+          rounded-2xl ${isPremiumUiThemeActive ? premiumUiTileFaceClassName : ''} flex items-center justify-center font-semibold overflow-hidden text-center select-none
           ${appearance.className}
         `}
         data-skin-preview-tile="true"
@@ -58,7 +60,7 @@ const TileSwatch = React.memo<{
           ...(appearance.style ?? {}),
         }}
       >
-        <span className="win98-tile-number">{text}</span>
+        <span className={isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''}>{text}</span>
       </div>
 
       {overrideKind !== 'default' && (
@@ -76,7 +78,8 @@ const TileSwatch = React.memo<{
 
 export function BlockCustomizationModal({ open, onClose }: BlockCustomizationModalProps) {
   const { t } = useTranslation();
-  const { gate, settings, setSettings, resetAll } = useBlockCustomization();
+  const { gate, settings, setSettings, resetAll, isPremiumUiThemeActive, premiumUiObjects } = useBlockCustomization();
+  const premiumUiModalWindowClassName = premiumUiObjects.extended.windows.modalWindowClassName;
   const [tab, setTab] = useState<TabKey>('global');
   const [selectedValue, setSelectedValue] = useState(1);
   const [jumpValue, setJumpValue] = useState('');
@@ -155,7 +158,7 @@ export function BlockCustomizationModal({ open, onClose }: BlockCustomizationMod
     >
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative z-10 w-full max-w-5xl max-h-[90dvh] rounded-3xl bg-white/90 backdrop-blur-sm border border-white/60 shadow-2xl overflow-hidden flex flex-col win98-window">
+      <div className={`relative z-10 w-full max-w-5xl max-h-[90dvh] rounded-3xl bg-white/90 backdrop-blur-sm border border-white/60 shadow-2xl overflow-hidden flex flex-col ${isPremiumUiThemeActive ? premiumUiModalWindowClassName : ''}`}>
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-5 py-4 border-b border-black/5 gap-3 shrink-0">
           <div className="space-y-1">

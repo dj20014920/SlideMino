@@ -3,17 +3,20 @@ import { Palette, Trophy, ClipboardList, Calendar, Lock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { isNativeApp } from '../utils/platform';
 import { bannerAdService } from '../services/bannerAdService';
+import { useBlockCustomization } from '../context/BlockCustomizationContext';
 
 /** 네이티브 배너 광고 fallback 높이 (표준 배너 50dp) */
 function getNativeBannerHeightPx(): number {
   return 50;
 }
 
-/** 네비게이션 바 기본 추정 높이 (Win98: 32px, 기본: 64px) */
+/** 프리미엄 UI에서 네비 높이를 가져오는 유틸. navHeightPx=0이면 기본값(NAV_HEIGHT_DEFAULT) 사용 */
 export const NAV_HEIGHT_DEFAULT = 64;
-export const NAV_HEIGHT_WIN98 = 32;
-export const getEstimatedBottomNavHeight = (isWin98: boolean): number =>
-  isWin98 ? NAV_HEIGHT_WIN98 : NAV_HEIGHT_DEFAULT;
+export const getEstimatedBottomNavHeight = (
+  isPremiumUi: boolean,
+  navHeightPx: number = 0,
+): number =>
+  isPremiumUi ? (navHeightPx > 0 ? navHeightPx : NAV_HEIGHT_DEFAULT) : NAV_HEIGHT_DEFAULT;
 
 /**
  * 하단 전체 점유 높이를 CSS 변수로 내보내는 훅.
@@ -79,7 +82,7 @@ export interface BottomNavBarProps {
   calendarUnlocked: boolean;
   dailyMissionCompleted: number;
   calendarPendingCount: number;
-  isWin98ThemeActive: boolean;
+  isPremiumUiThemeActive: boolean;
   onSkinPress: () => void;
   onCustomizationPress: () => void;
   onLeaderboardPress: () => void;
@@ -111,7 +114,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
   customizationLockReason,
   dailyMissionCompleted,
   calendarPendingCount,
-  isWin98ThemeActive,
+  isPremiumUiThemeActive,
   onSkinPress,
   onCustomizationPress,
   onLeaderboardPress,
@@ -120,8 +123,14 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
   onHeightChange,
 }) => {
   const { t } = useTranslation();
+  const { premiumUiObjects } = useBlockCustomization();
+  const premiumUiTaskbarClassName = premiumUiObjects.extended.navigation.taskbarClassName;
+  const premiumUiTaskbarButtonClassName = premiumUiObjects.extended.navigation.taskbarButtonClassName;
+  const premiumUiTaskbarBadgeClassName = premiumUiObjects.extended.navigation.taskbarBadgeClassName;
+  const premiumUiLockToastClassName = premiumUiObjects.extended.navigation.lockToastClassName;
+  const premiumUiNavHeightPx = premiumUiObjects.extended.navigation.navHeightPx;
   const navContainerRef = useRef<HTMLDivElement | null>(null);
-  const [navHeight, setNavHeight] = useState<number>(() => getEstimatedBottomNavHeight(isWin98ThemeActive));
+  const [navHeight, setNavHeight] = useState<number>(() => getEstimatedBottomNavHeight(isPremiumUiThemeActive, premiumUiNavHeightPx));
   useBottomChromeHeight(navHeight);
 
   // 잠금 안내 토스트 상태
@@ -180,7 +189,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const fallbackHeight = getEstimatedBottomNavHeight(isWin98ThemeActive);
+    const fallbackHeight = getEstimatedBottomNavHeight(isPremiumUiThemeActive, premiumUiNavHeightPx);
     const measure = () => {
       const measured = navContainerRef.current?.getBoundingClientRect().height;
       const nextHeight = Math.max(0, Math.round(measured ?? fallbackHeight));
@@ -202,7 +211,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
       window.removeEventListener('resize', measure);
       window.visualViewport?.removeEventListener('resize', measure);
     };
-  }, [isWin98ThemeActive, navItems.length, navLabelsKey]);
+  }, [isPremiumUiThemeActive, navItems.length, navLabelsKey]);
 
   useEffect(() => {
     onHeightChange?.(navHeight);
@@ -210,8 +219,8 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
 
   const bottomOffset = '0px';
 
-  // Win98 테마: 클래식 윈도우 스타일 하단 태스크바
-  if (isWin98ThemeActive) {
+  // 프리미엄 UI 테마: 하단 태스크바 스타일
+  if (isPremiumUiThemeActive) {
     return (
       <div
         ref={navContainerRef}
@@ -221,31 +230,24 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
         {/* 잠금 안내 토스트 */}
         {lockToast && (
           <div className="flex justify-center mb-1 px-2">
-            <div className="px-3 py-1 rounded bg-black/70 text-white text-[10px] font-medium">
+            <div className={premiumUiLockToastClassName}>
               🔒 {lockToast}
             </div>
           </div>
         )}
-        <div
-          className="flex items-center gap-0.5 px-1 py-0.5"
-          style={{
-            background: '#c0c0c0',
-            borderTop: '2px solid #fff',
-            boxShadow: 'inset 0 1px 0 #dfdfdf',
-          }}
-        >
+        <div className={premiumUiTaskbarClassName}>
           {navItems.map((item) => (
             <button
               key={item.id}
               onClick={item.locked ? () => showLockToast(item.lockMessage!) : item.onPress}
-              className="relative flex items-center gap-1 px-3 py-1 text-xs font-normal"
+              className={`
+                relative flex items-center gap-1 px-3 py-1 text-xs font-normal
+                ${premiumUiTaskbarButtonClassName}
+                ${item.locked ? 'opacity-45' : ''}
+              `}
               style={{
-                background: '#c0c0c0',
-                border: '2px outset #fff',
-                fontFamily: '"MS Sans Serif", "Microsoft Sans Serif", Arial, sans-serif',
                 minWidth: 0,
                 flex: 1,
-                opacity: item.locked ? 0.45 : 1,
               }}
             >
               <span className="shrink-0">
@@ -253,10 +255,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
               </span>
               <span className="truncate">{item.label}</span>
               {!item.locked && item.badge != null && (
-                <span
-                  className="absolute -top-1 -right-1 min-w-[16px] h-4 flex items-center justify-center rounded-full text-[9px] font-bold text-white px-1"
-                  style={{ background: '#ff0000' }}
-                >
+                <span className={`absolute -top-1 -right-1 ${premiumUiTaskbarBadgeClassName}`}>
                   {item.badge}
                 </span>
               )}

@@ -19,8 +19,15 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({ open, difficulty
     const [name, setName] = useState('');
     const [error, setError] = useState<string | null>(null);
     const isAndroid = isAndroidApp();
-    const { isWin98ThemeActive } = useBlockCustomization();
-    const isWin98 = Boolean(isWin98ThemeActive);
+    const { isPremiumUiThemeActive, premiumUiObjects } = useBlockCustomization();
+    const premiumUiModalOverlayClassName = premiumUiObjects.modalOverlayClassName;
+    const premiumUiWindowClassName = premiumUiObjects.windowClassName;
+    const premiumUiWindowBodyClassName = premiumUiObjects.windowBodyClassName;
+    const premiumUiTitleBarClassName = premiumUiObjects.titleBarClassName;
+    const premiumUiTitleBarTextClassName = premiumUiObjects.titleBarTextClassName;
+    const premiumUiTitleBarControlsClassName = premiumUiObjects.titleBarControlsClassName;
+    const premiumUiModalWindowClassName = premiumUiObjects.extended.windows.modalWindowClassName;
+    const isPremiumUi = Boolean(isPremiumUiThemeActive);
 
     useEffect(() => {
         if (open) {
@@ -53,37 +60,37 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({ open, difficulty
     if (!open) return null;
 
     return (
-        <div className={isWin98 ? 'fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4' : 'fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4'}>
+        <div className={isPremiumUi ? 'fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4' : 'fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4'}>
             {/* Backdrop */}
             <div
-                className={isWin98 ? 'absolute inset-0 win98-modal-overlay' : 'absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in'}
+                className={isPremiumUi ? `absolute inset-0 ${premiumUiModalOverlayClassName}` : 'absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in'}
                 onClick={onClose}
             />
 
-            <div className={isWin98
-                ? 'window relative w-full max-w-sm overflow-hidden animate-scale-in mb-safe'
-                : 'relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden animate-scale-in mb-safe win98-window'}>
-                {isWin98 && (
-                    <div className="title-bar">
-                        <div className="title-bar-text">{String(t('modals:nameInput.title', { difficulty } as any))}</div>
-                        <div className="title-bar-controls">
+            <div className={isPremiumUi
+                ? `${premiumUiWindowClassName} ${premiumUiModalWindowClassName} relative w-full max-w-sm overflow-hidden animate-scale-in mb-safe`
+                : 'relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden animate-scale-in mb-safe'}>
+                {isPremiumUi && (
+                    <div className={premiumUiTitleBarClassName}>
+                        <div className={premiumUiTitleBarTextClassName}>{String(t('modals:nameInput.title', { difficulty } as any))}</div>
+                        <div className={premiumUiTitleBarControlsClassName}>
                             <button aria-label="Close" onClick={onClose} />
                         </div>
                     </div>
                 )}
-                <div className={isWin98 ? 'window-body p-4' : 'p-6'}>
-                    {!isWin98 && (
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-xl font-bold text-gray-800">
-                            {String(t('modals:nameInput.title', { difficulty } as any))}
-                        </h2>
-                        <button
-                            onClick={onClose}
-                            className="p-2 rounded-full hover:bg-gray-100 text-gray-500 transition-colors"
-                        >
-                            <X size={20} />
-                        </button>
-                    </div>
+                <div className={isPremiumUi ? `${premiumUiWindowBodyClassName} p-4` : 'p-6'}>
+                    {!isPremiumUi && (
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-bold text-gray-800">
+                                {String(t('modals:nameInput.title', { difficulty } as any))}
+                            </h2>
+                            <button
+                                onClick={onClose}
+                                className="p-2 rounded-full hover:bg-gray-100 text-gray-500 transition-colors"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
                     )}
 
                     {hasActiveGame && (

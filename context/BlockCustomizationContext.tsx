@@ -1,5 +1,12 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import type { BlockCustomizationSettingsV1, PremiumUiMicroOverrides, SkinItem, SkinSettings } from '../types';
+import type {
+  BlockCustomizationSettingsV1,
+  PremiumUiMicroOverrides,
+  PremiumUiObjectMap,
+  PremiumUiThemeConfig,
+  SkinItem,
+  SkinSettings,
+} from '../types';
 import {
   DEFAULT_BLOCK_CUSTOMIZATION_SETTINGS,
   loadBlockCustomizationSettings,
@@ -18,6 +25,12 @@ import { shouldAutoUnlockAllSkinsForDev } from '../utils/deviceDetection';
 import { gameEventBus } from '../services/gameEventBus';
 import { getKstDateString } from '../services/streakService';
 import { getServerAdjustedNow } from '../services/serverTimeService';
+import {
+  DEFAULT_PREMIUM_UI_OBJECTS,
+  DEFAULT_PREMIUM_UI_LABELS,
+  getPremiumUiThemeById,
+  PREMIUM_UI_THEMES,
+} from '../config/premiumUiThemes';
 
 type BlockCustomizationContextValue = {
   gate: FeatureGateDecision;
@@ -29,8 +42,9 @@ type BlockCustomizationContextValue = {
   skinSettings: SkinSettings;
   activeSkin: SkinItem | null;
   isPremiumUiThemeActive: boolean;
+  premiumUiTheme: PremiumUiThemeConfig | null;
+  premiumUiObjects: PremiumUiObjectMap;
   premiumUiOverrides: PremiumUiMicroOverrides | null;
-  isWin98ThemeActive: boolean;
   addSkin: (skin: SkinItem) => void;
   setActiveSkin: (id: string | null) => void;
   addFragments: (amount: number) => void;
@@ -39,20 +53,6 @@ type BlockCustomizationContextValue = {
 };
 
 const BlockCustomizationContext = createContext<BlockCustomizationContextValue | null>(null);
-const WIN98_THEME_CLASS = 'theme-win98';
-const WIN98_STYLESHEET_ID = 'slidemino-win98-theme-link';
-const WIN98_STYLESHEET_HREF = '/vendor/98css/style.css';
-const DEFAULT_PREMIUM_UI_OVERRIDES: PremiumUiMicroOverrides = {
-  topWindowTitle: '블록 슬라이드\n(Block Slide)',
-  menuWindowTitle: '난이도 선택',
-  difficultyLegend: '난이도 선택 메뉴',
-  utilityLegend: '메뉴',
-  languageLegend: '언어',
-  menuActionRadioGroupName: 'menu-action-win98',
-  difficultyRadioGroupName: 'difficulty-win98',
-  languageRadioGroupName: 'menu-language-win98',
-  gameWindowTitle: 'Game...',
-};
 
 export function BlockCustomizationProvider({ children }: { children: React.ReactNode }) {
   const gate = useMemo(() => getFeatureGateDecision('blockCustomization'), []);
@@ -178,49 +178,85 @@ export function BlockCustomizationProvider({ children }: { children: React.React
     return SKIN_CATALOG.find((skin) => skin.id === skinSettings.activeSkinId) ?? null;
   }, [skinSettings.activeSkinId]);
 
-  // 기본 UI는 항상 일반 테마를 사용하고,
-  // 스킨별 개별 테마 오버라이드가 정의된 경우에만 특수 UI 테마를 활성화한다.
-  const isPremiumUiThemeActive = Boolean(activeSkinCatalogEntry?.premiumUiOverrides);
+  /**
+   * 프리미엄 UI 테마 결정 규칙.
+   * 1) active skin의 premiumUiThemeId를 우선 사용한다.
+   * 2) legacy 데이터 호환: premiumUiOverrides만 있는 과거 스킨은 Win98으로 매핑한다.
+   * 3) 둘 다 없으면 기본 UI(null theme)로 동작한다.
+   */
+  const premiumUiTheme = useMemo<PremiumUiThemeConfig | null>(() => {
+    const themeById = getPremiumUiThemeById(activeSkinCatalogEntry?.premiumUiThemeId);
+    if (themeById) return themeById;
+    if (activeSkinCatalogEntry?.premiumUiOverrides) {
+      return getPremiumUiThemeById('retro_windows_98');
+    }
+    return null;
+  }, [activeSkinCatalogEntry]);
+
+  const isPremiumUiThemeActive = Boolean(premiumUiTheme);
+  const premiumUiObjects = useMemo<PremiumUiObjectMap>(() => {
+    return premiumUiTheme?.objects ?? DEFAULT_PREMIUM_UI_OBJECTS;
+  }, [premiumUiTheme]);
   const premiumUiOverrides = useMemo<PremiumUiMicroOverrides | null>(() => {
     if (!isPremiumUiThemeActive) return null;
     return {
-      ...DEFAULT_PREMIUM_UI_OVERRIDES,
+      ...DEFAULT_PREMIUM_UI_LABELS,
+      ...(premiumUiTheme?.labels ?? {}),
       ...(activeSkinCatalogEntry?.premiumUiOverrides ?? {}),
     };
-  }, [isPremiumUiThemeActive, activeSkinCatalogEntry]);
+  }, [isPremiumUiThemeActive, premiumUiTheme, activeSkinCatalogEntry]);
 
-  // 하위호환: 기존 컴포넌트 분기명을 유지한다.
-  const isWin98ThemeActive = isPremiumUiThemeActive;
 
+
+  /**
+   * 전역 테마 브릿지 적용.
+   * - rootClassName을 html/body에 부여해 테마 CSS 스코프를 활성화한다.
+   * - externalStylesheet가 있으면 동적으로 주입/정리한다.
+   * - 테마 전환 시 기존 테마 클래스/스타일시트를 먼저 제거해 충돌을 방지한다.
+   */
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const htmlEl = document.documentElement;
     const bodyEl = document.body;
 
-    htmlEl.classList.toggle(WIN98_THEME_CLASS, isPremiumUiThemeActive);
-    bodyEl.classList.toggle(WIN98_THEME_CLASS, isPremiumUiThemeActive);
-
-    const existingLink = document.getElementById(WIN98_STYLESHEET_ID) as HTMLLinkElement | null;
-    if (isPremiumUiThemeActive) {
-      if (!existingLink) {
-        const linkEl = document.createElement('link');
-        linkEl.id = WIN98_STYLESHEET_ID;
-        linkEl.rel = 'stylesheet';
-        linkEl.href = WIN98_STYLESHEET_HREF;
-        document.head.appendChild(linkEl);
+    for (const theme of PREMIUM_UI_THEMES) {
+      htmlEl.classList.remove(theme.rootClassName);
+      bodyEl.classList.remove(theme.rootClassName);
+      const stylesheetId = theme.externalStylesheet?.id;
+      if (stylesheetId) {
+        const existing = document.getElementById(stylesheetId);
+        if (existing) existing.remove();
       }
-    } else if (existingLink) {
-      existingLink.remove();
+    }
+
+    if (premiumUiTheme) {
+      htmlEl.classList.add(premiumUiTheme.rootClassName);
+      bodyEl.classList.add(premiumUiTheme.rootClassName);
+
+      const stylesheet = premiumUiTheme.externalStylesheet;
+      if (stylesheet) {
+        const existing = document.getElementById(stylesheet.id) as HTMLLinkElement | null;
+        if (!existing) {
+          const linkEl = document.createElement('link');
+          linkEl.id = stylesheet.id;
+          linkEl.rel = 'stylesheet';
+          linkEl.href = stylesheet.href;
+          document.head.appendChild(linkEl);
+        }
+      }
     }
 
     return () => {
-      if (!isPremiumUiThemeActive) return;
-      htmlEl.classList.remove(WIN98_THEME_CLASS);
-      bodyEl.classList.remove(WIN98_THEME_CLASS);
-      const mountedLink = document.getElementById(WIN98_STYLESHEET_ID);
-      if (mountedLink) mountedLink.remove();
+      if (!premiumUiTheme) return;
+      htmlEl.classList.remove(premiumUiTheme.rootClassName);
+      bodyEl.classList.remove(premiumUiTheme.rootClassName);
+      const stylesheetId = premiumUiTheme.externalStylesheet?.id;
+      if (stylesheetId) {
+        const mounted = document.getElementById(stylesheetId);
+        if (mounted) mounted.remove();
+      }
     };
-  }, [isPremiumUiThemeActive]);
+  }, [premiumUiTheme]);
 
   const addSkin = useCallback((skin: SkinItem) => {
     setSkinSettings(prev => {
@@ -304,15 +340,16 @@ export function BlockCustomizationProvider({ children }: { children: React.React
       skinSettings,
       activeSkin,
       isPremiumUiThemeActive,
+      premiumUiTheme,
+      premiumUiObjects,
       premiumUiOverrides,
-      isWin98ThemeActive,
       addSkin,
       setActiveSkin,
       addFragments,
       addScoreMilestoneFragments,
       purchaseSkin,
     }),
-    [gate, settings, resetAll, resolver, skinSettings, activeSkin, isPremiumUiThemeActive, premiumUiOverrides, isWin98ThemeActive, addSkin, setActiveSkin, addFragments, addScoreMilestoneFragments, purchaseSkin]
+    [gate, settings, resetAll, resolver, skinSettings, activeSkin, isPremiumUiThemeActive, premiumUiTheme, premiumUiObjects, premiumUiOverrides, addSkin, setActiveSkin, addFragments, addScoreMilestoneFragments, purchaseSkin]
   );
 
   return (

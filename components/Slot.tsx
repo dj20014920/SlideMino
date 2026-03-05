@@ -17,7 +17,11 @@ export interface SlotProps {
 
 export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, index, disabled, rotationDisabled = false, isPressed = false, htmlId }) => {
   const { t } = useTranslation();
-  const { resolveTileAppearance, isWin98ThemeActive } = useBlockCustomization();
+  const { resolveTileAppearance, isPremiumUiThemeActive, premiumUiObjects } = useBlockCustomization();
+  const premiumUiSlotShellClassName = premiumUiObjects.board.slotShellClassName;
+  const premiumUiSlotMiniCellClassName = premiumUiObjects.board.slotMiniCellClassName;
+  const premiumUiSlotRotateButtonClassName = premiumUiObjects.board.slotRotateButtonClassName;
+  const premiumUiGameButtonClassName = premiumUiObjects.buttons.gameClassName;
 
   // 빈 슬롯 렌더링
   if (!piece) {
@@ -25,9 +29,9 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
       <div
         className={`
           w-full aspect-square opacity-40
-          ${isWin98ThemeActive
-            ? 'win98-slot-shell'
-            : 'rounded-2xl win98-window bg-white/20 backdrop-blur-sm border border-dashed border-gray-300/50'
+          ${isPremiumUiThemeActive
+            ? premiumUiSlotShellClassName
+            : 'rounded-2xl bg-white/20 backdrop-blur-sm border border-dashed border-gray-300/50'
           }
         `}
       />
@@ -50,24 +54,24 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
   const appearance = resolveTileAppearance(previewValue);
   const fitByWidth = width >= height;
   const normalizedCells = cells.map((c) => ({ x: c.x - minX, y: c.y - minY }));
-  const rotateHitboxPx = isWin98ThemeActive ? 16 : 18;
-  const rotateIconPx = isWin98ThemeActive ? 8 : 10;
+  const rotateHitboxPx = isPremiumUiThemeActive ? 16 : 18;
+  const rotateIconPx = isPremiumUiThemeActive ? 8 : 10;
 
   return (
     <div
       className={`
         relative w-full aspect-square flex items-center justify-center
-        ${isWin98ThemeActive ? 'win98-slot-shell' : 'rounded-2xl win98-window bg-white/40 backdrop-blur-sm border border-white/50 shadow-[0_4px_16px_rgba(0,0,0,0.06)]'}
+        ${isPremiumUiThemeActive ? premiumUiSlotShellClassName : 'rounded-2xl bg-white/40 backdrop-blur-sm border border-white/50 shadow-[0_4px_16px_rgba(0,0,0,0.06)]'}
         cursor-grab active:cursor-grabbing 
         transition-all duration-150 ease-out
         group
         ${disabled
           ? 'opacity-30 pointer-events-none grayscale'
           : isPressed
-            ? isWin98ThemeActive
+            ? isPremiumUiThemeActive
               ? 'brightness-95'
               : 'bg-white/55 ring-2 ring-emerald-300/80 shadow-[0_8px_20px_rgba(16,185,129,0.2)]'
-            : isWin98ThemeActive
+            : isPremiumUiThemeActive
               ? ''
               : 'hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] hover:bg-white/50'
         }
@@ -90,8 +94,8 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
             inline-flex items-center justify-center
             transition-colors duration-150
             opacity-100
-            ${isWin98ThemeActive
-              ? 'win98-game-btn win98-slot-rotate-btn text-gray-700'
+            ${isPremiumUiThemeActive
+              ? `${premiumUiGameButtonClassName} ${premiumUiSlotRotateButtonClassName} text-gray-700`
               : 'rounded-full bg-white/80 text-gray-600 border border-white/40 shadow-md hover:bg-gray-800 hover:text-white hover:border-gray-700'
             }
           `}
@@ -139,7 +143,7 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
               <div
                 key={i}
                 className={`
-                  ${isWin98ThemeActive ? 'win98-slot-mini-cell' : 'rounded-lg border border-white/30'}
+                  ${isPremiumUiThemeActive ? premiumUiSlotMiniCellClassName : 'rounded-lg border border-white/30'}
                   ${appearance.className}
                 `}
                 style={{

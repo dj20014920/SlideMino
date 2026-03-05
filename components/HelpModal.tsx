@@ -177,8 +177,17 @@ const languageOrder: Language[] = [...SUPPORTED_LANGUAGES];
 
 export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
     const { i18n, t } = useTranslation();
-    const { isWin98ThemeActive } = useBlockCustomization();
-    const isWin98 = Boolean(isWin98ThemeActive);
+    const { isPremiumUiThemeActive, premiumUiObjects } = useBlockCustomization();
+    const premiumUiModalOverlayClassName = premiumUiObjects.modalOverlayClassName;
+    const premiumUiWindowClassName = premiumUiObjects.windowClassName;
+    const premiumUiWindowBodyClassName = premiumUiObjects.windowBodyClassName;
+    const premiumUiTitleBarClassName = premiumUiObjects.titleBarClassName;
+    const premiumUiTitleBarTextClassName = premiumUiObjects.titleBarTextClassName;
+    const premiumUiTitleBarControlsClassName = premiumUiObjects.titleBarControlsClassName;
+    const premiumUiSunkenClassName = premiumUiObjects.panels.sunkenClassName;
+    const premiumUiBadgeClassName = premiumUiObjects.panels.badgeClassName;
+    const premiumUiModalWindowClassName = premiumUiObjects.extended.windows.modalWindowClassName;
+    const isPremiumUi = Boolean(isPremiumUiThemeActive);
     const currentLang = normalizeLanguage(i18n.resolvedLanguage ?? i18n.language);
 
     if (!isOpen) return null;
@@ -197,33 +206,33 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
     };
 
     return (
-        <div className={`fixed inset-0 z-[10000] flex items-center justify-center p-4 ${isWin98 ? 'win98-modal-overlay' : 'bg-black/60 backdrop-blur-sm'} animate-fadeIn`}>
+        <div className={`fixed inset-0 z-[10000] flex items-center justify-center p-4 ${isPremiumUi ? premiumUiModalOverlayClassName : 'bg-black/60 backdrop-blur-sm'} animate-fadeIn`}>
             <div
-                className={isWin98
-                    ? 'window relative w-full max-w-md max-h-[85vh] overflow-hidden'
+                className={isPremiumUi
+                    ? `${premiumUiWindowClassName} ${premiumUiModalWindowClassName} relative w-full max-w-md max-h-[85vh] overflow-hidden`
                     : 'relative w-full max-w-md max-h-[85vh] overflow-hidden rounded-3xl shadow-2xl border border-white/50'
                 }
-                style={isWin98 ? undefined : {
+                style={isPremiumUi ? undefined : {
                     background: 'rgba(255, 255, 255, 0.85)',
                     backdropFilter: 'blur(24px)',
                     WebkitBackdropFilter: 'blur(24px)',
                 }}
             >
                 {/* Header */}
-                {isWin98 ? (
+                {isPremiumUi ? (
                     <>
-                        <div className="title-bar">
-                            <div className="title-bar-text">{currentContent.title}</div>
-                            <div className="title-bar-controls">
+                        <div className={premiumUiTitleBarClassName}>
+                            <div className={premiumUiTitleBarTextClassName}>{currentContent.title}</div>
+                            <div className={premiumUiTitleBarControlsClassName}>
                                 <button aria-label="Close" onClick={onClose} />
                             </div>
                         </div>
-                        <div className="window-body p-2">
+                        <div className={`${premiumUiWindowBodyClassName} p-2`}>
                             <div className="flex items-center justify-center gap-3 mb-2">
                                 <button onClick={prevLang} className="px-1">
                                     <ChevronLeft size={16} />
                                 </button>
-                                <span className="text-xs font-semibold px-2 py-0.5 win98-badge">
+                                <span className={`text-xs font-semibold px-2 py-0.5 ${premiumUiBadgeClassName}`}>
                                     {LANGUAGE_CONFIGS[currentLang]?.displayName ?? currentLang}
                                 </span>
                                 <button onClick={nextLang} className="px-1">
@@ -270,13 +279,13 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                 )}
 
                 {/* Content */}
-                <div className={isWin98 ? 'px-2 py-2 overflow-y-auto max-h-[calc(85vh-140px)]' : 'px-5 py-4 overflow-y-auto max-h-[calc(85vh-180px)]'}>
-                    <div className={isWin98 ? 'space-y-2' : 'space-y-4'}>
+                <div className={isPremiumUi ? 'px-2 py-2 overflow-y-auto max-h-[calc(85vh-140px)]' : 'px-5 py-4 overflow-y-auto max-h-[calc(85vh-180px)]'}>
+                    <div className={isPremiumUi ? 'space-y-2' : 'space-y-4'}>
                         {currentContent.sections.map((section, index) => (
                             <div
                                 key={index}
-                                className={isWin98
-                                    ? 'win98-sunken p-2'
+                                className={isPremiumUi
+                                    ? `${premiumUiSunkenClassName} p-2`
                                     : 'p-4 rounded-2xl bg-white/80 shadow-sm border border-gray-100/50 hover:shadow-md transition-shadow'
                                 }
                             >
@@ -292,7 +301,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                     </div>
 
                     {/* Tip */}
-                    <div className={isWin98 ? 'mt-3 win98-sunken p-2' : 'mt-5 p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/50'}>
+                    <div className={isPremiumUi ? `mt-3 ${premiumUiSunkenClassName} p-2` : 'mt-5 p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/50'}>
                         <p className="text-amber-800 text-sm font-medium">
                             {currentContent.tip}
                         </p>
@@ -300,10 +309,10 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                 </div>
 
                 {/* Footer */}
-                <div className={isWin98 ? 'px-2 py-2' : 'px-6 py-4 border-t border-gray-100'}>
+                <div className={isPremiumUi ? 'px-2 py-2' : 'px-6 py-4 border-t border-gray-100'}>
                     <button
                         onClick={onClose}
-                        className={isWin98
+                        className={isPremiumUi
                             ? 'w-full py-1.5 font-bold'
                             : 'w-full py-3 rounded-xl font-bold text-white bg-gradient-to-br from-gray-800 to-gray-900 hover:from-gray-900 hover:to-black transition-all shadow-lg hover:shadow-xl active:scale-[0.98] border border-white/10'
                         }

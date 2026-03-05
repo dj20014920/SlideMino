@@ -69,8 +69,23 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
 }) => {
   const { t } = useTranslation(['game', 'common']);
   useBodyScrollLock(isOpen);
-  const { isWin98ThemeActive } = useBlockCustomization();
-  const isWin98 = Boolean(isWin98ThemeActive);
+  const { isPremiumUiThemeActive, premiumUiObjects } = useBlockCustomization();
+  const premiumUiModalOverlayClassName = premiumUiObjects.modalOverlayClassName;
+  const premiumUiWindowClassName = premiumUiObjects.windowClassName;
+  const premiumUiWindowBodyClassName = premiumUiObjects.windowBodyClassName;
+  const premiumUiTitleBarClassName = premiumUiObjects.titleBarClassName;
+  const premiumUiTitleBarTextClassName = premiumUiObjects.titleBarTextClassName;
+  const premiumUiTitleBarControlsClassName = premiumUiObjects.titleBarControlsClassName;
+  const premiumUiBadgeClassName = premiumUiObjects.panels.badgeClassName;
+  const premiumUiSunkenClassName = premiumUiObjects.panels.sunkenClassName;
+  const premiumUiListItemClassName = premiumUiObjects.panels.listItemClassName;
+  const premiumUiListItemHighlightClassName = premiumUiObjects.panels.listItemHighlightClassName;
+  const premiumUiCompartmentButtonClassName = premiumUiObjects.buttons.compartmentClassName;
+  const premiumUiEventTabStripClassName = premiumUiObjects.extended.tabs.weeklyEvent.containerClassName
+    || premiumUiObjects.tabs.level.containerClassName;
+  const premiumUiEventTabButtonClassName = premiumUiObjects.extended.tabs.weeklyEvent.buttonClassName
+    || premiumUiObjects.tabs.level.buttonClassName;
+  const isPremiumUi = Boolean(isPremiumUiThemeActive);
   const [event, setEvent] = useState<CurrentEventInfo | null>(null);
   const [rankings, setRankings] = useState<EventRankingEntry[]>([]);
   const [myRank, setMyRank] = useState<number | undefined>();
@@ -283,16 +298,16 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
   const isApp = isNativeApp();
 
   return (
-    <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 ${isWin98 ? 'win98-modal-overlay' : 'bg-black/60 backdrop-blur-sm'}`}>
-      <div className={isWin98
-        ? 'window relative w-full max-w-md max-h-[90vh] overflow-y-auto'
+    <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 ${isPremiumUi ? premiumUiModalOverlayClassName : 'bg-black/60 backdrop-blur-sm'}`}>
+      <div className={isPremiumUi
+        ? `${premiumUiWindowClassName} relative w-full max-w-md max-h-[90vh] overflow-y-auto`
         : 'relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl'
       }>
         {/* 헤더 */}
-        {isWin98 ? (
-          <div className="title-bar">
-            <div className="title-bar-text"><span style={{color:'#7c3aed',fontWeight:'bold'}}>◆</span>{' '}{t(`game:weeklyEvent.events.${event.eventType}.name`)}</div>
-            <div className="title-bar-controls">
+        {isPremiumUi ? (
+          <div className={premiumUiTitleBarClassName}>
+            <div className={premiumUiTitleBarTextClassName}><span className="font-bold">◆</span>{' '}{t(`game:weeklyEvent.events.${event.eventType}.name`)}</div>
+            <div className={premiumUiTitleBarControlsClassName}>
               <button aria-label="Close" onClick={onClose} />
             </div>
           </div>
@@ -319,8 +334,8 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
         )}
 
         {/* 규칙 설명 */}
-        <div className={isWin98 ? 'window-body px-3 pt-2 pb-2' : 'px-5 pt-4 pb-3'}>
-          {isWin98 && (
+        <div className={isPremiumUi ? `${premiumUiWindowBodyClassName} px-3 pt-2 pb-2` : 'px-5 pt-4 pb-3'}>
+          {isPremiumUi && (
             <p className="text-xs mb-2">
               <Clock size={12} className="inline mr-1" />
               {remainingText} {t('game:weeklyEvent.remaining')}
@@ -332,35 +347,35 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
 
           {/* 규칙 태그 */}
           <div className="flex flex-wrap gap-1.5 mt-3">
-            <span className={isWin98 ? 'win98-badge text-xs' : `text-xs px-2 py-0.5 rounded-full ${theme.badge}`}>
+            <span className={isPremiumUi ? `${premiumUiBadgeClassName} text-xs` : `text-xs px-2 py-0.5 rounded-full ${theme.badge}`}>
               {rule.boardSize}×{rule.boardSize}
             </span>
             {rule.disableRotation && (
-              <span className={isWin98 ? 'win98-badge text-xs' : 'text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600'}>
-                {isWin98 ? <span style={{color:'#6b7280',fontWeight:'bold'}}>▣</span> : '🔒'} {t('game:weeklyEvent.tags.noRotation')}
+              <span className={isPremiumUi ? `${premiumUiBadgeClassName} text-xs` : 'text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600'}>
+                {isPremiumUi ? <span className="font-bold">▣</span> : '🔒'} {t('game:weeklyEvent.tags.noRotation')}
               </span>
             )}
             {rule.scoreMultiplier > 1 && (
-              <span className={isWin98 ? 'win98-badge text-xs' : 'text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700'}>
+              <span className={isPremiumUi ? `${premiumUiBadgeClassName} text-xs` : 'text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700'}>
                 ×{rule.scoreMultiplier} {t('game:weeklyEvent.tags.scoreBoost')}
               </span>
             )}
             {rule.tripleKillBonus > 0 && (
-              <span className={isWin98 ? 'win98-badge text-xs' : 'text-xs px-2 py-0.5 rounded-full bg-pink-100 text-pink-700'}>
+              <span className={isPremiumUi ? `${premiumUiBadgeClassName} text-xs` : 'text-xs px-2 py-0.5 rounded-full bg-pink-100 text-pink-700'}>
                 +{rule.tripleKillBonus}pt {t('game:weeklyEvent.tags.tripleKill')}
               </span>
             )}
-            <span className={isWin98 ? 'win98-badge text-xs' : 'text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600'}>
+            <span className={isPremiumUi ? `${premiumUiBadgeClassName} text-xs` : 'text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600'}>
               ⏱ {Math.floor(rule.timeLimitSeconds / 60)}{t('game:weeklyEvent.tags.minutes')}
             </span>
-            <span className={isWin98 ? 'win98-badge text-xs' : 'text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600'}>
-              {isWin98 ? <span style={{color:'#7c3aed',fontWeight:'bold'}}>◆</span> : '🎯'} {remainingTagText}
+            <span className={isPremiumUi ? `${premiumUiBadgeClassName} text-xs` : 'text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600'}>
+              {isPremiumUi ? <span className="font-bold">◆</span> : '🎯'} {remainingTagText}
             </span>
           </div>
         </div>
 
         {/* 보상 */}
-        <div className={isWin98 ? 'px-3 pb-2' : 'px-5 pb-3'}>
+        <div className={isPremiumUi ? 'px-3 pb-2' : 'px-5 pb-3'}>
           {isApp ? (
             // 앱: 구체적인 조각 수량 표시
             <>
@@ -419,7 +434,7 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
 
         {/* 내 정보 */}
         {hasPlayed && (
-          <div className={isWin98 ? 'mx-3 mb-2 win98-sunken p-2' : 'mx-5 mb-3 p-3 rounded-xl bg-gray-50'}>
+          <div className={isPremiumUi ? `mx-3 mb-2 ${premiumUiSunkenClassName} p-2` : 'mx-5 mb-3 p-3 rounded-xl bg-gray-50'}>
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">{t('game:weeklyEvent.myBest')}</span>
               <span className="font-bold text-gray-800">{myScore?.toLocaleString() ?? '-'}</span>
@@ -437,7 +452,7 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
 
         {/* 이전 주 참여 보상 수령 — 서버 검증, 이벤트 로테이션 후 전주 결과 기반 지급 (앱 전용) */}
         {isApp && prevEventParticipated && !rewardClaimed && (
-          <div className={isWin98 ? 'mx-3 mb-2' : 'mx-5 mb-3'}>
+          <div className={isPremiumUi ? 'mx-3 mb-2' : 'mx-5 mb-3'}>
             <p className="text-xs text-gray-500 mb-1.5 flex items-center gap-1">
               <Trophy size={12} className="text-amber-500" />
               {t('game:weeklyEvent.prevWeekRewardLabel')}
@@ -450,15 +465,15 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
             <button
               onClick={handleClaimReward}
               disabled={isClaimingReward}
-              className={isWin98
-                ? 'w-full py-2 font-semibold text-sm'
+              className={isPremiumUi
+                ? `w-full py-2 font-semibold text-sm ${premiumUiCompartmentButtonClassName}`
                 : 'w-full py-2.5 rounded-xl bg-amber-500 text-white font-semibold text-sm hover:bg-amber-600 transition disabled:opacity-50'
               }
             >
               {isClaimingReward
                 ? t('common:labels.loading')
-                : isWin98
-                  ? <><span style={{color:'#f59e0b',fontWeight:'bold'}}>&#9632;</span>{' '}{t('game:weeklyEvent.claimReward')}</>
+                : isPremiumUi
+                  ? <><span className="font-bold">&#9632;</span>{' '}{t('game:weeklyEvent.claimReward')}</>
                   : `🎁 ${t('game:weeklyEvent.claimReward')}`}
             </button>
             {claimError && (
@@ -468,17 +483,17 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
         )}
 
         {/* 시작/이어하기 버튼 */}
-        <div className={isWin98 ? 'px-3 pb-2 space-y-1.5' : 'px-5 pb-3 space-y-2'}>
+        <div className={isPremiumUi ? 'px-3 pb-2 space-y-1.5' : 'px-5 pb-3 space-y-2'}>
           {!hasSavedGame && canUnlockByAd && isAttemptUnlockAdSupported && (
             <button
               onClick={handleWatchAttemptUnlockAd}
               disabled={isAttemptUnlockAdInProgress || !isAttemptUnlockAdReady}
-              className={isWin98
-                ? `w-full py-2 font-bold text-base ${isAttemptUnlockAdInProgress || !isAttemptUnlockAdReady ? 'bg-gray-100 text-gray-500' : ''}`
+              className={isPremiumUi
+                ? `w-full py-2 font-bold text-base ${premiumUiCompartmentButtonClassName} ${isAttemptUnlockAdInProgress || !isAttemptUnlockAdReady ? 'bg-gray-100 text-gray-500' : ''}`
                 : `w-full py-3.5 rounded-xl font-bold text-base transition-all ${isAttemptUnlockAdInProgress || !isAttemptUnlockAdReady
-                    ? 'bg-gray-100 text-gray-500'
-                    : 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5'
-                  }`
+                  ? 'bg-gray-100 text-gray-500'
+                  : 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5'
+                }`
               }
             >
               {isAttemptUnlockAdInProgress
@@ -491,8 +506,8 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
           {hasSavedGame && (
             <button
               onClick={onContinueEvent}
-              className={isWin98
-                ? `w-full py-2 font-bold text-base`
+              className={isPremiumUi
+                ? `w-full py-2 font-bold text-base ${premiumUiCompartmentButtonClassName}`
                 : `w-full py-3.5 rounded-xl bg-gradient-to-r ${theme.gradient} text-white font-bold text-base shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all`
               }
             >
@@ -503,12 +518,12 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
           {canStart && (
             <button
               onClick={onStartEvent}
-              className={isWin98
-                ? `w-full py-2 ${hasSavedGame ? '' : ''} font-bold text-base`
+              className={isPremiumUi
+                ? `w-full py-2 ${hasSavedGame ? '' : ''} font-bold text-base ${premiumUiCompartmentButtonClassName}`
                 : `w-full py-3.5 rounded-xl ${hasSavedGame
-                    ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    : `bg-gradient-to-r ${theme.gradient} text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5`
-                  } font-bold text-base transition-all`
+                  ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  : `bg-gradient-to-r ${theme.gradient} text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5`
+                } font-bold text-base transition-all`
               }
             >
               {hasSavedGame ? (
@@ -534,18 +549,18 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
         </div>
 
         {/* 랭킹 */}
-        <div className={isWin98 ? 'px-3 pb-3' : 'px-5 pb-5'}>
+        <div className={isPremiumUi ? 'px-3 pb-3' : 'px-5 pb-5'}>
           {/* 주차 탭 토글 */}
-          <div className={isWin98 ? 'win98-tabstrip mb-2' : 'flex items-center gap-1 mb-3'}>
+          <div className={isPremiumUi ? `${premiumUiEventTabStripClassName} mb-2` : 'flex items-center gap-1 mb-3'}>
             <button
               onClick={() => setShowPrevWeek(false)}
               data-active={!showPrevWeek}
-              className={isWin98
-                ? 'win98-tabstrip-tab'
+              className={isPremiumUi
+                ? premiumUiEventTabButtonClassName
                 : `flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${!showPrevWeek
-                    ? `bg-gradient-to-r ${theme.gradient} text-white shadow-sm`
-                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                  }`
+                  ? `bg-gradient-to-r ${theme.gradient} text-white shadow-sm`
+                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                }`
               }
             >
               {t('game:weeklyEvent.thisWeek')}
@@ -553,12 +568,12 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
             <button
               onClick={() => setShowPrevWeek(true)}
               data-active={showPrevWeek}
-              className={isWin98
-                ? 'win98-tabstrip-tab'
+              className={isPremiumUi
+                ? premiumUiEventTabButtonClassName
                 : `flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${showPrevWeek
-                    ? `bg-gradient-to-r ${theme.gradient} text-white shadow-sm`
-                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                  }`
+                  ? `bg-gradient-to-r ${theme.gradient} text-white shadow-sm`
+                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                }`
               }
             >
               {t('game:weeklyEvent.lastWeek')}
@@ -573,23 +588,23 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
                   <Trophy size={14} className="text-amber-500" />
                   {t('game:weeklyEvent.rankings')}
                 </h3>
-                <div className={isWin98 ? 'win98-sunken space-y-0 max-h-60 overflow-y-auto' : 'space-y-1 max-h-60 overflow-y-auto'}>
+                <div className={isPremiumUi ? `${premiumUiSunkenClassName} space-y-0 max-h-60 overflow-y-auto` : 'space-y-1 max-h-60 overflow-y-auto'}>
                   {rankings.slice(0, 20).map((entry, idx) => {
                     const levelBadgeEmoji = getLevelBadgeById(entry.levelBadge ?? null)?.emoji;
                     return (
                       <div
                         key={idx}
-                        className={isWin98
-                          ? `win98-list-item flex items-center justify-between py-1 px-2 text-sm ${myRank === entry.rank ? 'win98-list-item-highlight' : ''}`
+                        className={isPremiumUi
+                          ? `${premiumUiListItemClassName} flex items-center justify-between py-1 px-2 text-sm ${myRank === entry.rank ? premiumUiListItemHighlightClassName : ''}`
                           : `flex items-center justify-between py-1.5 px-2.5 rounded-lg text-sm ${myRank === entry.rank ? 'bg-amber-50 font-semibold' : ''}`
                         }
                       >
                         <div className="flex items-center gap-2">
                           <span className={`w-6 text-center font-bold ${entry.rank === 1 ? 'text-amber-500' :
-                              entry.rank === 2 ? 'text-gray-400' :
-                                entry.rank === 3 ? 'text-amber-700' : 'text-gray-400'
+                            entry.rank === 2 ? 'text-gray-400' :
+                              entry.rank === 3 ? 'text-amber-700' : 'text-gray-400'
                             }`}>
-                            {isWin98
+                            {isPremiumUi
                               ? (entry.rank <= 3 ? ['[1]', '[2]', '[3]'][entry.rank - 1] : entry.rank)
                               : (entry.rank <= 3 ? ['🥇', '🥈', '🥉'][entry.rank - 1] : entry.rank)
                             }
@@ -622,23 +637,23 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
                   {t('common:labels.loading')}
                 </p>
               ) : prevRankings.length > 0 ? (
-                <div className={isWin98 ? 'win98-sunken space-y-0 max-h-60 overflow-y-auto' : 'space-y-1 max-h-60 overflow-y-auto'}>
+                <div className={isPremiumUi ? `${premiumUiSunkenClassName} space-y-0 max-h-60 overflow-y-auto` : 'space-y-1 max-h-60 overflow-y-auto'}>
                   {prevRankings.slice(0, 20).map((entry, idx) => {
                     const levelBadgeEmoji = getLevelBadgeById(entry.levelBadge ?? null)?.emoji;
                     return (
                       <div
                         key={idx}
-                        className={isWin98
-                          ? `win98-list-item flex items-center justify-between py-1 px-2 text-sm ${prevMyRank === entry.rank ? 'win98-list-item-highlight' : ''}`
+                        className={isPremiumUi
+                          ? `${premiumUiListItemClassName} flex items-center justify-between py-1 px-2 text-sm ${prevMyRank === entry.rank ? premiumUiListItemHighlightClassName : ''}`
                           : `flex items-center justify-between py-1.5 px-2.5 rounded-lg text-sm ${prevMyRank === entry.rank ? 'bg-amber-50 font-semibold' : ''}`
                         }
                       >
                         <div className="flex items-center gap-2">
                           <span className={`w-6 text-center font-bold ${entry.rank === 1 ? 'text-amber-500' :
-                              entry.rank === 2 ? 'text-gray-400' :
-                                entry.rank === 3 ? 'text-amber-700' : 'text-gray-400'
+                            entry.rank === 2 ? 'text-gray-400' :
+                              entry.rank === 3 ? 'text-amber-700' : 'text-gray-400'
                             }`}>
-                            {isWin98
+                            {isPremiumUi
                               ? (entry.rank <= 3 ? ['[1]', '[2]', '[3]'][entry.rank - 1] : entry.rank)
                               : (entry.rank <= 3 ? ['🥇', '🥈', '🥉'][entry.rank - 1] : entry.rank)
                             }

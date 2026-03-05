@@ -116,10 +116,169 @@ export interface PremiumUiMicroOverrides {
   difficultyLegend?: string;
   utilityLegend?: string;
   languageLegend?: string;
-  menuActionRadioGroupName?: string;
-  difficultyRadioGroupName?: string;
-  languageRadioGroupName?: string;
   gameWindowTitle?: string;
+  /** 스킨 모달 하단 상태바 텍스트 (왼쪽) */
+  statusBarText?: string;
+  /** 스킨 모달 하단 상태바 버전 텍스트 (오른쪽) */
+  statusBarVersion?: string;
+}
+
+/**
+ * 프리미엄 UI 패밀리 식별자.
+ * - family는 "어떤 스타일 계열인지"를 나타내고,
+ * - id는 "실제 적용 가능한 구체 테마"를 나타낸다.
+ *
+ * 현재는 Win98 계열 1종만 운영하지만, 이후 family/id를 확장하는 전제를 가진다.
+ */
+export type PremiumUiThemeFamily = 'win98';
+export type PremiumUiThemeId = 'retro_windows_98';
+
+export interface PremiumUiTabObject {
+  containerClassName: string;
+  buttonClassName: string;
+}
+
+/**
+ * 프리미엄 UI 클래스 매핑 계약.
+ *
+ * 설계 원칙:
+ * 1) UI 오브젝트별로 "클래스 이름만" 매핑한다. (스타일 로직은 CSS에 위임)
+ * 2) 공통/핵심 슬롯은 top-level에, 화면별 확장 슬롯은 extended에 둔다.
+ * 3) 신규 프리미엄 테마 추가 시 이 인터페이스를 모두 채우면,
+ *    컴포넌트 코드를 재작성하지 않고 객체 교체만으로 오버라이드 가능해야 한다.
+ *
+ * 유지보수 팁:
+ * - 동일한 역할의 클래스는 반드시 같은 슬롯을 통해 참조한다(DRY).
+ * - 컴포넌트에서 하드코딩 클래스 문자열을 직접 쓰지 말고 objects 슬롯을 사용한다.
+ */
+export interface PremiumUiObjectMap {
+  appShellClassName: string;
+  modalOverlayClassName: string;
+  windowClassName: string;
+  windowBodyClassName: string;
+  titleBarClassName: string;
+  titleBarTextClassName: string;
+  /** 타이틀바 컨트롤 버튼 컨테이너 (닫기/최소화 등) */
+  titleBarControlsClassName: string;
+  blockClassName: string;
+  buttons: {
+    menuClassName: string;
+    gameClassName: string;
+    iconClassName: string;
+    pillClassName: string;
+    headerMainClassName: string;
+    headerIconClassName: string;
+    headerActionClassName: string;
+    compartmentClassName: string;
+  };
+  tabs: {
+    level: PremiumUiTabObject;
+    skin: PremiumUiTabObject;
+    mission: PremiumUiTabObject;
+  };
+  panels: {
+    sunkenClassName: string;
+    sunkenWhiteClassName: string;
+    listItemClassName: string;
+    listItemHighlightClassName: string;
+    badgeClassName: string;
+    fieldsetClassName: string;
+  };
+  progress: {
+    trackClassName: string;
+    fillClassName: string;
+  };
+  board: {
+    gameHeaderClassName: string;
+    gameWindowClassName: string;
+    gameBodyClassName: string;
+    slotShellClassName: string;
+    slotMiniCellClassName: string;
+    slotRotateButtonClassName: string;
+  };
+  extended: {
+    windows: {
+      topWindowClassName: string;
+      menuWindowClassName: string;
+      modalWindowClassName: string;
+      radioGroupClassName: string;
+    };
+    text: {
+      mutedClassName: string;
+      tileFaceClassName: string;
+      tileNumberClassName: string;
+    };
+    buttons: {
+      exitHomeClassName: string;
+      exitCancelClassName: string;
+    };
+    tabs: {
+      leaderboardMode: PremiumUiTabObject;
+      leaderboardFilter: PremiumUiTabObject;
+      leaderboardEventPeriod: PremiumUiTabObject;
+      weeklyEvent: PremiumUiTabObject;
+    };
+    navigation: {
+      taskbarClassName: string;
+      taskbarButtonClassName: string;
+      taskbarBadgeClassName: string;
+      lockToastClassName: string;
+      /** 프리미엄 UI 하단 네비 추정 높이 (px). 0이면 기본 테마 높이 사용 */
+      navHeightPx: number;
+    };
+    /** 상태바 (하단 정보 표시 영역) */
+    statusBar: {
+      containerClassName: string;
+      fieldClassName: string;
+    };
+    /** 폼 레이아웃 (field-row 계열) */
+    forms: {
+      fieldRowClassName: string;
+      fieldRowStackedClassName: string;
+    };
+    board: {
+      boardCellClassName: string;
+      boardShellClassName: string;
+      ghostValidClassName: string;
+      ghostInvalidClassName: string;
+    };
+  };
+}
+
+export interface PremiumUiObjectUsageGuide {
+  titles: readonly string[];
+  buttons: readonly string[];
+  blocks: readonly string[];
+  levelTabs: readonly string[];
+  skinTabs: readonly string[];
+  missionTabs: readonly string[];
+  extraReferences?: readonly string[];
+}
+
+/**
+ * 프리미엄 UI 테마 정의 단위.
+ *
+ * 런타임 적용 플로우:
+ * - SkinCatalogEntry.premiumUiThemeId -> PremiumUiThemeConfig 조회
+ * - labels: 텍스트/라벨 미세 오버라이드
+ * - objects: UI 오브젝트 클래스 오버라이드
+ * - rootClassName/externalStylesheet: 전역 테마 브릿지 적용
+ *
+ * 중요:
+ * - objects.extended는 필수 계약이다.
+ *   (누락 시 특정 화면만 스타일이 빠지는 문제를 타입 단계에서 막기 위함)
+ */
+export interface PremiumUiThemeConfig {
+  id: PremiumUiThemeId;
+  family: PremiumUiThemeFamily;
+  rootClassName: string;
+  externalStylesheet?: {
+    id: string;
+    href: string;
+  };
+  labels: PremiumUiMicroOverrides;
+  objects: PremiumUiObjectMap;
+  usageGuide: PremiumUiObjectUsageGuide;
 }
 
 // 스킨 카탈로그 항목 (뽑기 가능한 스킨 정의, constants.ts에서 배열로 관리)
@@ -130,6 +289,7 @@ export interface SkinCatalogEntry {
   nameKey?: string; // i18n key suffix
   style?: SkinStyle; // Advanced styling
   premium?: boolean; // 프리미엄 스킨 (뽑기 확률 절반, 교환 비용 증가)
+  premiumUiThemeId?: PremiumUiThemeId; // 프리미엄 UI 스킨 테마 식별자 (버튼/타이틀/탭 등 전체 UI 오버라이드)
   premiumUiOverrides?: PremiumUiMicroOverrides; // 프리미엄 공통 UI의 스킨별 미세 오버라이드
 }
 

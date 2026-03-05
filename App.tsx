@@ -630,12 +630,36 @@ const App: React.FC = () => {
     addSkin,
     addFragments,
     addScoreMilestoneFragments,
-    isWin98ThemeActive,
+    isPremiumUiThemeActive,
+    premiumUiObjects,
     premiumUiOverrides,
   } = useBlockCustomization();
+  const premiumWindowClassName = premiumUiObjects.windowClassName;
+  const premiumWindowBodyClassName = premiumUiObjects.windowBodyClassName;
+  const premiumTitleBarClassName = premiumUiObjects.titleBarClassName;
+  const premiumTitleBarTextClassName = premiumUiObjects.titleBarTextClassName;
+  const premiumTitleBarControlsClassName = premiumUiObjects.titleBarControlsClassName;
+  const premiumAppShellClassName = premiumUiObjects.appShellClassName;
+  const premiumMenuButtonClassName = premiumUiObjects.buttons.menuClassName;
+  const premiumGameButtonClassName = premiumUiObjects.buttons.gameClassName;
+  const premiumIconButtonClassName = premiumUiObjects.buttons.iconClassName;
+  const premiumPillButtonClassName = premiumUiObjects.buttons.pillClassName;
+  const premiumHeaderMainButtonClassName = premiumUiObjects.buttons.headerMainClassName;
+  const premiumHeaderIconButtonClassName = premiumUiObjects.buttons.headerIconClassName;
+  const premiumHeaderActionButtonClassName = premiumUiObjects.buttons.headerActionClassName;
+  const premiumGameHeaderClassName = premiumUiObjects.board.gameHeaderClassName;
+  const premiumGameBoardWindowClassName = premiumUiObjects.board.gameWindowClassName;
+  const premiumGameBoardBodyClassName = premiumUiObjects.board.gameBodyClassName;
+  const premiumFieldsetClassName = premiumUiObjects.panels.fieldsetClassName;
+  const premiumMutedTextClassName = premiumUiObjects.extended.text.mutedClassName;
+  const premiumTopWindowClassName = premiumUiObjects.extended.windows.topWindowClassName;
+  const premiumMenuWindowClassName = premiumUiObjects.extended.windows.menuWindowClassName;
+  const premiumModalWindowClassName = premiumUiObjects.extended.windows.modalWindowClassName;
+  const premiumRadioGroupClassName = premiumUiObjects.extended.windows.radioGroupClassName;
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
+  const premiumNavHeightPx = premiumUiObjects.extended.navigation.navHeightPx;
   const [menuBottomNavHeight, setMenuBottomNavHeight] = useState<number>(() =>
-    isNative ? getEstimatedBottomNavHeight(isWin98ThemeActive) : 0
+    isNative ? getEstimatedBottomNavHeight(isPremiumUiThemeActive, premiumNavHeightPx) : 0
   );
 
   // Hide Capacitor Splash Screen immediately
@@ -647,9 +671,9 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (isNative) {
-      setMenuBottomNavHeight(getEstimatedBottomNavHeight(isWin98ThemeActive));
+      setMenuBottomNavHeight(getEstimatedBottomNavHeight(isPremiumUiThemeActive, premiumNavHeightPx));
     }
-  }, [isWin98ThemeActive, isNative]);
+  }, [isPremiumUiThemeActive, isNative]);
 
   // 랭킹 오프라인 큐 자동 동기화
   useEffect(() => {
@@ -3584,8 +3608,8 @@ const App: React.FC = () => {
     return (
       <>
         <CookieConsent />
-        <div className={`${isWin98ThemeActive ? 'win98-app-shell' : ''} min-h-screen min-h-[100dvh] flex items-center justify-center px-6 py-10 bg-gradient-to-b from-gray-50 to-gray-100 text-gray-900`}>
-          <div className={`w-full max-w-sm rounded-3xl border border-white/70 bg-white/80 backdrop-blur-sm shadow-xl p-8 text-center space-y-3 ${isWin98ThemeActive ? 'win98-window' : ''}`}>
+        <div className={`${isPremiumUiThemeActive ? premiumAppShellClassName : ''} min-h-screen min-h-[100dvh] flex items-center justify-center px-6 py-10 bg-gradient-to-b from-gray-50 to-gray-100 text-gray-900`}>
+          <div className={`w-full max-w-sm rounded-3xl border border-white/70 bg-white/80 backdrop-blur-sm shadow-xl p-8 text-center space-y-3 ${isPremiumUiThemeActive ? premiumModalWindowClassName : ''}`}>
             <div className="mx-auto w-14 h-14 rounded-2xl border border-gray-200 bg-white flex items-center justify-center text-2xl">
               📱
             </div>
@@ -3656,12 +3680,26 @@ const App: React.FC = () => {
   }
 
   const premiumUi = premiumUiOverrides;
-  const premiumMenuActionRadioGroupName = premiumUi?.menuActionRadioGroupName ?? 'menu-action-win98';
-  const premiumDifficultyRadioGroupName = premiumUi?.difficultyRadioGroupName ?? 'difficulty-win98';
-  const premiumLanguageRadioGroupName = premiumUi?.languageRadioGroupName ?? 'menu-language-win98';
   const premiumTopWindowTitle = premiumUi?.topWindowTitle ?? '블록 슬라이드\n(Block Slide)';
   const premiumTopWindowTitleLines = premiumTopWindowTitle.split('\n');
   const premiumTopWindowTitleSingleLine = premiumTopWindowTitleLines.join(' ');
+  const premiumMenuRowContainerClassName =
+    premiumUiObjects.panels.sunkenWhiteClassName
+    || premiumUiObjects.panels.sunkenClassName
+    || 'rounded-xl border border-gray-200 bg-white';
+  const premiumMenuRowPrimaryButtonClassName =
+    premiumUiObjects.buttons.gameClassName
+    || premiumUiObjects.buttons.menuClassName
+    || '';
+  const premiumMenuRowSecondaryButtonClassName =
+    premiumUiObjects.buttons.compartmentClassName
+    || premiumUiObjects.buttons.gameClassName
+    || premiumUiObjects.buttons.menuClassName
+    || '';
+  const premiumMenuSelectedClassName =
+    premiumUiObjects.panels.listItemHighlightClassName
+    || 'font-bold';
+  const premiumMutedTextClassForMenu = premiumMutedTextClassName || 'text-gray-600';
 
   // ========== MENU SCREEN ==========
   if (gameState === GameState.MENU) {
@@ -3705,8 +3743,8 @@ const App: React.FC = () => {
     const currentLang = normalizeLanguage(i18n.resolvedLanguage ?? i18n.language);
 
     const weeklyEventUnlocked = isFeatureUnlocked('weekly_event');
-    const win98WeeklyEventButton = (
-      <div className="relative w-full h-[52px] mb-3" style={{ backgroundColor: '#fff' }}>
+    const premiumWeeklyEventButton = (
+      <div className={`relative w-full h-[52px] mb-3 ${premiumMenuRowContainerClassName}`}>
         <button
           onClick={() => {
             if (weeklyEventUnlocked) {
@@ -3715,11 +3753,10 @@ const App: React.FC = () => {
               showComboMessage(`🔒 ${String(t('game:actions.weeklyEventLocked', { count: 10 } as any))}`, 2000);
             }
           }}
-          className="w-full h-full text-left font-bold px-4 flex items-center justify-between"
-          style={{ fontSize: '16px' }}
+          className={`w-full h-full text-left font-bold px-4 flex items-center justify-between ${premiumMenuRowPrimaryButtonClassName}`}
         >
           <span>{weeklyEventUnlocked ? '🎯 ' : '🔒 '}{t('game:weeklyEvent.menuButton')}</span>
-          <span style={{ fontSize: '14px', fontWeight: 'normal', color: weeklyEventUnlocked ? 'inherit' : '#666', paddingRight: (weeklyEventUnlocked && hasActiveEventGame()) ? '48px' : '0' }}>
+          <span className={`text-sm font-normal ${weeklyEventUnlocked ? '' : premiumMutedTextClassForMenu} ${weeklyEventUnlocked && hasActiveEventGame() ? 'pr-12' : ''}`}>
             {weeklyEventUnlocked ? t('game:weeklyEvent.menuTag') : String(t('game:actions.weeklyEventLocked', { count: 10 } as any))}
           </span>
         </button>
@@ -3729,22 +3766,17 @@ const App: React.FC = () => {
               e.stopPropagation();
               continueWeeklyEvent();
             }}
-            className="absolute flex items-center justify-center font-bold cursor-pointer"
-            style={{
-              right: '2px', top: '2px', bottom: '2px', width: '48px',
-              borderLeft: '1px solid #808080', boxShadow: '-1px 0 0 #fff',
-              fontSize: '18px'
-            }}
+            className={`absolute right-0 top-0 bottom-0 w-12 flex items-center justify-center font-bold cursor-pointer ${premiumMenuRowSecondaryButtonClassName}`}
             title={t('game:difficulties.continue')}
           >
-            <span style={{ transform: 'scaleY(1.2)' }}>{'>'}</span>
+            <span>{'>'}</span>
           </div>
         )}
       </div>
     );
 
     const activeNormalSize = getActiveNormalGameBoardSize();
-    const win98DifficultyRows = (
+    const premiumDifficultyRows = (
       <div className="flex flex-col gap-2 mt-2">
         {([
           { size: 4 as BoardSize, label: t('game:difficulties.expert'), sizeLabel: t('game:boardSizes.4x4'), emoji: '🔥' },
@@ -3755,17 +3787,16 @@ const App: React.FC = () => {
         ]).map(mode => {
           const hasResume = activeNormalSize === mode.size;
           return (
-            <div key={mode.size} className="relative w-full h-[52px]" style={{ backgroundColor: '#fff' }}>
+            <div key={mode.size} className={`relative w-full h-[52px] ${premiumMenuRowContainerClassName}`}>
               <button
                 onClick={() => {
                   tryStartGame(mode.size);
                   if (mode.size === 5) localStorage.setItem('tutorial_game_mode_seen_v1', 'true');
                 }}
-                className="w-full h-full text-left font-bold px-4 flex items-center justify-between"
-                style={{ fontSize: '16px' }}
+                className={`w-full h-full text-left font-bold px-4 flex items-center justify-between ${premiumMenuRowPrimaryButtonClassName}`}
               >
                 <span>{mode.emoji ? `${mode.emoji} ` : ''}{mode.label}</span>
-                <span style={{ fontSize: '14px', fontWeight: 'normal', color: '#666', paddingRight: hasResume ? '48px' : '0' }}>{mode.sizeLabel}</span>
+                <span className={`text-sm font-normal ${premiumMutedTextClassForMenu} ${hasResume ? 'pr-12' : ''}`}>{mode.sizeLabel}</span>
               </button>
               {hasResume && (
                 <div
@@ -3775,15 +3806,10 @@ const App: React.FC = () => {
                     const saved = loadGameState();
                     if (saved) restoreSavedGame(saved);
                   }}
-                  className="absolute flex items-center justify-center font-bold cursor-pointer"
-                  style={{
-                    right: '2px', top: '2px', bottom: '2px', width: '48px',
-                    borderLeft: '1px solid #808080', boxShadow: '-1px 0 0 #fff',
-                    fontSize: '18px'
-                  }}
+                  className={`absolute right-0 top-0 bottom-0 w-12 flex items-center justify-center font-bold cursor-pointer ${premiumMenuRowSecondaryButtonClassName}`}
                   title={t('game:difficulties.continue')}
                 >
-                  <span style={{ transform: 'scaleY(1.2)' }}>{'>'}</span>
+                  <span>{'>'}</span>
                 </div>
               )}
             </div>
@@ -3792,105 +3818,76 @@ const App: React.FC = () => {
       </div>
     );
 
-    const win98UtilityButtons = (
-      <fieldset style={{ marginTop: '16px' }}>
+    const premiumUtilityButtons = (
+      <fieldset className={premiumFieldsetClassName} style={{ marginTop: '16px' }}>
         <legend className="font-bold">{premiumUi?.utilityLegend ?? '메뉴'}</legend>
         <div className="flex flex-col gap-2 mt-2">
           {isFeatureUnlocked('streak') && (
-            <div className="relative w-full h-[52px]" style={{ backgroundColor: '#fff' }}>
+            <div className={`relative w-full h-[52px] ${premiumMenuRowContainerClassName}`}>
               <button
-                className="w-full h-full text-left font-bold px-4 flex items-center"
-                style={{ fontSize: '16px' }}
+                className={`w-full h-full text-left font-bold px-4 flex items-center ${premiumMenuRowPrimaryButtonClassName}`}
                 onClick={openStreakInfoModal}
               >
                 {todayAttended ? '🔥' : '🔥'} {t('common:streak.title')} ({streakCount})
               </button>
               <div
                 onClick={openStreakInfoModal}
-                className="absolute flex items-center justify-center font-bold cursor-pointer"
-                style={{
-                  right: '2px', top: '2px', bottom: '2px', width: '48px',
-                  borderLeft: '1px solid #808080', boxShadow: '-1px 0 0 #fff',
-                  fontSize: '18px'
-                }}
+                className={`absolute right-0 top-0 bottom-0 w-12 flex items-center justify-center font-bold cursor-pointer ${premiumMenuRowSecondaryButtonClassName}`}
               >
-                <span style={{ transform: 'scaleY(1.2)' }}>{'>'}</span>
+                <span>{'>'}</span>
               </div>
             </div>
           )}
 
-          <div className="relative w-full h-[52px]" style={{ backgroundColor: '#fff' }}>
+          <div className={`relative w-full h-[52px] ${premiumMenuRowContainerClassName}`}>
             <button
-              className="w-full h-full text-left font-bold px-4 flex items-center"
-              style={{ fontSize: '16px' }}
+              className={`w-full h-full text-left font-bold px-4 flex items-center ${premiumMenuRowPrimaryButtonClassName}`}
               onClick={openXpModal}
             >
               ⭐ Lv.{xpLevel} ({xpPercent}%)
             </button>
             <div
               onClick={openXpModal}
-              className="absolute flex items-center justify-center font-bold cursor-pointer"
-              style={{
-                right: '2px', top: '2px', bottom: '2px', width: '48px',
-                borderLeft: '1px solid #808080', boxShadow: '-1px 0 0 #fff',
-                fontSize: '18px'
-              }}
+              className={`absolute right-0 top-0 bottom-0 w-12 flex items-center justify-center font-bold cursor-pointer ${premiumMenuRowSecondaryButtonClassName}`}
             >
-              <span style={{ transform: 'scaleY(1.2)' }}>{'>'}</span>
+              <span>{'>'}</span>
             </div>
           </div>
 
-          <div className="relative w-full h-[52px]" style={{ backgroundColor: '#fff' }}>
+          <div className={`relative w-full h-[52px] ${premiumMenuRowContainerClassName}`}>
             <button
-              className="w-full h-full text-left font-bold px-4 flex items-center"
-              style={{ fontSize: '16px' }}
+              className={`w-full h-full text-left font-bold px-4 flex items-center ${premiumMenuRowPrimaryButtonClassName}`}
               onClick={handleReplayTutorial}
             >
               ✨ {t('common:actions.replayTutorial', '튜토리얼 다시보기')}
             </button>
             <div
               onClick={handleReplayTutorial}
-              className="absolute flex items-center justify-center font-bold cursor-pointer"
-              style={{
-                right: '2px', top: '2px', bottom: '2px', width: '48px',
-                borderLeft: '1px solid #808080', boxShadow: '-1px 0 0 #fff',
-                fontSize: '18px'
-              }}
+              className={`absolute right-0 top-0 bottom-0 w-12 flex items-center justify-center font-bold cursor-pointer ${premiumMenuRowSecondaryButtonClassName}`}
             >
-              <span style={{ transform: 'scaleY(1.2)' }}>{'>'}</span>
+              <span>{'>'}</span>
             </div>
           </div>
 
-          <fieldset style={{ marginTop: '12px' }}>
+          <fieldset className={premiumFieldsetClassName} style={{ marginTop: '12px' }}>
             <legend className="font-bold">{premiumUi?.languageLegend ?? '언어'}</legend>
             <div className="flex flex-col gap-2 mt-2">
               {(Object.keys(LANGUAGE_CONFIGS) as SupportedLanguage[]).map((langCode) => {
                 const isSelected = currentLang === langCode;
                 return (
-                  <div key={langCode} className="relative w-full h-[52px]" style={{ backgroundColor: '#fff' }}>
+                  <div key={langCode} className={`relative w-full h-[52px] ${premiumMenuRowContainerClassName}`}>
                     <button
-                      className="w-full h-full text-left px-4 flex items-center justify-between"
+                      className={`w-full h-full text-left px-4 flex items-center justify-between ${premiumMenuRowPrimaryButtonClassName} ${isSelected ? premiumMenuSelectedClassName : ''}`}
                       onClick={() => setLanguageFromMenu(langCode)}
-                      style={{
-                        fontSize: '15px',
-                        fontWeight: isSelected ? 'bold' : 'normal',
-                        boxShadow: isSelected ? 'inset 1px 1px #000, inset -1px -1px #fff' : '',
-                        backgroundColor: isSelected ? '#d4d0c8' : '#fff'
-                      }}
                     >
                       <span className="font-bold">{LANGUAGE_CONFIGS[langCode].displayName} {LANGUAGE_CONFIGS[langCode].flag}</span>
-                      {isSelected && <span style={{ fontSize: '14px', color: '#000', fontWeight: 'bold', paddingRight: '48px' }}>v</span>}
+                      {isSelected && <span className={`text-sm font-bold pr-12 ${premiumMutedTextClassForMenu}`}>v</span>}
                     </button>
                     <div
                       onClick={() => setLanguageFromMenu(langCode)}
-                      className="absolute flex items-center justify-center font-bold cursor-pointer"
-                      style={{
-                        right: '2px', top: '2px', bottom: '2px', width: '48px',
-                        borderLeft: '1px solid #808080', boxShadow: '-1px 0 0 #fff',
-                        fontSize: '18px'
-                      }}
+                      className={`absolute right-0 top-0 bottom-0 w-12 flex items-center justify-center font-bold cursor-pointer ${premiumMenuRowSecondaryButtonClassName}`}
                     >
-                      <span style={{ transform: 'scaleY(1.2)' }}>{'>'}</span>
+                      <span>{'>'}</span>
                     </div>
                   </div>
                 );
@@ -3915,7 +3912,7 @@ const App: React.FC = () => {
                 onClick={startDailyChallenge}
                 disabled={isDailyChallengeLoading}
                 className={`
-                relative group w-full py-4 px-6 rounded-2xl win98-menu-btn
+                relative group w-full py-4 px-6 rounded-2xl ${premiumMenuButtonClassName}
                 bg-gradient-to-br from-amber-500 via-orange-500 to-red-500
                 border border-amber-400/30
                 shadow-lg shadow-orange-900/20
@@ -3932,7 +3929,7 @@ const App: React.FC = () => {
                     <span>🏆</span>
                     <span>{t('game:dailyChallenge.menuButton')}</span>
                   </span>
-                  <span className={`${isWin98ThemeActive ? 'win98-muted' : 'text-amber-200/70'} font-normal text-sm`}>5×5</span>
+                  <span className={`${isPremiumUiThemeActive ? premiumMutedTextClassName : 'text-amber-200/70'} font-normal text-sm`}>5×5</span>
                 </span>
               </button>
               {hasActiveDailyChallenge() && (
@@ -3970,7 +3967,7 @@ const App: React.FC = () => {
                   }
                 }}
                 className={`
-              relative group w-full py-4 px-6 rounded-2xl win98-menu-btn
+              relative group w-full py-4 px-6 rounded-2xl ${premiumMenuButtonClassName}
               ${weeklyEventUnlocked
                     ? 'bg-gradient-to-br from-purple-500 via-pink-500 to-rose-500'
                     : 'bg-gradient-to-br from-gray-400 via-gray-500 to-gray-600'
@@ -3992,7 +3989,7 @@ const App: React.FC = () => {
                     <span>{weeklyEventUnlocked ? '🎯' : '🔒'}</span>
                     <span>{t('game:weeklyEvent.menuButton')}</span>
                   </span>
-                  <span className={`${isWin98ThemeActive ? 'win98-muted' : weeklyEventUnlocked ? 'text-purple-200/70' : 'text-gray-200/70'} font-normal text-sm`}>
+                  <span className={`${isPremiumUiThemeActive ? premiumMutedTextClassName : weeklyEventUnlocked ? 'text-purple-200/70' : 'text-gray-200/70'} font-normal text-sm`}>
                     {weeklyEventUnlocked ? t('game:weeklyEvent.menuTag') : String(t('game:actions.weeklyEventLocked', { count: 10 } as any))}
                   </span>
                 </span>
@@ -4034,7 +4031,7 @@ const App: React.FC = () => {
                   if (mode.size === 5) localStorage.setItem('tutorial_game_mode_seen_v1', 'true');
                 }}
                 className={`
-                  relative group w-full py-4 px-6 rounded-2xl win98-menu-btn
+                  relative group w-full py-4 px-6 rounded-2xl ${premiumMenuButtonClassName}
                   ${mode.isBlack ? 'bg-black' : `bg-gradient-to-br ${mode.gradient}`}
                   border ${mode.border}
                   shadow-lg ${mode.shadow}
@@ -4047,7 +4044,7 @@ const App: React.FC = () => {
               >
                 <span className="flex items-center justify-between">
                   <span>{mode.label}</span>
-                  <span className={`${isWin98ThemeActive ? 'win98-muted' : mode.mutedColor} font-normal text-sm`}>{mode.sizeLabel}</span>
+                  <span className={`${isPremiumUiThemeActive ? premiumMutedTextClassName : mode.mutedColor} font-normal text-sm`}>{mode.sizeLabel}</span>
                 </span>
               </button>
               {hasResume && (
@@ -4075,7 +4072,7 @@ const App: React.FC = () => {
         <button
           onClick={openXpModal}
           className={`
-          relative group w-full py-3.5 px-6 rounded-2xl win98-menu-btn
+          relative group w-full py-3.5 px-6 rounded-2xl ${premiumMenuButtonClassName}
           bg-white/60 backdrop-blur-sm
           border border-white/50
           shadow-lg
@@ -4097,13 +4094,13 @@ const App: React.FC = () => {
           </span>
         </button>
 
-        {!isWin98ThemeActive && <LanguageSwitcher />}
+        {!isPremiumUiThemeActive && <LanguageSwitcher />}
 
         <button
           onClick={handleReplayTutorial}
           id="replay-tutorial-btn"
-          className="
-            w-full py-3.5 px-6 rounded-2xl win98-menu-btn
+          className={`
+            w-full py-3.5 px-6 rounded-2xl ${premiumMenuButtonClassName}
             bg-white/30 backdrop-blur-sm
             border border-white/20
             text-gray-600 hover:text-gray-900
@@ -4113,7 +4110,7 @@ const App: React.FC = () => {
             shadow-sm
             text-sm font-semibold
             flex items-center justify-center gap-2
-          "
+          `}
         >
           <RotateCcw size={14} />
           {t('common:actions.replayTutorial', '튜토리얼 다시보기')}
@@ -4134,7 +4131,7 @@ const App: React.FC = () => {
           </div>
         )}
         <div
-          className={`${isWin98ThemeActive ? 'win98-app-shell' : ''} min-h-screen min-h-[100dvh] flex flex-col items-center justify-center p-6 space-y-6`}
+          className={`${isPremiumUiThemeActive ? premiumAppShellClassName : ''} min-h-screen min-h-[100dvh] flex flex-col items-center justify-center p-6 space-y-6`}
           style={{
             paddingTop: 'calc(0.5rem + var(--ui-safe-top))',
             paddingBottom: isNative
@@ -4142,10 +4139,10 @@ const App: React.FC = () => {
               : '24px',
           }}
         >
-          {isWin98ThemeActive && (
-            <div className="window w-full max-w-md win98-top-window">
-              <div className="title-bar">
-                <div className="title-bar-text">
+          {isPremiumUiThemeActive && (
+            <div className={`${premiumWindowClassName} w-full max-w-md ${premiumTopWindowClassName}`}>
+              <div className={premiumTitleBarClassName}>
+                <div className={premiumTitleBarTextClassName}>
                   {premiumTopWindowTitleLines.map((line, index) => (
                     <React.Fragment key={`${line}-${index}`}>
                       {line}
@@ -4153,7 +4150,7 @@ const App: React.FC = () => {
                     </React.Fragment>
                   ))}
                 </div>
-                <div className="title-bar-controls">
+                <div className={premiumTitleBarControlsClassName}>
                   <button aria-label="Help" onClick={openLeaderboardModal} />
                 </div>
               </div>
@@ -4161,10 +4158,10 @@ const App: React.FC = () => {
           )}
 
           {/* 로고 영역 */}
-          {isWin98ThemeActive ? (
-            <div className="window w-full max-w-md animate-fade-in">
-              <div className="window-body" style={{ textAlign: 'center', padding: '20px 16px', backgroundColor: '#fff' }}>
-                <h1 className="text-5xl font-bold tracking-tight" style={{ lineHeight: 1.2 }}>
+          {isPremiumUiThemeActive ? (
+            <div className={`${premiumWindowClassName} w-full max-w-md animate-fade-in`}>
+              <div className={`${premiumWindowBodyClassName} text-center px-4 py-5`}>
+                <h1 className="text-5xl font-bold tracking-tight leading-tight">
                   {(() => {
                     const titleText = String(t('game:title'));
                     const matched = titleText.match(/^(.*)\s\((.*)\)$/);
@@ -4178,7 +4175,7 @@ const App: React.FC = () => {
                     );
                   })()}
                 </h1>
-                <p style={{ color: '#555', fontSize: '14px', marginTop: '10px', lineHeight: 1.6 }}>
+                <p className={`${premiumMutedTextClassForMenu} text-sm mt-2.5 leading-relaxed`}>
                   {tagline.split('\n').map((line, index, arr) => (
                     <React.Fragment key={`${line}-${index}`}>
                       {line}
@@ -4204,22 +4201,22 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {isWin98ThemeActive ? (
-            <div className="window w-full max-w-md animate-slide-up win98-menu-window">
-              <div className="title-bar">
-                <div className="title-bar-text">{premiumUi?.menuWindowTitle ?? '난이도 선택'}</div>
-                <div className="title-bar-controls">
+          {isPremiumUiThemeActive ? (
+            <div className={`${premiumWindowClassName} w-full max-w-md animate-slide-up ${premiumMenuWindowClassName}`}>
+              <div className={premiumTitleBarClassName}>
+                <div className={premiumTitleBarTextClassName}>{premiumUi?.menuWindowTitle ?? '난이도 선택'}</div>
+                <div className={premiumTitleBarControlsClassName}>
                   <button aria-label="Close" onClick={() => setIsLeaderboardOpen(false)} />
                 </div>
               </div>
-              <div className="window-body">
-                <div className="win98-radio-group p-1">
-                  {win98WeeklyEventButton}
-                  <fieldset>
+              <div className={premiumWindowBodyClassName}>
+                <div className={`${premiumRadioGroupClassName} p-1`}>
+                  {premiumWeeklyEventButton}
+                  <fieldset className={premiumFieldsetClassName}>
                     <legend className="font-bold">{premiumUi?.difficultyLegend ?? '난이도 선택 메뉴'}</legend>
-                    {win98DifficultyRows}
+                    {premiumDifficultyRows}
                   </fieldset>
-                  {win98UtilityButtons}
+                  {premiumUtilityButtons}
                 </div>
               </div>
             </div>
@@ -4288,7 +4285,7 @@ const App: React.FC = () => {
               calendarUnlocked={isFeatureUnlocked('calendar')}
               dailyMissionCompleted={dailyMissionCompleted}
               calendarPendingCount={getCalendarItems().filter(i => !i.isCompleted).length}
-              isWin98ThemeActive={isWin98ThemeActive}
+              isPremiumUiThemeActive={isPremiumUiThemeActive}
               onSkinPress={openSkinModal}
               onCustomizationPress={openCustomizationModal}
               onLeaderboardPress={openLeaderboardModal}
@@ -4334,7 +4331,7 @@ const App: React.FC = () => {
               sessionId={activeGameRankingSnapshot.sessionId}
               playerName={activeGameRankingSnapshot.playerName}
               lockedPlayerName={activeGameRankingSnapshot.sessionLockedPlayerName}
-              isWin98ThemeActive={isWin98ThemeActive}
+              isPremiumUiThemeActive={isPremiumUiThemeActive}
               gameMode={gameMode}
               eventAttemptNumber={eventAttemptNumberRef.current}
               onCancel={handleActiveGameExitCancel}
@@ -4530,7 +4527,7 @@ const App: React.FC = () => {
         </div>
       )}
       <div
-        className={`${isWin98ThemeActive ? 'win98-app-shell' : ''} min-h-screen min-h-[100dvh] flex flex-col items-center text-gray-900 touch-none`}
+        className={`${isPremiumUiThemeActive ? premiumAppShellClassName : ''} min-h-screen min-h-[100dvh] flex flex-col items-center text-gray-900 touch-none`}
         onPointerDown={handleScreenPointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -4538,17 +4535,17 @@ const App: React.FC = () => {
       >
         {/* 상단 크롬 래퍼: safe-area + 이벤트/데일리 배너 + 헤더를 하나로 측정 */}
         <div ref={headerRef} className="w-full flex flex-col items-center shrink-0" style={{ paddingTop: 'var(--game-safe-top)' }}>
-          {isWin98ThemeActive && (
+          {isPremiumUiThemeActive && (
             <div
-              className="window w-full"
+              className={`${premiumWindowClassName} w-full`}
               style={{
                 maxWidth: `${gameLayoutProfile.columnWidthPx}px`,
                 marginTop: '8px',
               }}
             >
-              <div className="title-bar">
-                <div className="title-bar-text">{premiumTopWindowTitleSingleLine}</div>
-                <div className="title-bar-controls">
+              <div className={premiumTitleBarClassName}>
+                <div className={premiumTitleBarTextClassName}>{premiumTopWindowTitleSingleLine}</div>
+                <div className={premiumTitleBarControlsClassName}>
                   <button aria-label="Help" onClick={openHelpModal} />
                   <button aria-label="Close" onClick={handleHomeButtonClick} disabled={isAnimating} />
                 </div>
@@ -4590,11 +4587,11 @@ const App: React.FC = () => {
 
           {/* Header */}
           <header
-            className={`w-full flex justify-between items-center p-4 ${isWin98ThemeActive ? 'win98-game-header' : ''}`}
+            className={`w-full flex justify-between items-center p-4 ${isPremiumUiThemeActive ? premiumGameHeaderClassName : ''}`}
             style={{
               maxWidth: `${gameLayoutProfile.columnWidthPx}px`,
               // safe-top은 상단 래퍼가 일괄 담당하므로 헤더는 내부 여백만 설정
-              paddingTop: isWin98ThemeActive ? '8px' : '16px',
+              paddingTop: isPremiumUiThemeActive ? '8px' : '16px',
               // 앱인토스: 우측 상단 공통 내비게이션 영역 확보
               paddingRight: 'calc(16px + var(--appintos-nav-safe-right))'
             }}
@@ -4606,7 +4603,7 @@ const App: React.FC = () => {
                 onClick={handleHomeButtonClick}
                 disabled={isAnimating}
                 className={`
-              p-2.5 rounded-full flex items-center justify-center win98-icon-btn
+              p-2.5 rounded-full flex items-center justify-center ${premiumIconButtonClassName}
               border shadow-sm transition-all duration-200
               ${isAnimating
                     ? 'bg-gray-100/50 text-gray-300 border-gray-200/50 cursor-not-allowed'
@@ -4646,8 +4643,8 @@ const App: React.FC = () => {
             <div className="flex flex-col items-end gap-2 transition-all duration-200">
               {/* Phase Indicator - Glass Pill */}
               <div className={`
-            px-4 py-2 rounded-full text-sm font-semibold flex items-center justify-center gap-2 win98-pill-btn
-            ${isWin98ThemeActive ? 'win98-header-main-btn' : ''}
+            px-4 py-2 rounded-full text-sm font-semibold flex items-center justify-center gap-2 ${premiumPillButtonClassName}
+            ${isPremiumUiThemeActive ? premiumHeaderMainButtonClassName : ''}
             transition-all duration-200 ease-out
             ${phaseIndicatorInteractivityClass}
             ${isPlacePhase
@@ -4670,7 +4667,7 @@ const App: React.FC = () => {
                   onClick={openHelpModal}
                   disabled={isReviveSelectionMode}
                   className={`
-                  p-2 rounded-full text-gray-600 win98-icon-btn ${isWin98ThemeActive ? 'win98-header-icon-btn' : ''}
+                  p-2 rounded-full text-gray-600 ${premiumIconButtonClassName} ${isPremiumUiThemeActive ? premiumHeaderIconButtonClassName : ''}
                   flex items-center justify-center leading-none
                   bg-white/70 hover:bg-white border border-white/50
                   shadow-sm hover:shadow-md transition-all duration-200 active:scale-95
@@ -4700,7 +4697,7 @@ const App: React.FC = () => {
                       : t('game:actions.undo')
                   }
                   className={`
-                px-3 py-1.5 rounded-full text-xs font-semibold flex items-center justify-center gap-2 win98-game-btn ${isWin98ThemeActive ? 'win98-header-action-btn' : ''}
+                px-3 py-1.5 rounded-full text-xs font-semibold flex items-center justify-center gap-2 ${premiumGameButtonClassName} ${isPremiumUiThemeActive ? premiumHeaderActionButtonClassName : ''}
                 border shadow-sm transition-all duration-200
                 ${undoFocusSurfaceClass}
                 pointer-events-auto
@@ -4755,12 +4752,12 @@ const App: React.FC = () => {
             transition-all duration-200 w-full flex items-center justify-center
             ${boardFocusSurfaceClass}
           `}>
-            {isWin98ThemeActive ? (
-              <div className="window win98-game-board-window w-full max-w-[520px]">
-                <div className="title-bar">
-                  <div className="title-bar-text">{premiumUi?.gameWindowTitle ?? 'Game...'}</div>
+            {isPremiumUiThemeActive ? (
+              <div className={`${premiumWindowClassName} ${premiumGameBoardWindowClassName} w-full max-w-[520px]`}>
+                <div className={premiumTitleBarClassName}>
+                  <div className={premiumTitleBarTextClassName}>{premiumUi?.gameWindowTitle ?? 'Game...'}</div>
                 </div>
-                <div className="window-body win98-board-body">
+                <div className={`${premiumWindowBodyClassName} ${premiumGameBoardBodyClassName}`}>
                   <Board
                     ref={boardHandleRef}
                     htmlId="game-board"
@@ -4841,7 +4838,7 @@ const App: React.FC = () => {
                 onClick={handleWatchBlockRefreshAd}
                 disabled={isBlockRefreshButtonDisabled || isBlockRefreshAdInProgress}
                 className={`
-                  inline-flex items-center justify-center px-4 py-2 rounded-full text-xs font-semibold win98-game-btn
+                  inline-flex items-center justify-center px-4 py-2 rounded-full text-xs font-semibold ${premiumGameButtonClassName}
                   border transition-all duration-200
                   ${(isBlockRefreshButtonDisabled || isBlockRefreshAdInProgress)
                     ? 'bg-gray-100/60 text-gray-400 border-gray-200/80 cursor-not-allowed'
@@ -4860,7 +4857,7 @@ const App: React.FC = () => {
                 onClick={handleRefreshPreviewBlocks}
                 disabled={isBlockRefreshButtonDisabled}
                 className={`
-                  inline-flex items-center justify-center px-4 py-2 rounded-full text-xs font-semibold win98-game-btn
+                  inline-flex items-center justify-center px-4 py-2 rounded-full text-xs font-semibold ${premiumGameButtonClassName}
                   border transition-all duration-200
                   ${isBlockRefreshButtonDisabled
                     ? 'bg-gray-100/60 text-gray-400 border-gray-200/80 cursor-not-allowed'
@@ -4883,7 +4880,7 @@ const App: React.FC = () => {
               }}
               className={`
                 absolute right-0 inline-flex items-center justify-center
-                w-9 h-9 rounded-full win98-icon-btn
+                w-9 h-9 rounded-full ${premiumIconButtonClassName}
                 bg-white/80 border border-white/70
                 text-gray-700 shadow-sm
                 hover:bg-white
@@ -4957,7 +4954,7 @@ const App: React.FC = () => {
             sessionId={activeGameRankingSnapshot.sessionId}
             playerName={activeGameRankingSnapshot.playerName}
             lockedPlayerName={activeGameRankingSnapshot.sessionLockedPlayerName}
-            isWin98ThemeActive={isWin98ThemeActive}
+            isPremiumUiThemeActive={isPremiumUiThemeActive}
             gameMode={gameMode}
             eventAttemptNumber={eventAttemptNumberRef.current}
             onCancel={handleActiveGameExitCancel}

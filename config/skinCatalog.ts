@@ -70,17 +70,7 @@ export const ADDITIONAL_SKIN_CATALOG: SkinCatalogEntry[] = [
     category: 'digital',
     nameKey: 'retroWindows98',
     premium: true,
-    premiumUiOverrides: {
-      topWindowTitle: '블록 슬라이드\n(Block Slide)',
-      menuWindowTitle: '난이도 선택',
-      difficultyLegend: '난이도 선택 메뉴',
-      utilityLegend: '메뉴',
-      languageLegend: '언어',
-      menuActionRadioGroupName: 'menu-action-win98',
-      difficultyRadioGroupName: 'difficulty-win98',
-      languageRadioGroupName: 'menu-language-win98',
-      gameWindowTitle: 'Game...',
-    },
+    premiumUiThemeId: 'retro_windows_98',
     style: {
       type: 'solid',
       value: '#c0c0c0',

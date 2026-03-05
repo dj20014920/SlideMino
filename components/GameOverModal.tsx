@@ -78,8 +78,16 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
     const [localRank, setLocalRank] = useState<number | undefined>(submittedRank);
     const [localTotal, setLocalTotal] = useState<number | undefined>(submittedTotal);
     const levelBadgeId = getHighestLevelBadgeForLevel(loadXpData().level)?.id;
-    const { isWin98ThemeActive } = useBlockCustomization();
-    const isWin98 = Boolean(isWin98ThemeActive);
+    const { isPremiumUiThemeActive, premiumUiObjects } = useBlockCustomization();
+    const premiumUiModalOverlayClassName = premiumUiObjects.modalOverlayClassName;
+    const premiumUiWindowClassName = premiumUiObjects.windowClassName;
+    const premiumUiWindowBodyClassName = premiumUiObjects.windowBodyClassName;
+    const premiumUiTitleBarClassName = premiumUiObjects.titleBarClassName;
+    const premiumUiTitleBarTextClassName = premiumUiObjects.titleBarTextClassName;
+    const premiumUiTitleBarControlsClassName = premiumUiObjects.titleBarControlsClassName;
+    const premiumUiSunkenClassName = premiumUiObjects.panels.sunkenClassName;
+    const premiumUiModalWindowClassName = premiumUiObjects.extended.windows.modalWindowClassName;
+    const isPremiumUi = Boolean(isPremiumUiThemeActive);
 
     useEffect(() => {
         // Load saved name or use provided playerName
@@ -277,66 +285,66 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
     return (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6">
             {/* Backdrop */}
-            <div className={isWin98 ? 'absolute inset-0 win98-modal-overlay' : 'absolute inset-0 bg-white/80 backdrop-blur-xl animate-fade-in'} />
+            <div className={isPremiumUi ? `absolute inset-0 ${premiumUiModalOverlayClassName}` : 'absolute inset-0 bg-white/80 backdrop-blur-xl animate-fade-in'} />
 
             {/* Content */}
-            <div className={isWin98
-                ? 'window relative z-10 flex flex-col items-center w-full max-w-sm animate-slide-up'
-                : 'relative z-10 flex flex-col items-center w-full max-w-sm animate-slide-up win98-window p-5'}>
-                {isWin98 && (
-                    <div className="title-bar w-full">
-                        <div className="title-bar-text">{t('modals:gameOver.title')}</div>
-                        <div className="title-bar-controls">
+            <div className={isPremiumUi
+                ? `${premiumUiWindowClassName} ${premiumUiModalWindowClassName} relative z-10 flex flex-col items-center w-full max-w-sm animate-slide-up`
+                : 'relative z-10 flex flex-col items-center w-full max-w-sm animate-slide-up p-5'}>
+                {isPremiumUi && (
+                    <div className={`${premiumUiTitleBarClassName} w-full`}>
+                        <div className={premiumUiTitleBarTextClassName}>{t('modals:gameOver.title')}</div>
+                        <div className={premiumUiTitleBarControlsClassName}>
                             <button aria-label="Close" onClick={onClose} />
                         </div>
                     </div>
                 )}
-              <div className={isWin98 ? 'window-body w-full p-3' : 'w-full'}>
+                <div className={isPremiumUi ? `${premiumUiWindowBodyClassName} w-full p-3` : 'w-full'}>
 
-                {step === 'INITIAL' && (
-                    <div className="flex flex-col items-center space-y-8 w-full">
-                        {/* Trophy Icon */}
-                        {isWin98 ? (
-                            <div className="text-4xl">{'\u25A3'}</div>
-                        ) : (
-                        <div className="
+                    {step === 'INITIAL' && (
+                        <div className="flex flex-col items-center space-y-8 w-full">
+                            {/* Trophy Icon */}
+                            {isPremiumUi ? (
+                                <div className="text-4xl">{'\u25A3'}</div>
+                            ) : (
+                                <div className="
               w-24 h-24 rounded-full 
               bg-gradient-to-br from-amber-100 to-yellow-200
               border border-amber-200/50
               shadow-xl shadow-amber-900/10
               flex items-center justify-center
             ">
-                            <Trophy size={40} className="text-amber-600 drop-shadow-sm" />
-                        </div>
-                        )}
+                                    <Trophy size={40} className="text-amber-600 drop-shadow-sm" />
+                                </div>
+                            )}
 
-                        {/* Title */}
-                        <h2 className="text-4xl font-bold text-gray-900 tracking-tight">{t('modals:gameOver.title')}</h2>
+                            {/* Title */}
+                            <h2 className="text-4xl font-bold text-gray-900 tracking-tight">{t('modals:gameOver.title')}</h2>
 
-                        {/* Score Display */}
-                        <div className={isWin98
-                            ? 'w-full text-center px-4 py-6 win98-sunken'
-                            : `
+                            {/* Score Display */}
+                            <div className={isPremiumUi
+                                ? `w-full text-center px-4 py-6 ${premiumUiSunkenClassName}`
+                                : `
               w-full text-center px-6 py-8 rounded-3xl
               bg-white/60 backdrop-blur-md
               border border-white/60
               shadow-lg
             `}>
-                            <p className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-2">
-                                {t('common:labels.finalScore')}
-                            </p>
-                            <p className="text-6xl font-black text-gray-900 tabular-nums tracking-tighter leading-none">
-                                {score}
-                            </p>
-                        </div>
+                                <p className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-2">
+                                    {t('common:labels.finalScore')}
+                                </p>
+                                <p className="text-6xl font-black text-gray-900 tabular-nums tracking-tighter leading-none">
+                                    {score}
+                                </p>
+                            </div>
 
-                        {/* 공유 버튼 (점수 아래) */}
-                        {isFeatureUnlocked('share_card') && (
-                        <button
-                            onClick={handleShare}
-                            disabled={isSharing}
-                            aria-label={t('common:share.button')}
-                            className="
+                            {/* 공유 버튼 (점수 아래) */}
+                            {isFeatureUnlocked('share_card') && (
+                                <button
+                                    onClick={handleShare}
+                                    disabled={isSharing}
+                                    aria-label={t('common:share.button')}
+                                    className="
                 flex items-center justify-center gap-2
                 px-6 py-2.5 rounded-full
                 bg-gray-100 text-gray-600 text-sm font-semibold
@@ -346,35 +354,35 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                 active:scale-[0.97]
                 transition-all duration-150
               "
-                        >
-                            <Share2 size={16} />
-                            {isSharing ? t('common:share.sharing') : t('common:share.button')}
-                        </button>
-                        )}
+                                >
+                                    <Share2 size={16} />
+                                    {isSharing ? t('common:share.sharing') : t('common:share.button')}
+                                </button>
+                            )}
 
-                        {/* 공유 토스트 */}
-                        {shareToast && (
-                            <p className="text-xs text-green-600 font-medium animate-fade-in">{shareToast}</p>
-                        )}
+                            {/* 공유 토스트 */}
+                            {shareToast && (
+                                <p className="text-xs text-green-600 font-medium animate-fade-in">{shareToast}</p>
+                            )}
 
-                        {/* Actions */}
-                        <div className="flex flex-col gap-3 w-full pt-2">
-                            {canOfferRevive && (
-                                <div className="
+                            {/* Actions */}
+                            <div className="flex flex-col gap-3 w-full pt-2">
+                                {canOfferRevive && (
+                                    <div className="
                   rounded-2xl border border-amber-200
                   bg-gradient-to-br from-amber-50 to-yellow-50
                   p-4 text-left
                 ">
-                                    <p className="text-xs font-bold uppercase tracking-widest text-amber-600">
-                                        {t('modals:gameOver.reviveTitle')}
-                                    </p>
-                                    <p className="mt-1 text-sm text-gray-700">
-                                        {String(t('modals:gameOver.reviveDescription', { count: reviveDestroyCount } as any))}
-                                    </p>
-                                    <button
-                                        onClick={onWatchReviveAd}
-                                        disabled={!isReviveAdReady || isReviveInProgress}
-                                        className="
+                                        <p className="text-xs font-bold uppercase tracking-widest text-amber-600">
+                                            {t('modals:gameOver.reviveTitle')}
+                                        </p>
+                                        <p className="mt-1 text-sm text-gray-700">
+                                            {String(t('modals:gameOver.reviveDescription', { count: reviveDestroyCount } as any))}
+                                        </p>
+                                        <button
+                                            onClick={onWatchReviveAd}
+                                            disabled={!isReviveAdReady || isReviveInProgress}
+                                            className="
                       mt-3 w-full py-3 rounded-xl
                       bg-amber-500 text-white font-bold
                       shadow-md shadow-amber-500/25
@@ -383,31 +391,31 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                       active:scale-[0.98]
                       transition-all duration-200
                     "
-                                    >
-                                        {isReviveInProgress ? (
-                                            <span className="flex items-center justify-center gap-2">
-                                                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                {t('modals:gameOver.reviveLoading')}
-                                            </span>
-                                        ) : (
-                                            <span className="flex items-center justify-center gap-2">
-                                                <RotateCcw size={16} />
-                                                {t('modals:gameOver.reviveButton')}
-                                            </span>
-                                        )}
-                                    </button>
-                                    <p className="mt-2 text-xs text-gray-500">
-                                        {isReviveAdReady
-                                            ? String(t('modals:gameOver.reviveReadyHint', { count: reviveDestroyCount } as any))
-                                            : String(t('modals:gameOver.revivePreparingHint'))}
-                                    </p>
-                                </div>
-                            )}
+                                        >
+                                            {isReviveInProgress ? (
+                                                <span className="flex items-center justify-center gap-2">
+                                                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                    {t('modals:gameOver.reviveLoading')}
+                                                </span>
+                                            ) : (
+                                                <span className="flex items-center justify-center gap-2">
+                                                    <RotateCcw size={16} />
+                                                    {t('modals:gameOver.reviveButton')}
+                                                </span>
+                                            )}
+                                        </button>
+                                        <p className="mt-2 text-xs text-gray-500">
+                                            {isReviveAdReady
+                                                ? String(t('modals:gameOver.reviveReadyHint', { count: reviveDestroyCount } as any))
+                                                : String(t('modals:gameOver.revivePreparingHint'))}
+                                        </p>
+                                    </div>
+                                )}
 
-                            <button
-                                onClick={handleRegisterClick}
-                                disabled={isSubmitting}
-                                className="
+                                <button
+                                    onClick={handleRegisterClick}
+                                    disabled={isSubmitting}
+                                    className="
                   group relative w-full py-4 rounded-2xl
                   bg-gradient-to-br from-indigo-500 to-purple-600
                   text-white font-bold text-lg
@@ -417,18 +425,18 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                   active:translate-y-0 active:scale-[0.98]
                   transition-all duration-200
                 "
-                            >
-                                <span className="flex items-center justify-center gap-2">
-                                    <Medal size={20} className="text-indigo-100" />
-                                    {isSubmitting
-                                        ? t('modals:rankingRegister.submitting')
-                                        : t('modals:gameOver.registerRanking')}
-                                </span>
-                            </button>
+                                >
+                                    <span className="flex items-center justify-center gap-2">
+                                        <Medal size={20} className="text-indigo-100" />
+                                        {isSubmitting
+                                            ? t('modals:rankingRegister.submitting')
+                                            : t('modals:gameOver.registerRanking')}
+                                    </span>
+                                </button>
 
-                            <button
-                                onClick={onClose}
-                                className="
+                                <button
+                                    onClick={onClose}
+                                    className="
                   w-full py-4 rounded-2xl
                   bg-white border border-gray-200
                   text-gray-900 font-semibold text-lg
@@ -437,50 +445,50 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                   active:scale-[0.98]
                   transition-all duration-200
                 "
-                            >
-                                {t('modals:gameOver.backToMenu')}
-                            </button>
-                        </div>
-
-                        {submitError && (
-                            <div className="w-full text-center text-sm text-red-500">
-                                {submitError}
+                                >
+                                    {t('modals:gameOver.backToMenu')}
+                                </button>
                             </div>
-                        )}
-                    </div>
-                )}
 
-                {step === 'REGISTER' && (
-                    <form onSubmit={handleSubmit} className="flex flex-col items-center space-y-6 w-full">
-                        <div className="text-center space-y-2">
-                            <h3 className="text-2xl font-bold text-gray-900">{t('modals:rankingRegister.title')}</h3>
-                            <p className="text-gray-500 text-sm" style={{ whiteSpace: 'pre-line' }}>
-                                {t('modals:rankingRegister.description')}
-                            </p>
+                            {submitError && (
+                                <div className="w-full text-center text-sm text-red-500">
+                                    {submitError}
+                                </div>
+                            )}
                         </div>
+                    )}
 
-                        <div className="w-full p-3 rounded-xl border border-sky-200 bg-sky-50 text-xs text-sky-800 leading-relaxed">
-                            {t('modals:nameInput.privacyNotice')}
-                        </div>
+                    {step === 'REGISTER' && (
+                        <form onSubmit={handleSubmit} className="flex flex-col items-center space-y-6 w-full">
+                            <div className="text-center space-y-2">
+                                <h3 className="text-2xl font-bold text-gray-900">{t('modals:rankingRegister.title')}</h3>
+                                <p className="text-gray-500 text-sm" style={{ whiteSpace: 'pre-line' }}>
+                                    {t('modals:rankingRegister.description')}
+                                </p>
+                            </div>
 
-                        <div className="w-full space-y-4">
-                            <div className="space-y-1.5">
-                                <label htmlFor="playerName" className="text-xs font-bold text-gray-500 uppercase ml-1">
-                                    {t('common:labels.name')}
-                                </label>
-                                <input
-                                    id="playerName"
-                                    type="text"
-                                    value={name}
-                                    onChange={(e) => {
-                                        setName(e.target.value);
-                                        setNameError(null);
-                                        setSubmitError(null);
-                                    }}
-                                    placeholder={t('modals:nameInput.placeholder')}
-                                    maxLength={PLAYER_NAME_MAX_LENGTH}
-                                    readOnly={Boolean(lockedPlayerName)}
-                                    className="
+                            <div className="w-full p-3 rounded-xl border border-sky-200 bg-sky-50 text-xs text-sky-800 leading-relaxed">
+                                {t('modals:nameInput.privacyNotice')}
+                            </div>
+
+                            <div className="w-full space-y-4">
+                                <div className="space-y-1.5">
+                                    <label htmlFor="playerName" className="text-xs font-bold text-gray-500 uppercase ml-1">
+                                        {t('common:labels.name')}
+                                    </label>
+                                    <input
+                                        id="playerName"
+                                        type="text"
+                                        value={name}
+                                        onChange={(e) => {
+                                            setName(e.target.value);
+                                            setNameError(null);
+                                            setSubmitError(null);
+                                        }}
+                                        placeholder={t('modals:nameInput.placeholder')}
+                                        maxLength={PLAYER_NAME_MAX_LENGTH}
+                                        readOnly={Boolean(lockedPlayerName)}
+                                        className="
                     w-full px-5 py-4 rounded-2xl
                     bg-white/80 border border-gray-200
                     text-xl font-bold text-gray-900 text-center
@@ -488,32 +496,32 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                     focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500
                     transition-all shadow-sm
                   "
-                                    autoFocus
-                                />
-                                {lockedPlayerName && (
-                                    <p className="mt-1 text-xs text-gray-500 text-center">
-                                        {t('modals:activeGameExit.lockedNameNotice')}
-                                    </p>
-                                )}
-                                {nameError && (
-                                    <p className="mt-1 text-xs text-red-500 font-medium text-center">
-                                        {nameError}
-                                    </p>
-                                )}
+                                        autoFocus
+                                    />
+                                    {lockedPlayerName && (
+                                        <p className="mt-1 text-xs text-gray-500 text-center">
+                                            {t('modals:activeGameExit.lockedNameNotice')}
+                                        </p>
+                                    )}
+                                    {nameError && (
+                                        <p className="mt-1 text-xs text-red-500 font-medium text-center">
+                                            {nameError}
+                                        </p>
+                                    )}
+                                </div>
                             </div>
-                        </div>
 
-                        {submitError && (
-                            <div className="w-full text-center text-sm text-red-500">
-                                {submitError}
-                            </div>
-                        )}
+                            {submitError && (
+                                <div className="w-full text-center text-sm text-red-500">
+                                    {submitError}
+                                </div>
+                            )}
 
-                        <div className="flex flex-col gap-3 w-full pt-4">
-                            <button
-                                type="submit"
-                                disabled={isSubmitting || !name.trim()}
-                                className="
+                            <div className="flex flex-col gap-3 w-full pt-4">
+                                <button
+                                    type="submit"
+                                    disabled={isSubmitting || !name.trim()}
+                                    className="
                   relative w-full py-4 rounded-2xl
                   bg-gray-900 text-white font-bold text-lg
                   shadow-lg
@@ -522,64 +530,64 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                   active:scale-[0.98]
                   transition-all duration-200
                 "
-                            >
-                                {isSubmitting ? (
-                                    <span className="flex items-center justify-center gap-2">
-                                        <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        {t('modals:rankingRegister.submitting')}
-                                    </span>
-                                ) : (
-                                    <span className="flex items-center justify-center gap-2">
-                                        <Send size={18} />
-                                        {t('modals:rankingRegister.submit')}
-                                    </span>
-                                )}
-                            </button>
+                                >
+                                    {isSubmitting ? (
+                                        <span className="flex items-center justify-center gap-2">
+                                            <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            {t('modals:rankingRegister.submitting')}
+                                        </span>
+                                    ) : (
+                                        <span className="flex items-center justify-center gap-2">
+                                            <Send size={18} />
+                                            {t('modals:rankingRegister.submit')}
+                                        </span>
+                                    )}
+                                </button>
 
-                            <button
-                                type="button"
-                                onClick={() => setStep('INITIAL')}
-                                className="
+                                <button
+                                    type="button"
+                                    onClick={() => setStep('INITIAL')}
+                                    className="
                   w-full py-3 rounded-2xl
                   text-gray-500 font-medium
                   hover:text-gray-900 hover:bg-gray-100/50
                   transition-colors
                 "
-                            >
-                                {t('common:buttons.cancel')}
-                            </button>
-                        </div>
-                    </form>
-                )}
+                                >
+                                    {t('common:buttons.cancel')}
+                                </button>
+                            </div>
+                        </form>
+                    )}
 
-                {step === 'SUBMITTED' && (
-                    <div className="flex flex-col items-center space-y-8 w-full animate-pop-in">
-                        {isWin98 ? (
-                            <div className="text-4xl">[{' \u2713 '}]</div>
-                        ) : (
-                        <div className="
+                    {step === 'SUBMITTED' && (
+                        <div className="flex flex-col items-center space-y-8 w-full animate-pop-in">
+                            {isPremiumUi ? (
+                                <div className="text-4xl">[{' \u2713 '}]</div>
+                            ) : (
+                                <div className="
               w-24 h-24 rounded-full
               bg-green-100 border border-green-200
               flex items-center justify-center
             ">
-                            <Check size={40} className="text-green-600" />
-                        </div>
-                        )}
+                                    <Check size={40} className="text-green-600" />
+                                </div>
+                            )}
 
-                        <div className="text-center space-y-2">
-                            <h3 className="text-2xl font-bold text-gray-900">{t('modals:rankingRegister.success')}</h3>
-                            <p className="text-gray-500">
-                                {submittedMessage}
-                            </p>
-                        </div>
+                            <div className="text-center space-y-2">
+                                <h3 className="text-2xl font-bold text-gray-900">{t('modals:rankingRegister.success')}</h3>
+                                <p className="text-gray-500">
+                                    {submittedMessage}
+                                </p>
+                            </div>
 
-                        {/* 공유 버튼 (강조) */}
-                        {isFeatureUnlocked('share_card') && (
-                        <button
-                            onClick={handleShare}
-                            disabled={isSharing}
-                            aria-label={t('common:share.button')}
-                            className="
+                            {/* 공유 버튼 (강조) */}
+                            {isFeatureUnlocked('share_card') && (
+                                <button
+                                    onClick={handleShare}
+                                    disabled={isSharing}
+                                    aria-label={t('common:share.button')}
+                                    className="
                 w-full py-4 rounded-2xl
                 bg-gradient-to-r from-indigo-500 to-purple-500
                 text-white font-bold text-lg
@@ -589,23 +597,23 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                 active:scale-[0.98]
                 transition-all duration-200
               "
-                        >
-                            <span className="flex items-center justify-center gap-2">
-                                <Share2 size={20} />
-                                {isSharing ? t('common:share.sharing') : t('common:share.brag')}
-                            </span>
-                        </button>
-                        )}
+                                >
+                                    <span className="flex items-center justify-center gap-2">
+                                        <Share2 size={20} />
+                                        {isSharing ? t('common:share.sharing') : t('common:share.brag')}
+                                    </span>
+                                </button>
+                            )}
 
-                        {shareToast && (
-                            <p className="text-xs text-green-600 font-medium animate-fade-in">{shareToast}</p>
-                        )}
+                            {shareToast && (
+                                <p className="text-xs text-green-600 font-medium animate-fade-in">{shareToast}</p>
+                            )}
 
-                        {/* 이벤트 랭킹 바로 보기 (weekly_event 전용) */}
-                        {gameMode === 'weekly_event' && onViewRankings && (
-                            <button
-                                onClick={onViewRankings}
-                                className="
+                            {/* 이벤트 랭킹 바로 보기 (weekly_event 전용) */}
+                            {gameMode === 'weekly_event' && onViewRankings && (
+                                <button
+                                    onClick={onViewRankings}
+                                    className="
                   w-full py-3 rounded-2xl
                   bg-gradient-to-br from-purple-500 to-pink-500
                   text-white font-bold text-base
@@ -614,17 +622,17 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                   active:scale-[0.98]
                   transition-all duration-200
                 "
-                            >
-                                <span className="flex items-center justify-center gap-2">
-                                    <Trophy size={18} />
-                                    {t('modals:gameOver.viewEventRankings')}
-                                </span>
-                            </button>
-                        )}
+                                >
+                                    <span className="flex items-center justify-center gap-2">
+                                        <Trophy size={18} />
+                                        {t('modals:gameOver.viewEventRankings')}
+                                    </span>
+                                </button>
+                            )}
 
-                        <button
-                            onClick={onClose}
-                            className="
+                            <button
+                                onClick={onClose}
+                                className="
                 w-full py-4 rounded-2xl
                 bg-gray-900 text-white font-bold text-lg
                 shadow-lg
@@ -632,17 +640,17 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                 active:scale-[0.98]
                 transition-all duration-200
               "
-                        >
-                            {t('common:buttons.confirm')}
-                        </button>
+                            >
+                                {t('common:buttons.confirm')}
+                            </button>
+                        </div>
+                    )}
+
+
+                    <div className="w-full mt-4">
+                        <AdBanner />
                     </div>
-                )}
-
-
-                <div className="w-full mt-4">
-                    <AdBanner />
                 </div>
-              </div>
             </div>
         </div>
     );

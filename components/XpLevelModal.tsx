@@ -75,8 +75,19 @@ const XP_METHOD_GUIDE: readonly XpMethodGuideItem[] = [
 
 export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpecialRewardClaim }) => {
   const { t } = useTranslation();
-  const { isWin98ThemeActive } = useBlockCustomization();
-  const isWin98 = Boolean(isWin98ThemeActive);
+  const { isPremiumUiThemeActive, premiumUiObjects } = useBlockCustomization();
+  const premiumUiModalOverlayClassName = premiumUiObjects.modalOverlayClassName;
+  const premiumUiWindowClassName = premiumUiObjects.windowClassName;
+  const premiumUiWindowBodyClassName = premiumUiObjects.windowBodyClassName;
+  const premiumUiTitleBarClassName = premiumUiObjects.titleBarClassName;
+  const premiumUiTitleBarTextClassName = premiumUiObjects.titleBarTextClassName;
+  const premiumUiTitleBarControlsClassName = premiumUiObjects.titleBarControlsClassName;
+  const premiumUiSunkenClassName = premiumUiObjects.panels.sunkenClassName;
+  const premiumUiBadgeClassName = premiumUiObjects.panels.badgeClassName;
+  const premiumUiProgressTrackClassName = premiumUiObjects.progress.trackClassName;
+  const premiumUiProgressFillClassName = premiumUiObjects.progress.fillClassName;
+  const premiumUiModalWindowClassName = premiumUiObjects.extended.windows.modalWindowClassName;
+  const isPremiumUi = Boolean(isPremiumUiThemeActive);
   useBodyScrollLock(open);
   const [progress, setProgress] = useState<XpProgress>(() => getXpProgress());
   const [badges, setBadges] = useState<LevelBadge[]>([]);
@@ -144,29 +155,29 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
 
   return (
     <div
-      className={`fixed inset-0 z-[300] flex items-center justify-center p-4 modal-safe-overlay ${isWin98 ? 'win98-modal-overlay' : 'bg-black/50 backdrop-blur-sm'}`}
+      className={`fixed inset-0 z-[300] flex items-center justify-center p-4 modal-safe-overlay ${isPremiumUi ? premiumUiModalOverlayClassName : 'bg-black/50 backdrop-blur-sm'}`}
       onClick={onClose}
     >
       <div
-        className={isWin98
-          ? 'window w-full max-w-md max-h-[85vh] modal-safe-panel overflow-hidden flex flex-col'
+        className={isPremiumUi
+          ? `${premiumUiWindowClassName} ${premiumUiModalWindowClassName} w-full max-w-md max-h-[85vh] modal-safe-panel overflow-hidden flex flex-col`
           : 'bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[85vh] modal-safe-panel overflow-hidden flex flex-col'}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Win98 타이틀 바 */}
-        {isWin98 && (
-          <div className="title-bar">
-            <div className="title-bar-text"><span style={{color:'#FFD700',fontWeight:'bold'}}>★</span>{' '}Lv.{progress.level} — XP</div>
-            <div className="title-bar-controls">
+        {isPremiumUi && (
+          <div className={premiumUiTitleBarClassName}>
+            <div className={premiumUiTitleBarTextClassName}><span className="font-bold">★</span>{' '}Lv.{progress.level} — XP</div>
+            <div className={premiumUiTitleBarControlsClassName}>
               <button aria-label="Close" onClick={onClose} />
             </div>
           </div>
         )}
 
         {/* 헤더 */}
-        {isWin98 ? (
+        {isPremiumUi ? (
           <div className="px-3 pt-3 pb-2">
-            <div className="win98-sunken p-2">
+            <div className={`${premiumUiSunkenClassName} p-2`}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-base">Lv.{progress.level}</span>
@@ -199,8 +210,8 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
                     <span>{progress.xp} / {progress.xpRequired} XP</span>
                     <span>{progress.progressPercent}%</span>
                   </div>
-                  <div className="win98-progress-track">
-                    <div className="win98-progress-fill" style={{ width: `${progress.progressPercent}%` }} />
+                  <div className={premiumUiProgressTrackClassName}>
+                    <div className={premiumUiProgressFillClassName} style={{ width: `${progress.progressPercent}%` }} />
                   </div>
                   <div className="text-xs mt-1">
                     {t('common:xp.nextLevel')}: {xpRequiredForLevel(progress.level + 1) - progress.xp} XP
@@ -283,7 +294,7 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
 
         {/* 본문 */}
         <div
-          className={isWin98 ? 'window-body flex-1 min-h-0 overflow-y-auto p-3 space-y-3' : 'flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-4'}
+          className={isPremiumUi ? `${premiumUiWindowBodyClassName} flex-1 min-h-0 overflow-y-auto p-3 space-y-3` : 'flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-4'}
           style={{
             WebkitOverflowScrolling: 'touch',
             touchAction: 'pan-y',
@@ -319,7 +330,7 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
           {/* 레벨 배지 */}
           <div>
             <h3 className="text-sm font-bold text-gray-800 flex items-center gap-1 mb-2">
-              {isWin98 ? <span style={{color:'#FFD700',fontWeight:'bold'}}>★</span> : <Star size={14} className="text-purple-500" />}
+              {isPremiumUi ? <span className="font-bold">★</span> : <Star size={14} className="text-purple-500" />}
               {t('common:xp.badges')}
             </h3>
             <div className="grid grid-cols-5 gap-2">
@@ -328,8 +339,8 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
                 return (
                   <div
                     key={b.id}
-                    className={isWin98
-                      ? `flex flex-col items-center gap-0.5 p-2 text-center ${earned ? 'win98-sunken' : 'opacity-40'}`
+                    className={isPremiumUi
+                      ? `flex flex-col items-center gap-0.5 p-2 text-center ${earned ? premiumUiSunkenClassName : 'opacity-40'}`
                       : `flex flex-col items-center gap-0.5 p-2 rounded-xl text-center transition-all
                         ${earned ? 'bg-purple-50 border border-purple-200' : 'bg-gray-50 border border-gray-100 opacity-40 grayscale'}`}
                   >
@@ -361,7 +372,7 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
           {/* 주간 XP 그래프 */}
           <div>
             <h3 className="text-sm font-bold text-gray-800 mb-2">{t('common:xp.weeklyXp')}</h3>
-            <div className={`flex items-end gap-1 h-20 ${isWin98 ? 'win98-sunken p-1' : ''}`}>
+            <div className={`flex items-end gap-1 h-20 ${isPremiumUi ? `${premiumUiSunkenClassName} p-1` : ''}`}>
               {weeklySummary.map((day, i) => {
                 const pct = maxBarXp > 0 ? (day.total / maxBarXp) * 100 : 0;
                 const isToday = i === weeklySummary.length - 1;
@@ -370,8 +381,8 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
                     <span className="text-[9px] text-gray-400 tabular-nums">{day.total > 0 ? day.total : ''}</span>
                     <div className="w-full relative" style={{ height: '48px' }}>
                       <div
-                        className={`absolute bottom-0 w-full transition-all duration-300 ${isWin98
-                          ? (isToday ? 'bg-[#000080]' : 'bg-[#808080]')
+                        className={`absolute bottom-0 w-full transition-all duration-300 ${isPremiumUi
+                          ? (isToday ? 'bg-gray-900' : 'bg-gray-500')
                           : (isToday ? 'bg-purple-500 rounded-t' : 'bg-purple-200 rounded-t')}`}
                         style={{ height: `${Math.max(pct, day.total > 0 ? 4 : 0)}%` }}
                       />
@@ -413,15 +424,15 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
             <h3 className="text-sm font-bold text-gray-800 mb-2">{t('common:xp.earnMethodsTitle')}</h3>
             <div className="space-y-1.5">
               {XP_METHOD_GUIDE.map((item) => (
-                <div key={item.source} className={isWin98 ? 'win98-sunken px-3 py-2' : 'rounded-lg border border-gray-100 bg-gray-50 px-3 py-2'}>
+                <div key={item.source} className={isPremiumUi ? `${premiumUiSunkenClassName} px-3 py-2` : 'rounded-lg border border-gray-100 bg-gray-50 px-3 py-2'}>
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-xs font-semibold text-gray-700">
                       {getSourceLabel(item.source, t as (key: string) => string)}
                     </span>
                     <div className="flex items-center gap-1.5">
-                      <span className={`text-xs font-bold ${isWin98 ? '' : 'text-purple-600'}`}>{item.amountLabel}</span>
-                      <span className={isWin98
-                        ? 'win98-badge'
+                      <span className={`text-xs font-bold ${isPremiumUi ? '' : 'text-purple-600'}`}>{item.amountLabel}</span>
+                      <span className={isPremiumUi
+                        ? premiumUiBadgeClassName
                         : `rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${item.dailyLimit === 'once' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
                         {item.dailyLimit === 'once' ? t('common:xp.limitDailyOnce') : t('common:xp.limitUnlimited')}
                       </span>

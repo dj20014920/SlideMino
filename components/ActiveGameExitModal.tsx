@@ -8,6 +8,7 @@ import { shareGameResult, type ShareResult } from '../services/shareCardService'
 import { gameEventBus } from '../services/gameEventBus';
 import { getHighestLevelBadgeForLevel, loadXpData } from '../services/xpLevelService';
 import { PLAYER_NAME_MAX_LENGTH, normalizePlayerName, validatePlayerName } from '../utils/playerName';
+import { useBlockCustomization } from '../context/BlockCustomizationContext';
 import type { BoardSize, GameMode } from '../types';
 
 export type ActiveGameExitContext = 'HOME' | 'NEW_GAME';
@@ -23,7 +24,7 @@ interface ActiveGameExitModalProps {
     sessionId: string;
     playerName?: string;
     lockedPlayerName?: string | null;
-    isWin98ThemeActive?: boolean;
+    isPremiumUiThemeActive?: boolean;
     /** 현재 게임 모드 (이벤트 모드 분기에 사용) */
     gameMode?: GameMode;
     /** 주간 이벤트 전용: 현재 도전 회차 */
@@ -46,7 +47,7 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
     sessionId,
     playerName,
     lockedPlayerName,
-    isWin98ThemeActive,
+    isPremiumUiThemeActive,
     gameMode = 'normal',
     eventAttemptNumber,
     onCancel,
@@ -56,6 +57,19 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
     onRegisteredAndProceed,
 }) => {
     const { t } = useTranslation();
+    const { isPremiumUiThemeActive: contextIsPremiumUiThemeActive, premiumUiObjects } = useBlockCustomization();
+    const premiumUiModalOverlayClassName = premiumUiObjects.modalOverlayClassName;
+    const premiumUiWindowClassName = premiumUiObjects.windowClassName;
+    const premiumUiWindowBodyClassName = premiumUiObjects.windowBodyClassName;
+    const premiumUiTitleBarClassName = premiumUiObjects.titleBarClassName;
+    const premiumUiTitleBarTextClassName = premiumUiObjects.titleBarTextClassName;
+    const premiumUiTitleBarControlsClassName = premiumUiObjects.titleBarControlsClassName;
+    const premiumUiFieldRowClassName = premiumUiObjects.extended.forms.fieldRowClassName;
+    const premiumUiMenuButtonClassName = premiumUiObjects.buttons.menuClassName;
+    const premiumUiSunkenClassName = premiumUiObjects.panels.sunkenClassName;
+    const premiumUiModalWindowClassName = premiumUiObjects.extended.windows.modalWindowClassName;
+    const premiumUiExitHomeButtonClassName = premiumUiObjects.extended.buttons.exitHomeClassName;
+    const premiumUiExitCancelButtonClassName = premiumUiObjects.extended.buttons.exitCancelClassName;
     const [step, setStep] = useState<'CHOICE' | 'REGISTER' | 'SUBMITTED'>('CHOICE');
     const [submitIntent, setSubmitIntent] = useState<'EXIT' | 'MID_SAVE'>('EXIT');
     const [name, setName] = useState('');
@@ -257,69 +271,69 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
             ? t('modals:activeGameExit.midSaveSubmittedMessage')
             : t('modals:activeGameExit.midSaveSubmittedMessageNewGame'))
         : t('modals:activeGameExit.submittedMessage'));
-    const isWin98 = Boolean(isWin98ThemeActive);
+    const isPremiumUi = Boolean(isPremiumUiThemeActive ?? contextIsPremiumUiThemeActive);
 
     return (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6">
-            <div className={isWin98 ? 'absolute inset-0 bg-black/45' : 'absolute inset-0 bg-white/80 backdrop-blur-xl animate-fade-in'} />
+            <div className={isPremiumUi ? `absolute inset-0 ${premiumUiModalOverlayClassName || 'bg-black/45'}` : 'absolute inset-0 bg-white/80 backdrop-blur-xl animate-fade-in'} />
 
-            <div className={isWin98
-                ? 'window relative z-10 w-full max-w-sm animate-slide-up'
-                : 'relative z-10 w-full max-w-sm rounded-3xl border border-white/70 bg-white/70 p-6 shadow-2xl shadow-slate-900/10 animate-slide-up win98-window'}
+            <div className={isPremiumUi
+                ? `${premiumUiWindowClassName} ${premiumUiModalWindowClassName} relative z-10 w-full max-w-sm animate-slide-up`
+                : 'relative z-10 w-full max-w-sm rounded-3xl border border-white/70 bg-white/70 p-6 shadow-2xl shadow-slate-900/10 animate-slide-up'}
             >
-                {isWin98 && (
-                    <div className="title-bar" style={{ background: 'linear-gradient(90deg, #000080, #1084d0)' }}>
-                        <div className="title-bar-text" style={{ color: '#fff' }}>Menu?</div>
-                        <div className="title-bar-controls">
+                {isPremiumUi && (
+                    <div className={premiumUiTitleBarClassName}>
+                        <div className={premiumUiTitleBarTextClassName}>Menu?</div>
+                        <div className={premiumUiTitleBarControlsClassName}>
                             <button aria-label="Close" onClick={onCancel} />
                         </div>
                     </div>
                 )}
 
-                <div className={isWin98 ? 'window-body space-y-4 p-3' : ''}>
+                <div className={isPremiumUi ? `${premiumUiWindowBodyClassName} space-y-4 p-3` : ''}>
                     {step === 'CHOICE' && (
-                        <div className={isWin98 ? 'space-y-4' : 'space-y-5'}>
+                        <div className={isPremiumUi ? 'space-y-4' : 'space-y-5'}>
                             <div className="space-y-2 text-center">
-                                <h3 className={isWin98 ? 'text-xl font-bold text-gray-900' : 'text-2xl font-bold text-gray-900'}>{t(titleKey)}</h3>
-                                <p className={isWin98 ? 'text-sm text-gray-700 whitespace-pre-line' : 'text-sm text-gray-500 whitespace-pre-line'}>{t(descriptionKey)}</p>
+                                <h3 className={isPremiumUi ? 'text-xl font-bold text-gray-900' : 'text-2xl font-bold text-gray-900'}>{t(titleKey)}</h3>
+                                <p className={isPremiumUi ? 'text-sm text-gray-700 whitespace-pre-line' : 'text-sm text-gray-500 whitespace-pre-line'}>{t(descriptionKey)}</p>
                             </div>
 
                             {context === 'NEW_GAME' && (
-                                <div className={isWin98
-                                    ? 'sunken-panel px-3 py-2 text-left'
+                                <div className={isPremiumUi
+                                    ? `${premiumUiSunkenClassName} px-3 py-2 text-left`
                                     : 'rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-left'}>
-                                    <p className={isWin98 ? 'text-xs font-bold text-rose-700' : 'text-xs font-bold uppercase tracking-wide text-rose-700'}>
+                                    <p className={isPremiumUi ? 'text-xs font-bold text-rose-700' : 'text-xs font-bold uppercase tracking-wide text-rose-700'}>
                                         {t('modals:activeGameExit.newGameOverwriteNoticeTitle')}
                                     </p>
-                                    <p className={isWin98 ? 'mt-1 text-xs text-rose-700 whitespace-pre-line' : 'mt-1 text-xs text-rose-700 whitespace-pre-line'}>
+                                    <p className={isPremiumUi ? 'mt-1 text-xs text-rose-700 whitespace-pre-line' : 'mt-1 text-xs text-rose-700 whitespace-pre-line'}>
                                         {t('modals:activeGameExit.newGameOverwriteNoticeBody')}
                                     </p>
                                 </div>
                             )}
 
-                            <div className={isWin98 ? 'sunken-panel px-3 py-2' : 'rounded-2xl border border-indigo-200/80 bg-gradient-to-br from-indigo-50 to-violet-50 px-5 py-4'}>
-                                <p className={isWin98 ? 'text-xs font-bold text-gray-700' : 'text-xs font-bold uppercase tracking-widest text-indigo-500'}>
+                            <div className={isPremiumUi ? `${premiumUiSunkenClassName} px-3 py-2` : 'rounded-2xl border border-indigo-200/80 bg-gradient-to-br from-indigo-50 to-violet-50 px-5 py-4'}>
+                                <p className={isPremiumUi ? 'text-xs font-bold text-gray-700' : 'text-xs font-bold uppercase tracking-widest text-indigo-500'}>
                                     {t('modals:activeGameExit.scoreLabel')}
                                 </p>
-                                <p className={isWin98 ? 'mt-1 text-3xl font-black tracking-tight text-gray-900 tabular-nums' : 'mt-1 text-4xl font-black tracking-tight text-gray-900 tabular-nums'}>{score}</p>
-                                <p className={isWin98 ? 'mt-2 text-xs text-gray-700' : 'mt-2 text-xs text-gray-500'}>
+                                <p className={isPremiumUi ? 'mt-1 text-3xl font-black tracking-tight text-gray-900 tabular-nums' : 'mt-1 text-4xl font-black tracking-tight text-gray-900 tabular-nums'}>{score}</p>
+                                <p className={isPremiumUi ? 'mt-2 text-xs text-gray-700' : 'mt-2 text-xs text-gray-500'}>
                                     {difficulty} · {duration}s · {moves} moves
                                 </p>
                             </div>
 
-                            <div className={isWin98 ? 'flex flex-col gap-2 pt-1' : 'flex flex-col gap-3 pt-1'}>
+                            <div className={isPremiumUi ? 'flex flex-col gap-2 pt-1' : 'flex flex-col gap-3 pt-1'}>
                                 <div className="flex flex-col items-center gap-1">
                                     <button
                                         type="button"
                                         onClick={onProceedWithoutRegister}
-                                        className={isWin98
-                                            ? 'w-full py-2 px-3 win98-menu-btn win98-exit-home-btn text-sm font-semibold'
+                                        className={isPremiumUi
+                                            ? `w-full py-2 px-3 ${premiumUiMenuButtonClassName} ${premiumUiExitHomeButtonClassName} text-sm font-semibold`
                                             : 'w-full py-3.5 rounded-2xl border border-amber-300 bg-gradient-to-br from-amber-50 to-orange-100 text-amber-900 font-semibold shadow-sm shadow-amber-100/70 hover:from-amber-100 hover:to-orange-200 hover:border-amber-400 active:scale-[0.98] transition-all duration-200'}
                                     >
                                         {t(proceedWithoutKey)}
                                     </button>
                                     {context === 'HOME' && (
-                                        <p className={isWin98 ? 'text-xs text-gray-500' : 'text-xs text-gray-400'}>
+                                        <p className={isPremiumUi ? 'text-xs text-gray-500' : 'text-xs text-gray-400'}>
                                             {t('modals:activeGameExit.homeProceedHint')}
                                         </p>
                                     )}
@@ -329,16 +343,16 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                                     <button
                                         type="button"
                                         onClick={handleIntermediateSaveClick}
-                                        className={isWin98
-                                            ? 'w-full py-2 px-3 win98-menu-btn text-sm font-semibold'
+                                        className={isPremiumUi
+                                            ? `w-full py-2 px-3 ${premiumUiMenuButtonClassName} text-sm font-semibold`
                                             : 'w-full py-4 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-bold text-lg shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/35 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200'}
                                     >
                                         <span className="flex items-center justify-center gap-2">
-                                            <Send size={isWin98 ? 14 : 18} className={isWin98 ? '' : 'text-emerald-100'} />
+                                            <Send size={isPremiumUi ? 14 : 18} className={isPremiumUi ? '' : 'text-emerald-100'} />
                                             {t('modals:activeGameExit.midSaveButton')}
                                         </span>
                                     </button>
-                                    <p className={isWin98 ? 'text-xs text-gray-500' : 'text-xs text-gray-400'}>
+                                    <p className={isPremiumUi ? 'text-xs text-gray-500' : 'text-xs text-gray-400'}>
                                         {t(midSaveHintKey)}
                                     </p>
                                 </div>
@@ -346,12 +360,12 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                                 <button
                                     type="button"
                                     onClick={handleRegisterAndExitClick}
-                                    className={isWin98
-                                        ? 'w-full py-2 px-3 win98-menu-btn text-sm font-semibold'
+                                    className={isPremiumUi
+                                        ? `w-full py-2 px-3 ${premiumUiMenuButtonClassName} text-sm font-semibold`
                                         : 'w-full py-4 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-bold text-lg shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:shadow-indigo-500/35 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-200'}
                                 >
                                     <span className="flex items-center justify-center gap-2">
-                                        <Medal size={isWin98 ? 14 : 20} className={isWin98 ? '' : 'text-indigo-100'} />
+                                        <Medal size={isPremiumUi ? 14 : 20} className={isPremiumUi ? '' : 'text-indigo-100'} />
                                         {t(registerButtonKey)}
                                     </span>
                                 </button>
@@ -359,8 +373,8 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                                 <button
                                     type="button"
                                     onClick={onCancel}
-                                    className={isWin98
-                                        ? 'w-full py-2 px-3 win98-menu-btn win98-exit-cancel-btn text-sm font-semibold'
+                                    className={isPremiumUi
+                                        ? `w-full py-2 px-3 ${premiumUiMenuButtonClassName} ${premiumUiExitCancelButtonClassName} text-sm font-semibold`
                                         : 'w-full py-3.5 rounded-2xl border border-slate-300 bg-white text-slate-800 text-base font-semibold shadow-sm hover:bg-slate-50 hover:border-slate-400 active:scale-[0.98] transition-all duration-200'}
                                 >
                                     {t(cancelKey)}
@@ -376,19 +390,19 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                     )}
 
                     {step === 'REGISTER' && (
-                        <form onSubmit={handleSubmit} className={isWin98 ? 'space-y-4' : 'space-y-5'}>
+                        <form onSubmit={handleSubmit} className={isPremiumUi ? 'space-y-4' : 'space-y-5'}>
                             <div className="space-y-2 text-center">
-                                <h3 className={isWin98 ? 'text-xl font-bold text-gray-900' : 'text-2xl font-bold text-gray-900'}>{t('modals:activeGameExit.registerTitle')}</h3>
-                                <p className={isWin98 ? 'text-sm text-gray-700 whitespace-pre-line' : 'text-sm text-gray-500 whitespace-pre-line'}>{t('modals:activeGameExit.registerDescription')}</p>
+                                <h3 className={isPremiumUi ? 'text-xl font-bold text-gray-900' : 'text-2xl font-bold text-gray-900'}>{t('modals:activeGameExit.registerTitle')}</h3>
+                                <p className={isPremiumUi ? 'text-sm text-gray-700 whitespace-pre-line' : 'text-sm text-gray-500 whitespace-pre-line'}>{t('modals:activeGameExit.registerDescription')}</p>
                             </div>
 
-                            <div className={isWin98 ? 'sunken-panel p-2 text-xs leading-relaxed text-gray-700' : 'w-full p-3 rounded-xl border border-sky-200 bg-sky-50 text-xs text-sky-800 leading-relaxed'}>
+                            <div className={isPremiumUi ? `${premiumUiSunkenClassName} p-2 text-xs leading-relaxed text-gray-700` : 'w-full p-3 rounded-xl border border-sky-200 bg-sky-50 text-xs text-sky-800 leading-relaxed'}>
                                 {t('modals:nameInput.privacyNotice')}
                             </div>
 
                             <div>
-                                {isWin98ThemeActive ? (
-                                    <div className="field-row items-center gap-2">
+                                {isPremiumUi ? (
+                                    <div className={`${premiumUiFieldRowClassName} items-center gap-2`}>
                                         <label htmlFor="active-game-exit-name" className="shrink-0">
                                             {t('common:labels.name')}
                                         </label>
@@ -438,7 +452,7 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                                     </>
                                 )}
                                 {lockedPlayerName && (
-                                    <p className={isWin98 ? 'mt-1 text-xs text-gray-700 text-center' : 'mt-1 text-xs text-gray-500 text-center'}>{t('modals:activeGameExit.lockedNameNotice')}</p>
+                                    <p className={isPremiumUi ? 'mt-1 text-xs text-gray-700 text-center' : 'mt-1 text-xs text-gray-500 text-center'}>{t('modals:activeGameExit.lockedNameNotice')}</p>
                                 )}
                                 {nameError && (
                                     <p className="mt-1 text-xs text-red-500 font-medium text-center">{nameError}</p>
@@ -455,8 +469,8 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                                 <button
                                     type="submit"
                                     disabled={isSubmitting || (!lockedPlayerName && !name.trim())}
-                                    className={isWin98
-                                        ? 'w-full py-2 px-3 win98-menu-btn text-sm font-semibold disabled:opacity-100'
+                                    className={isPremiumUi
+                                        ? `w-full py-2 px-3 ${premiumUiMenuButtonClassName} text-sm font-semibold disabled:opacity-100`
                                         : 'w-full py-4 rounded-2xl bg-gray-900 text-white font-bold text-lg shadow-lg hover:bg-gray-800 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 active:scale-[0.98] transition-all duration-200'}
                                 >
                                     {isSubmitting ? (
@@ -475,8 +489,8 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                                 <button
                                     type="button"
                                     onClick={() => setStep('CHOICE')}
-                                    className={isWin98
-                                        ? 'w-full py-2 px-3 win98-menu-btn text-sm font-semibold'
+                                    className={isPremiumUi
+                                        ? `w-full py-2 px-3 ${premiumUiMenuButtonClassName} text-sm font-semibold`
                                         : 'w-full py-2 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors'}
                                 >
                                     {t('common:buttons.cancel')}
@@ -486,13 +500,13 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                     )}
 
                     {step === 'SUBMITTED' && (
-                        <div className={isWin98 ? 'space-y-4 text-center' : 'space-y-6 text-center'}>
+                        <div className={isPremiumUi ? 'space-y-4 text-center' : 'space-y-6 text-center'}>
                             <div className="mx-auto w-20 h-20 rounded-full bg-green-100 border border-green-200 flex items-center justify-center">
                                 <Check size={34} className="text-green-600" />
                             </div>
                             <div className="space-y-2">
-                                <h3 className={isWin98 ? 'text-xl font-bold text-gray-900' : 'text-2xl font-bold text-gray-900'}>{t('modals:rankingRegister.success')}</h3>
-                                <p className={isWin98 ? 'text-sm text-gray-700 whitespace-pre-line' : 'text-sm text-gray-500 whitespace-pre-line'}>
+                                <h3 className={isPremiumUi ? 'text-xl font-bold text-gray-900' : 'text-2xl font-bold text-gray-900'}>{t('modals:rankingRegister.success')}</h3>
+                                <p className={isPremiumUi ? 'text-sm text-gray-700 whitespace-pre-line' : 'text-sm text-gray-500 whitespace-pre-line'}>
                                     {submittedMessage}
                                 </p>
                             </div>
@@ -500,8 +514,8 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                                 <button
                                     type="button"
                                     onClick={submitIntent === 'MID_SAVE' ? onIntermediateSaveComplete : onRegisteredAndProceed}
-                                    className={isWin98
-                                        ? 'flex-1 py-2 px-3 win98-menu-btn text-sm font-semibold'
+                                    className={isPremiumUi
+                                        ? `flex-1 py-2 px-3 ${premiumUiMenuButtonClassName} text-sm font-semibold`
                                         : 'flex-1 py-4 rounded-2xl bg-gray-900 text-white font-bold text-lg shadow-lg hover:bg-gray-800 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200'}
                                 >
                                     {submitIntent === 'MID_SAVE' ? t(midSaveConfirmKey) : t(confirmKey)}
@@ -512,8 +526,8 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                                     onClick={handleShare}
                                     disabled={isSharing}
                                     aria-label={t('common:share.button')}
-                                    className={isWin98
-                                        ? 'px-3 py-2 win98-menu-btn text-sm'
+                                    className={isPremiumUi
+                                        ? `px-3 py-2 ${premiumUiMenuButtonClassName} text-sm`
                                         : 'px-4 py-4 rounded-2xl border border-gray-200 bg-white text-gray-500 shadow-sm hover:bg-gray-50 hover:text-gray-900 disabled:opacity-50 active:scale-[0.97] transition-all duration-150'}
                                 >
                                     <Share2 size={20} />

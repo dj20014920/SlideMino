@@ -4,9 +4,12 @@ import { loadAdSenseScript } from '../services/adsense';
 import { isNativeApp, isAppIntoS } from '../utils/platform';
 
 import { getCookieConsent, notifyCookieConsentChange, setCookieConsent } from '../services/adConsent';
+import { useBlockCustomization } from '../context/BlockCustomizationContext';
 
 export const CookieConsent: React.FC = () => {
   const { t } = useTranslation();
+  const { isPremiumUiThemeActive, premiumUiObjects } = useBlockCustomization();
+  const premiumUiModalWindowClassName = premiumUiObjects.extended.windows.modalWindowClassName;
   const [showBanner, setShowBanner] = useState(false);
   const native = isNativeApp();
 
@@ -51,7 +54,7 @@ export const CookieConsent: React.FC = () => {
       style={{ bottom: 'var(--bottom-chrome-height, 0px)' }}
     >
       <div className="mx-auto w-full max-w-2xl px-4 pb-4">
-        <div className="rounded-2xl border border-white/50 bg-white/80 backdrop-blur-glass shadow-glass p-4 md:p-5 text-sm text-gray-700 win98-window" data-win98-surface="true">
+        <div className={`rounded-2xl border border-white/50 bg-white/80 backdrop-blur-glass shadow-glass p-4 md:p-5 text-sm text-gray-700 ${isPremiumUiThemeActive ? premiumUiModalWindowClassName : ''}`} data-premium-ui-surface="true">
           <div className="font-semibold text-gray-900 mb-2">{t('modals:cookie.title')}</div>
           <p className="text-xs md:text-sm text-gray-600 leading-relaxed">
             {t('modals:cookie.message')}{' '}

@@ -36,8 +36,17 @@ export const SeasonRewardModal: React.FC<SeasonRewardModalProps> = ({
   const [claiming, setClaiming] = useState(false);
   const [claimed, setClaimed] = useState(false);
   const [totalClaimed, setTotalClaimed] = useState(0);
-  const { isWin98ThemeActive } = useBlockCustomization();
-  const isWin98 = Boolean(isWin98ThemeActive);
+  const { isPremiumUiThemeActive, premiumUiObjects } = useBlockCustomization();
+  const premiumUiModalOverlayClassName = premiumUiObjects.modalOverlayClassName;
+  const premiumUiWindowClassName = premiumUiObjects.windowClassName;
+  const premiumUiWindowBodyClassName = premiumUiObjects.windowBodyClassName;
+  const premiumUiTitleBarClassName = premiumUiObjects.titleBarClassName;
+  const premiumUiTitleBarTextClassName = premiumUiObjects.titleBarTextClassName;
+  const premiumUiTitleBarControlsClassName = premiumUiObjects.titleBarControlsClassName;
+  const premiumUiListItemClassName = premiumUiObjects.panels.listItemClassName;
+  const premiumUiMenuButtonClassName = premiumUiObjects.buttons.menuClassName;
+  const premiumUiModalWindowClassName = premiumUiObjects.extended.windows.modalWindowClassName;
+  const isPremiumUi = Boolean(isPremiumUiThemeActive);
 
   if (!open || rewards.length === 0) return null;
 
@@ -54,15 +63,15 @@ export const SeasonRewardModal: React.FC<SeasonRewardModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className={isWin98 ? 'absolute inset-0 win98-modal-overlay' : 'absolute inset-0 bg-black/40 backdrop-blur-sm'} onClick={onClose} />
-      <div className={isWin98
-        ? 'window relative w-full max-w-sm overflow-hidden'
+      <div className={isPremiumUi ? `absolute inset-0 ${premiumUiModalOverlayClassName}` : 'absolute inset-0 bg-black/40 backdrop-blur-sm'} onClick={onClose} />
+      <div className={isPremiumUi
+        ? `${premiumUiWindowClassName} ${premiumUiModalWindowClassName} relative w-full max-w-sm overflow-hidden`
         : 'relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden'}>
         {/* Win98 타이틀 바 / 일반 헤더 */}
-        {isWin98 ? (
-          <div className="title-bar">
-            <div className="title-bar-text"><span style={{color:'#f59e0b',fontWeight:'bold'}}>◇</span>{' '}{t('common:season.rewardTitle')}</div>
-            <div className="title-bar-controls">
+        {isPremiumUi ? (
+          <div className={premiumUiTitleBarClassName}>
+            <div className={premiumUiTitleBarTextClassName}><span className="font-bold">◇</span>{' '}{t('common:season.rewardTitle')}</div>
+            <div className={premiumUiTitleBarControlsClassName}>
               <button aria-label="Close" onClick={onClose} />
             </div>
           </div>
@@ -79,13 +88,13 @@ export const SeasonRewardModal: React.FC<SeasonRewardModalProps> = ({
         )}
 
         {/* 보상 목록 */}
-        <div className={isWin98 ? 'window-body p-3 space-y-3' : 'p-5 space-y-3'}>
+        <div className={isPremiumUi ? `${premiumUiWindowBodyClassName} p-3 space-y-3` : 'p-5 space-y-3'}>
           <p className="text-sm text-gray-500">{t('common:season.rewardDesc')}</p>
 
           {rewards.map((reward, i) => (
             <div
               key={`${reward.season_id}-${reward.difficulty}-${i}`}
-              className={isWin98 ? 'win98-list-item flex items-center justify-between px-3 py-2' : 'flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3'}
+              className={isPremiumUi ? `${premiumUiListItemClassName} flex items-center justify-between px-3 py-2` : 'flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3'}
             >
               <div>
                 <span className="text-sm font-semibold text-gray-700">
@@ -113,7 +122,9 @@ export const SeasonRewardModal: React.FC<SeasonRewardModalProps> = ({
             <button
               onClick={handleClaim}
               disabled={claiming}
-              className="w-full py-3 bg-gradient-to-r from-amber-400 to-yellow-400 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all disabled:opacity-50"
+              className={isPremiumUi
+                ? `w-full py-2 px-3 ${premiumUiMenuButtonClassName} text-sm font-semibold disabled:opacity-70`
+                : 'w-full py-3 bg-gradient-to-r from-amber-400 to-yellow-400 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all disabled:opacity-50'}
             >
               {claiming ? '...' : t('common:season.rewardClaimAll')}
             </button>

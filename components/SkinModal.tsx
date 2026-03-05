@@ -23,15 +23,18 @@ type SkinModalProps = {
 // 스킨 미리보기 타일 렌더링
 const SkinPreviewTile = React.memo<{ value: number; skin: { id?: string; hex: string; style?: any }; tilePx: number }>(
   ({ value, skin, tilePx }) => {
+    const { isPremiumUiThemeActive, premiumUiObjects } = useBlockCustomization();
+    const premiumUiTileFaceClassName = premiumUiObjects.extended.text.tileFaceClassName;
+    const premiumUiTileNumberClassName = premiumUiObjects.extended.text.tileNumberClassName;
     const { className, style } = resolveSkinAppearance(value, skin);
     const { text, fontPx } = getTileNumberLayout(value, tilePx);
 
     return (
       <div
-        className={`rounded-2xl win98-tile-face flex items-center justify-center font-semibold overflow-hidden text-center select-none shrink-0 ${className}`}
+        className={`rounded-2xl ${isPremiumUiThemeActive ? premiumUiTileFaceClassName : ''} flex items-center justify-center font-semibold overflow-hidden text-center select-none shrink-0 ${className}`}
         data-skin-preview-tile="true"
-        data-win98-allow-gradient="true"
-        data-win98-allow-shadow="true"
+        data-premium-ui-allow-gradient="true"
+        data-premium-ui-allow-shadow="true"
         style={{
           width: `${tilePx}px`,
           height: `${tilePx}px`,
@@ -41,7 +44,7 @@ const SkinPreviewTile = React.memo<{ value: number; skin: { id?: string; hex: st
           ...style,
         }}
       >
-        <span className="win98-tile-number">{text}</span>
+        <span className={isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''}>{text}</span>
       </div>
     );
   }
@@ -50,7 +53,32 @@ const SkinPreviewTile = React.memo<{ value: number; skin: { id?: string; hex: st
 export function SkinModal({ open, onClose }: SkinModalProps) {
   const { t } = useTranslation();
   useBodyScrollLock(open);
-  const { skinSettings, activeSkin, addSkin, setActiveSkin, isWin98ThemeActive, addFragments, purchaseSkin } = useBlockCustomization();
+  const {
+    skinSettings,
+    activeSkin,
+    addSkin,
+    setActiveSkin,
+    isPremiumUiThemeActive,
+    premiumUiObjects,
+    premiumUiOverrides,
+    addFragments,
+    purchaseSkin,
+  } = useBlockCustomization();
+  const premiumUiModalOverlayClassName = premiumUiObjects.modalOverlayClassName;
+  const premiumUiWindowClassName = premiumUiObjects.windowClassName;
+  const premiumUiWindowBodyClassName = premiumUiObjects.windowBodyClassName;
+  const premiumUiTitleBarClassName = premiumUiObjects.titleBarClassName;
+  const premiumUiTitleBarTextClassName = premiumUiObjects.titleBarTextClassName;
+  const premiumUiTitleBarControlsClassName = premiumUiObjects.titleBarControlsClassName;
+  const premiumUiStatusBarContainerClassName = premiumUiObjects.extended.statusBar.containerClassName;
+  const premiumUiStatusBarFieldClassName = premiumUiObjects.extended.statusBar.fieldClassName;
+  const premiumUiFieldRowStackedClassName = premiumUiObjects.extended.forms.fieldRowStackedClassName;
+  const premiumUiSunkenClassName = premiumUiObjects.panels.sunkenClassName;
+  const premiumUiListItemHighlightClassName = premiumUiObjects.panels.listItemHighlightClassName;
+  const premiumUiSkinTabStripClassName = premiumUiObjects.tabs.skin.containerClassName;
+  const premiumUiSkinTabButtonClassName = premiumUiObjects.tabs.skin.buttonClassName;
+  const premiumUiCompartmentButtonClassName = premiumUiObjects.buttons.compartmentClassName;
+  const premiumUiModalWindowClassName = premiumUiObjects.extended.windows.modalWindowClassName;
   const [selectedSkinHex, setSelectedSkinHex] = useState<string | null>(null);
   const [selectedSkinId, setSelectedSkinId] = useState<string | null>(null);
   const [acquisitionSkin, setAcquisitionSkin] = useState<{ id?: string; hex: string; style?: any } | null>(null);
@@ -232,7 +260,7 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
 
   if (!open) return null;
 
-  if (isWin98ThemeActive) {
+  if (isPremiumUiThemeActive) {
     return (
       <>
         <div
@@ -242,36 +270,38 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
           onPointerUp={(e) => e.stopPropagation()}
         >
           {/* Windows 98 Dotted Overlay or Solid Background */}
-          <div className="absolute inset-0 bg-[#000000] opacity-50" onClick={onClose} />
+          <div className={`absolute inset-0 ${premiumUiModalOverlayClassName}`} onClick={onClose} />
 
-          <div className="window relative z-10 w-full max-w-lg shadow-none flex flex-col max-h-[calc(100dvh-2rem)] modal-safe-panel" style={{ width: '100%', backgroundColor: '#c0c0c0', color: '#222' }}>
-            <div className="title-bar" style={{ background: 'linear-gradient(90deg, #000080, #1084d0)' }}>
-              <div className="title-bar-text" style={{ color: '#fff' }}>
+          <div className={`${premiumUiWindowClassName} relative z-10 w-full max-w-lg shadow-none flex flex-col max-h-[calc(100dvh-2rem)] modal-safe-panel`} style={{ width: '100%' }}>
+            <div className={premiumUiTitleBarClassName}>
+              <div className={premiumUiTitleBarTextClassName}>
                 {t('modals:skin.title')}
               </div>
-              <div className="title-bar-controls">
+              <div className={premiumUiTitleBarControlsClassName}>
                 <button aria-label="Close" onClick={onClose} />
               </div>
             </div>
 
-            <div className="window-body flex-1 min-h-0 overflow-hidden">
-              <p className="status-bar-field" style={{ marginBottom: '12px' }}>
+            <div className={`${premiumUiWindowBodyClassName} flex-1 min-h-0 overflow-hidden`}>
+              <p className={premiumUiStatusBarFieldClassName} style={{ marginBottom: '12px' }}>
                 {String(t('modals:skin.ownedCount', { owned: ownedCatalogCount, total: SKIN_CATALOG.length } as any))}
                 {' | 🧩 '}{skinSettings.fragments}
               </p>
 
-              <div className="sunken-panel" style={{ height: '100%', minHeight: '180px', overflowY: 'scroll', padding: '8px', backgroundColor: '#ffffff' }}>
+              <div className={premiumUiSunkenClassName} style={{ height: '100%', minHeight: '180px', overflowY: 'scroll', padding: '8px' }}>
                 <div className="space-y-4">
                   {skinSections.map((section, sectionIdx) => (
                     <div key={sectionIdx}>
-                      <div style={{ fontSize: '10px', fontWeight: 'bold', marginBottom: '6px', borderBottom: '1px solid #808080', paddingBottom: '2px', color: '#000', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        {sectionIdx === 0 ? <span style={{color:'#1084d0'}}>&#9670;</span> : sectionIdx === 1 ? <span style={{color:'#7c3aed'}}>&#9670;</span> : <span style={{color:'#808080'}}>&#9632;</span>}
-                        {t(section.titleKey as any)}
-                        <span style={{ marginLeft: '2px', fontWeight: 'normal' }}>({section.skins.length})</span>
+                      <div className={premiumUiSkinTabStripClassName} style={{ padding: 0, borderBottom: 'none', marginBottom: '6px' }}>
+                        <div className={premiumUiSkinTabButtonClassName} data-active="true" style={{ marginBottom: 0, padding: '2px 8px', fontSize: '10px', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          {sectionIdx === 0 ? <span className="font-bold">&#9670;</span> : sectionIdx === 1 ? <span className="font-bold">&#9670;</span> : <span className="font-bold">&#9632;</span>}
+                          {t(section.titleKey as any)}
+                          <span style={{ marginLeft: '2px', fontWeight: 'normal' }}>({section.skins.length})</span>
+                        </div>
                       </div>
                       {section.rows.map((rowSkins, rowIndex) => (
                         <React.Fragment key={rowIndex}>
-                          <div className="grid grid-cols-6 gap-2" style={{backgroundColor:'#ffffff'}}>
+                          <div className="grid grid-cols-6 gap-2">
                             {rowSkins.map((entry) => {
                               const isOwned = ownedIds.has(entry.id);
                               const isActive = skinSettings.activeSkinId === entry.id;
@@ -282,29 +312,22 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                                 <div
                                   key={entry.id}
                                   onClick={() => handleSkinTap(entry.id, entry.hex)}
-                                  className="relative aspect-square flex items-center justify-center cursor-pointer"
-                                  style={{
-                                    boxSizing: 'border-box',
-                                    backgroundColor: '#c0c0c0',
-                                    boxShadow: isSelected
-                                      ? 'inset -1px -1px #ffffff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080'
-                                      : 'inset -1px -1px #0a0a0a, inset 1px 1px #ffffff, inset -2px -2px #808080, inset 2px 2px #dfdfdf',
-                                    outline: isSelected ? '1px dotted #000' : 'none',
-                                    outlineOffset: '-4px',
-                                  }}>
-                                  <div className={`w-full h-full relative ${className}`} style={{...style, borderRadius: 0}} data-win98-allow-gradient="true" data-win98-allow-shadow="true" data-skin-swatch="true">
-                                    {!isOwned && <div className="absolute inset-0" style={{ backgroundColor: 'rgba(0,0,0,0.3)', zIndex: 5 }} />}
+                                  className={`relative aspect-square flex items-center justify-center cursor-pointer ${premiumUiCompartmentButtonClassName} ${isSelected ? premiumUiListItemHighlightClassName : ''}`}
+                                  style={{ boxSizing: 'border-box' }}
+                                >
+                                  <div className={`w-full h-full relative ${className}`} style={{ ...style, borderRadius: 0 }} data-premium-ui-allow-gradient="true" data-premium-ui-allow-shadow="true" data-skin-swatch="true">
+                                    {!isOwned && <div className="absolute inset-0 z-[5] bg-black/30" />}
                                     {entry.premium && (
                                       <div className="absolute top-0 right-0 z-20" style={{ fontSize: '8px', lineHeight: 1 }}>💎</div>
                                     )}
                                     {isActive && (
                                       <div className="absolute inset-0 flex items-center justify-center z-10">
-                                        <span style={{ color: '#000', fontWeight: 'bold', textShadow: '1px 1px 0 #fff' }}>v</span>
+                                        <span className="font-bold">v</span>
                                       </div>
                                     )}
                                     {!isOwned && !isActive && (
                                       <div className="absolute inset-0 flex items-center justify-center z-10">
-                                        <span style={{ fontSize: '18px', filter: 'drop-shadow(1px 1px 0 #fff) drop-shadow(-1px -1px 0 #fff)' }}>🔒</span>
+                                        <span className="text-lg">🔒</span>
                                       </div>
                                     )}
                                   </div>
@@ -315,7 +338,7 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
 
                           {/* Preview for Win98 */}
                           {selectedLocation?.sectionIdx === sectionIdx && selectedLocation?.rowIdx === rowIndex && selectedSkinId && (
-                            <div className="field-row-stacked" style={{ padding: '8px', border: '1px dotted #808080', margin: '4px 0' }}>
+                            <div className={`${premiumUiFieldRowStackedClassName} border border-dotted border-gray-400 my-1 p-2`}>
                               <label>{getSkinDisplayName(previewSkin as any)}</label>
                               <div className="flex gap-1 overflow-x-auto pb-2">
                                 {SKIN_PREVIEW_VALUES.map((v) => (
@@ -331,6 +354,7 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                                       const canAfford = skinSettings.fragments >= cost;
                                       return (
                                         <button
+                                          className={premiumUiCompartmentButtonClassName}
                                           disabled={!canAfford}
                                           onClick={() => handlePurchase(selectedSkinId)}
                                           style={{ width: '100%', marginTop: '4px', fontWeight: canAfford ? 'bold' : 'normal' }}
@@ -356,16 +380,16 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
               {isSkinRewardAdSupported() && (
                 <div style={{ marginTop: '12px', textAlign: 'center' }}>
                   {collectionComplete && (
-                    <div className="field-row bg-info text-center justify-center" style={{ marginBottom: '4px' }}>
+                    <div className={`${premiumUiFieldRowStackedClassName} bg-info text-center justify-center`} style={{ marginBottom: '4px' }}>
                       <p>{t('modals:skin.collectionComplete')}</p>
                     </div>
                   )}
                   {remainingAds > 0 ? (
-                    <button onClick={handleDraw} style={{ width: '100%', height: '32px', fontWeight: 'bold' }}>
+                    <button className={premiumUiCompartmentButtonClassName} onClick={handleDraw} style={{ width: '100%', height: '32px', fontWeight: 'bold' }}>
                       {t('modals:skin.drawButton')} ({remainingAds}/{MAX_DAILY_SKIN_AD_VIEWS})
                     </button>
                   ) : (
-                    <button disabled style={{ width: '100%' }}>
+                    <button className={premiumUiCompartmentButtonClassName} disabled style={{ width: '100%' }}>
                       {t('modals:skin.dailyLimit')}
                     </button>
                   )}
@@ -375,9 +399,9 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
             </div>
 
             {/* Status Bar */}
-            <div className="status-bar" style={{ marginTop: '4px' }}>
-              <p className="status-bar-field">SlideMino 98</p>
-              <p className="status-bar-field justify-right">v1.1</p>
+            <div className={premiumUiStatusBarContainerClassName} style={{ marginTop: '4px' }}>
+              <p className={premiumUiStatusBarFieldClassName}>{premiumUiOverrides?.statusBarText ?? 'Block Slide'}</p>
+              <p className={`${premiumUiStatusBarFieldClassName} justify-right`}>{premiumUiOverrides?.statusBarVersion ?? 'v1.0'}</p>
             </div>
           </div>
         </div>
@@ -408,7 +432,7 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
       >
         <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
-        <div className="relative z-10 w-full max-w-lg max-h-[90dvh] modal-safe-panel rounded-3xl bg-white/90 backdrop-blur-sm border border-white/60 shadow-2xl overflow-hidden flex flex-col win98-window">
+        <div className={`relative z-10 w-full max-w-lg max-h-[90dvh] modal-safe-panel rounded-3xl bg-white/90 backdrop-blur-sm border border-white/60 shadow-2xl overflow-hidden flex flex-col ${isPremiumUiThemeActive ? premiumUiModalWindowClassName : ''}`}>
           {/* 헤더 */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-black/5 shrink-0">
             <div>
@@ -527,8 +551,8 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                                             disabled={!canAfford}
                                             onClick={(e) => { e.stopPropagation(); handlePurchase(selectedSkinId); }}
                                             className={`w-full py-1.5 rounded-xl text-xs font-semibold transition-all ${canAfford
-                                                ? 'bg-gray-900 text-white hover:bg-gray-800 active:scale-[0.98]'
-                                                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                              ? 'bg-gray-900 text-white hover:bg-gray-800 active:scale-[0.98]'
+                                              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                               }`}
                                           >
                                             {canAfford

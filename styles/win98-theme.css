@@ -173,7 +173,7 @@ body.theme-win98 .win98-board-body {
 body.theme-win98 .window,
 body.theme-win98 .win98-window,
 body.theme-win98 .win98-panel,
-body.theme-win98 [data-win98-surface="true"] {
+body.theme-win98 [data-premium-ui-surface="true"] {
   color: var(--win98-text-color) !important;
   background: var(--win98-surface) !important;
   border: none !important;
@@ -187,15 +187,15 @@ body.theme-win98 .win98-panel [class*="rounded-"] {
   border-radius: 0 !important;
 }
 
-body.theme-win98 .window [class*="bg-gradient"]:not([data-win98-allow-gradient="true"]):not([data-skin-preview-tile="true"]),
-body.theme-win98 .win98-window [class*="bg-gradient"]:not([data-win98-allow-gradient="true"]):not([data-skin-preview-tile="true"]),
-body.theme-win98 .win98-panel [class*="bg-gradient"]:not([data-win98-allow-gradient="true"]):not([data-skin-preview-tile="true"]) {
+body.theme-win98 .window [class*="bg-gradient"]:not([data-premium-ui-allow-gradient="true"]):not([data-skin-preview-tile="true"]),
+body.theme-win98 .win98-window [class*="bg-gradient"]:not([data-premium-ui-allow-gradient="true"]):not([data-skin-preview-tile="true"]),
+body.theme-win98 .win98-panel [class*="bg-gradient"]:not([data-premium-ui-allow-gradient="true"]):not([data-skin-preview-tile="true"]) {
   background: var(--win98-surface) !important;
 }
 
-body.theme-win98 .window [class*="shadow"]:not([data-win98-allow-shadow="true"]):not([data-skin-preview-tile="true"]),
-body.theme-win98 .win98-window [class*="shadow"]:not([data-win98-allow-shadow="true"]):not([data-skin-preview-tile="true"]),
-body.theme-win98 .win98-panel [class*="shadow"]:not([data-win98-allow-shadow="true"]):not([data-skin-preview-tile="true"]) {
+body.theme-win98 .window [class*="shadow"]:not([data-premium-ui-allow-shadow="true"]):not([data-skin-preview-tile="true"]),
+body.theme-win98 .win98-window [class*="shadow"]:not([data-premium-ui-allow-shadow="true"]):not([data-skin-preview-tile="true"]),
+body.theme-win98 .win98-panel [class*="shadow"]:not([data-premium-ui-allow-shadow="true"]):not([data-skin-preview-tile="true"]) {
   box-shadow: none !important;
 }
 
@@ -344,6 +344,49 @@ body.theme-win98 .win98-menu-btn.win98-exit-home-btn {
 body.theme-win98 .win98-menu-btn.win98-exit-cancel-btn {
   background: #ffffff !important;
   color: var(--win98-text-color) !important;
+}
+
+body.theme-win98 .win98-lock-toast {
+  padding: 2px 10px;
+  border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+body.theme-win98 .win98-bottom-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px;
+  background: #c0c0c0;
+  border-top: 2px solid #fff;
+  box-shadow: inset 0 1px 0 #dfdfdf;
+}
+
+body.theme-win98 .win98-bottom-nav-button {
+  background: #c0c0c0 !important;
+  border: 2px outset #fff !important;
+  font-family: "Pixelated MS Sans Serif", "MS Sans Serif", "Galmuri11", Arial, sans-serif !important;
+}
+
+body.theme-win98 .win98-bottom-nav-button:active {
+  border-style: inset !important;
+}
+
+body.theme-win98 .win98-bottom-nav-badge {
+  min-width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: #ff0000;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 0 4px;
 }
 
 body.theme-win98 .win98-muted {

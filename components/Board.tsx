@@ -43,7 +43,12 @@ interface BoardProps {
   reviveDestroyEffects?: ReviveDestroyEffect[];
 }
 
-const BackgroundGrid = React.memo<{ size: number; layout: GridLayout; isWin98ThemeActive: boolean }>(({ size, layout, isWin98ThemeActive }) => {
+const BackgroundGrid = React.memo<{
+  size: number;
+  layout: GridLayout;
+  isPremiumUiThemeActive: boolean;
+  premiumUiBoardCellClassName: string;
+}>(({ size, layout, isPremiumUiThemeActive, premiumUiBoardCellClassName }) => {
   if (layout.cellPx <= 0) return null;
   return (
     <div className="absolute inset-0 z-0 pointer-events-none">
@@ -54,7 +59,7 @@ const BackgroundGrid = React.memo<{ size: number; layout: GridLayout; isWin98The
         return (
           <div
             key={`bg-${i}`}
-            className={`absolute ${isWin98ThemeActive ? 'win98-board-cell' : `rounded-xl ${getTileColor(0)}`}`}
+            className={`absolute ${isPremiumUiThemeActive ? premiumUiBoardCellClassName : `rounded-xl ${getTileColor(0)}`}`}
             data-board-bg-slot="true"
             style={{
               width: `${layout.cellPx}px`,
@@ -83,7 +88,10 @@ const EMPTY_REVIVE_DESTROY_EFFECTS: ReviveDestroyEffect[] = [];
 const MergingTilesLayer = React.memo<{
   animatingMerges: (MergingTile & { currentX: number; currentY: number; distance: number })[];
   layout: GridLayout;
-}>(({ animatingMerges, layout }) => {
+  isPremiumUiThemeActive: boolean;
+  premiumUiTileFaceClassName: string;
+  premiumUiTileNumberClassName: string;
+}>(({ animatingMerges, layout, isPremiumUiThemeActive, premiumUiTileFaceClassName, premiumUiTileNumberClassName }) => {
   const { resolveTileAppearance } = useBlockCustomization();
   return (
     <div className="absolute inset-0 z-5 pointer-events-none">
@@ -99,10 +107,10 @@ const MergingTilesLayer = React.memo<{
             data-tile-id={mt.id}
             data-tile-distance={mt.distance}
             data-tile-kind="merge"
-            data-win98-allow-gradient={preserveAppearanceInWin98 ? 'true' : undefined}
-            data-win98-allow-shadow={preserveAppearanceInWin98 ? 'true' : undefined}
+            data-premium-ui-allow-gradient={preserveAppearanceInWin98 ? 'true' : undefined}
+            data-premium-ui-allow-shadow={preserveAppearanceInWin98 ? 'true' : undefined}
             className={`
-              absolute rounded-xl win98-tile-face flex items-center justify-center 
+              absolute rounded-xl ${isPremiumUiThemeActive ? premiumUiTileFaceClassName : ''} flex items-center justify-center 
               font-semibold overflow-hidden text-center
               ${appearance.className}
             `}
@@ -124,7 +132,7 @@ const MergingTilesLayer = React.memo<{
               willChange: duration ? 'transform' : undefined,
             }}
           >
-            <span className="win98-tile-number">{text}</span>
+            <span className={isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''}>{text}</span>
           </div>
         );
       })}
@@ -142,7 +150,9 @@ const TilesLayer = React.memo<{
   isEvervaultSkin?: boolean;
   mergeFlashTileIds?: ReadonlySet<string>;
   onMergeFlashEnd?: (tileId: string) => void;
-  isWin98ThemeActive?: boolean;
+  isPremiumUiThemeActive?: boolean;
+  premiumUiTileFaceClassName: string;
+  premiumUiTileNumberClassName: string;
 }>(({
   tiles,
   layout,
@@ -153,7 +163,9 @@ const TilesLayer = React.memo<{
   isEvervaultSkin = false,
   mergeFlashTileIds,
   onMergeFlashEnd,
-  isWin98ThemeActive = false,
+  isPremiumUiThemeActive = false,
+  premiumUiTileFaceClassName,
+  premiumUiTileNumberClassName,
 }) => {
   const { resolveTileAppearance } = useBlockCustomization();
   const canSelectTiles = reviveSelectionEnabled && typeof onReviveTileTap === 'function';
@@ -186,10 +198,10 @@ const TilesLayer = React.memo<{
             data-revive-pending={isPendingTarget ? 'true' : 'false'}
             data-tile-distance={tile.distance}
             data-tile-kind="tile"
-            data-win98-allow-gradient={preserveAppearanceInWin98 ? 'true' : undefined}
-            data-win98-allow-shadow={preserveAppearanceInWin98 ? 'true' : undefined}
+            data-premium-ui-allow-gradient={preserveAppearanceInWin98 ? 'true' : undefined}
+            data-premium-ui-allow-shadow={preserveAppearanceInWin98 ? 'true' : undefined}
             className={`
-              absolute ${isWin98ThemeActive ? '' : 'rounded-xl'} win98-tile-face flex items-center justify-center 
+              absolute ${isPremiumUiThemeActive ? '' : 'rounded-xl'} ${isPremiumUiThemeActive ? premiumUiTileFaceClassName : ''} flex items-center justify-center 
               font-semibold overflow-hidden text-center
               ${appearance.className}
               ${canSelectTiles ? 'cursor-pointer ring-2 ring-transparent hover:ring-amber-200/70 focus-visible:ring-amber-300 focus-visible:outline-none active:brightness-95' : ''}
@@ -230,7 +242,7 @@ const TilesLayer = React.memo<{
               willChange: duration ? 'transform' : undefined,
             }}
           >
-            <span className="win98-tile-number" style={{ position: 'relative', zIndex: 2 }}>{text}</span>
+            <span className={isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''} style={{ position: 'relative', zIndex: 2 }}>{text}</span>
             {isEvervaultSkin && evervaultIntensity > 0.01 && (
               <EvervaultTileOverlay
                 intensity={evervaultIntensity}
@@ -249,8 +261,10 @@ const TilesLayer = React.memo<{
 const ReviveDestroyLayer = React.memo<{
   effects: ReviveDestroyEffect[];
   layout: GridLayout;
-  isWin98ThemeActive: boolean;
-}>(({ effects, layout, isWin98ThemeActive }) => {
+  isPremiumUiThemeActive: boolean;
+  premiumUiTileFaceClassName: string;
+  premiumUiTileNumberClassName: string;
+}>(({ effects, layout, isPremiumUiThemeActive, premiumUiTileFaceClassName, premiumUiTileNumberClassName }) => {
   const { resolveTileAppearance } = useBlockCustomization();
   if (effects.length === 0) return null;
 
@@ -275,13 +289,13 @@ const ReviveDestroyLayer = React.memo<{
           >
             <div
               className={`
-                w-full h-full ${isWin98ThemeActive ? '' : 'rounded-xl'} win98-tile-face flex items-center justify-center
+                w-full h-full ${isPremiumUiThemeActive ? '' : 'rounded-xl'} ${isPremiumUiThemeActive ? premiumUiTileFaceClassName : ''} flex items-center justify-center
                 font-semibold overflow-hidden text-center
                 ${appearance.className}
               `}
               data-tile-kind="revive-effect"
-              data-win98-allow-gradient={preserveAppearanceInWin98 ? 'true' : undefined}
-              data-win98-allow-shadow={preserveAppearanceInWin98 ? 'true' : undefined}
+              data-premium-ui-allow-gradient={preserveAppearanceInWin98 ? 'true' : undefined}
+              data-premium-ui-allow-shadow={preserveAppearanceInWin98 ? 'true' : undefined}
               style={{
                 fontSize: `${fontPx}px`,
                 lineHeight: 1,
@@ -290,7 +304,7 @@ const ReviveDestroyLayer = React.memo<{
                 ...(appearance.style ?? {}),
               }}
             >
-              <span className="win98-tile-number">{text}</span>
+              <span className={isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''}>{text}</span>
             </div>
           </div>
         );
@@ -303,8 +317,10 @@ const GhostOverlay = React.memo<{
   size: number;
   layout: GridLayout;
   ghostCells: { cells: { x: number; y: number }[]; isValid: boolean };
-  isWin98ThemeActive: boolean;
-}>(({ size, layout, ghostCells, isWin98ThemeActive }) => {
+  isPremiumUiThemeActive: boolean;
+  premiumUiGhostValidClassName: string;
+  premiumUiGhostInvalidClassName: string;
+}>(({ size, layout, ghostCells, isPremiumUiThemeActive, premiumUiGhostValidClassName, premiumUiGhostInvalidClassName }) => {
   if (ghostCells.cells.length === 0) return null;
 
   return (
@@ -317,12 +333,12 @@ const GhostOverlay = React.memo<{
           <div
             key={`ghost-${idx}`}
             className={`
-              absolute ${isWin98ThemeActive ? '' : 'rounded-xl'} ${isWin98ThemeActive ? 'opacity-100' : 'opacity-70'} border-2 box-border
+              absolute ${isPremiumUiThemeActive ? '' : 'rounded-xl'} ${isPremiumUiThemeActive ? 'opacity-100' : 'opacity-70'} border-2 box-border
               transition-colors duration-150
-              ${isWin98ThemeActive
+              ${isPremiumUiThemeActive
                 ? ghostCells.isValid
-                  ? 'win98-ghost-valid'
-                  : 'win98-ghost-invalid'
+                  ? premiumUiGhostValidClassName
+                  : premiumUiGhostInvalidClassName
                 : ghostCells.isValid
                   ? 'bg-gray-800/50 border-gray-600'
                   : 'bg-red-400/50 border-red-300'}
@@ -424,7 +440,13 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
   }, [mergingTiles]);
 
   // ── Evervault skin: detect active skin & track merge flash ──
-  const { activeSkin, isWin98ThemeActive } = useBlockCustomization();
+  const { activeSkin, isPremiumUiThemeActive, premiumUiObjects } = useBlockCustomization();
+  const premiumUiBoardCellClassName = premiumUiObjects.extended.board.boardCellClassName;
+  const premiumUiBoardShellClassName = premiumUiObjects.extended.board.boardShellClassName || premiumUiObjects.blockClassName;
+  const premiumUiGhostValidClassName = premiumUiObjects.extended.board.ghostValidClassName;
+  const premiumUiGhostInvalidClassName = premiumUiObjects.extended.board.ghostInvalidClassName;
+  const premiumUiTileFaceClassName = premiumUiObjects.extended.text.tileFaceClassName;
+  const premiumUiTileNumberClassName = premiumUiObjects.extended.text.tileNumberClassName;
   const isEvervaultSkin = activeSkin?.id === EVERVAULT_SKIN_ID;
 
   const [mergeFlashTileIds, setMergeFlashTileIds] = useState<ReadonlySet<string>>(new Set());
@@ -553,21 +575,21 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
   }, [grid, activePiece, hoverLocation]);
 
   // Phase별 보드 테두리 스타일
-  const boardBorderStyle = isWin98ThemeActive
+  const boardBorderStyle = isPremiumUiThemeActive
     ? ''
     : phase === Phase.SLIDE
       ? 'ring-1 ring-gray-400/50'
       : 'ring-1 ring-white/30';
-  const glowOpacityClass = isWin98ThemeActive ? 'opacity-0' : phase === Phase.SLIDE ? 'opacity-100' : 'opacity-0';
+  const glowOpacityClass = isPremiumUiThemeActive ? 'opacity-0' : phase === Phase.SLIDE ? 'opacity-100' : 'opacity-0';
 
   return (
     <div
       ref={boardRef}
       id={htmlId}
-      className={`
-        relative ${isWin98ThemeActive ? 'p-4 win98-board-shell' : 'p-3 win98-window'}
-        ${isWin98ThemeActive ? '' : 'bg-white/40'}
-        ${isWin98ThemeActive ? '' : 'rounded-3xl'} select-none overflow-hidden
+        className={`
+        relative ${isPremiumUiThemeActive ? `p-4 ${premiumUiBoardShellClassName}` : 'p-3'}
+        ${isPremiumUiThemeActive ? '' : 'bg-white/40'}
+        ${isPremiumUiThemeActive ? '' : 'rounded-3xl'} select-none overflow-hidden
         shadow-lg transition-shadow duration-200 ease-out
         ${boardBorderStyle}
       `}
@@ -604,12 +626,20 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
         `}</style>
 
         {/* 1. Background Grid (Empty Slots) */}
-        <BackgroundGrid size={size} layout={layout} isWin98ThemeActive={isWin98ThemeActive} />
+        <BackgroundGrid
+          size={size}
+          layout={layout}
+          isPremiumUiThemeActive={isPremiumUiThemeActive}
+          premiumUiBoardCellClassName={premiumUiBoardCellClassName}
+        />
 
         {/* 2. Merging Tiles Layer (Absorbed tiles animating to merge destination) */}
         <MergingTilesLayer
           animatingMerges={animatingMerges}
           layout={layout}
+          isPremiumUiThemeActive={isPremiumUiThemeActive}
+          premiumUiTileFaceClassName={premiumUiTileFaceClassName}
+          premiumUiTileNumberClassName={premiumUiTileNumberClassName}
         />
 
         {/* 3. Tiles Layer (Animated with uniform speed) */}
@@ -623,18 +653,31 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
           isEvervaultSkin={isEvervaultSkin}
           mergeFlashTileIds={mergeFlashTileIds}
           onMergeFlashEnd={handleMergeFlashEnd}
-          isWin98ThemeActive={isWin98ThemeActive}
+          isPremiumUiThemeActive={isPremiumUiThemeActive}
+          premiumUiTileFaceClassName={premiumUiTileFaceClassName}
+          premiumUiTileNumberClassName={premiumUiTileNumberClassName}
         />
 
         {/* 4. Revive Destroy FX */}
         <ReviveDestroyLayer
           effects={reviveDestroyEffects}
           layout={layout}
-          isWin98ThemeActive={isWin98ThemeActive}
+          isPremiumUiThemeActive={isPremiumUiThemeActive}
+          premiumUiTileFaceClassName={premiumUiTileFaceClassName}
+          premiumUiTileNumberClassName={premiumUiTileNumberClassName}
         />
 
         {/* 5. Ghost Overlay */}
-        {ghostCells && <GhostOverlay size={size} layout={layout} ghostCells={ghostCells} isWin98ThemeActive={isWin98ThemeActive} />}
+        {ghostCells && (
+          <GhostOverlay
+            size={size}
+            layout={layout}
+            ghostCells={ghostCells}
+            isPremiumUiThemeActive={isPremiumUiThemeActive}
+            premiumUiGhostValidClassName={premiumUiGhostValidClassName}
+            premiumUiGhostInvalidClassName={premiumUiGhostInvalidClassName}
+          />
+        )}
       </div>
     </div>
   );

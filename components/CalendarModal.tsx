@@ -30,25 +30,25 @@ interface CalendarModalProps {
 }
 
 /** 항목 타입별 아이콘 */
-function getItemIcon(type: CalendarItem['type'], isWin98 = false): string {
-  if (isWin98) {
+function getItemIcon(type: CalendarItem['type'], isPremiumUi = false): string {
+  if (isPremiumUi) {
     switch (type) {
       case 'daily_challenge': return '◆';
-      case 'weekly_event':    return '◇';
-      case 'season_end':      return '◷';
-      case 'attendance':      return '■';
-      case 'daily_mission':   return '☐';
-      case 'weekly_mission':  return '☐';
+      case 'weekly_event': return '◇';
+      case 'season_end': return '◷';
+      case 'attendance': return '■';
+      case 'daily_mission': return '☐';
+      case 'weekly_mission': return '☐';
       default: return '●';
     }
   }
   switch (type) {
     case 'daily_challenge': return '🏆';
-    case 'weekly_event':    return '🎯';
-    case 'season_end':      return '⏰';
-    case 'attendance':      return '🔥';
-    case 'daily_mission':   return '📋';
-    case 'weekly_mission':  return '📅';
+    case 'weekly_event': return '🎯';
+    case 'season_end': return '⏰';
+    case 'attendance': return '🔥';
+    case 'daily_mission': return '📋';
+    case 'weekly_mission': return '📅';
     default: return '📌';
   }
 }
@@ -56,8 +56,17 @@ function getItemIcon(type: CalendarItem['type'], isWin98 = false): string {
 export const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onAction }) => {
   const { t } = useTranslation();
   useBodyScrollLock(open);
-  const { isWin98ThemeActive } = useBlockCustomization();
-  const isWin98 = Boolean(isWin98ThemeActive);
+  const { isPremiumUiThemeActive, premiumUiObjects } = useBlockCustomization();
+  const premiumUiModalOverlayClassName = premiumUiObjects.modalOverlayClassName;
+  const premiumUiWindowClassName = premiumUiObjects.windowClassName;
+  const premiumUiWindowBodyClassName = premiumUiObjects.windowBodyClassName;
+  const premiumUiTitleBarClassName = premiumUiObjects.titleBarClassName;
+  const premiumUiTitleBarTextClassName = premiumUiObjects.titleBarTextClassName;
+  const premiumUiTitleBarControlsClassName = premiumUiObjects.titleBarControlsClassName;
+  const premiumUiSunkenClassName = premiumUiObjects.panels.sunkenClassName;
+  const premiumUiSunkenWhiteClassName = premiumUiObjects.panels.sunkenWhiteClassName;
+  const premiumUiBadgeClassName = premiumUiObjects.panels.badgeClassName;
+  const isPremiumUi = Boolean(isPremiumUiThemeActive);
   const [items, setItems] = useState<CalendarItem[]>([]);
   const [dailyMissions, setDailyMissions] = useState<ActiveMission[]>([]);
   const [weeklyMissions, setWeeklyMissions] = useState<ActiveMission[]>([]);
@@ -145,19 +154,19 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onA
     } => Boolean(row));
 
   return (
-    <div className={`fixed inset-0 z-[300] flex items-center justify-center p-4 modal-safe-overlay ${isWin98 ? 'win98-modal-overlay' : 'bg-black/50 backdrop-blur-sm'}`} onClick={onClose}>
+    <div className={`fixed inset-0 z-[300] flex items-center justify-center p-4 modal-safe-overlay ${isPremiumUi ? premiumUiModalOverlayClassName : 'bg-black/50 backdrop-blur-sm'}`} onClick={onClose}>
       <div
-        className={isWin98
-          ? 'window w-full max-w-md max-h-[80vh] modal-safe-panel overflow-hidden flex flex-col'
+        className={isPremiumUi
+          ? `${premiumUiWindowClassName} w-full max-w-md max-h-[80vh] modal-safe-panel overflow-hidden flex flex-col`
           : 'bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[80vh] modal-safe-panel overflow-hidden flex flex-col'
         }
         onClick={(e) => e.stopPropagation()}
       >
         {/* 헤더 */}
-        {isWin98 ? (
-          <div className="title-bar">
-            <div className="title-bar-text"><span style={{color:'#FFD700',fontWeight:'bold'}}>★</span>{' '}{t('common:calendar.title')}</div>
-            <div className="title-bar-controls">
+        {isPremiumUi ? (
+          <div className={premiumUiTitleBarClassName}>
+            <div className={premiumUiTitleBarTextClassName}><span className="font-bold">★</span>{' '}{t('common:calendar.title')}</div>
+            <div className={premiumUiTitleBarControlsClassName}>
               <button aria-label="Close" onClick={onClose} />
             </div>
           </div>
@@ -178,23 +187,23 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onA
         )}
 
         {/* 항목 목록 */}
-        <div className={isWin98 ? 'window-body flex-1 overflow-y-auto px-2 py-2 space-y-2' : 'flex-1 overflow-y-auto px-4 py-3 space-y-2.5'}>
+        <div className={isPremiumUi ? `${premiumUiWindowBodyClassName} flex-1 overflow-y-auto px-2 py-2 space-y-2` : 'flex-1 overflow-y-auto px-4 py-3 space-y-2.5'}>
           <div className="grid grid-cols-2 gap-2">
-            <div className={isWin98 ? 'win98-sunken px-2 py-1.5' : 'rounded-xl border border-emerald-100 bg-emerald-50 px-2.5 py-2'}>
-              <div className={`text-[10px] font-semibold ${isWin98 ? '' : 'text-emerald-700'}`}>
+            <div className={isPremiumUi ? `${premiumUiSunkenClassName} px-2 py-1.5` : 'rounded-xl border border-emerald-100 bg-emerald-50 px-2.5 py-2'}>
+              <div className={`text-[10px] font-semibold ${isPremiumUi ? '' : 'text-emerald-700'}`}>
                 {t('common:calendar.attendance')}
               </div>
-              <div className={`mt-0.5 text-[11px] ${isWin98 ? '' : 'text-emerald-800'} truncate`}>
+              <div className={`mt-0.5 text-[11px] ${isPremiumUi ? '' : 'text-emerald-800'} truncate`}>
                 {attendanceItem?.isCompleted
                   ? t('common:calendar.attendanceComplete')
                   : t('common:calendar.attendanceIncomplete')}
               </div>
             </div>
-            <div className={isWin98 ? 'win98-sunken px-2 py-1.5' : 'rounded-xl border border-blue-100 bg-blue-50 px-2.5 py-2'}>
-              <div className={`text-[10px] font-semibold ${isWin98 ? '' : 'text-blue-700'}`}>
+            <div className={isPremiumUi ? `${premiumUiSunkenClassName} px-2 py-1.5` : 'rounded-xl border border-blue-100 bg-blue-50 px-2.5 py-2'}>
+              <div className={`text-[10px] font-semibold ${isPremiumUi ? '' : 'text-blue-700'}`}>
                 {t('common:calendar.seasonEnd')}
               </div>
-              <div className={`mt-0.5 text-[11px] ${isWin98 ? '' : 'text-blue-800'} tabular-nums`}>
+              <div className={`mt-0.5 text-[11px] ${isPremiumUi ? '' : 'text-blue-800'} tabular-nums`}>
                 {seasonEndItem?.endsAt ? formatTimeRemaining(seasonEndItem.endsAt) : '-'}
               </div>
             </div>
@@ -205,14 +214,14 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onA
               onAction?.('mission');
               onClose();
             }}
-            className={isWin98
-              ? 'w-full text-left win98-sunken-white px-2 py-2 mb-0.5'
+            className={isPremiumUi
+              ? `w-full text-left ${premiumUiSunkenWhiteClassName} px-2 py-2 mb-0.5`
               : 'w-full text-left rounded-2xl border border-gray-100 bg-gray-50 px-3 py-2.5 transition-colors hover:bg-gray-100'
             }
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
-                <span className="text-sm">{isWin98 ? <span style={{color:'#ea580c',fontWeight:'bold'}}>&#9632;</span> : '📋'}</span>
+                <span className="text-sm">{isPremiumUi ? <span className="font-bold">&#9632;</span> : '📋'}</span>
                 <span className="text-xs font-bold text-gray-800">{t('common:calendar.dailyMission')}</span>
               </div>
               <div className="flex items-center gap-2">
@@ -240,14 +249,14 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onA
               onAction?.('weekly_event');
               onClose();
             }}
-            className={isWin98
-              ? 'w-full text-left win98-sunken-white px-2 py-2 mb-0.5'
+            className={isPremiumUi
+              ? `w-full text-left ${premiumUiSunkenWhiteClassName} px-2 py-2 mb-0.5`
               : 'w-full text-left rounded-2xl border border-violet-100 bg-violet-50 px-3 py-2.5 transition-colors hover:bg-violet-100/80'
             }
           >
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 min-w-0">
-                <span className="text-sm">{isWin98 ? <span style={{color:'#7c3aed',fontWeight:'bold'}}>&#9670;</span> : '🎯'}</span>
+                <span className="text-sm">{isPremiumUi ? <span className="font-bold">&#9670;</span> : '🎯'}</span>
                 <span className="text-xs font-bold text-gray-800 truncate">{t('common:calendar.weeklyEvent')}</span>
               </div>
               <span className="text-[10px] font-semibold text-violet-600 tabular-nums">
@@ -259,7 +268,7 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onA
             </p>
             <div className="mt-1.5 flex flex-wrap gap-1">
               {eventRuleTags.slice(0, 4).map((tag) => (
-                <span key={tag} className={isWin98 ? 'win98-badge text-[10px]' : 'rounded-full bg-white/70 border border-violet-200 px-1.5 py-0.5 text-[10px] text-violet-700'}>
+                <span key={tag} className={isPremiumUi ? `${premiumUiBadgeClassName} text-[10px]` : 'rounded-full bg-white/70 border border-violet-200 px-1.5 py-0.5 text-[10px] text-violet-700'}>
                   {tag}
                 </span>
               ))}
@@ -271,14 +280,14 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onA
               onAction?.('mission');
               onClose();
             }}
-            className={isWin98
-              ? 'w-full text-left win98-sunken-white px-2 py-2 mb-0.5'
+            className={isPremiumUi
+              ? `w-full text-left ${premiumUiSunkenWhiteClassName} px-2 py-2 mb-0.5`
               : 'w-full text-left rounded-2xl border border-gray-100 bg-gray-50 px-3 py-2.5 transition-colors hover:bg-gray-100'
             }
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
-                <span className="text-sm">{isWin98 ? <span style={{color:'#2563eb',fontWeight:'bold'}}>&#9632;</span> : '📅'}</span>
+                <span className="text-sm">{isPremiumUi ? <span className="font-bold">&#9632;</span> : '📅'}</span>
                 <span className="text-xs font-bold text-gray-800">{t('common:calendar.weeklyMission')}</span>
               </div>
               <div className="flex items-center gap-2">
@@ -324,8 +333,9 @@ interface CalendarCardProps {
  */
 export const CalendarCard: React.FC<CalendarCardProps> = ({ onAction, onExpand }) => {
   const { t } = useTranslation();
-  const { isWin98ThemeActive } = useBlockCustomization();
-  const isWin98 = Boolean(isWin98ThemeActive);
+  const { isPremiumUiThemeActive, premiumUiObjects } = useBlockCustomization();
+  const premiumUiSunkenClassName = premiumUiObjects.panels.sunkenClassName;
+  const isPremiumUi = Boolean(isPremiumUiThemeActive);
   const [items, setItems] = useState<CalendarItem[]>([]);
   const [expanded, setExpanded] = useState(false);
 
@@ -341,7 +351,7 @@ export const CalendarCard: React.FC<CalendarCardProps> = ({ onAction, onExpand }
   if (items.length === 0) return null;
 
   return (
-    <div className={isWin98 ? 'w-full win98-sunken overflow-hidden' : 'w-full rounded-2xl bg-white/60 backdrop-blur-sm border border-white/50 shadow-sm overflow-hidden'}>
+    <div className={isPremiumUi ? `w-full ${premiumUiSunkenClassName} overflow-hidden` : 'w-full rounded-2xl bg-white/60 backdrop-blur-sm border border-white/50 shadow-sm overflow-hidden'}>
       <div className="px-4 py-2.5 flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <Calendar size={14} className="text-blue-500" />
@@ -366,7 +376,7 @@ export const CalendarCard: React.FC<CalendarCardProps> = ({ onAction, onExpand }
               ${item.isUrgent ? 'bg-red-50' : item.isCompleted ? 'bg-emerald-50' : 'hover:bg-gray-100'}
             `}
           >
-            <span className="text-sm">{getItemIcon(item.type, isWin98)}</span>
+            <span className="text-sm">{getItemIcon(item.type, isPremiumUi)}</span>
             <span className="flex-1 text-xs text-gray-700 truncate">
               {t(item.titleKey as any)}
             </span>

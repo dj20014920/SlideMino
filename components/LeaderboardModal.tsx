@@ -55,8 +55,29 @@ const formatDifficultyLabel = (difficulty?: string): string | null => {
 export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClose }) => {
   const { t } = useTranslation();
   useBodyScrollLock(open);
-  const { isWin98ThemeActive } = useBlockCustomization();
-  const isWin98 = Boolean(isWin98ThemeActive);
+  const { isPremiumUiThemeActive, premiumUiObjects } = useBlockCustomization();
+  const premiumUiModalOverlayClassName = premiumUiObjects.modalOverlayClassName;
+  const premiumUiWindowClassName = premiumUiObjects.windowClassName;
+  const premiumUiWindowBodyClassName = premiumUiObjects.windowBodyClassName;
+  const premiumUiTitleBarClassName = premiumUiObjects.titleBarClassName;
+  const premiumUiTitleBarTextClassName = premiumUiObjects.titleBarTextClassName;
+  const premiumUiTitleBarControlsClassName = premiumUiObjects.titleBarControlsClassName;
+  const premiumUiModeTabStripClassName = premiumUiObjects.extended.tabs.leaderboardMode.containerClassName
+    || premiumUiObjects.tabs.level.containerClassName;
+  const premiumUiModeTabButtonClassName = premiumUiObjects.extended.tabs.leaderboardMode.buttonClassName
+    || premiumUiObjects.tabs.level.buttonClassName;
+  const premiumUiFilterTabStripClassName = premiumUiObjects.extended.tabs.leaderboardFilter.containerClassName
+    || premiumUiObjects.tabs.level.containerClassName;
+  const premiumUiFilterTabButtonClassName = premiumUiObjects.extended.tabs.leaderboardFilter.buttonClassName
+    || premiumUiObjects.tabs.level.buttonClassName;
+  const premiumUiEventPeriodTabStripClassName = premiumUiObjects.extended.tabs.leaderboardEventPeriod.containerClassName
+    || premiumUiObjects.tabs.level.containerClassName;
+  const premiumUiEventPeriodTabButtonClassName = premiumUiObjects.extended.tabs.leaderboardEventPeriod.buttonClassName
+    || premiumUiObjects.tabs.level.buttonClassName;
+  const premiumUiListItemClassName = premiumUiObjects.panels.listItemClassName;
+  const premiumUiListItemHighlightClassName = premiumUiObjects.panels.listItemHighlightClassName;
+  const premiumUiSunkenClassName = premiumUiObjects.panels.sunkenClassName;
+  const isPremiumUi = Boolean(isPremiumUiThemeActive);
 
   const [modeTab, setModeTab] = useState<LeaderboardModeTab>('NORMAL');
   const [activeTab, setActiveTab] = useState<NormalLeaderboardTab>('ALL');
@@ -273,23 +294,23 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
   const eventOffline = typeof navigator !== 'undefined' ? !navigator.onLine : false;
 
   return (
-    <div className={`fixed inset-0 z-[300] flex items-center justify-center p-4 modal-safe-overlay ${isWin98 ? 'win98-modal-overlay' : ''}`}>
+    <div className={`fixed inset-0 z-[300] flex items-center justify-center p-4 modal-safe-overlay ${isPremiumUi ? premiumUiModalOverlayClassName : ''}`}>
       {/* Backdrop */}
       <div
-        className={`absolute inset-0 ${isWin98 ? '' : 'bg-black/40 backdrop-blur-sm'} animate-fade-in`}
+        className={`absolute inset-0 ${isPremiumUi ? '' : 'bg-black/40 backdrop-blur-sm'} animate-fade-in`}
         onClick={onClose}
       />
 
       {/* Modal Content */}
-      <div className={isWin98
-        ? 'window relative w-full max-w-md overflow-hidden flex flex-col max-h-[80vh] modal-safe-panel'
+      <div className={isPremiumUi
+        ? `${premiumUiWindowClassName} relative w-full max-w-md overflow-hidden flex flex-col max-h-[80vh] modal-safe-panel`
         : 'relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden animate-scale-in flex flex-col max-h-[80vh] modal-safe-panel'
       }>
         {/* Header */}
-        {isWin98 ? (
-          <div className="title-bar">
-            <div className="title-bar-text"><span style={{color:'#1084d0',fontWeight:'bold'}}>◆</span> {t('modals:leaderboard.title')}</div>
-            <div className="title-bar-controls">
+        {isPremiumUi ? (
+          <div className={premiumUiTitleBarClassName}>
+            <div className={premiumUiTitleBarTextClassName}><span className="font-bold">◆</span> {t('modals:leaderboard.title')}</div>
+            <div className={premiumUiTitleBarControlsClassName}>
               <button aria-label="Close" onClick={onClose} />
             </div>
           </div>
@@ -309,17 +330,16 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
         )}
 
         {/* 랭킹 모드 분리 탭: 일반 / 주간 이벤트 */}
-        <div className={isWin98 ? 'win98-tabstrip' : 'flex items-center gap-2 border-b border-gray-100 bg-white px-4 py-3'}>
+        <div className={isPremiumUi ? premiumUiModeTabStripClassName : 'flex items-center gap-2 border-b border-gray-100 bg-white px-4 py-3'}>
           <button
             onClick={() => setModeTab('NORMAL')}
             data-active={modeTab === 'NORMAL'}
-            className={isWin98
-              ? 'win98-tabstrip-tab'
-              : `px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${
-                  modeTab === 'NORMAL'
-                    ? 'bg-gray-900 text-white shadow-md'
-                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                }`
+            className={isPremiumUi
+              ? premiumUiModeTabButtonClassName
+              : `px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${modeTab === 'NORMAL'
+                ? 'bg-gray-900 text-white shadow-md'
+                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+              }`
             }
           >
             {t('modals:leaderboard.modeTabs.normal')}
@@ -327,13 +347,12 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
           <button
             onClick={() => setModeTab('WEEKLY_EVENT')}
             data-active={modeTab === 'WEEKLY_EVENT'}
-            className={isWin98
-              ? 'win98-tabstrip-tab'
-              : `px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${
-                  modeTab === 'WEEKLY_EVENT'
-                    ? 'bg-orange-500 text-white shadow-md'
-                    : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                }`
+            className={isPremiumUi
+              ? premiumUiModeTabButtonClassName
+              : `px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${modeTab === 'WEEKLY_EVENT'
+                ? 'bg-orange-500 text-white shadow-md'
+                : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+              }`
             }
           >
             {t('modals:leaderboard.modeTabs.weeklyEvent')}
@@ -347,28 +366,27 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
         {modeTab === 'NORMAL' ? (
           <>
             {/* 시즌 카운트다운 */}
-            <div className={`px-4 py-2 text-center text-xs font-semibold ${
-              countdown.isUrgent
+            <div className={`px-4 py-2 text-center text-xs font-semibold ${countdown.isUrgent
                 ? 'bg-red-50 text-red-600 border-b border-red-100'
                 : 'bg-blue-50 text-blue-600 border-b border-blue-100'
-            }`}>
+              }`}>
               {String(countdownText)}
             </div>
 
             {/* 일반 모드 세부 탭 */}
-            <div className={isWin98 ? 'win98-tabstrip' : 'flex items-center gap-2 overflow-x-auto overflow-y-visible border-b border-gray-100 bg-white px-4 py-3'}>
+            <div className={isPremiumUi ? premiumUiFilterTabStripClassName : 'flex items-center gap-2 overflow-x-auto overflow-y-visible border-b border-gray-100 bg-white px-4 py-3'}>
               {NORMAL_TABS.map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
                   data-active={activeTab === tab}
-                  className={isWin98
-                    ? 'win98-tabstrip-tab'
+                  className={isPremiumUi
+                    ? premiumUiFilterTabButtonClassName
                     : `px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all
                       ${activeTab === tab
-                        ? 'bg-gray-900 text-white shadow-md'
-                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                      }`
+                      ? 'bg-gray-900 text-white shadow-md'
+                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                    }`
                   }
                 >
                   {tab === 'ALL' ? t('modals:leaderboard.tabs.all') : tab}
@@ -377,7 +395,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
             </div>
 
             {/* 일반 모드 랭킹 리스트 */}
-            <div className={isWin98 ? 'window-body flex-1 overflow-y-auto p-2 space-y-1' : 'flex-1 overflow-y-auto p-4 space-y-2 bg-gray-50/50'}>
+            <div className={isPremiumUi ? `${premiumUiWindowBodyClassName} flex-1 overflow-y-auto p-2 space-y-1` : 'flex-1 overflow-y-auto p-4 space-y-2 bg-gray-50/50'}>
               {(isOffline || fromCache) && (
                 <div className="px-4 py-2 rounded-xl text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200">
                   {isOffline ? t('modals:leaderboard.offline') : t('modals:leaderboard.cached')}
@@ -397,8 +415,8 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
                   return (
                     <div
                       key={`${entry.name}-${entry.score}-${entry.timestamp}-${index}`}
-                      className={isWin98
-                        ? 'win98-list-item flex items-center justify-between p-1.5'
+                      className={isPremiumUi
+                        ? `${premiumUiListItemClassName} flex items-center justify-between p-1.5`
                         : 'bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between'
                       }
                     >
@@ -435,7 +453,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
         ) : (
           <>
             {/* 이벤트 요약 */}
-            <div className={isWin98 ? 'mx-2 mt-2 win98-sunken p-2' : 'mx-4 mt-3 p-3 rounded-2xl border border-orange-200 bg-gradient-to-r from-orange-50 via-amber-50 to-rose-50'}>
+            <div className={isPremiumUi ? `mx-2 mt-2 ${premiumUiSunkenClassName} p-2` : 'mx-4 mt-3 p-3 rounded-2xl border border-orange-200 bg-gradient-to-r from-orange-50 via-amber-50 to-rose-50'}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-[11px] font-semibold text-orange-600 uppercase tracking-wide">
@@ -465,17 +483,17 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
             </div>
 
             {/* 이벤트 기간 탭 */}
-            <div className={isWin98 ? 'win98-tabstrip mt-2' : 'flex items-center gap-2 overflow-x-auto overflow-y-visible border-b border-gray-100 bg-white px-4 py-3 mt-3'}>
+            <div className={isPremiumUi ? `${premiumUiEventPeriodTabStripClassName} mt-2` : 'flex items-center gap-2 overflow-x-auto overflow-y-visible border-b border-gray-100 bg-white px-4 py-3 mt-3'}>
               <button
                 onClick={() => setEventPeriodTab('CURRENT')}
                 data-active={eventPeriodTab === 'CURRENT'}
-                className={isWin98
-                  ? 'win98-tabstrip-tab'
+                className={isPremiumUi
+                  ? premiumUiEventPeriodTabButtonClassName
                   : `px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all
                     ${eventPeriodTab === 'CURRENT'
-                      ? 'bg-orange-500 text-white shadow-md'
-                      : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                    }`
+                    ? 'bg-orange-500 text-white shadow-md'
+                    : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                  }`
                 }
               >
                 {t('game:weeklyEvent.thisWeek')}
@@ -483,13 +501,13 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
               <button
                 onClick={() => setEventPeriodTab('PREVIOUS')}
                 data-active={eventPeriodTab === 'PREVIOUS'}
-                className={isWin98
-                  ? 'win98-tabstrip-tab'
+                className={isPremiumUi
+                  ? premiumUiEventPeriodTabButtonClassName
                   : `px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all
                     ${eventPeriodTab === 'PREVIOUS'
-                      ? 'bg-gray-900 text-white shadow-md'
-                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                    }`
+                    ? 'bg-gray-900 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                  }`
                 }
               >
                 {t('game:weeklyEvent.lastWeek')}
@@ -497,7 +515,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
             </div>
 
             {/* 이벤트 랭킹 리스트 */}
-            <div className={isWin98 ? 'window-body flex-1 overflow-y-auto p-2 space-y-1' : 'flex-1 overflow-y-auto p-4 space-y-2 bg-orange-50/40'}>
+            <div className={isPremiumUi ? `${premiumUiWindowBodyClassName} flex-1 overflow-y-auto p-2 space-y-1` : 'flex-1 overflow-y-auto p-4 space-y-2 bg-orange-50/40'}>
               {eventOffline && (
                 <div className="px-4 py-2 rounded-xl text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200">
                   {t('modals:leaderboard.offline')}
@@ -516,11 +534,10 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
                   return (
                     <div
                       key={`${entry.rank}-${entry.name}-${index}`}
-                      className={isWin98
-                        ? `win98-list-item flex items-center justify-between p-1.5 ${isMyRank ? 'win98-list-item-highlight' : ''}`
-                        : `bg-white p-4 rounded-2xl shadow-sm border flex items-center justify-between ${
-                            isMyRank ? 'border-orange-300 bg-orange-50/70' : 'border-gray-100'
-                          }`
+                      className={isPremiumUi
+                        ? `${premiumUiListItemClassName} flex items-center justify-between p-1.5 ${isMyRank ? premiumUiListItemHighlightClassName : ''}`
+                        : `bg-white p-4 rounded-2xl shadow-sm border flex items-center justify-between ${isMyRank ? 'border-orange-300 bg-orange-50/70' : 'border-gray-100'
+                        }`
                       }
                     >
                       <div className="flex items-center gap-4 min-w-0">
@@ -530,8 +547,8 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
                             entry.rank === 2 ? 'bg-gray-100 text-gray-600' :
                               entry.rank === 3 ? 'bg-orange-100 text-orange-600' : 'bg-gray-50 text-gray-400'}
                         `}>
-                          {isWin98
-                            ? (entry.rank === 1 ? <span style={{color:'#FFD700',fontWeight:'bold'}}>[1]</span> : entry.rank === 2 ? <span style={{color:'#a0a0a0',fontWeight:'bold'}}>[2]</span> : entry.rank === 3 ? <span style={{color:'#f97316',fontWeight:'bold'}}>[3]</span> : entry.rank)
+                          {isPremiumUi
+                            ? (entry.rank === 1 ? <span className="font-bold">[1]</span> : entry.rank === 2 ? <span className="font-bold">[2]</span> : entry.rank === 3 ? <span className="font-bold">[3]</span> : entry.rank)
                             : (entry.rank <= 3 ? ['🥇', '🥈', '🥉'][entry.rank - 1] : entry.rank)
                           }
                         </div>

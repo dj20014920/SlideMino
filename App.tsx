@@ -3696,6 +3696,8 @@ const App: React.FC = () => {
     || premiumUiObjects.buttons.gameClassName
     || premiumUiObjects.buttons.menuClassName
     || '';
+  const premiumMenuRowContinueButtonClassName =
+    `h-full w-10 shrink-0 flex items-center justify-center text-[17px] leading-none font-bold cursor-pointer ${premiumMenuRowSecondaryButtonClassName}`;
   const premiumMenuSelectedClassName =
     premiumUiObjects.panels.listItemHighlightClassName
     || 'font-bold';
@@ -3744,34 +3746,38 @@ const App: React.FC = () => {
 
     const weeklyEventUnlocked = isFeatureUnlocked('weekly_event');
     const premiumWeeklyEventButton = (
-      <div className={`relative w-full h-[52px] mb-3 ${premiumMenuRowContainerClassName}`}>
-        <button
-          onClick={() => {
-            if (weeklyEventUnlocked) {
-              openWeeklyEventModal();
-            } else {
-              showComboMessage(`🔒 ${String(t('game:actions.weeklyEventLocked', { count: 10 } as any))}`, 2000);
-            }
-          }}
-          className={`w-full h-full text-left font-bold px-4 flex items-center justify-between ${premiumMenuRowPrimaryButtonClassName}`}
-        >
-          <span>{weeklyEventUnlocked ? '🎯 ' : '🔒 '}{t('game:weeklyEvent.menuButton')}</span>
-          <span className={`text-sm font-normal ${weeklyEventUnlocked ? '' : premiumMutedTextClassForMenu} ${weeklyEventUnlocked && hasActiveEventGame() ? 'pr-12' : ''}`}>
-            {weeklyEventUnlocked ? t('game:weeklyEvent.menuTag') : String(t('game:actions.weeklyEventLocked', { count: 10 } as any))}
-          </span>
-        </button>
-        {weeklyEventUnlocked && hasActiveEventGame() && (
-          <div
-            onClick={(e) => {
-              e.stopPropagation();
-              continueWeeklyEvent();
+      <div className={`w-full h-[52px] mb-3 ${premiumMenuRowContainerClassName}`}>
+        <div className="flex h-full">
+          <button
+            onClick={() => {
+              if (weeklyEventUnlocked) {
+                openWeeklyEventModal();
+              } else {
+                showComboMessage(`🔒 ${String(t('game:actions.weeklyEventLocked', { count: 10 } as any))}`, 2000);
+              }
             }}
-            className={`absolute right-0 top-0 bottom-0 w-12 flex items-center justify-center font-bold cursor-pointer ${premiumMenuRowSecondaryButtonClassName}`}
-            title={t('game:difficulties.continue')}
+            className={`h-full flex-1 text-left font-bold px-4 flex items-center justify-between ${premiumMenuRowPrimaryButtonClassName}`}
           >
-            <span>{'>'}</span>
-          </div>
-        )}
+            <span>{weeklyEventUnlocked ? '🎯 ' : '🔒 '}{t('game:weeklyEvent.menuButton')}</span>
+            <span className={`text-sm font-normal ${weeklyEventUnlocked ? '' : premiumMutedTextClassForMenu}`}>
+              {weeklyEventUnlocked ? t('game:weeklyEvent.menuTag') : String(t('game:actions.weeklyEventLocked', { count: 10 } as any))}
+            </span>
+          </button>
+          {weeklyEventUnlocked && hasActiveEventGame() && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                continueWeeklyEvent();
+              }}
+              className={premiumMenuRowContinueButtonClassName}
+              aria-label={t('game:difficulties.continue')}
+              title={t('game:difficulties.continue')}
+            >
+              <span>{'>'}</span>
+            </button>
+          )}
+        </div>
       </div>
     );
 
@@ -3787,31 +3793,35 @@ const App: React.FC = () => {
         ]).map(mode => {
           const hasResume = activeNormalSize === mode.size;
           return (
-            <div key={mode.size} className={`relative w-full h-[52px] ${premiumMenuRowContainerClassName}`}>
-              <button
-                onClick={() => {
-                  tryStartGame(mode.size);
-                  if (mode.size === 5) localStorage.setItem('tutorial_game_mode_seen_v1', 'true');
-                }}
-                className={`w-full h-full text-left font-bold px-4 flex items-center justify-between ${premiumMenuRowPrimaryButtonClassName}`}
-              >
-                <span>{mode.emoji ? `${mode.emoji} ` : ''}{mode.label}</span>
-                <span className={`text-sm font-normal ${premiumMutedTextClassForMenu} ${hasResume ? 'pr-12' : ''}`}>{mode.sizeLabel}</span>
-              </button>
-              {hasResume && (
-                <div
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const saved = loadGameState();
-                    if (saved) restoreSavedGame(saved);
+            <div key={mode.size} className={`w-full h-[52px] ${premiumMenuRowContainerClassName}`}>
+              <div className="flex h-full">
+                <button
+                  onClick={() => {
+                    tryStartGame(mode.size);
+                    if (mode.size === 5) localStorage.setItem('tutorial_game_mode_seen_v1', 'true');
                   }}
-                  className={`absolute right-0 top-0 bottom-0 w-12 flex items-center justify-center font-bold cursor-pointer ${premiumMenuRowSecondaryButtonClassName}`}
-                  title={t('game:difficulties.continue')}
+                  className={`h-full flex-1 text-left font-bold px-4 flex items-center justify-between ${premiumMenuRowPrimaryButtonClassName}`}
                 >
-                  <span>{'>'}</span>
-                </div>
-              )}
+                  <span>{mode.emoji ? `${mode.emoji} ` : ''}{mode.label}</span>
+                  <span className={`text-sm font-normal ${premiumMutedTextClassForMenu}`}>{mode.sizeLabel}</span>
+                </button>
+                {hasResume && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const saved = loadGameState();
+                      if (saved) restoreSavedGame(saved);
+                    }}
+                    className={premiumMenuRowContinueButtonClassName}
+                    aria-label={t('game:difficulties.continue')}
+                    title={t('game:difficulties.continue')}
+                  >
+                    <span>{'>'}</span>
+                  </button>
+                )}
+              </div>
             </div>
           );
         })}
@@ -3830,12 +3840,6 @@ const App: React.FC = () => {
               >
                 {todayAttended ? '🔥' : '🔥'} {t('common:streak.title')} ({streakCount})
               </button>
-              <div
-                onClick={openStreakInfoModal}
-                className={`absolute right-0 top-0 bottom-0 w-12 flex items-center justify-center font-bold cursor-pointer ${premiumMenuRowSecondaryButtonClassName}`}
-              >
-                <span>{'>'}</span>
-              </div>
             </div>
           )}
 
@@ -3846,12 +3850,6 @@ const App: React.FC = () => {
             >
               ⭐ Lv.{xpLevel} ({xpPercent}%)
             </button>
-            <div
-              onClick={openXpModal}
-              className={`absolute right-0 top-0 bottom-0 w-12 flex items-center justify-center font-bold cursor-pointer ${premiumMenuRowSecondaryButtonClassName}`}
-            >
-              <span>{'>'}</span>
-            </div>
           </div>
 
           <div className={`relative w-full h-[52px] ${premiumMenuRowContainerClassName}`}>
@@ -3861,12 +3859,6 @@ const App: React.FC = () => {
             >
               ✨ {t('common:actions.replayTutorial', '튜토리얼 다시보기')}
             </button>
-            <div
-              onClick={handleReplayTutorial}
-              className={`absolute right-0 top-0 bottom-0 w-12 flex items-center justify-center font-bold cursor-pointer ${premiumMenuRowSecondaryButtonClassName}`}
-            >
-              <span>{'>'}</span>
-            </div>
           </div>
 
           <fieldset className={premiumFieldsetClassName} style={{ marginTop: '12px' }}>
@@ -3881,14 +3873,8 @@ const App: React.FC = () => {
                       onClick={() => setLanguageFromMenu(langCode)}
                     >
                       <span className="font-bold">{LANGUAGE_CONFIGS[langCode].displayName} {LANGUAGE_CONFIGS[langCode].flag}</span>
-                      {isSelected && <span className={`text-sm font-bold pr-12 ${premiumMutedTextClassForMenu}`}>v</span>}
+                      {isSelected && <span className={`text-sm font-bold ${premiumMutedTextClassForMenu}`}>v</span>}
                     </button>
-                    <div
-                      onClick={() => setLanguageFromMenu(langCode)}
-                      className={`absolute right-0 top-0 bottom-0 w-12 flex items-center justify-center font-bold cursor-pointer ${premiumMenuRowSecondaryButtonClassName}`}
-                    >
-                      <span>{'>'}</span>
-                    </div>
                   </div>
                 );
               })}

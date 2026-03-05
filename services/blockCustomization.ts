@@ -402,17 +402,23 @@ const getMeshBaseColorForValue = (value: number, seedHex: string): string => {
   return getSkinColorForValue(value, seedHex, 19);
 };
 
-const buildMeshLayerStyle = (baseHex: string, options?: { circular?: boolean, seed?: string }): CSSProperties => {
+type MeshLayerOptions = {
+  circular?: boolean;
+  seed?: string;
+  evolution?: number;
+  stepIndex?: number;
+};
+
+const buildMeshLayerStyle = (baseHex: string, options?: MeshLayerOptions): CSSProperties => {
   const baseRgb = hexToRgb(baseHex);
   const baseHsl = rgbToHsl(baseRgb);
+  const evolution = clamp(options?.evolution ?? 0, 0, 1);
+  const easedEvolution = 1 - Math.pow(1 - evolution, 1.25);
+  const stepIndex = Math.max(0, Math.floor(options?.stepIndex ?? Math.round(evolution * 19)));
 
   // Skin Seed: stable per skin → controls Color Strategy (Analogous/Complementary/etc.)
   const skinSeedString = options?.seed || baseHex;
   const skinRand = pseudoRandom(skinSeedString);
-
-  // Tile Seed: composite of (tileBaseHex + skinSeed) → unique per tile AND per skin
-  // Fix: prevents value=1 (baseHex=#ffffff) from producing identical patterns across all skins
-  const tileRand = pseudoRandom(baseHex + skinSeedString);
 
   const genColor = (hShift: number, sShift: number, lShift: number) => {
     return rgbToHex(hslToRgb({
@@ -472,29 +478,85 @@ const buildMeshLayerStyle = (baseHex: string, options?: { circular?: boolean, se
       break;
   }
 
-  // Shuffle colors to randomize positions based on TILE seed (Pattern variety)
-  // But keep strategy consistent (Color Palette variety)
+  // 스킨 단위로 단 1회만 고정 배치 순서를 만든다.
+  // 값(value)별로 매번 셔플하지 않아 2→4→8...에서 연속성이 유지된다.
   const colors = [c1, c2, c3, c4, c5];
-  for (let i = colors.length - 1; i > 0; i--) {
-    const j = Math.floor(tileRand() * (i + 1));
-    [colors[i], colors[j]] = [colors[j], colors[i]];
-  }
+  const rotation = Math.floor(skinRand() * colors.length);
+  const rotatedColors = colors.map((_, index) => colors[(index + rotation) % colors.length]);
+  const evolvedColors = rotatedColors.map((hex, index) => {
+    const hsl = rgbToHsl(hexToRgb(hex));
+    const direction = index % 2 === 0 ? 1 : -1;
+    const hueShift = direction * (8 + index * 2) * easedEvolution;
+    const satBoost = (4 + index) * easedEvolution;
+    const lightShift = (index === 4 ? 7 : -4) * easedEvolution;
+    return rgbToHex(hslToRgb({
+      h: (hsl.h + hueShift + 360) % 360,
+      s: clamp(hsl.s + satBoost, 35, 98),
+      l: clamp(hsl.l + lightShift, 30, 92),
+    }));
+  });
 
-  // Randomized positions for organic "Mesh" feel
-  const pos = (min: number, max: number) => Math.floor(min + tileRand() * (max - min)) + '%';
+  const zones: ReadonlyArray<{ x: [number, number]; y: [number, number] }> = [
+    { x: [6, 42], y: [6, 42] },
+    { x: [58, 94], y: [6, 42] },
+    { x: [6, 42], y: [58, 94] },
+    { x: [58, 94], y: [58, 94] },
+    { x: [30, 70], y: [30, 70] },
+  ];
+
+  const points = zones.map((zone) => {
+    const baseX = zone.x[0] + skinRand() * (zone.x[1] - zone.x[0]);
+    const baseY = zone.y[0] + skinRand() * (zone.y[1] - zone.y[0]);
+    const driftX = (skinRand() - 0.5) * 24;
+    const driftY = (skinRand() - 0.5) * 24;
+    const stepRand = pseudoRandom(`${skinSeedString}:step:${stepIndex}:${baseX.toFixed(2)}:${baseY.toFixed(2)}`)();
+    const stepNoiseX = (stepRand - 0.5) * 10 * (0.45 + 0.55 * easedEvolution);
+    const stepNoiseY = (0.5 - stepRand) * 10 * (0.45 + 0.55 * easedEvolution);
+
+    const x = clamp(baseX + driftX * easedEvolution + stepNoiseX, 0, 100);
+    const y = clamp(baseY + driftY * easedEvolution + stepNoiseY, 0, 100);
+    return `${x.toFixed(2)}% ${y.toFixed(2)}%`;
+  });
+
+  const falloffPct = (60 - 20 * easedEvolution).toFixed(2);
+  const innerGlowAlpha = (0.09 + 0.12 * easedEvolution).toFixed(3);
+  // 요청값: 시작 색감은 살리고(0.45), 값이 올라가며 점진 변형.
+  const baseLayerAlpha = 0.45 + 0.2 * easedEvolution;
+  const evolutionBlend = 0.45;
+  const colorMorph = clamp(easedEvolution * evolutionBlend, 0, 1);
+
+  const layerColors = evolvedColors.map((hex, index) => {
+    const startRgb = hexToRgb(rotatedColors[index]);
+    const evolvedRgb = hexToRgb(hex);
+    const layerRgb = mixRgb(startRgb, evolvedRgb, colorMorph);
+    const noiseRand = pseudoRandom(`${skinSeedString}:layer-noise:${index}`)();
+    const phase = noiseRand * Math.PI * 2;
+    const freq = 0.65 + noiseRand * 0.7;
+    const wave = 0.7 + 0.3 * (0.5 + 0.5 * Math.sin(stepIndex * freq + phase));
+
+    // 레이어 on/off 감각(완전 제거 대신 거의 사라지게)으로 "이전엔 없던 것이 나타나는" 체감 제공
+    const gateSeed = pseudoRandom(`${skinSeedString}:layer-gate:${index}`)();
+    const gatePeriod = 3 + Math.floor(gateSeed * 4); // 3~6 step 주기
+    const gatePhase = Math.floor(gateSeed * gatePeriod);
+    const gateOpen = ((stepIndex + gatePhase) % gatePeriod) !== 0;
+    const gateFactor = gateOpen ? 1 : 0.45;
+
+    const layerAlpha = clamp(baseLayerAlpha * wave * gateFactor, 0.18, 0.74);
+    return toRgba(layerRgb, layerAlpha);
+  });
 
   const style: CSSProperties = {
     backgroundColor: baseHex,
     backgroundImage: [
-      `radial-gradient(at ${pos(0, 45)} ${pos(0, 45)}, ${colors[0]} 0px, transparent 55%)`,
-      `radial-gradient(at ${pos(55, 100)} ${pos(0, 45)}, ${colors[1]} 0px, transparent 55%)`,
-      `radial-gradient(at ${pos(0, 45)} ${pos(55, 100)}, ${colors[2]} 0px, transparent 55%)`,
-      `radial-gradient(at ${pos(55, 100)} ${pos(55, 100)}, ${colors[3]} 0px, transparent 55%)`,
-      `radial-gradient(at ${pos(30, 70)} ${pos(30, 70)}, ${colors[4]} 0px, transparent 55%)`,
+      `radial-gradient(at ${points[0]}, ${layerColors[0]} 0px, transparent ${falloffPct}%)`,
+      `radial-gradient(at ${points[1]}, ${layerColors[1]} 0px, transparent ${falloffPct}%)`,
+      `radial-gradient(at ${points[2]}, ${layerColors[2]} 0px, transparent ${falloffPct}%)`,
+      `radial-gradient(at ${points[3]}, ${layerColors[3]} 0px, transparent ${falloffPct}%)`,
+      `radial-gradient(at ${points[4]}, ${layerColors[4]} 0px, transparent ${falloffPct}%)`,
     ].join(', '),
     backgroundBlendMode: 'normal',
     border: 'none',
-    boxShadow: 'inset 0 0 20px rgba(255,255,255,0.1), 0 2px 5px rgba(0,0,0,0.1)',
+    boxShadow: `inset 0 0 ${Math.round(18 + 16 * easedEvolution)}px rgba(255,255,255,${innerGlowAlpha}), 0 2px 5px rgba(0,0,0,0.1)`,
     fontWeight: 800,
     borderRadius: options?.circular ? '50%' : undefined,
   };
@@ -507,9 +569,9 @@ const buildMeshLayerStyle = (baseHex: string, options?: { circular?: boolean, se
 
 const buildMeshSkinStyle = (value: number, seedHex: string, options?: { circular?: boolean }): CSSProperties => {
   const baseHex = getMeshBaseColorForValue(value, seedHex);
-  // Pass seedHex (Original Skin Color) to lock the Color Strategy per skin
-  // baseHex (Current Tile Color) will be used inside as the Tile Seed for pattern variety
-  return buildMeshLayerStyle(baseHex, { ...options, seed: seedHex });
+  const exponent = getValueExponent(value);
+  const evolution = clamp(exponent / 19, 0, 1);
+  return buildMeshLayerStyle(baseHex, { ...options, seed: seedHex, evolution, stepIndex: exponent });
 };
 
 const LIQUID_GLASS_SKIN_PREFIX = 'skin_digital_liquid_glass_';
@@ -777,7 +839,9 @@ function resolveExplicitPaletteSkin(
 
     // Mesh Gradient: use the same stable renderer as mesh swatch skins.
     if (skinId === 'skin_art_mesh') {
-      Object.assign(style, buildMeshLayerStyle(paletteHex));
+      const meshStep = getValueExponent(value);
+      const meshEvolution = clamp(meshStep / 15, 0, 1);
+      Object.assign(style, buildMeshLayerStyle(paletteHex, { seed: skinId, evolution: meshEvolution, stepIndex: meshStep }));
     }
   }
 

@@ -89,6 +89,23 @@ export const ADDITIONAL_SKIN_CATALOG: SkinCatalogEntry[] = [
       ].join('; ') + ';',
     },
   },
+  {
+    id: 'skin_digital_liquid_glass',
+    hex: '#f1f3f5',
+    category: 'digital',
+    nameKey: 'liquidGlassClear',
+    premium: true,
+    style: {
+      type: 'css-pattern',
+      value: 'linear-gradient(145deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.18) 38%, rgba(255,255,255,0.05) 100%)',
+      textColor: '#ffffff',
+      borderColor: 'rgba(255,255,255,0.75)',
+      shadow: 'inset 0 1px 0 rgba(255,255,255,0.82), inset 0 -1px 0 rgba(255,255,255,0.22), 0 10px 24px rgba(0,0,0,0.14)',
+      customCss: [
+        'border-width: 1px',
+      ].join('; ') + ';',
+    },
+  },
 
   {
     id: 'skin_art_mesh',

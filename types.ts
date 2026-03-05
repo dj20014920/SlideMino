@@ -128,7 +128,7 @@ export interface PremiumUiMicroOverrides {
  * - family는 "어떤 스타일 계열인지"를 나타내고,
  * - id는 "실제 적용 가능한 구체 테마"를 나타낸다.
  *
- * 현재는 Win98 계열 1종만 운영하지만, 이후 family/id를 확장하는 전제를 가진다.
+ * 현재는 Win98 계열 1종을 운영한다.
  */
 export type PremiumUiThemeFamily = 'win98';
 export type PremiumUiThemeId = 'retro_windows_98';

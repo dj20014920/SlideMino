@@ -121,6 +121,65 @@ export const DEFAULT_PREMIUM_UI_LABELS: PremiumUiMicroOverrides = {
   statusBarVersion: 'v1.0',
 };
 
+const SHARED_PREMIUM_UI_USAGE_GUIDE: PremiumUiThemeConfig['usageGuide'] = {
+  titles: [
+    'App 상단 타이틀 윈도우',
+    'App 게임 화면 상단 타이틀 바',
+    'MissionModal 헤더 타이틀',
+    'SkinModal 헤더 타이틀',
+    'Leaderboard/WeeklyEvent/Calendar 헤더 타이틀',
+    'GameOver/NameInput/SeasonReward/Streak/XpLevel/ActiveGameExit 헤더 타이틀',
+  ],
+  buttons: [
+    'App 메뉴 버튼/헤더 버튼/게임 액션 버튼',
+    'MissionModal 보상/재굴림 버튼',
+    'SkinModal 구매/뽑기/닫기 버튼',
+    '공통 모달 액션 버튼',
+    'ActiveGameExit 홈 종료/취소/등록 버튼',
+    'WeeklyEvent 시작/이어하기/광고해금 버튼',
+  ],
+  blocks: [
+    'Board 배경/블록 컨테이너',
+    'Slot 프리뷰 셀',
+    'SkinPreviewTile 타일 프리뷰',
+    'Calendar 카드/요약 블록',
+    'Leaderboard/WeeklyEvent 리스트 블록',
+  ],
+  levelTabs: [
+    'App 난이도(레벨) 선택 탭/섹션',
+    'Leaderboard 모드 탭(확장 대상)',
+    'WeeklyEvent 이번주/지난주 탭',
+  ],
+  skinTabs: [
+    'SkinModal 섹션 탭(프리미엄/메쉬/일반)',
+    'SkinModal 선택행 프리뷰 탭 확장 영역',
+  ],
+  missionTabs: [
+    'MissionModal 일일/주간 탭',
+    'WeeklyEvent 이번주/지난주 탭',
+    'Leaderboard 이벤트 기간 탭',
+  ],
+  extraReferences: [
+    'Board.tsx: board-shell/board-cell/tile-face/tile-number/ghost-valid/ghost-invalid',
+    'Slot.tsx: slot-shell/slot-mini-cell/slot-rotate-button',
+    'BottomNavBar.tsx: 프리미엄 하단 내비게이션 스타일 블록',
+    'GameOverModal.tsx: modal-overlay/sunken/list panel',
+    'ActiveGameExitModal.tsx: menu-btn/exit-home/exit-cancel',
+    'StreakInfoModal.tsx: modal-overlay/sunken/list-item',
+    'SeasonRewardModal.tsx: modal-overlay/list-item',
+    'NameInputModal.tsx: modal-overlay/window-body',
+    'XpLevelModal.tsx: modal-overlay/sunken/progress/badge',
+    'HelpModal.tsx: modal-overlay/sunken/badge',
+    'BlockCustomizationModal.tsx: tile-face/tile-number/window',
+    'SkinAcquisitionOverlay.tsx: tile-face/tile-number',
+    'SquareImageCropperModal.tsx: cropper window container',
+    'CookieConsent.tsx: consent banner surface/window',
+    'CalendarModal.tsx: modal-overlay/sunken/sunken-white/badge',
+    'LeaderboardModal.tsx: modal-overlay/tabstrip/list/sunken',
+    'WeeklyEventModal.tsx: modal-overlay/tabstrip/list/sunken/badge',
+  ],
+};
+
 export const RETRO_WINDOWS_98_PREMIUM_UI_THEME: PremiumUiThemeConfig = {
   id: 'retro_windows_98',
   family: 'win98',
@@ -223,64 +282,7 @@ export const RETRO_WINDOWS_98_PREMIUM_UI_THEME: PremiumUiThemeConfig = {
       },
     },
   },
-  usageGuide: {
-    titles: [
-      'App 상단 타이틀 윈도우',
-      'App 게임 화면 상단 타이틀 바',
-      'MissionModal 헤더 타이틀',
-      'SkinModal 헤더 타이틀',
-      'Leaderboard/WeeklyEvent/Calendar 헤더 타이틀',
-      'GameOver/NameInput/SeasonReward/Streak/XpLevel/ActiveGameExit 헤더 타이틀',
-    ],
-    buttons: [
-      'App 메뉴 버튼/헤더 버튼/게임 액션 버튼',
-      'MissionModal 보상/재굴림 버튼',
-      'SkinModal 구매/뽑기/닫기 버튼',
-      '공통 모달 액션 버튼',
-      'ActiveGameExit 홈 종료/취소/등록 버튼',
-      'WeeklyEvent 시작/이어하기/광고해금 버튼',
-    ],
-    blocks: [
-      'Board 배경/블록 컨테이너',
-      'Slot 프리뷰 셀',
-      'SkinPreviewTile 타일 프리뷰',
-      'Calendar 카드/요약 블록',
-      'Leaderboard/WeeklyEvent 리스트 블록',
-    ],
-    levelTabs: [
-      'App 난이도(레벨) 선택 탭/섹션',
-      'Leaderboard 모드 탭(확장 대상)',
-      'WeeklyEvent 이번주/지난주 탭',
-    ],
-    skinTabs: [
-      'SkinModal 섹션 탭(프리미엄/메쉬/일반)',
-      'SkinModal 선택행 프리뷰 탭 확장 영역',
-    ],
-    missionTabs: [
-      'MissionModal 일일/주간 탭',
-      'WeeklyEvent 이번주/지난주 탭',
-      'Leaderboard 이벤트 기간 탭',
-    ],
-    extraReferences: [
-      'Board.tsx: board-shell/board-cell/tile-face/tile-number/ghost-valid/ghost-invalid',
-      'Slot.tsx: slot-shell/slot-mini-cell/slot-rotate-button',
-      'BottomNavBar.tsx: Win98 하단 태스크바 스타일 블록',
-      'GameOverModal.tsx: modal-overlay/sunken/list panel',
-      'ActiveGameExitModal.tsx: menu-btn/exit-home/exit-cancel',
-      'StreakInfoModal.tsx: modal-overlay/sunken/list-item',
-      'SeasonRewardModal.tsx: modal-overlay/list-item',
-      'NameInputModal.tsx: modal-overlay/window-body',
-      'XpLevelModal.tsx: modal-overlay/sunken/progress/badge',
-      'HelpModal.tsx: modal-overlay/sunken/badge',
-      'BlockCustomizationModal.tsx: tile-face/tile-number/window',
-      'SkinAcquisitionOverlay.tsx: tile-face/tile-number',
-      'SquareImageCropperModal.tsx: cropper window container',
-      'CookieConsent.tsx: consent banner surface/window',
-      'CalendarModal.tsx: modal-overlay/sunken/sunken-white/badge',
-      'LeaderboardModal.tsx: modal-overlay/tabstrip/list/sunken',
-      'WeeklyEventModal.tsx: modal-overlay/tabstrip/list/sunken/badge',
-    ],
-  },
+  usageGuide: SHARED_PREMIUM_UI_USAGE_GUIDE,
 };
 
 /**

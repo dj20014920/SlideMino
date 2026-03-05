@@ -228,6 +228,9 @@ export function BlockCustomizationProvider({ children }: { children: React.React
         if (existing) existing.remove();
       }
     }
+    // Legacy cleanup: retired premium theme root class
+    htmlEl.classList.remove('theme-liquid-glass');
+    bodyEl.classList.remove('theme-liquid-glass');
 
     if (premiumUiTheme) {
       htmlEl.classList.add(premiumUiTheme.rootClassName);

@@ -474,6 +474,57 @@ const buildMeshSkinStyle = (value: number, seedHex: string, options?: { circular
   return buildMeshLayerStyle(baseHex, { ...options, seed: seedHex });
 };
 
+const LIQUID_GLASS_SKIN_ID = 'skin_digital_liquid_glass';
+
+const buildLiquidGlassTileStyle = (value: number): CSSProperties => {
+  const exponent = getValueExponent(value);
+  const t = clamp(exponent / 19, 0, 1);
+  const isBaseValue = value <= 1;
+
+  // 1 타일은 "완전 투명"으로 시작하고, 값이 높아질수록 내부 농도/깊이감을 증가시킨다.
+  const fillAlpha = isBaseValue ? 0 : 0.04 + t * 0.2;
+  const smokeAlpha = isBaseValue ? 0 : 0.02 + t * 0.14;
+
+  // 요청사항: 숫자가 커질수록 테두리 블러(글로우) 강화
+  const rimAlpha = 0.42 + t * 0.4;
+  const rimGlowBlurPx = 3 + t * 24;
+  const rimGlowAlpha = 0.08 + t * 0.28;
+
+  const dropShadowAlpha = 0.08 + t * 0.2;
+  const blurPx = 6 + t * 16;
+  const saturation = 1.08 + t * 0.24;
+  const contrast = 1.02 + t * 0.12;
+
+  // 요청사항: 1/2/4도 8 이상과 동일한 숫자 색감으로 통일
+  const textColor = '#f8fafc';
+  const textShadow = '0 1px 2px rgba(0,0,0,0.52), 0 0 10px rgba(255,255,255,0.16)';
+
+  return {
+    backgroundColor: `rgba(255,255,255,${fillAlpha.toFixed(3)})`,
+    backgroundImage: isBaseValue
+      ? 'none'
+      : [
+          'linear-gradient(145deg, rgba(255,255,255,0.58) 0%, rgba(255,255,255,0.2) 38%, rgba(255,255,255,0.03) 100%)',
+          'radial-gradient(130% 95% at 20% 10%, rgba(255,255,255,0.72) 0%, rgba(255,255,255,0) 52%)',
+          'radial-gradient(120% 100% at 82% 90%, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 60%)',
+          `linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,${smokeAlpha.toFixed(3)}) 100%)`,
+        ].join(', '),
+    border: `${(1 + t * 0.35).toFixed(2)}px solid rgba(255,255,255,${rimAlpha.toFixed(3)})`,
+    boxShadow: [
+      `inset 0 1px 0 rgba(255,255,255,${(0.78 + t * 0.14).toFixed(3)})`,
+      `inset 0 -1px 0 rgba(255,255,255,${(0.12 + t * 0.16).toFixed(3)})`,
+      `inset 1px 0 0 rgba(255,255,255,${(0.24 + t * 0.14).toFixed(3)})`,
+      `0 10px 22px rgba(0,0,0,${dropShadowAlpha.toFixed(3)})`,
+      `0 0 0 1px rgba(255,255,255,${(rimAlpha * 0.24).toFixed(3)})`,
+      `0 0 ${rimGlowBlurPx.toFixed(1)}px rgba(255,255,255,${rimGlowAlpha.toFixed(3)})`,
+    ].join(', '),
+    backdropFilter: `blur(${blurPx.toFixed(1)}px) saturate(${saturation.toFixed(2)}) contrast(${contrast.toFixed(2)})`,
+    WebkitBackdropFilter: `blur(${blurPx.toFixed(1)}px) saturate(${saturation.toFixed(2)}) contrast(${contrast.toFixed(2)})`,
+    color: textColor,
+    textShadow,
+  };
+};
+
 // --- New Helper for Previews ---
 export const resolveSkinAppearance = (value: number, skin: { id?: string; hex: string; style?: any }): ResolvedTileAppearance => {
   const skinId = skin.id || '';
@@ -483,6 +534,18 @@ export const resolveSkinAppearance = (value: number, skin: { id?: string; hex: s
   if (!styleData && skinId) {
     const entry = SKIN_CATALOG.find((e) => e.id === skinId);
     if (entry) styleData = entry.style;
+  }
+
+  if (skinId === LIQUID_GLASS_SKIN_ID) {
+    const style = buildLiquidGlassTileStyle(value);
+    if (styleData?.customCss) {
+      applyStructuralCss(style, styleData.customCss as string);
+    }
+    applySkinStyleOverrides(style, styleData);
+    return {
+      className: getTileColor(value),
+      style: sanitizeTileAppearanceStyle(style),
+    };
   }
 
   // ── 1. Explicit palette skins (Neon, Pop Art, Stained Glass) ──

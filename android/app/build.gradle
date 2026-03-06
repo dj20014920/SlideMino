@@ -6,6 +6,18 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
 
+def cordovaPluginsDir = rootProject.file('capacitor-cordova-android-plugins')
+def hasCordovaPluginSources = {
+    if (!cordovaPluginsDir.exists()) return false
+
+    def sourceFiles = fileTree("${cordovaPluginsDir}/src/main") {
+        include '**/*.java', '**/*.kt', '**/*.jar', '**/*.aar', '**/*.so'
+        exclude '**/.gitkeep'
+    }
+
+    return !sourceFiles.isEmpty()
+}
+
 android {
     namespace = "com.slidemino.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -13,8 +25,8 @@ android {
         applicationId "com.slidemino.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 2
-        versionName "1.1"
+        versionCode 3
+        versionName "1.1.0-beta1"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -83,7 +95,9 @@ dependencies {
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
-    implementation project(':capacitor-cordova-android-plugins')
+    if (hasCordovaPluginSources()) {
+        implementation project(':capacitor-cordova-android-plugins')
+    }
 }
 
 apply from: 'capacitor.build.gradle'

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Globe, Check } from 'lucide-react';
-import { LANGUAGE_CONFIGS, LANGUAGE_STORAGE_KEY, normalizeLanguage, type SupportedLanguage } from '../i18n/constants';
+import { LANGUAGE_CONFIGS, normalizeLanguage, type SupportedLanguage } from '../i18n/constants';
+import { saveLanguageOverride } from '../utils/deviceLanguage';
 
 interface LanguageSwitcherProps {
   className?: string;
@@ -15,11 +16,7 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ className = 
 
   const handleLanguageChange = (langCode: SupportedLanguage) => {
     i18n.changeLanguage(langCode);
-    try {
-      localStorage.setItem(LANGUAGE_STORAGE_KEY, langCode);
-    } catch {
-      // ignore storage failures (private mode, etc.)
-    }
+    saveLanguageOverride(langCode);
     setIsOpen(false);
   };
 

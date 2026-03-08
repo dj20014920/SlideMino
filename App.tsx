@@ -76,8 +76,8 @@ import {
 import { rankingService, type LiveRankEstimate } from './services/rankingService';
 import { getCurrentRoute, onRouteChange, updatePageMeta, type Route } from './utils/routing';
 import { isNativeApp, isAppIntoS, isAndroidApp, isLikelyIOSInAppBrowser } from './utils/platform';
-import { normalizeLanguage } from './i18n/constants';
-import { LANGUAGE_CONFIGS, type SupportedLanguage } from './i18n/constants';
+import { normalizeLanguage, LANGUAGE_CONFIGS, type SupportedLanguage } from './i18n/constants';
+import { saveLanguageOverride } from './utils/deviceLanguage';
 import { openNativePrivacyOptionsForm } from './services/admob';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import Terms from './pages/Terms';
@@ -3735,11 +3735,7 @@ const App: React.FC = () => {
 
     const setLanguageFromMenu = (langCode: SupportedLanguage) => {
       i18n.changeLanguage(langCode);
-      try {
-        localStorage.setItem('slidemino-language', langCode);
-      } catch {
-        // ignore
-      }
+      saveLanguageOverride(langCode);
     };
 
     const currentLang = normalizeLanguage(i18n.resolvedLanguage ?? i18n.language);

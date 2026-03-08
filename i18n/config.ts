@@ -8,7 +8,6 @@ import { initReactI18next } from 'react-i18next';
 import {
   SUPPORTED_LANGUAGES,
   DEFAULT_LANGUAGE,
-  LANGUAGE_STORAGE_KEY,
   NAMESPACES,
   type SupportedLanguage,
 } from './constants';
@@ -129,13 +128,6 @@ export const initI18n = async (): Promise<void> => {
 
       // 감지된 언어로 i18n 초기화
       initI18nSync(detectedLanguage);
-
-      // 감지된 언어를 localStorage에 저장 (다음 번 빠른 로드를 위해)
-      try {
-        localStorage.setItem(LANGUAGE_STORAGE_KEY, detectedLanguage);
-      } catch {
-        // localStorage 접근 실패 시 무시
-      }
     } catch (error) {
       console.error('[i18n] Error during initialization:', error);
       // 오류 발생 시 기본 언어로 초기화

@@ -6,7 +6,13 @@
 
 import { Device } from '@capacitor/device';
 import { Capacitor } from '@capacitor/core';
-import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE, LANGUAGE_STORAGE_KEY, type SupportedLanguage } from '../i18n/constants';
+import {
+  SUPPORTED_LANGUAGES,
+  DEFAULT_LANGUAGE,
+  LANGUAGE_STORAGE_KEY,
+  LEGACY_LANGUAGE_STORAGE_KEY,
+  type SupportedLanguage,
+} from '../i18n/constants';
 
 /**
  * 언어 코드를 지원되는 언어로 정규화합니다.
@@ -33,6 +39,40 @@ const isNativePlatform = (): boolean => {
 };
 
 /**
+ * 사용자가 명시적으로 선택한 언어 오버라이드 값을 읽습니다.
+ * 과거 자동 감지 캐시 키는 무시해서 현재 기기 언어가 다시 반영되도록 합니다.
+ */
+const getStoredLanguageOverride = (): SupportedLanguage | null => {
+  try {
+    const savedLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    if (savedLanguage && SUPPORTED_LANGUAGES.includes(savedLanguage as SupportedLanguage)) {
+      return savedLanguage as SupportedLanguage;
+    }
+
+    // 레거시 키는 과거 자동 감지 캐시로 사용되었기 때문에 더 이상 신뢰하지 않습니다.
+    if (localStorage.getItem(LEGACY_LANGUAGE_STORAGE_KEY)) {
+      localStorage.removeItem(LEGACY_LANGUAGE_STORAGE_KEY);
+    }
+  } catch {
+    // localStorage 접근 실패 시 무시
+  }
+
+  return null;
+};
+
+/**
+ * 사용자가 메뉴에서 직접 고른 언어만 별도로 저장합니다.
+ */
+export const saveLanguageOverride = (language: SupportedLanguage): void => {
+  try {
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
+    localStorage.removeItem(LEGACY_LANGUAGE_STORAGE_KEY);
+  } catch {
+    // localStorage 접근 실패 시 무시
+  }
+};
+
+/**
  * 디바이스의 시스템 언어를 감지합니다.
  *
  * 우선순위:
@@ -43,13 +83,9 @@ const isNativePlatform = (): boolean => {
  */
 export const detectDeviceLanguage = async (): Promise<SupportedLanguage> => {
   // 1. 먼저 사용자가 직접 선택한 언어가 있는지 확인
-  try {
-    const savedLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY);
-    if (savedLanguage && SUPPORTED_LANGUAGES.includes(savedLanguage as SupportedLanguage)) {
-      return savedLanguage as SupportedLanguage;
-    }
-  } catch {
-    // localStorage 접근 실패 시 무시
+  const savedLanguage = getStoredLanguageOverride();
+  if (savedLanguage) {
+    return savedLanguage;
   }
 
   // 2. 네이티브 플랫폼에서는 Capacitor Device 사용
@@ -90,13 +126,9 @@ export const detectDeviceLanguage = async (): Promise<SupportedLanguage> => {
  */
 export const detectLanguageSync = (): SupportedLanguage => {
   // localStorage에서 저장된 언어 확인
-  try {
-    const savedLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY);
-    if (savedLanguage && SUPPORTED_LANGUAGES.includes(savedLanguage as SupportedLanguage)) {
-      return savedLanguage as SupportedLanguage;
-    }
-  } catch {
-    // 무시
+  const savedLanguage = getStoredLanguageOverride();
+  if (savedLanguage) {
+    return savedLanguage;
   }
 
   // 브라우저 언어 확인

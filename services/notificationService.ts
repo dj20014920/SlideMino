@@ -15,6 +15,8 @@ import { isTodayAttended } from './streakService';
 import { getDailyCompletedCount } from './missionService';
 import { isFeatureUnlocked } from './onboardingService';
 import { KST_OFFSET_MS } from '../config/constants';
+import i18n from '../i18n/config';
+import { DEFAULT_LANGUAGE, LANGUAGE_STORAGE_KEY, normalizeLanguage } from '../i18n/constants';
 
 // ====== 상수 ======
 const STORAGE_KEY = 'slidemino.notifications.v1';
@@ -99,13 +101,17 @@ export function setNotificationEnabled(enabled: boolean): void {
 
 /** 사용자 언어에 맞는 알림 텍스트 반환 */
 function getNotifContent(id: number): NotifContent {
-  // i18next 사용 가능 시 언어 감지, 아니면 navigator.language
-  let lang = 'en';
+  let lang = DEFAULT_LANGUAGE;
   try {
-    const stored = localStorage.getItem('i18nextLng');
-    if (stored) lang = stored.substring(0, 2);
-    else lang = navigator.language.substring(0, 2);
-  } catch { /* fallback to en */ }
+    const runtimeLanguage = i18n.resolvedLanguage ?? i18n.language;
+    if (runtimeLanguage) {
+      lang = normalizeLanguage(runtimeLanguage);
+    } else {
+      const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+      if (stored) lang = normalizeLanguage(stored);
+      else if (navigator.language) lang = normalizeLanguage(navigator.language);
+    }
+  } catch { /* fallback to default */ }
   const texts = NOTIF_TEXTS[lang] ?? NOTIF_TEXTS['en'];
   return texts[id] ?? NOTIF_TEXTS['en'][id];
 }

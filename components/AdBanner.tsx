@@ -6,6 +6,7 @@ import { bannerAdService } from '../services/bannerAdService';
 import { isScreenshotMode } from '../services/adConfig';
 import { isVirtualDevice } from '../services/admob';
 import { trackAnalyticsEvent } from '../services/analyticsService';
+import { getSafeAreaInsetPx } from '../utils/safeArea';
 
 interface AdBannerProps {
     /** 네이티브 배너를 하단 고정 UI 위로 띄우기 위한 margin (px) */
@@ -31,12 +32,7 @@ const AdBanner: React.FC<AdBannerProps> = ({
     const getNativeBannerFallbackHeightPx = (): number => 50;
 
     const getSafeBottomInsetPx = (): number => {
-        if (typeof window === 'undefined') return 0;
-        const raw = window
-            .getComputedStyle(document.documentElement)
-            .getPropertyValue('--app-safe-bottom');
-        const parsed = Number.parseFloat(raw);
-        return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+        return getSafeAreaInsetPx('bottom');
     };
 
     const [nativeBannerHeightPx, setNativeBannerHeightPx] = useState(() => {

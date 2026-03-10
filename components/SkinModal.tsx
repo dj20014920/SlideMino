@@ -303,13 +303,13 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
               </div>
             </div>
 
-            <div className={`${premiumUiWindowBodyClassName} flex-1 min-h-0 overflow-hidden`}>
+            <div className={`${premiumUiWindowBodyClassName} flex-1 min-h-0 overflow-y-auto`}>
               <p className={premiumUiStatusBarFieldClassName} style={{ marginBottom: '12px' }}>
                 {String(t('modals:skin.ownedCount', { owned: ownedCatalogCount, total: SKIN_CATALOG.length } as any))}
                 {' | 🧩 '}{skinSettings.fragments}
               </p>
 
-              <div className={premiumUiSunkenClassName} style={{ height: '100%', minHeight: '180px', overflowY: 'scroll', padding: '8px' }}>
+              <div className={premiumUiSunkenClassName} style={{ minHeight: '180px', padding: '8px' }}>
                 <div className="space-y-4">
                   {skinSections.map((section, sectionIdx) => (
                     <div key={sectionIdx}>

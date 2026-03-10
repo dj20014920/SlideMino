@@ -8,7 +8,8 @@
 import { GoogleAdMob } from '@apps-in-toss/web-framework';
 import { AdMob, BannerAdPosition, BannerAdSize, BannerAdOptions, BannerAdPluginEvents } from '@capacitor-community/admob';
 import { getBannerAdId, isBannerAdSupported, CURRENT_AD_PLATFORM } from './adConfig';
-import { ensureAdMobReady } from './admob';
+import { AD_MOB_CONSENT_UPDATED_EVENT, ensureAdMobReady } from './admob';
+import { RetryBackoffScheduler } from './adResilience';
 import { trackAnalyticsEvent } from './analyticsService';
 
 // ==========================================
@@ -40,6 +41,35 @@ class BannerAdService {
   private activeBottomMarginPx = 0;
   private bannerHeightPx = 0;
   private bannerSizeListeners = new Set<BannerSizeListener>();
+  private readonly loadRetryBackoff = new RetryBackoffScheduler({
+    baseDelayMs: 3000,
+    maxDelayMs: 15000,
+  });
+  private readonly handleConsentUpdated = (event: Event): void => {
+    const detail = event instanceof CustomEvent
+      ? (event.detail as { canRequestAds?: boolean } | null)
+      : null;
+    const canRequestAds = detail?.canRequestAds;
+
+    if (canRequestAds === false) {
+      this.hideCurrentBanner()
+        .catch((error) => {
+          console.error('[BannerAdService] 동의 철회 후 배너 숨김 실패:', error);
+        })
+        .finally(() => {
+          if (this.bannerUsers > 0) {
+            this.showStatus = 'failed';
+          }
+        });
+      return;
+    }
+
+    if (canRequestAds !== true || this.bannerUsers <= 0) return;
+
+    this.enqueueSync().catch((error) => {
+      console.error('[BannerAdService] 동의 갱신 후 배너 복구 실패:', error);
+    });
+  };
 
   constructor() {
     this.adUnitId = getBannerAdId();
@@ -53,6 +83,9 @@ class BannerAdService {
 
     if (CURRENT_AD_PLATFORM === 'admob-ios' || CURRENT_AD_PLATFORM === 'admob-android') {
       this.setupAdMobBannerListeners();
+      if (typeof window !== 'undefined') {
+        window.addEventListener(AD_MOB_CONSENT_UPDATED_EVENT, this.handleConsentUpdated);
+      }
     }
   }
 
@@ -104,6 +137,7 @@ class BannerAdService {
         switch (event.type) {
           case 'show':
             this.showStatus = 'showing';
+            this.loadRetryBackoff.reset();
             if (this.bannerHeightPx <= 0) this.setBannerHeightPx(50);
             console.log('[BannerAdService] 배너 표시 완료');
             break;
@@ -134,6 +168,7 @@ class BannerAdService {
             this.showStatus = 'failed';
             this.setBannerHeightPx(0);
             console.error('[BannerAdService] 배너 표시 실패');
+            this.scheduleLoadRetry();
             break;
         }
       },
@@ -141,6 +176,7 @@ class BannerAdService {
         this.showStatus = 'failed';
         this.setBannerHeightPx(0);
         console.error('[BannerAdService] 앱인토스 배너 에러:', error);
+        this.scheduleLoadRetry();
       },
     });
 
@@ -194,6 +230,11 @@ class BannerAdService {
       this.hasTrackedAdMobImpressionForCurrentBanner = true;
     });
 
+    AdMob.addListener(BannerAdPluginEvents.Loaded, () => {
+      this.showStatus = 'showing';
+      this.loadRetryBackoff.reset();
+    });
+
     AdMob.addListener(BannerAdPluginEvents.Opened, () => {
       trackAnalyticsEvent({
         name: 'ad_banner_click',
@@ -208,8 +249,11 @@ class BannerAdService {
       this.setBannerHeightPx(height);
     });
 
-    AdMob.addListener(BannerAdPluginEvents.FailedToLoad, () => {
+    AdMob.addListener(BannerAdPluginEvents.FailedToLoad, (error) => {
+      this.showStatus = 'failed';
       this.setBannerHeightPx(0);
+      console.error('[BannerAdService] AdMob 배너 로드 실패:', error);
+      this.scheduleLoadRetry();
     });
   }
 
@@ -234,6 +278,7 @@ class BannerAdService {
     console.log('[BannerAdService] 리소스 정리 시작');
 
     this.bannerUsers = 0;
+    this.loadRetryBackoff.reset();
 
     // 배너 숨기기 (큐 직렬 처리)
     this.enqueueSync().catch((error) => {
@@ -297,6 +342,7 @@ class BannerAdService {
           const canRequest = await ensureAdMobReady();
           if (!canRequest) {
             this.showStatus = 'failed';
+            this.setBannerHeightPx(0);
             return;
           }
           await this.showAdMobBanner(targetBottomMarginPx);
@@ -306,6 +352,7 @@ class BannerAdService {
       } catch (error) {
         console.error('[BannerAdService] 배너 표시 실패:', error);
         this.showStatus = 'failed';
+        this.scheduleLoadRetry();
       }
       return;
     }
@@ -336,11 +383,23 @@ class BannerAdService {
     });
   }
 
+  private scheduleLoadRetry(): void {
+    if (this.bannerUsers <= 0) return;
+
+    this.loadRetryBackoff.schedule(() => {
+      if (this.bannerUsers <= 0 || this.showStatus !== 'failed') return;
+      this.enqueueSync().catch((error) => {
+        console.error('[BannerAdService] 배너 재시도 실패:', error);
+      });
+    });
+  }
+
   private async hideCurrentBanner(): Promise<void> {
     if (this.showStatus !== 'showing') {
       this.showStatus = 'idle';
       this.activeBottomMarginPx = 0;
       this.setBannerHeightPx(0);
+      this.loadRetryBackoff.clearPending();
       return;
     }
 
@@ -364,6 +423,7 @@ class BannerAdService {
       this.hasTrackedAdMobImpressionForCurrentBanner = false;
       this.activeBottomMarginPx = 0;
       this.setBannerHeightPx(0);
+      this.loadRetryBackoff.clearPending();
     }
   }
 }

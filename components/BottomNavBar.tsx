@@ -129,7 +129,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
   const premiumUiTaskbarBadgeClassName = premiumUiObjects.extended.navigation.taskbarBadgeClassName;
   const premiumUiLockToastClassName = premiumUiObjects.extended.navigation.lockToastClassName;
   const premiumUiNavHeightPx = premiumUiObjects.extended.navigation.navHeightPx;
-  const navContainerRef = useRef<HTMLDivElement | null>(null);
+  const navMeasureRef = useRef<HTMLElement | null>(null);
   const [navHeight, setNavHeight] = useState<number>(() => getEstimatedBottomNavHeight(isPremiumUiThemeActive, premiumUiNavHeightPx));
   useBottomChromeHeight(navHeight);
 
@@ -191,7 +191,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
 
     const fallbackHeight = getEstimatedBottomNavHeight(isPremiumUiThemeActive, premiumUiNavHeightPx);
     const measure = () => {
-      const measured = navContainerRef.current?.getBoundingClientRect().height;
+      const measured = navMeasureRef.current?.getBoundingClientRect().height;
       const nextHeight = Math.max(0, Math.round(measured ?? fallbackHeight));
       setNavHeight((prev) => (Math.abs(prev - nextHeight) > 0.5 ? nextHeight : prev));
     };
@@ -199,9 +199,9 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
     measure();
 
     let observer: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== 'undefined' && navContainerRef.current) {
+    if (typeof ResizeObserver !== 'undefined' && navMeasureRef.current) {
       observer = new ResizeObserver(measure);
-      observer.observe(navContainerRef.current);
+      observer.observe(navMeasureRef.current);
     }
 
     window.addEventListener('resize', measure);
@@ -223,9 +223,8 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
   if (isPremiumUiThemeActive) {
     return (
       <div
-        ref={navContainerRef}
         className="fixed left-0 right-0 z-[100]"
-        style={{ bottom: bottomOffset }}
+        style={{ bottom: bottomOffset, paddingBottom: 'var(--app-safe-bottom)' }}
       >
         {/* 잠금 안내 토스트 */}
         {lockToast && (
@@ -235,7 +234,12 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
             </div>
           </div>
         )}
-        <div className={premiumUiTaskbarClassName}>
+        <div
+          ref={(node) => {
+            navMeasureRef.current = node;
+          }}
+          className={premiumUiTaskbarClassName}
+        >
           {navItems.map((item) => (
             <button
               key={item.id}
@@ -269,9 +273,8 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
   // 기본 테마: 모던 글래스모피즘 하단 네비게이션
   return (
     <div
-      ref={navContainerRef}
       className="fixed left-0 right-0 z-[100]"
-      style={{ bottom: bottomOffset }}
+      style={{ bottom: bottomOffset, paddingBottom: 'var(--app-safe-bottom)' }}
     >
       {/* 잠금 안내 토스트 */}
       {lockToast && (
@@ -283,6 +286,9 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
       )}
       <div className="mx-auto max-w-md px-3">
         <nav
+          ref={(node) => {
+            navMeasureRef.current = node;
+          }}
           className="
             flex items-stretch justify-around
             bg-white/80 backdrop-blur-xl

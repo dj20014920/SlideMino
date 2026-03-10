@@ -110,6 +110,7 @@ import {
 } from './services/nativeUpdate';
 import { SeasonRewardModal } from './components/SeasonRewardModal';
 import { clamp } from './utils/math';
+import { getSafeAreaInsetPx } from './utils/safeArea';
 import { MissionModal } from './components/MissionModal';
 import {
   initMissionTracking,
@@ -482,9 +483,7 @@ const App: React.FC = () => {
     const retryTimerIds: number[] = [];
 
     const readSafeTopPx = () => {
-      const raw = getComputedStyle(root).getPropertyValue('--app-safe-top');
-      const parsed = Number.parseFloat(raw);
-      return Number.isFinite(parsed) ? parsed : 0;
+      return getSafeAreaInsetPx('top');
     };
 
     const readVisualViewportTopPx = () => {
@@ -673,7 +672,7 @@ const App: React.FC = () => {
     if (isNative) {
       setMenuBottomNavHeight(getEstimatedBottomNavHeight(isPremiumUiThemeActive, premiumNavHeightPx));
     }
-  }, [isPremiumUiThemeActive, isNative]);
+  }, [isPremiumUiThemeActive, isNative, premiumNavHeightPx]);
 
   // 랭킹 오프라인 큐 자동 동기화
   useEffect(() => {

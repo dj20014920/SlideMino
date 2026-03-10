@@ -1,0 +1,154 @@
+diff --git a/node_modules/@capacitor-community/admob/android/src/main/java/com/getcapacitor/community/admob/banner/BannerExecutor.java b/node_modules/@capacitor-community/admob/android/src/main/java/com/getcapacitor/community/admob/banner/BannerExecutor.java
+index c629139..a1dd138 100644
+--- a/node_modules/@capacitor-community/admob/android/src/main/java/com/getcapacitor/community/admob/banner/BannerExecutor.java
++++ b/node_modules/@capacitor-community/admob/android/src/main/java/com/getcapacitor/community/admob/banner/BannerExecutor.java
+@@ -90,58 +90,40 @@ public class BannerExecutor extends Executor {
+                 CoordinatorLayout.LayoutParams.WRAP_CONTENT
+             );
+ 
+-            // TODO: Make an enum like the AdSizeEnum?
+-            switch (adOptions.position) {
+-                case "TOP_CENTER":
+-                    mAdViewLayoutParams.gravity = Gravity.TOP;
+-                    break;
+-                case "CENTER":
+-                    mAdViewLayoutParams.gravity = Gravity.CENTER;
+-                    break;
+-                default:
+-                    mAdViewLayoutParams.gravity = Gravity.BOTTOM;
+-                    break;
+-            }
++            applyBannerLayoutGravity(mAdViewLayoutParams, adOptions.position);
++
++            int densityMargin = (int) (adOptions.margin * density);
++            int horizontalMarginPx = calculateHorizontalMarginPx(adOptions, density, defaultWidthPixels, realWidthPixels, fullscreen);
++
++            applyBannerLayoutMargins(mAdViewLayoutParams, adOptions.position, horizontalMarginPx, densityMargin, 0, 0, 0, 0);
+ 
+             // set Safe Area only for Android 15+
+             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+                 View rootView = activitySupplier.get().getWindow().getDecorView();
+                 rootView.setOnApplyWindowInsetsListener((v, insets) -> {
+-                    int bottomInset = insets.getSystemWindowInsetBottom();
+-                    int topInset = insets.getSystemWindowInsetTop();
+-
+-                    if ("TOP_CENTER".equals(adOptions.position)) {
+-                        mAdViewLayoutParams.setMargins(0, topInset, 0, 0);
+-                    } else {
+-                        mAdViewLayoutParams.setMargins(0, 0, 0, bottomInset);
+-                    }
++                    android.graphics.Insets safeInsets = insets.getInsetsIgnoringVisibility(
++                        android.view.WindowInsets.Type.systemBars() | android.view.WindowInsets.Type.displayCutout()
++                    );
++
++                    applyBannerLayoutMargins(
++                        mAdViewLayoutParams,
++                        adOptions.position,
++                        horizontalMarginPx,
++                        densityMargin,
++                        safeInsets.left,
++                        safeInsets.top,
++                        safeInsets.right,
++                        safeInsets.bottom
++                    );
+ 
+                     mAdViewLayout.setLayoutParams(mAdViewLayoutParams);
+                     return insets;
+                 });
++                rootView.requestApplyInsets();
+             }
+ 
+             mAdViewLayout.setLayoutParams(mAdViewLayoutParams);
+ 
+-            int densityMargin = (int) (adOptions.margin * density);
+-
+-            // Center Banner Ads
+-            int adWidth = (int) (adOptions.adSize.getSize().getWidth() * density);
+-
+-            if (adWidth <= 0 || adOptions.adSize.toString().equals("ADAPTIVE_BANNER")) {
+-                int margin = 0;
+-                if (fullscreen) {
+-                    margin = (realWidthPixels - defaultWidthPixels) / 2;
+-                }
+-                mAdViewLayoutParams.setMargins(margin, densityMargin, margin, densityMargin);
+-            } else {
+-                int sideMargin = ((int) defaultWidthPixels - adWidth) / 2;
+-                if (fullscreen) {
+-                    sideMargin = (realWidthPixels - adWidth) / 2;
+-                }
+-                mAdViewLayoutParams.setMargins(sideMargin, densityMargin, sideMargin, densityMargin);
+-            }
+-
+             createNewAdView(adOptions);
+ 
+             call.resolve();
+@@ -231,6 +213,69 @@ public class BannerExecutor extends Executor {
+             });
+     }
+ 
++    private void applyBannerLayoutGravity(CoordinatorLayout.LayoutParams layoutParams, String position) {
++        switch (position) {
++            case "TOP_CENTER":
++                layoutParams.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
++                break;
++            case "CENTER":
++                layoutParams.gravity = Gravity.CENTER;
++                break;
++            default:
++                layoutParams.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
++                break;
++        }
++    }
++
++    private int calculateHorizontalMarginPx(
++        AdOptions adOptions,
++        float density,
++        int defaultWidthPixels,
++        int realWidthPixels,
++        boolean fullscreen
++    ) {
++        int adWidth = (int) (adOptions.adSize.getSize().getWidth() * density);
++
++        if (adWidth <= 0 || adOptions.adSize.toString().equals("ADAPTIVE_BANNER")) {
++            if (fullscreen) {
++                return Math.max(0, (realWidthPixels - defaultWidthPixels) / 2);
++            }
++            return 0;
++        }
++
++        if (fullscreen) {
++            return Math.max(0, (realWidthPixels - adWidth) / 2);
++        }
++
++        return Math.max(0, (defaultWidthPixels - adWidth) / 2);
++    }
++
++    private void applyBannerLayoutMargins(
++        CoordinatorLayout.LayoutParams layoutParams,
++        String position,
++        int horizontalMarginPx,
++        int verticalMarginPx,
++        int insetLeftPx,
++        int insetTopPx,
++        int insetRightPx,
++        int insetBottomPx
++    ) {
++        int leftMargin = horizontalMarginPx + insetLeftPx;
++        int rightMargin = horizontalMarginPx + insetRightPx;
++
++        switch (position) {
++            case "TOP_CENTER":
++                layoutParams.setMargins(leftMargin, verticalMarginPx + insetTopPx, rightMargin, 0);
++                break;
++            case "CENTER":
++                layoutParams.setMargins(leftMargin, verticalMarginPx, rightMargin, verticalMarginPx);
++                break;
++            default:
++                layoutParams.setMargins(leftMargin, 0, rightMargin, verticalMarginPx + insetBottomPx);
++                break;
++        }
++    }
++
+     /**
+      * Follow iOS method Name:
+      * https://developers.google.com/admob/ios/banner?hl=ja

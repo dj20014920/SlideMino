@@ -11,6 +11,8 @@ let startPromise: Promise<void> | null = null;
 let canRequestAds: boolean | null = null;
 let isVirtualPromise: Promise<boolean> | null = null;
 
+export const AD_MOB_CONSENT_UPDATED_EVENT = 'slidemino:admob-consent-updated';
+
 export interface AdMobRequestPolicy {
   shouldUseTestAds: boolean;
 }
@@ -18,6 +20,30 @@ export interface AdMobRequestPolicy {
 const normalizeCanRequestAds = (info: AdmobConsentInfo | null | undefined): boolean => {
   if (!info) return true;
   return info.canRequestAds ?? true;
+};
+
+const publishConsentState = (nextCanRequestAds: boolean): void => {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent(AD_MOB_CONSENT_UPDATED_EVENT, {
+    detail: { canRequestAds: nextCanRequestAds },
+  }));
+};
+
+const updateCanRequestAds = (info: AdmobConsentInfo | null | undefined): void => {
+  const nextCanRequestAds = normalizeCanRequestAds(info);
+  if (canRequestAds === nextCanRequestAds) return;
+  canRequestAds = nextCanRequestAds;
+  publishConsentState(nextCanRequestAds);
+};
+
+const refreshConsentInfo = async (): Promise<AdmobConsentInfo | null> => {
+  try {
+    const consentInfo = await AdMob.requestConsentInfo();
+    updateCanRequestAds(consentInfo);
+    return consentInfo;
+  } catch {
+    return null;
+  }
 };
 
 const ensureStarted = async (): Promise<void> => {
@@ -42,11 +68,7 @@ const ensureStarted = async (): Promise<void> => {
       initializeForTesting: false,
     });
 
-    try {
-      consentInfo = await AdMob.requestConsentInfo();
-    } catch {
-      consentInfo = null;
-    }
+    consentInfo = await refreshConsentInfo();
 
     // iOS only: ATT status can affect ad personalization.
     // Keep this best-effort and never block startup on failures.
@@ -65,12 +87,15 @@ const ensureStarted = async (): Promise<void> => {
     if (consentInfo?.isConsentFormAvailable && consentInfo.status === AdmobConsentStatus.REQUIRED) {
       try {
         consentInfo = await AdMob.showConsentForm();
+        updateCanRequestAds(consentInfo);
       } catch {
-        // Ignore: if the form fails to show, continue without blocking app startup.
+        consentInfo = await refreshConsentInfo();
       }
     }
 
-    canRequestAds = normalizeCanRequestAds(consentInfo);
+    if (consentInfo) {
+      updateCanRequestAds(consentInfo);
+    }
     started = true;
   })();
 
@@ -84,6 +109,9 @@ export const getAdMobRequestPolicy = async (): Promise<AdMobRequestPolicy> => ({
 export const ensureAdMobReady = async (): Promise<boolean> => {
   if (Capacitor.getPlatform() === 'web') return false;
   await ensureStarted();
+  if (canRequestAds === false) {
+    await refreshConsentInfo();
+  }
   return canRequestAds !== false;
 };
 
@@ -106,5 +134,7 @@ export const openNativePrivacyOptionsForm = async (): Promise<void> => {
     await AdMob.showPrivacyOptionsForm();
   } catch {
     // Keep app stable if the form is unavailable.
+  } finally {
+    await refreshConsentInfo();
   }
 };

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Globe, Check } from 'lucide-react';
 import { LANGUAGE_CONFIGS, normalizeLanguage, type SupportedLanguage } from '../i18n/constants';
 import { saveLanguageOverride } from '../utils/deviceLanguage';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 
 interface LanguageSwitcherProps {
   className?: string;
@@ -11,6 +12,7 @@ interface LanguageSwitcherProps {
 export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ className = '' }) => {
   const { i18n } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
+  useBodyScrollLock(isOpen);
 
   const currentLanguage = normalizeLanguage(i18n.resolvedLanguage ?? i18n.language);
 

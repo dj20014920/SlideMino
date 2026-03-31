@@ -187,7 +187,7 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onA
         )}
 
         {/* 항목 목록 */}
-        <div className={isPremiumUi ? `${premiumUiWindowBodyClassName} flex-1 overflow-y-auto px-2 py-2 space-y-2` : 'flex-1 overflow-y-auto px-4 py-3 space-y-2.5'}>
+        <div className={isPremiumUi ? `${premiumUiWindowBodyClassName} flex-1 overflow-y-auto px-2 py-2 space-y-2 modal-scroll-panel` : 'flex-1 overflow-y-auto px-4 py-3 space-y-2.5 modal-scroll-panel'}>
           <div className="grid grid-cols-2 gap-2">
             <div className={isPremiumUi ? `${premiumUiSunkenClassName} px-2 py-1.5` : 'rounded-xl border border-emerald-100 bg-emerald-50 px-2.5 py-2'}>
               <div className={`text-[10px] font-semibold ${isPremiumUi ? '' : 'text-emerald-700'}`}>

@@ -395,7 +395,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
             </div>
 
             {/* 일반 모드 랭킹 리스트 */}
-            <div className={isPremiumUi ? `${premiumUiWindowBodyClassName} flex-1 overflow-y-auto p-2 space-y-1` : 'flex-1 overflow-y-auto p-4 space-y-2 bg-gray-50/50'}>
+            <div className={isPremiumUi ? `${premiumUiWindowBodyClassName} flex-1 overflow-y-auto p-2 space-y-1 modal-scroll-panel` : 'flex-1 overflow-y-auto p-4 space-y-2 bg-gray-50/50 modal-scroll-panel'}>
               {(isOffline || fromCache) && (
                 <div className="px-4 py-2 rounded-xl text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200">
                   {isOffline ? t('modals:leaderboard.offline') : t('modals:leaderboard.cached')}
@@ -515,7 +515,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
             </div>
 
             {/* 이벤트 랭킹 리스트 */}
-            <div className={isPremiumUi ? `${premiumUiWindowBodyClassName} flex-1 overflow-y-auto p-2 space-y-1` : 'flex-1 overflow-y-auto p-4 space-y-2 bg-orange-50/40'}>
+            <div className={isPremiumUi ? `${premiumUiWindowBodyClassName} flex-1 overflow-y-auto p-2 space-y-1 modal-scroll-panel` : 'flex-1 overflow-y-auto p-4 space-y-2 bg-orange-50/40 modal-scroll-panel'}>
               {eventOffline && (
                 <div className="px-4 py-2 rounded-xl text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200">
                   {t('modals:leaderboard.offline')}

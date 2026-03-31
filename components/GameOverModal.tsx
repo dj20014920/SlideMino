@@ -14,6 +14,7 @@ import { PLAYER_NAME_MAX_LENGTH, normalizePlayerName, validatePlayerName } from 
 import type { GameMode, BoardSize } from '../types';
 import AdBanner from './AdBanner';
 import { useBlockCustomization } from '../context/BlockCustomizationContext';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 
 interface GameOverModalProps {
     sessionId: string;
@@ -66,6 +67,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
     onSessionNameLocked,
 }) => {
     const { t } = useTranslation();
+    useBodyScrollLock(true);
     const [step, setStep] = useState<'INITIAL' | 'REGISTER' | 'SUBMITTED'>('INITIAL');
     const [name, setName] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -283,14 +285,14 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
     const submittedMessage = submittedMessageOverride ?? t('modals:rankingRegister.successMessage');
 
     return (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6">
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 modal-safe-overlay">
             {/* Backdrop */}
             <div className={isPremiumUi ? `absolute inset-0 ${premiumUiModalOverlayClassName}` : 'absolute inset-0 bg-white/80 backdrop-blur-xl animate-fade-in'} />
 
             {/* Content */}
             <div className={isPremiumUi
-                ? `${premiumUiWindowClassName} ${premiumUiModalWindowClassName} relative z-10 flex flex-col items-center w-full max-w-sm animate-slide-up`
-                : 'relative z-10 flex flex-col items-center w-full max-w-sm animate-slide-up p-5'}>
+                ? `${premiumUiWindowClassName} ${premiumUiModalWindowClassName} relative z-10 flex flex-col items-center w-full max-w-sm animate-slide-up modal-safe-panel overflow-hidden`
+                : 'relative z-10 flex flex-col items-center w-full max-w-sm animate-slide-up p-5 modal-safe-panel overflow-hidden'}>
                 {isPremiumUi && (
                     <div className={`${premiumUiTitleBarClassName} w-full`}>
                         <div className={premiumUiTitleBarTextClassName}>{t('modals:gameOver.title')}</div>
@@ -299,7 +301,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                         </div>
                     </div>
                 )}
-                <div className={isPremiumUi ? `${premiumUiWindowBodyClassName} w-full p-3` : 'w-full'}>
+                <div className={isPremiumUi ? `${premiumUiWindowBodyClassName} w-full p-3 flex-1 min-h-0 overflow-y-auto modal-scroll-panel` : 'w-full flex-1 min-h-0 overflow-y-auto modal-scroll-panel'}>
 
                     {step === 'INITIAL' && (
                         <div className="flex flex-col items-center space-y-8 w-full">

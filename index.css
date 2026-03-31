@@ -159,8 +159,16 @@
 .modal-safe-overlay {
   padding-top: max(1rem, calc(var(--ui-safe-top, 0px) + 0.75rem));
   padding-bottom: max(1rem, calc(var(--bottom-chrome-height, 0px) + 0.75rem));
+  overscroll-behavior: contain;
 }
 
 .modal-safe-panel {
   max-height: min(92dvh, calc(100dvh - var(--ui-safe-top, 0px) - var(--bottom-chrome-height, 0px) - 1.5rem));
+  overscroll-behavior: contain;
+}
+
+.modal-scroll-panel {
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }

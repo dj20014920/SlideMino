@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Image as ImageIcon, Lock, Palette as PaletteIcon, RotateCcw, X } from 'lucide-react';
 import { getTileNumberLayout } from '../constants';
 import { useBlockCustomization } from '../context/BlockCustomizationContext';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import { getDefaultTileValuesForCustomization } from '../services/blockCustomization';
 import type { TileSkinOverride } from '../types';
 import { SquareImageCropperModal } from './SquareImageCropperModal';
@@ -78,6 +79,7 @@ const TileSwatch = React.memo<{
 
 export function BlockCustomizationModal({ open, onClose }: BlockCustomizationModalProps) {
   const { t } = useTranslation();
+  useBodyScrollLock(open);
   const { gate, settings, setSettings, resetAll, isPremiumUiThemeActive, premiumUiObjects } = useBlockCustomization();
   const premiumUiModalWindowClassName = premiumUiObjects.extended.windows.modalWindowClassName;
   const [tab, setTab] = useState<TabKey>('global');
@@ -151,14 +153,14 @@ export function BlockCustomizationModal({ open, onClose }: BlockCustomizationMod
 
   return (
     <div
-      className="fixed inset-0 z-[1000] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[1000] flex items-center justify-center p-4 modal-safe-overlay"
       onPointerDown={(e) => e.stopPropagation()}
       onPointerMove={(e) => e.stopPropagation()}
       onPointerUp={(e) => e.stopPropagation()}
     >
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
-      <div className={`relative z-10 w-full max-w-5xl max-h-[90dvh] rounded-3xl bg-white/90 backdrop-blur-sm border border-white/60 shadow-2xl overflow-hidden flex flex-col ${isPremiumUiThemeActive ? premiumUiModalWindowClassName : ''}`}>
+      <div className={`relative z-10 w-full max-w-5xl max-h-[90dvh] modal-safe-panel rounded-3xl bg-white/90 backdrop-blur-sm border border-white/60 shadow-2xl overflow-hidden flex flex-col ${isPremiumUiThemeActive ? premiumUiModalWindowClassName : ''}`}>
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-5 py-4 border-b border-black/5 gap-3 shrink-0">
           <div className="space-y-1">
@@ -229,7 +231,7 @@ export function BlockCustomizationModal({ open, onClose }: BlockCustomizationMod
         </div>
 
         {/* Body */}
-        <div className="p-4 sm:p-5 overflow-y-auto min-h-0 flex-1">
+        <div className="p-4 sm:p-5 overflow-y-auto min-h-0 flex-1 modal-scroll-panel">
           {tab === 'global' ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <section className="space-y-4">

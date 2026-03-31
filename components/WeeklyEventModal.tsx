@@ -12,6 +12,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Trophy, Play, Clock, Flame, Zap, X } from 'lucide-react';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
+import { BASE_URL } from '../config/constants';
 import { useBlockCustomization } from '../context/BlockCustomizationContext';
 import {
   getCurrentEvent,
@@ -298,10 +299,10 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
   const isApp = isNativeApp();
 
   return (
-    <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 ${isPremiumUi ? premiumUiModalOverlayClassName : 'bg-black/60 backdrop-blur-sm'}`}>
+    <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 modal-safe-overlay ${isPremiumUi ? premiumUiModalOverlayClassName : 'bg-black/60 backdrop-blur-sm'}`}>
       <div className={isPremiumUi
-        ? `${premiumUiWindowClassName} relative w-full max-w-md max-h-[90vh] overflow-y-auto`
-        : 'relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl'
+        ? `${premiumUiWindowClassName} relative w-full max-w-md max-h-[90vh] modal-safe-panel overflow-y-auto modal-scroll-panel`
+        : 'relative w-full max-w-md max-h-[90vh] modal-safe-panel overflow-y-auto modal-scroll-panel rounded-2xl bg-white shadow-2xl'
       }>
         {/* 헤더 */}
         {isPremiumUi ? (
@@ -421,7 +422,7 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
                 {t('game:weeklyEvent.rewards.appOnlyDesc')}
               </p>
               <a
-                href="https://slidemino.com"
+                href={BASE_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-center w-full py-2 rounded-lg bg-indigo-600 text-white font-semibold text-xs hover:bg-indigo-700 active:scale-[0.98] transition-all"
@@ -588,7 +589,7 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
                   <Trophy size={14} className="text-amber-500" />
                   {t('game:weeklyEvent.rankings')}
                 </h3>
-                <div className={isPremiumUi ? `${premiumUiSunkenClassName} space-y-0 max-h-60 overflow-y-auto` : 'space-y-1 max-h-60 overflow-y-auto'}>
+                <div className={isPremiumUi ? `${premiumUiSunkenClassName} space-y-0 max-h-60 overflow-y-auto modal-scroll-panel` : 'space-y-1 max-h-60 overflow-y-auto modal-scroll-panel'}>
                   {rankings.slice(0, 20).map((entry, idx) => {
                     const levelBadgeEmoji = getLevelBadgeById(entry.levelBadge ?? null)?.emoji;
                     return (
@@ -637,7 +638,7 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
                   {t('common:labels.loading')}
                 </p>
               ) : prevRankings.length > 0 ? (
-                <div className={isPremiumUi ? `${premiumUiSunkenClassName} space-y-0 max-h-60 overflow-y-auto` : 'space-y-1 max-h-60 overflow-y-auto'}>
+                <div className={isPremiumUi ? `${premiumUiSunkenClassName} space-y-0 max-h-60 overflow-y-auto modal-scroll-panel` : 'space-y-1 max-h-60 overflow-y-auto modal-scroll-panel'}>
                   {prevRankings.slice(0, 20).map((entry, idx) => {
                     const levelBadgeEmoji = getLevelBadgeById(entry.levelBadge ?? null)?.emoji;
                     return (

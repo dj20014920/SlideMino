@@ -9,6 +9,7 @@ import { gameEventBus } from '../services/gameEventBus';
 import { getHighestLevelBadgeForLevel, loadXpData } from '../services/xpLevelService';
 import { PLAYER_NAME_MAX_LENGTH, normalizePlayerName, validatePlayerName } from '../utils/playerName';
 import { useBlockCustomization } from '../context/BlockCustomizationContext';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import type { BoardSize, GameMode } from '../types';
 
 export type ActiveGameExitContext = 'HOME' | 'NEW_GAME';
@@ -57,6 +58,7 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
     onRegisteredAndProceed,
 }) => {
     const { t } = useTranslation();
+    useBodyScrollLock(open);
     const { isPremiumUiThemeActive: contextIsPremiumUiThemeActive, premiumUiObjects } = useBlockCustomization();
     const premiumUiModalOverlayClassName = premiumUiObjects.modalOverlayClassName;
     const premiumUiWindowClassName = premiumUiObjects.windowClassName;
@@ -274,12 +276,12 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
     const isPremiumUi = Boolean(isPremiumUiThemeActive ?? contextIsPremiumUiThemeActive);
 
     return (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6">
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 modal-safe-overlay">
             <div className={isPremiumUi ? `absolute inset-0 ${premiumUiModalOverlayClassName || 'bg-black/45'}` : 'absolute inset-0 bg-white/80 backdrop-blur-xl animate-fade-in'} />
 
             <div className={isPremiumUi
-                ? `${premiumUiWindowClassName} ${premiumUiModalWindowClassName} relative z-10 w-full max-w-sm animate-slide-up`
-                : 'relative z-10 w-full max-w-sm rounded-3xl border border-white/70 bg-white/70 p-6 shadow-2xl shadow-slate-900/10 animate-slide-up'}
+                ? `${premiumUiWindowClassName} ${premiumUiModalWindowClassName} relative z-10 w-full max-w-sm animate-slide-up modal-safe-panel overflow-hidden flex flex-col`
+                : 'relative z-10 w-full max-w-sm rounded-3xl border border-white/70 bg-white/70 p-6 shadow-2xl shadow-slate-900/10 animate-slide-up modal-safe-panel overflow-hidden flex flex-col'}
             >
                 {isPremiumUi && (
                     <div className={premiumUiTitleBarClassName}>
@@ -290,7 +292,7 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                     </div>
                 )}
 
-                <div className={isPremiumUi ? `${premiumUiWindowBodyClassName} space-y-4 p-3` : ''}>
+                <div className={isPremiumUi ? `${premiumUiWindowBodyClassName} space-y-4 p-3 flex-1 min-h-0 overflow-y-auto modal-scroll-panel` : 'flex-1 min-h-0 overflow-y-auto modal-scroll-panel'}>
                     {step === 'CHOICE' && (
                         <div className={isPremiumUi ? 'space-y-4' : 'space-y-5'}>
                             <div className="space-y-2 text-center">

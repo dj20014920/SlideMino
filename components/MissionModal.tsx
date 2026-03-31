@@ -356,7 +356,7 @@ export const MissionModal: React.FC<MissionModalProps> = ({ open, onClose, onRew
         </div>
 
         {/* 미션 목록 */}
-        <div className={isPremiumUi ? `${premiumUiWindowBodyClassName} flex-1 overflow-y-auto p-2 space-y-1.5` : 'flex-1 overflow-y-auto p-4 space-y-2.5'}>
+        <div className={isPremiumUi ? `${premiumUiWindowBodyClassName} flex-1 overflow-y-auto p-2 space-y-1.5 modal-scroll-panel` : 'flex-1 overflow-y-auto p-4 space-y-2.5 modal-scroll-panel'}>
           {/* 남은 시간 */}
           <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-2">
             <Clock size={12} />

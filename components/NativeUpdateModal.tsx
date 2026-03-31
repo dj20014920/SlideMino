@@ -2,6 +2,7 @@ import React from 'react';
 import { ArrowUpCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { type NativeUpdateRequirement } from '../services/nativeUpdate';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 
 interface NativeUpdateModalProps {
   open: boolean;
@@ -17,6 +18,7 @@ export const NativeUpdateModal: React.FC<NativeUpdateModalProps> = ({
   onUpdateNow,
 }) => {
   const { t } = useTranslation();
+  useBodyScrollLock(open);
 
   if (!open || !requirement) return null;
 
@@ -25,10 +27,10 @@ export const NativeUpdateModal: React.FC<NativeUpdateModalProps> = ({
     : t('modals:updateRequired.store.google');
 
   return (
-    <div className="fixed inset-0 z-[240] flex items-center justify-center p-6">
+    <div className="fixed inset-0 z-[240] flex items-center justify-center p-6 modal-safe-overlay">
       <div className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm" />
 
-      <div className="relative z-10 w-full max-w-sm rounded-3xl border border-white/30 bg-white/95 p-6 shadow-2xl shadow-slate-900/30">
+      <div className="relative z-10 w-full max-w-sm rounded-3xl border border-white/30 bg-white/95 p-6 shadow-2xl shadow-slate-900/30 modal-safe-panel">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-100 text-blue-600">
           <ArrowUpCircle size={28} />
         </div>

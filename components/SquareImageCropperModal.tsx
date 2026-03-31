@@ -2,6 +2,7 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 're
 import { Check, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useBlockCustomization } from '../context/BlockCustomizationContext';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 
 type SquareImageCropperModalProps = {
   open: boolean;
@@ -23,6 +24,7 @@ export function SquareImageCropperModal({
   onConfirm,
 }: SquareImageCropperModalProps) {
   const { t } = useTranslation();
+  useBodyScrollLock(open);
   const { isPremiumUiThemeActive, premiumUiObjects } = useBlockCustomization();
   const premiumUiModalWindowClassName = premiumUiObjects.extended.windows.modalWindowClassName;
   const viewportRef = useRef<HTMLDivElement | null>(null);
@@ -150,14 +152,14 @@ export function SquareImageCropperModal({
 
   return (
     <div
-      className="fixed inset-0 z-[1001] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[1001] flex items-center justify-center p-4 modal-safe-overlay"
       onPointerDown={(e) => e.stopPropagation()}
       onPointerMove={(e) => e.stopPropagation()}
       onPointerUp={(e) => e.stopPropagation()}
     >
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onCancel} />
 
-      <div className={`relative z-10 w-full max-w-lg rounded-3xl bg-white/90 backdrop-blur-sm border border-white/60 shadow-2xl overflow-hidden ${isPremiumUiThemeActive ? premiumUiModalWindowClassName : ''}`}>
+      <div className={`relative z-10 w-full max-w-lg rounded-3xl bg-white/90 backdrop-blur-sm border border-white/60 shadow-2xl overflow-hidden modal-safe-panel ${isPremiumUiThemeActive ? premiumUiModalWindowClassName : ''}`}>
         <div className="flex items-start justify-between px-5 py-4 border-b border-black/5">
           <div>
             <h3 className="text-lg font-semibold text-gray-900">{t('modals:blockCustomization.cropper.title')}</h3>

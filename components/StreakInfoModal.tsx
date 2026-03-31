@@ -9,6 +9,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, HelpCircle, Flame } from 'lucide-react';
 import { useBlockCustomization } from '../context/BlockCustomizationContext';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import {
   loadStreakData,
   setAutoFreeze,
@@ -23,6 +24,7 @@ interface StreakInfoModalProps {
 
 export const StreakInfoModal: React.FC<StreakInfoModalProps> = ({ open, onClose }) => {
   const { t } = useTranslation('common');
+  useBodyScrollLock(open);
   const [data, setData] = useState<StreakData>(() => loadStreakData());
   const [showFreezeHelp, setShowFreezeHelp] = useState(false);
   const { isPremiumUiThemeActive, premiumUiObjects } = useBlockCustomization();
@@ -71,7 +73,7 @@ export const StreakInfoModal: React.FC<StreakInfoModalProps> = ({ open, onClose 
           </div>
         )}
 
-        <div className={isPremiumUi ? `${premiumUiWindowBodyClassName} flex-1 overflow-y-auto p-3 space-y-3` : 'flex-1 overflow-y-auto p-5 space-y-4'}>
+        <div className={isPremiumUi ? `${premiumUiWindowBodyClassName} flex-1 overflow-y-auto p-3 space-y-3 modal-scroll-panel` : 'flex-1 overflow-y-auto p-5 space-y-4 modal-scroll-panel'}>
           {/* 스트릭 카운터 */}
           <div className={isPremiumUi ? `text-center ${premiumUiSunkenClassName} p-4` : 'text-center bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl p-5'}>
             <div className={isPremiumUi ? 'text-4xl font-bold' : 'text-5xl font-black text-orange-500'}>{data.currentStreak}</div>

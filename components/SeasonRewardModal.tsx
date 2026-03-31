@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { X, Gift } from 'lucide-react';
 import { isNativeApp } from '../utils/platform';
 import { useBlockCustomization } from '../context/BlockCustomizationContext';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import type { SeasonReward } from '../services/seasonService';
 
 interface SeasonRewardModalProps {
@@ -33,6 +34,7 @@ export const SeasonRewardModal: React.FC<SeasonRewardModalProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation('common');
+  useBodyScrollLock(open);
   const [claiming, setClaiming] = useState(false);
   const [claimed, setClaimed] = useState(false);
   const [totalClaimed, setTotalClaimed] = useState(0);
@@ -62,11 +64,11 @@ export const SeasonRewardModal: React.FC<SeasonRewardModalProps> = ({
   const isWeb = !isNativeApp();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 modal-safe-overlay">
       <div className={isPremiumUi ? `absolute inset-0 ${premiumUiModalOverlayClassName}` : 'absolute inset-0 bg-black/40 backdrop-blur-sm'} onClick={onClose} />
       <div className={isPremiumUi
-        ? `${premiumUiWindowClassName} ${premiumUiModalWindowClassName} relative w-full max-w-sm overflow-hidden`
-        : 'relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden'}>
+        ? `${premiumUiWindowClassName} ${premiumUiModalWindowClassName} relative w-full max-w-sm overflow-hidden modal-safe-panel flex flex-col`
+        : 'relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden modal-safe-panel flex flex-col'}>
         {/* Win98 타이틀 바 / 일반 헤더 */}
         {isPremiumUi ? (
           <div className={premiumUiTitleBarClassName}>
@@ -88,7 +90,7 @@ export const SeasonRewardModal: React.FC<SeasonRewardModalProps> = ({
         )}
 
         {/* 보상 목록 */}
-        <div className={isPremiumUi ? `${premiumUiWindowBodyClassName} p-3 space-y-3` : 'p-5 space-y-3'}>
+        <div className={isPremiumUi ? `${premiumUiWindowBodyClassName} p-3 space-y-3 flex-1 min-h-0 overflow-y-auto modal-scroll-panel` : 'p-5 space-y-3 flex-1 min-h-0 overflow-y-auto modal-scroll-panel'}>
           <p className="text-sm text-gray-500">{t('common:season.rewardDesc')}</p>
 
           {rewards.map((reward, i) => (

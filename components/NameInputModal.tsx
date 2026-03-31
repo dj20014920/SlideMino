@@ -4,6 +4,7 @@ import { X, Play } from 'lucide-react';
 import { PLAYER_NAME_MAX_LENGTH, validatePlayerName, normalizePlayerName } from '../utils/playerName';
 import { isAndroidApp } from '../utils/platform';
 import { useBlockCustomization } from '../context/BlockCustomizationContext';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 
 interface NameInputModalProps {
     open: boolean;
@@ -19,6 +20,7 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({ open, difficulty
     const [name, setName] = useState('');
     const [error, setError] = useState<string | null>(null);
     const isAndroid = isAndroidApp();
+    useBodyScrollLock(open);
     const { isPremiumUiThemeActive, premiumUiObjects } = useBlockCustomization();
     const premiumUiModalOverlayClassName = premiumUiObjects.modalOverlayClassName;
     const premiumUiWindowClassName = premiumUiObjects.windowClassName;
@@ -60,7 +62,7 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({ open, difficulty
     if (!open) return null;
 
     return (
-        <div className={isPremiumUi ? 'fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4' : 'fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4'}>
+        <div className={isPremiumUi ? 'fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 modal-safe-overlay' : 'fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 modal-safe-overlay'}>
             {/* Backdrop */}
             <div
                 className={isPremiumUi ? `absolute inset-0 ${premiumUiModalOverlayClassName}` : 'absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in'}
@@ -68,8 +70,8 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({ open, difficulty
             />
 
             <div className={isPremiumUi
-                ? `${premiumUiWindowClassName} ${premiumUiModalWindowClassName} relative w-full max-w-sm overflow-hidden animate-scale-in mb-safe`
-                : 'relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden animate-scale-in mb-safe'}>
+                ? `${premiumUiWindowClassName} ${premiumUiModalWindowClassName} relative w-full max-w-sm overflow-hidden animate-scale-in mb-safe modal-safe-panel`
+                : 'relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden animate-scale-in mb-safe modal-safe-panel'}>
                 {isPremiumUi && (
                     <div className={premiumUiTitleBarClassName}>
                         <div className={premiumUiTitleBarTextClassName}>{String(t('modals:nameInput.title', { difficulty } as any))}</div>

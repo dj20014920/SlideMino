@@ -1,12 +1,13 @@
 {
   "name": "block-slide-2048",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.45.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host",
     "build": "vite build",
     "build:cf": "tsc && vite build && cp -r functions dist/",
+    "bundle:google:release": "bash ./scripts/build-google-release-bundle.sh",
     "postinstall": "patch-package",
     "preview": "vite preview",
     "cap:sync": "npm run build && npx cap sync",

@@ -303,7 +303,7 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
               </div>
             </div>
 
-            <div className={`${premiumUiWindowBodyClassName} flex-1 min-h-0 overflow-y-auto`}>
+            <div className={`${premiumUiWindowBodyClassName} flex-1 min-h-0 overflow-y-auto modal-scroll-panel`}>
               <p className={premiumUiStatusBarFieldClassName} style={{ marginBottom: '12px' }}>
                 {String(t('modals:skin.ownedCount', { owned: ownedCatalogCount, total: SKIN_CATALOG.length } as any))}
                 {' | 🧩 '}{skinSettings.fragments}
@@ -475,7 +475,7 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
           </div>
 
           {/* 본문 */}
-          <div className="p-5 overflow-y-auto min-h-0 flex-1 space-y-5">
+          <div className="p-5 overflow-y-auto min-h-0 flex-1 space-y-5 modal-scroll-panel">
             {/* 섹션별 컬렉션 그리드 */}
             <div className="space-y-5">
               {skinSections.map((section, sectionIdx) => (

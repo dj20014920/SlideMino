@@ -3,6 +3,7 @@ import { X, ChevronLeft, ChevronRight, Smartphone, Mouse, RotateCw, Undo2, Zap, 
 import { useTranslation } from 'react-i18next';
 import { useBlockCustomization } from '../context/BlockCustomizationContext';
 import { LANGUAGE_CONFIGS, SUPPORTED_LANGUAGES, normalizeLanguage, type SupportedLanguage } from '../i18n/constants';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 
 interface HelpModalProps {
     isOpen: boolean;
@@ -177,6 +178,7 @@ const languageOrder: Language[] = [...SUPPORTED_LANGUAGES];
 
 export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
     const { i18n, t } = useTranslation();
+    useBodyScrollLock(isOpen);
     const { isPremiumUiThemeActive, premiumUiObjects } = useBlockCustomization();
     const premiumUiModalOverlayClassName = premiumUiObjects.modalOverlayClassName;
     const premiumUiWindowClassName = premiumUiObjects.windowClassName;
@@ -206,11 +208,11 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
     };
 
     return (
-        <div className={`fixed inset-0 z-[10000] flex items-center justify-center p-4 ${isPremiumUi ? premiumUiModalOverlayClassName : 'bg-black/60 backdrop-blur-sm'} animate-fadeIn`}>
+        <div className={`fixed inset-0 z-[10000] flex items-center justify-center p-4 modal-safe-overlay ${isPremiumUi ? premiumUiModalOverlayClassName : 'bg-black/60 backdrop-blur-sm'} animate-fadeIn`}>
             <div
                 className={isPremiumUi
-                    ? `${premiumUiWindowClassName} ${premiumUiModalWindowClassName} relative w-full max-w-md max-h-[85vh] overflow-hidden`
-                    : 'relative w-full max-w-md max-h-[85vh] overflow-hidden rounded-3xl shadow-2xl border border-white/50'
+                    ? `${premiumUiWindowClassName} ${premiumUiModalWindowClassName} relative w-full max-w-md max-h-[85vh] modal-safe-panel overflow-hidden flex flex-col`
+                    : 'relative w-full max-w-md max-h-[85vh] modal-safe-panel overflow-hidden rounded-3xl shadow-2xl border border-white/50 flex flex-col'
                 }
                 style={isPremiumUi ? undefined : {
                     background: 'rgba(255, 255, 255, 0.85)',
@@ -279,7 +281,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                 )}
 
                 {/* Content */}
-                <div className={isPremiumUi ? 'px-2 py-2 overflow-y-auto max-h-[calc(85vh-140px)]' : 'px-5 py-4 overflow-y-auto max-h-[calc(85vh-180px)]'}>
+                <div className={isPremiumUi ? 'px-2 py-2 overflow-y-auto max-h-[calc(85vh-140px)] modal-scroll-panel' : 'px-5 py-4 overflow-y-auto max-h-[calc(85vh-180px)] modal-scroll-panel'}>
                     <div className={isPremiumUi ? 'space-y-2' : 'space-y-4'}>
                         {currentContent.sections.map((section, index) => (
                             <div

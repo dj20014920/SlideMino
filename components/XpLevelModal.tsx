@@ -294,7 +294,7 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
 
         {/* 본문 */}
         <div
-          className={isPremiumUi ? `${premiumUiWindowBodyClassName} flex-1 min-h-0 overflow-y-auto p-3 space-y-3` : 'flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-4'}
+          className={isPremiumUi ? `${premiumUiWindowBodyClassName} flex-1 min-h-0 overflow-y-auto p-3 space-y-3 modal-scroll-panel` : 'flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-4 modal-scroll-panel'}
           style={{
             WebkitOverflowScrolling: 'touch',
             touchAction: 'pan-y',

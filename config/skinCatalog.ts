@@ -89,6 +89,23 @@ const LIQUID_GLASS_PARALLEL_SKINS: SkinCatalogEntry[] = LIQUID_GLASS_SWATCHES.ma
 // ==========================================
 
 export const ADDITIONAL_SKIN_CATALOG: SkinCatalogEntry[] = [
+  // Neon Block: 원본 버튼 UI를 정사각형 블록으로 변환 (상시 glow, 숫자 맥동)
+  {
+    id: 'skin_digital_neon_block',
+    hex: '#101010',
+    category: 'digital',
+    nameKey: 'neonBlock',
+    premium: false,
+    style: {
+      type: 'css-pattern',
+      value: 'none',
+      textColor: '#ffffff',
+      customCss: [
+        'border-radius: 4px',
+      ].join('; ') + ';',
+    },
+  },
+
   // 대리석: HSL Progression(light grey → dark grey) + 교차 라이닝 오버레이
   {
     id: 'skin_material_marble',

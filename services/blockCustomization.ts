@@ -689,6 +689,15 @@ export const resolveSkinAppearance = (value: number, skin: { id?: string; hex: s
     };
   }
 
+  // ── Neon Block: 원본 버튼 UI를 정사각형 블록으로 변환 (CSS 클래스 기반) ──
+  const NEON_BLOCK_SKIN_ID = 'skin_digital_neon_block';
+  if (skinId === NEON_BLOCK_SKIN_ID) {
+    return {
+      className: 'skin-neon-block',
+      style: undefined,
+    };
+  }
+
   // ── 1. Explicit palette skins (Neon, Pop Art, Stained Glass) ──
   const explicitPalette = SKIN_EXPLICIT_PALETTES[skinId];
   if (explicitPalette) {

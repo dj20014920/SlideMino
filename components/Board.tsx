@@ -101,6 +101,7 @@ const MergingTilesLayer = React.memo<{
         const { text, fontPx } = getTileNumberLayout(mt.value, layout.cellPx);
         const appearance = resolveTileAppearance(mt.value);
         const preserveAppearanceInWin98 = Boolean(appearance.style?.backgroundColor || appearance.style?.backgroundImage || appearance.style?.boxShadow);
+        const isNeonBlock = appearance.className === 'skin-neon-block';
         return (
           <div
             key={`merge-${mt.id}`}
@@ -110,8 +111,8 @@ const MergingTilesLayer = React.memo<{
             data-premium-ui-allow-gradient={preserveAppearanceInWin98 ? 'true' : undefined}
             data-premium-ui-allow-shadow={preserveAppearanceInWin98 ? 'true' : undefined}
             className={`
-              absolute rounded-xl ${isPremiumUiThemeActive ? premiumUiTileFaceClassName : ''} flex items-center justify-center 
-              font-semibold overflow-hidden text-center
+              absolute ${isPremiumUiThemeActive ? premiumUiTileFaceClassName : (isNeonBlock ? '' : 'rounded-xl')} flex items-center justify-center
+              font-semibold ${isNeonBlock ? '' : 'overflow-hidden'} text-center
               ${appearance.className}
             `}
             style={{
@@ -132,7 +133,7 @@ const MergingTilesLayer = React.memo<{
               willChange: duration ? 'transform' : undefined,
             }}
           >
-            <span className={isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''}>{text}</span>
+            <span className={`${isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''} ${isNeonBlock ? 'skin-neon-block-number' : ''}`}>{text}</span>
           </div>
         );
       })}
@@ -184,6 +185,7 @@ const TilesLayer = React.memo<{
         const { text, fontPx } = getTileNumberLayout(displayValue, layout.cellPx);
         const appearance = resolveTileAppearance(displayValue);
         const preserveAppearanceInWin98 = Boolean(appearance.style?.backgroundColor || appearance.style?.backgroundImage || appearance.style?.boxShadow);
+        const isNeonBlock = appearance.className === 'skin-neon-block';
         const isPendingTarget = canSelectTiles && revivePendingTileId === tile.id;
         const evervaultIntensity = isEvervaultSkin
           ? clamp(Math.log2(Math.max(1, displayValue)) / 15, 0, 1)
@@ -201,8 +203,8 @@ const TilesLayer = React.memo<{
             data-premium-ui-allow-gradient={preserveAppearanceInWin98 ? 'true' : undefined}
             data-premium-ui-allow-shadow={preserveAppearanceInWin98 ? 'true' : undefined}
             className={`
-              absolute ${isPremiumUiThemeActive ? '' : 'rounded-xl'} ${isPremiumUiThemeActive ? premiumUiTileFaceClassName : ''} flex items-center justify-center 
-              font-semibold overflow-hidden text-center
+              absolute ${isPremiumUiThemeActive ? '' : (isNeonBlock ? '' : 'rounded-xl')} ${isPremiumUiThemeActive ? premiumUiTileFaceClassName : ''} flex items-center justify-center
+              font-semibold ${isNeonBlock ? '' : 'overflow-hidden'} text-center
               ${appearance.className}
               ${canSelectTiles ? 'cursor-pointer ring-2 ring-transparent hover:ring-amber-200/70 focus-visible:ring-amber-300 focus-visible:outline-none active:brightness-95' : ''}
               ${isPendingTarget ? 'ring-amber-300 shadow-[0_0_0_3px_rgba(251,191,36,0.32)]' : ''}
@@ -242,7 +244,7 @@ const TilesLayer = React.memo<{
               willChange: duration ? 'transform' : undefined,
             }}
           >
-            <span className={isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''} style={{ position: 'relative', zIndex: 2 }}>{text}</span>
+            <span className={`${isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''} ${isNeonBlock ? 'skin-neon-block-number' : ''}`} style={{ position: 'relative', zIndex: 2 }}>{text}</span>
             {isEvervaultSkin && evervaultIntensity > 0.01 && (
               <EvervaultTileOverlay
                 intensity={evervaultIntensity}
@@ -274,6 +276,7 @@ const ReviveDestroyLayer = React.memo<{
         const transform = `translate3d(${layout.posPx[effect.x]}px, ${layout.posPx[effect.y]}px, 0)`;
         const appearance = resolveTileAppearance(effect.value);
         const preserveAppearanceInWin98 = Boolean(appearance.style?.backgroundColor || appearance.style?.backgroundImage || appearance.style?.boxShadow);
+        const isNeonBlock = appearance.className === 'skin-neon-block';
         const { text, fontPx } = getTileNumberLayout(effect.value, layout.cellPx);
         return (
           <div
@@ -289,8 +292,8 @@ const ReviveDestroyLayer = React.memo<{
           >
             <div
               className={`
-                w-full h-full ${isPremiumUiThemeActive ? '' : 'rounded-xl'} ${isPremiumUiThemeActive ? premiumUiTileFaceClassName : ''} flex items-center justify-center
-                font-semibold overflow-hidden text-center
+                w-full h-full ${isPremiumUiThemeActive ? '' : (isNeonBlock ? '' : 'rounded-xl')} ${isPremiumUiThemeActive ? premiumUiTileFaceClassName : ''} flex items-center justify-center
+                font-semibold ${isNeonBlock ? '' : 'overflow-hidden'} text-center
                 ${appearance.className}
               `}
               data-tile-kind="revive-effect"
@@ -304,7 +307,7 @@ const ReviveDestroyLayer = React.memo<{
                 ...(appearance.style ?? {}),
               }}
             >
-              <span className={isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''}>{text}</span>
+              <span className={`${isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''} ${isNeonBlock ? 'skin-neon-block-number' : ''}`}>{text}</span>
             </div>
           </div>
         );

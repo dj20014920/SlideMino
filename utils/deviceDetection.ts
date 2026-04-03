@@ -91,19 +91,18 @@ export const isEmulator = async (): Promise<boolean> => {
  * 허용 조건:
  * 1) 웹 아님
  * 2) 에뮬레이터/시뮬레이터임
- * 3) 등록된 본인 개발 에뮬레이터 식별자와 일치
  *
- * 따라서 배포된 사용자 실기기에서는 항상 false.
+ * 등록된 개발 기기 ID와 무관하게, 모든 에뮬레이터/시뮬레이터에서
+ * 스킨 카탈로그 전체가 자동으로 해금된다 (테스트·실험용).
+ * 배포된 사용자 실기기에서는 항상 false.
  */
 export const shouldAutoUnlockAllSkinsForDev = async (): Promise<boolean> => {
   if (Capacitor.getPlatform() === 'web') return false;
+
   if (cachedShouldAutoUnlockAllSkinsForDev === true) return true;
 
   const emulator = await isEmulator();
-  if (!emulator) return false;
-
-  const devDevice = await isDevDevice();
-  if (devDevice) {
+  if (emulator) {
     cachedShouldAutoUnlockAllSkinsForDev = true;
     return true;
   }

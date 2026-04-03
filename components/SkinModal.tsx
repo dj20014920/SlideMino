@@ -27,12 +27,13 @@ const SkinPreviewTile = React.memo<{ value: number; skin: { id?: string; hex: st
     const { isPremiumUiThemeActive, premiumUiObjects } = useBlockCustomization();
     const premiumUiTileFaceClassName = premiumUiObjects.extended.text.tileFaceClassName;
     const premiumUiTileNumberClassName = premiumUiObjects.extended.text.tileNumberClassName;
+    const isNeonBlock = skin.id === 'skin_digital_neon_block';
     const { className, style } = resolveSkinAppearance(value, skin);
     const { text, fontPx } = getTileNumberLayout(value, tilePx);
 
     return (
       <div
-        className={`rounded-2xl ${isPremiumUiThemeActive ? premiumUiTileFaceClassName : ''} flex items-center justify-center font-semibold overflow-hidden text-center select-none shrink-0 ${className}`}
+        className={`${isNeonBlock ? '' : 'rounded-2xl'} ${isPremiumUiThemeActive ? premiumUiTileFaceClassName : ''} flex items-center justify-center font-semibold ${isNeonBlock ? '' : 'overflow-hidden'} text-center select-none shrink-0 ${className}`}
         data-skin-preview-tile="true"
         data-premium-ui-allow-gradient="true"
         data-premium-ui-allow-shadow="true"
@@ -45,7 +46,7 @@ const SkinPreviewTile = React.memo<{ value: number; skin: { id?: string; hex: st
           ...style,
         }}
       >
-        <span className={isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''}>{text}</span>
+        <span className={`${isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''} ${isNeonBlock ? 'skin-neon-block-number' : ''}`}>{text}</span>
       </div>
     );
   }
@@ -499,6 +500,7 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                             const isSelected = selectedSkinId === entry.id;
                             const swatchPreviewValue = isLiquidGlassSkin(entry.id) ? 64 : 16;
                             const { className, style } = resolveSkinAppearance(swatchPreviewValue, entry);
+                            const isNeonSwatch = entry.id === 'skin_digital_neon_block';
 
                             return (
                               <button
@@ -506,7 +508,7 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                                 type="button"
                                 onClick={() => handleSkinTap(entry.id, entry.hex)}
                                 className={`
-                                  relative aspect-square rounded-2xl transition-all duration-150 overflow-hidden
+                                  relative aspect-square rounded-2xl transition-all duration-150 ${isNeonSwatch ? '' : 'overflow-hidden'}
                                   ${isSelected ? 'ring-2 ring-gray-900 ring-offset-2' : 'ring-1 ring-black/5'}
                                   ${className}
                                 `}

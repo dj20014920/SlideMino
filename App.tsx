@@ -3577,6 +3577,7 @@ const App: React.FC = () => {
           {cells.map((c, i) => (
             <div
               key={i}
+              data-tile-kind="drag-overlay"
               className={`
                 absolute rounded-lg
                 ${cellAppearance.className}

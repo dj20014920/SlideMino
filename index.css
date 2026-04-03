@@ -179,7 +179,7 @@
 /* Neon Block 블록 본체 — 원본 .btn과 정확히 동일 */
 .skin-neon-block {
   --border-radius: 4px;
-  --padding: 4px;
+  --padding: 2px; /* 그리드 갭(3px) 내에서 확장되도록 4px→2px로 축소 */
   --transition: 0.4s;
   --button-color: #101010;
   --highlight-color-hue: 210deg;
@@ -214,6 +214,11 @@
   overflow: visible !important;
 }
 
+/* 인게임 보드 타일/효과/드래그 오버레이는 absolute 레이아웃 유지 */
+[data-tile-kind].skin-neon-block {
+  position: absolute !important;
+}
+
 /* ::before — 원본과 동일한 외부 테두리/베젤 레이어 + 4방향 + 4모서리 hue glow */
 .skin-neon-block::before {
   content: "" !important;
@@ -227,16 +232,16 @@
   background-image: linear-gradient(0deg, rgba(0, 0, 0, 0.267), rgba(0, 0, 0, 0.667)) !important;
   z-index: -1 !important;
   transition: box-shadow var(--transition), filter var(--transition);
-  /* 4방향 + 4모서리 hue glow — 테두리 전체를 빈틈없이 감쌈 */
+  /* 4방향 + 4모서리 hue glow — 테두리 전체를 빈틈없이 감쌈 (강도 높임) */
   box-shadow:
-    /* 상단 */ 0 -6px 10px -4px hsla(var(--highlight-color-hue), 100%, 70%, 0.45) inset,
-    /* 하단 */ 0 6px 10px -4px hsla(var(--highlight-color-hue), 100%, 70%, 0.45) inset,
-    /* 좌측 */ -6px 0 10px -4px hsla(var(--highlight-color-hue), 100%, 70%, 0.35) inset,
-    /* 우측 */ 6px 0 10px -4px hsla(var(--highlight-color-hue), 100%, 70%, 0.35) inset,
-    /* 좌상단 모서리 */ -5px -5px 8px -3px hsla(var(--highlight-color-hue), 100%, 70%, 0.4) inset,
-    /* 우상단 모서리 */ 5px -5px 8px -3px hsla(var(--highlight-color-hue), 100%, 70%, 0.4) inset,
-    /* 좌하단 모서리 */ -5px 5px 8px -3px hsla(var(--highlight-color-hue), 100%, 70%, 0.4) inset,
-    /* 우하단 모서리 */ 5px 5px 8px -3px hsla(var(--highlight-color-hue), 100%, 70%, 0.4) inset,
+    /* 상단 */ 0 -6px 12px -4px hsla(var(--highlight-color-hue), 100%, 70%, 0.55) inset,
+    /* 하단 */ 0 6px 12px -4px hsla(var(--highlight-color-hue), 100%, 70%, 0.55) inset,
+    /* 좌측 */ -6px 0 12px -4px hsla(var(--highlight-color-hue), 100%, 70%, 0.45) inset,
+    /* 우측 */ 6px 0 12px -4px hsla(var(--highlight-color-hue), 100%, 70%, 0.45) inset,
+    /* 좌상단 모서리 */ -5px -5px 10px -3px hsla(var(--highlight-color-hue), 100%, 70%, 0.5) inset,
+    /* 우상단 모서리 */ 5px -5px 10px -3px hsla(var(--highlight-color-hue), 100%, 70%, 0.5) inset,
+    /* 좌하단 모서리 */ -5px 5px 10px -3px hsla(var(--highlight-color-hue), 100%, 70%, 0.5) inset,
+    /* 우하단 모서리 */ 5px 5px 10px -3px hsla(var(--highlight-color-hue), 100%, 70%, 0.5) inset,
     /* 외부 베젤 */ 1px 1px 1px rgba(255, 255, 255, 0.133),
     2px 2px 2px rgba(255, 255, 255, 0.067),
     -1px -1px 1px rgba(0, 0, 0, 0.133),
@@ -253,12 +258,12 @@
   height: 100% !important;
   border-radius: inherit !important;
   pointer-events: none;
-  /* 테두리에서만 보이는 미세 edge glow — 중앙 침범 금지 */
+  /* 테두리에서만 보이는 미세 edge glow — 중앙 침범 금지 (강도 높임) */
   background-image:
-    /* 상단 edge: 위에서 18%만 */ linear-gradient(180deg, hsla(var(--highlight-color-hue), 100%, 70%, 0.35) 0%, transparent 18%),
-    /* 하단 edge: 아래에서 18%만 */ linear-gradient(0deg, hsla(var(--highlight-color-hue), 100%, 70%, 0.35) 0%, transparent 18%),
-    /* 좌측 edge: 왼쪽에서 18%만 */ linear-gradient(90deg, hsla(var(--highlight-color-hue), 100%, 70%, 0.25) 0%, transparent 18%),
-    /* 우측 edge: 오른쪽에서 18%만 */ linear-gradient(270deg, hsla(var(--highlight-color-hue), 100%, 70%, 0.25) 0%, transparent 18%),
+    /* 상단 edge: 위에서 18%만 */ linear-gradient(180deg, hsla(var(--highlight-color-hue), 100%, 70%, 0.45) 0%, transparent 18%),
+    /* 하단 edge: 아래에서 18%만 */ linear-gradient(0deg, hsla(var(--highlight-color-hue), 100%, 70%, 0.45) 0%, transparent 18%),
+    /* 좌측 edge: 왼쪽에서 18%만 */ linear-gradient(90deg, hsla(var(--highlight-color-hue), 100%, 70%, 0.35) 0%, transparent 18%),
+    /* 우측 edge: 오른쪽에서 18%만 */ linear-gradient(270deg, hsla(var(--highlight-color-hue), 100%, 70%, 0.35) 0%, transparent 18%),
     /* 원본 하단 gradient */ linear-gradient(
       0deg,
       #fff,
@@ -270,7 +275,7 @@
   background-position: 0 0;
   background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
   background-blend-mode: screen, screen, screen, screen, normal;
-  opacity: 0.8 !important;
+  opacity: 0.85 !important;
   transition: opacity var(--transition), filter var(--transition);
   filter: brightness(115%) !important;
 }

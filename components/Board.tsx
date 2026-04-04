@@ -116,6 +116,7 @@ const MergingTilesLayer = React.memo<{
               absolute ${isPremiumUiThemeActive ? premiumUiTileFaceClassName : (isNeonBlock ? '' : 'rounded-xl')} flex items-center justify-center
               font-semibold ${isNeonBlock ? '' : 'overflow-hidden'} text-center
               ${appearance.className}
+              ${isNeonBlock ? 'skin-neon-block--board' : ''}
             `}
             style={{
               width: `${layout.cellPx}px`,
@@ -226,6 +227,7 @@ const TilesLayer = React.memo<{
               absolute ${isPremiumUiThemeActive ? '' : (isNeonBlock ? '' : 'rounded-xl')} ${isPremiumUiThemeActive ? premiumUiTileFaceClassName : ''} flex items-center justify-center
               font-semibold ${isNeonBlock ? '' : 'overflow-hidden'} text-center
               ${appearance.className}
+              ${isNeonBlock ? 'skin-neon-block--board' : ''}
               ${canSelectTiles ? 'cursor-pointer ring-2 ring-transparent hover:ring-amber-200/70 focus-visible:ring-amber-300 focus-visible:outline-none active:brightness-95' : ''}
               ${isPendingTarget ? 'ring-amber-300 shadow-[0_0_0_3px_rgba(251,191,36,0.32)]' : ''}
             `}
@@ -325,6 +327,7 @@ const ReviveDestroyLayer = React.memo<{
                 w-full h-full ${isPremiumUiThemeActive ? '' : (isNeonBlock ? '' : 'rounded-xl')} ${isPremiumUiThemeActive ? premiumUiTileFaceClassName : ''} flex items-center justify-center
                 font-semibold ${isNeonBlock ? '' : 'overflow-hidden'} text-center
                 ${appearance.className}
+                ${isNeonBlock ? 'skin-neon-block--board' : ''}
               `}
               data-tile-kind="revive-effect"
               data-premium-ui-allow-gradient={preserveAppearanceInWin98 ? 'true' : undefined}
@@ -630,6 +633,11 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
     : phase === Phase.SLIDE
       ? 'ring-1 ring-gray-400/50'
       : 'ring-1 ring-white/30';
+  const premiumUiBoardPaddingClassName = isPremiumUiThemeActive
+    ? premiumUiBoardShellClassName === 'win98-board-shell'
+      ? 'p-2'
+      : 'p-4'
+    : 'p-3';
   const glowOpacityClass = isPremiumUiThemeActive ? 'opacity-0' : phase === Phase.SLIDE ? 'opacity-100' : 'opacity-0';
 
   return (
@@ -637,7 +645,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
       ref={boardRef}
       id={htmlId}
         className={`
-        relative ${isPremiumUiThemeActive ? `p-4 ${premiumUiBoardShellClassName}` : 'p-3'}
+        relative ${premiumUiBoardPaddingClassName} ${isPremiumUiThemeActive ? premiumUiBoardShellClassName : ''}
         ${isPremiumUiThemeActive ? '' : 'bg-white/40'}
         ${isPremiumUiThemeActive ? '' : 'rounded-3xl'} select-none overflow-hidden
         shadow-lg transition-shadow duration-200 ease-out

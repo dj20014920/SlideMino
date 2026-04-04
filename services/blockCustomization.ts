@@ -702,25 +702,35 @@ export const resolveSkinAppearance = (value: number, skin: { id?: string; hex: s
     const cornerAlpha = 0.28 + intensity * 0.28;
     const afterAlpha = 0.2 + intensity * 0.32;
 
-    const style: CSSProperties = {
-      ['--button-color' as any]: '#101010',
-      ['--highlight-color-hue' as any]: `${Math.round(tintHsl.h)}deg`,
-      ['--neon-edge-alpha' as any]: edgeAlpha.toFixed(3),
-      ['--neon-edge-side-alpha' as any]: edgeSideAlpha.toFixed(3),
-      ['--neon-corner-alpha' as any]: cornerAlpha.toFixed(3),
-      ['--neon-after-edge-alpha' as any]: afterAlpha.toFixed(3),
+    const style: Record<`--${string}`, string> = {
+      '--button-color': '#101010',
+      '--highlight-color-hue': `${Math.round(tintHsl.h)}deg`,
+      '--neon-edge-alpha': edgeAlpha.toFixed(3),
+      '--neon-edge-side-alpha': edgeSideAlpha.toFixed(3),
+      '--neon-corner-alpha': cornerAlpha.toFixed(3),
+      '--neon-after-edge-alpha': afterAlpha.toFixed(3),
+      '--neon-hover-gain': '1.1',
+      '--neon-active-gain': '1.2',
+      '--neon-bottom-line-alpha': '0.4',
     };
 
     return {
       className: 'skin-neon-block',
-      style: sanitizeTileAppearanceStyle(style),
+      style: sanitizeTileAppearanceStyle(style as CSSProperties),
     };
   }
 
   if (skinId === NEON_BLOCK_SKIN_ID) {
+    const style: Record<`--${string}`, string> = {
+      '--button-color': '#101010',
+      '--highlight-color-hue': '210deg',
+      '--neon-hover-gain': '1.1',
+      '--neon-active-gain': '1.2',
+      '--neon-bottom-line-alpha': '0.38',
+    };
     return {
       className: 'skin-neon-block',
-      style: undefined,
+      style: sanitizeTileAppearanceStyle(style as CSSProperties),
     };
   }
 

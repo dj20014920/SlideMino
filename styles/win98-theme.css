@@ -165,7 +165,8 @@ body.theme-win98 .win98-game-board-window {
 }
 
 body.theme-win98 .win98-board-body {
-  margin: 8px;
+  /* Prevent nested board spacing from 98.css/window-body + board shell padding */
+  margin: 0;
   display: flex;
   justify-content: center;
 }

@@ -187,12 +187,18 @@
   --neon-edge-side-alpha: 0.45;
   --neon-corner-alpha: 0.5;
   --neon-after-edge-alpha: 0.45;
+  --neon-state-gain: var(--neon-active-gain);
+  --neon-hover-gain: 1.1;
+  --neon-active-gain: 1.2;
+  --neon-bottom-line-alpha: 0.38;
 
   position: relative !important;
   user-select: none;
   display: flex !important;
   justify-content: center !important;
   align-items: center !important;
+  isolation: isolate;
+  z-index: 0;
 
   /* 원본과 동일한 배경색 */
   background-color: var(--button-color) !important;
@@ -238,14 +244,14 @@
   transition: box-shadow var(--transition), filter var(--transition);
   /* 4방향 + 4모서리 hue glow — 테두리 전체를 빈틈없이 감쌈 (강도 높임) */
   box-shadow:
-    /* 상단 */ 0 -6px 12px -4px hsla(var(--highlight-color-hue), 100%, 70%, var(--neon-edge-alpha)) inset,
-    /* 하단 */ 0 6px 12px -4px hsla(var(--highlight-color-hue), 100%, 70%, var(--neon-edge-alpha)) inset,
-    /* 좌측 */ -6px 0 12px -4px hsla(var(--highlight-color-hue), 100%, 70%, var(--neon-edge-side-alpha)) inset,
-    /* 우측 */ 6px 0 12px -4px hsla(var(--highlight-color-hue), 100%, 70%, var(--neon-edge-side-alpha)) inset,
-    /* 좌상단 모서리 */ -5px -5px 10px -3px hsla(var(--highlight-color-hue), 100%, 70%, var(--neon-corner-alpha)) inset,
-    /* 우상단 모서리 */ 5px -5px 10px -3px hsla(var(--highlight-color-hue), 100%, 70%, var(--neon-corner-alpha)) inset,
-    /* 좌하단 모서리 */ -5px 5px 10px -3px hsla(var(--highlight-color-hue), 100%, 70%, var(--neon-corner-alpha)) inset,
-    /* 우하단 모서리 */ 5px 5px 10px -3px hsla(var(--highlight-color-hue), 100%, 70%, var(--neon-corner-alpha)) inset,
+    /* 상단 */ 0 -6px 12px -4px hsla(var(--highlight-color-hue), 100%, 70%, calc(var(--neon-edge-alpha) * var(--neon-state-gain))) inset,
+    /* 하단 */ 0 6px 12px -4px hsla(var(--highlight-color-hue), 100%, 70%, calc(var(--neon-edge-alpha) * var(--neon-state-gain))) inset,
+    /* 좌측 */ -6px 0 12px -4px hsla(var(--highlight-color-hue), 100%, 70%, calc(var(--neon-edge-side-alpha) * var(--neon-state-gain))) inset,
+    /* 우측 */ 6px 0 12px -4px hsla(var(--highlight-color-hue), 100%, 70%, calc(var(--neon-edge-side-alpha) * var(--neon-state-gain))) inset,
+    /* 좌상단 모서리 */ -5px -5px 10px -3px hsla(var(--highlight-color-hue), 100%, 70%, calc(var(--neon-corner-alpha) * var(--neon-state-gain))) inset,
+    /* 우상단 모서리 */ 5px -5px 10px -3px hsla(var(--highlight-color-hue), 100%, 70%, calc(var(--neon-corner-alpha) * var(--neon-state-gain))) inset,
+    /* 좌하단 모서리 */ -5px 5px 10px -3px hsla(var(--highlight-color-hue), 100%, 70%, calc(var(--neon-corner-alpha) * var(--neon-state-gain))) inset,
+    /* 우하단 모서리 */ 5px 5px 10px -3px hsla(var(--highlight-color-hue), 100%, 70%, calc(var(--neon-corner-alpha) * var(--neon-state-gain))) inset,
     /* 외부 베젤 */ 1px 1px 1px rgba(255, 255, 255, 0.133),
     2px 2px 2px rgba(255, 255, 255, 0.067),
     -1px -1px 1px rgba(0, 0, 0, 0.133),
@@ -264,24 +270,40 @@
   pointer-events: none;
   /* 테두리에서만 보이는 미세 edge glow — 중앙 침범 금지 (강도 높임) */
   background-image:
-    /* 상단 edge: 위에서 18%만 */ linear-gradient(180deg, hsla(var(--highlight-color-hue), 100%, 70%, var(--neon-after-edge-alpha)) 0%, transparent 18%),
-    /* 하단 edge: 아래에서 18%만 */ linear-gradient(0deg, hsla(var(--highlight-color-hue), 100%, 70%, var(--neon-after-edge-alpha)) 0%, transparent 18%),
-    /* 좌측 edge: 왼쪽에서 18%만 */ linear-gradient(90deg, hsla(var(--highlight-color-hue), 100%, 70%, calc(var(--neon-after-edge-alpha) * 0.78)) 0%, transparent 18%),
-    /* 우측 edge: 오른쪽에서 18%만 */ linear-gradient(270deg, hsla(var(--highlight-color-hue), 100%, 70%, calc(var(--neon-after-edge-alpha) * 0.78)) 0%, transparent 18%),
+    /* 상단 edge: 위에서 18%만 */ linear-gradient(180deg, hsla(var(--highlight-color-hue), 100%, 70%, calc(var(--neon-after-edge-alpha) * var(--neon-state-gain))) 0%, transparent 18%),
+    /* 하단 edge: 아래에서 18%만 */ linear-gradient(0deg, hsla(var(--highlight-color-hue), 100%, 70%, calc(var(--neon-after-edge-alpha) * var(--neon-state-gain))) 0%, transparent 18%),
+    /* 좌측 edge: 왼쪽에서 18%만 */ linear-gradient(90deg, hsla(var(--highlight-color-hue), 100%, 70%, calc(var(--neon-after-edge-alpha) * var(--neon-state-gain) * 0.78)) 0%, transparent 18%),
+    /* 우측 edge: 오른쪽에서 18%만 */ linear-gradient(270deg, hsla(var(--highlight-color-hue), 100%, 70%, calc(var(--neon-after-edge-alpha) * var(--neon-state-gain) * 0.78)) 0%, transparent 18%),
+    /* 하단 라인 강조 */ linear-gradient(0deg, hsla(var(--highlight-color-hue), 100%, 70%, calc(var(--neon-bottom-line-alpha) * var(--neon-state-gain))) 0%, hsla(var(--highlight-color-hue), 100%, 70%, 0) 22%),
     /* 원본 하단 gradient */ linear-gradient(
       0deg,
       #fff,
       hsl(var(--highlight-color-hue), 100%, 70%),
-      hsla(var(--highlight-color-hue), 100%, 70%, 0.5),
+      hsla(var(--highlight-color-hue), 100%, 70%, calc(0.5 * var(--neon-state-gain))),
       8%,
       transparent
     ) !important;
   background-position: 0 0;
-  background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
-  background-blend-mode: screen, screen, screen, screen, normal;
+  background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
+  background-blend-mode: screen, screen, screen, screen, screen, normal;
   opacity: 0.85 !important;
   transition: opacity var(--transition), filter var(--transition);
-  filter: brightness(115%) !important;
+  filter: brightness(calc(1.12 + (var(--neon-state-gain) - 1) * 0.45)) !important;
+}
+
+/* hover/active 모두 상시 상태로 고정 운용 */
+.skin-neon-block:hover,
+.skin-neon-block:focus-visible,
+.skin-neon-block:active,
+.skin-neon-block[data-neon-state='hover'],
+.skin-neon-block[data-neon-state='focus'],
+.skin-neon-block[data-neon-state='active'] {
+  --neon-state-gain: var(--neon-active-gain);
+}
+
+.skin-neon-block--board {
+  --neon-hover-gain: 1.08;
+  --neon-active-gain: 1.15;
 }
 
 /* Neon Block 숫자 — 전역 동기화 맥동 */

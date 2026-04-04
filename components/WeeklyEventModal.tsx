@@ -299,7 +299,7 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
   const isApp = isNativeApp();
 
   return (
-    <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 modal-safe-overlay ${isPremiumUi ? premiumUiModalOverlayClassName : 'bg-black/60 backdrop-blur-sm'}`}>
+    <div className={`fixed inset-0 z-[300] flex items-center justify-center p-4 modal-safe-overlay ${isPremiumUi ? premiumUiModalOverlayClassName : 'bg-black/60 backdrop-blur-sm'}`}>
       <div className={isPremiumUi
         ? `${premiumUiWindowClassName} relative w-full max-w-md max-h-[90vh] modal-safe-panel overflow-y-auto modal-scroll-panel`
         : 'relative w-full max-w-md max-h-[90vh] modal-safe-panel overflow-y-auto modal-scroll-panel rounded-2xl bg-white shadow-2xl'

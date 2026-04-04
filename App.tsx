@@ -304,6 +304,7 @@ interface GameLayoutProfile {
 
 interface LayoutChromeHeights {
   header: number;
+  footer: number;
 }
 
 interface OrientationLockMessage {
@@ -311,13 +312,14 @@ interface OrientationLockMessage {
   body: string;
 }
 
-const DEFAULT_LAYOUT_CHROME_HEIGHTS: LayoutChromeHeights = {
-  header: 104,
-};
-
 // 배너 광고 높이를 boardScale 계산에 고정값으로 사용 (flex flow가 실제 레이아웃을 처리)
 // 광고 SDK의 비동기 로딩으로 인한 배너 높이 변동이 boardScale을 흔드는 것을 방지
 const STABLE_BANNER_RESERVE_PX = 60;
+
+const DEFAULT_LAYOUT_CHROME_HEIGHTS: LayoutChromeHeights = {
+  header: 104,
+  footer: STABLE_BANNER_RESERVE_PX,
+};
 
 const ORIENTATION_LOCK_MESSAGES: Record<string, OrientationLockMessage> = {
   ko: {
@@ -404,8 +406,8 @@ const getGameLayoutProfile = (
     1.04
   );
   const mainGapPx = Math.round(clamp(lerp(12, 22, tallProgress) * (isLandscape ? 0.58 : 1), 8, 24));
-  // 여백 기준 값: 화면 높이 비율로 계산하되 상한을 확장해 큰 폰에서도 충분한 숨통을 확보
-  const whitespacePx = clamp(safeHeight * lerp(0.08, 0.15, tallProgress) * (isLandscape ? 0.34 : 1), 10, 108);
+  // 상단-보드 간격이 과도하게 벌어지지 않도록 여백 상한을 보수적으로 유지
+  const whitespacePx = clamp(safeHeight * lerp(0.07, 0.14, tallProgress) * (isLandscape ? 0.34 : 1), 10, 96);
   const columnMaxWidthPx = safeWidth >= 1440 ? 620 : safeWidth >= 1024 ? 560 : safeWidth >= 768 ? 500 : 448;
   const shouldHeightLimitColumn = isLandscape && safeHeight < 760;
   const heightLimitedColumnMaxPx = shouldHeightLimitColumn
@@ -417,13 +419,12 @@ const getGameLayoutProfile = (
   const slotHeightPx = shouldHeightLimitColumn
     ? Math.min(rawSlotHeightPx, safeHeight * 0.17)
     : rawSlotHeightPx;
-  // 상단에 여백을 더 배분해 콘텐츠가 헤더에서 내려오도록 함 (엄지 편안 영역인 하단 40~60%에 슬롯·버튼 배치)
-  const mainTopPaddingPx = Math.round(whitespacePx * 0.58);
-  const mainBottomPaddingPx = Math.round(whitespacePx * 0.42);
+  // 상단 버튼 영역과 보드 간격을 과도하게 키우지 않도록 상단 비중을 축소
+  const mainTopPaddingPx = Math.round(whitespacePx * 0.45);
+  const mainBottomPaddingPx = Math.round(whitespacePx * 0.55);
   const measuredHeaderHeightPx = clamp(chromeHeights.header, 56, 180);
-  // 배너 높이는 고정값 사용: 광고 SDK 비동기 로딩에 의한 boardScale 변동 방지
-  // (실제 배너 레이아웃은 CSS flex가 정확하게 처리)
-  const availableMainHeightPx = Math.max(180, safeHeight - measuredHeaderHeightPx - STABLE_BANNER_RESERVE_PX);
+  const measuredFooterHeightPx = clamp(chromeHeights.footer, STABLE_BANNER_RESERVE_PX, 260);
+  const availableMainHeightPx = Math.max(180, safeHeight - measuredHeaderHeightPx - measuredFooterHeightPx);
   // 새로고침 버튼 행(min-h-10)과 두 번째 gap까지 포함해 정확하게 보드 높이 예산 계산
   const REFRESH_ROW_HEIGHT_PX = 40;
   const boardHeightBudgetPx =
@@ -1121,6 +1122,7 @@ const App: React.FC = () => {
 
   // --- Refs ---
   const headerRef = useRef<HTMLDivElement>(null);
+  const footerRef = useRef<HTMLDivElement>(null);
   const boardRef = useRef<HTMLDivElement>(null);
   const boardHandleRef = useRef<BoardHandle | null>(null);
   const dragOverlayRef = useRef<HTMLDivElement>(null); // 드래그 오버레이 직접 제어용 Ref
@@ -1239,17 +1241,28 @@ const App: React.FC = () => {
     return toDurationSeconds(getCurrentActiveDurationMs());
   }, [getCurrentActiveDurationMs]);
 
+  const shouldTrackGameChrome = gameState === GameState.PLAYING || gameState === GameState.GAME_OVER;
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (gameState !== GameState.PLAYING && gameState !== GameState.GAME_OVER) return;
+    if (!shouldTrackGameChrome) return;
 
     const updateChromeHeights = () => {
       const measuredHeader = headerRef.current?.getBoundingClientRect().height;
+      const measuredFooter = footerRef.current?.getBoundingClientRect().height;
+      const safeBottom = Math.max(0, getSafeAreaInsetPx('bottom'));
+      const root = document.documentElement;
 
       setLayoutChromeHeights((prev) => {
         const nextHeader = measuredHeader ? Math.max(56, measuredHeader) : prev.header;
-        if (Math.abs(prev.header - nextHeader) <= 0.5) return prev;
-        return { header: nextHeader };
+        const baseFooter = measuredFooter ? Math.max(STABLE_BANNER_RESERVE_PX, measuredFooter) : STABLE_BANNER_RESERVE_PX;
+        const nextFooter = baseFooter + safeBottom;
+        root.style.setProperty('--bottom-ad-height', `${Math.max(0, Math.round(baseFooter))}px`);
+        root.style.setProperty('--bottom-chrome-height', `${Math.max(0, Math.round(nextFooter))}px`);
+        const isHeaderStable = Math.abs(prev.header - nextHeader) <= 0.5;
+        const isFooterStable = Math.abs(prev.footer - nextFooter) <= 0.5;
+        if (isHeaderStable && isFooterStable) return prev;
+        return { header: nextHeader, footer: nextFooter };
       });
     };
 
@@ -1265,6 +1278,7 @@ const App: React.FC = () => {
     if (typeof ResizeObserver !== 'undefined') {
       observer = new ResizeObserver(updateChromeHeights);
       if (headerRef.current) observer.observe(headerRef.current);
+      if (footerRef.current) observer.observe(footerRef.current);
     }
 
     const scheduleChromeSync = () => {
@@ -1293,8 +1307,11 @@ const App: React.FC = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.visualViewport?.removeEventListener('resize', updateChromeHeights);
       window.visualViewport?.removeEventListener('scroll', updateChromeHeights);
+      const root = document.documentElement;
+      root.style.removeProperty('--bottom-ad-height');
+      root.style.removeProperty('--bottom-chrome-height');
     };
-  }, [gameState]);
+  }, [shouldTrackGameChrome]);
 
   // --- Initialization ---
 
@@ -4762,7 +4779,7 @@ const App: React.FC = () => {
 
         {/* Main Game Area */}
         <main
-          className="flex-1 w-full flex flex-col items-center justify-center min-h-0 p-4"
+          className="flex-1 w-full flex flex-col items-center justify-start min-h-0 p-4"
           style={{
             maxWidth: `${gameLayoutProfile.columnWidthPx}px`,
             gap: `${gameLayoutProfile.mainGapPx}px`,
@@ -4935,12 +4952,16 @@ const App: React.FC = () => {
 
         </main>
 
-        <TutorialOverlay step={tutorialStep} />
-        <GameFeaturesTutorial tutorialStep={tutorialStep} />
+        {gameState !== GameState.GAME_OVER && !showHelpModal && (
+          <>
+            <TutorialOverlay step={tutorialStep} />
+            <GameFeaturesTutorial tutorialStep={tutorialStep} />
+          </>
+        )}
         <HelpModal isOpen={showHelpModal} onClose={() => setShowHelpModal(false)} />
 
         {/* Ad Banner for Game Screen: flex flow 기반으로 하단에 배치 (fixed 제거 → 레이아웃 shift 방지) */}
-        <div className="w-full shrink-0">
+        <div ref={footerRef} className="w-full shrink-0">
           <div className={`
           w-full bg-white/50 backdrop-blur-sm border-t border-white/20
           transition-opacity duration-200

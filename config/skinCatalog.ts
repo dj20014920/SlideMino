@@ -100,28 +100,37 @@ const NEON_PARALLEL_SKINS: SkinCatalogEntry[] = LIQUID_GLASS_SWATCHES.map(({ hex
   },
 }));
 
+const NEON_CORE_SKIN: SkinCatalogEntry = {
+  // Neon Block: 원본 버튼 UI를 정사각형 블록으로 변환 (상시 glow, 숫자 맥동)
+  id: 'skin_digital_neon_block',
+  hex: '#101010',
+  category: 'neon',
+  nameKey: 'neonBlock',
+  premium: false,
+  style: {
+    type: 'css-pattern',
+    value: 'none',
+    textColor: '#ffffff',
+    customCss: [
+      'border-radius: 4px',
+    ].join('; ') + ';',
+  },
+};
+
+// highlight-color-hue(210deg, 블루 계열)에 맞춰 블루 구간(#1E88E5 ~ #2563EB) 사이에 배치
+const NEON_CORE_INSERT_INDEX = 19;
+const NEON_ORDERED_SKINS: SkinCatalogEntry[] = [
+  ...NEON_PARALLEL_SKINS.slice(0, NEON_CORE_INSERT_INDEX),
+  NEON_CORE_SKIN,
+  ...NEON_PARALLEL_SKINS.slice(NEON_CORE_INSERT_INDEX),
+];
+
 // ==========================================
 // 🎨 스킨 스타일 정의 (Complex Skins)
 // ==========================================
 
 export const ADDITIONAL_SKIN_CATALOG: SkinCatalogEntry[] = [
-  // Neon Block: 원본 버튼 UI를 정사각형 블록으로 변환 (상시 glow, 숫자 맥동)
-  {
-    id: 'skin_digital_neon_block',
-    hex: '#101010',
-    category: 'neon',
-    nameKey: 'neonBlock',
-    premium: false,
-    style: {
-      type: 'css-pattern',
-      value: 'none',
-      textColor: '#ffffff',
-      customCss: [
-        'border-radius: 4px',
-      ].join('; ') + ';',
-    },
-  },
-  ...NEON_PARALLEL_SKINS,
+  ...NEON_ORDERED_SKINS,
 
   // 대리석: HSL Progression(light grey → dark grey) + 교차 라이닝 오버레이
   {

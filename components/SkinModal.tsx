@@ -369,12 +369,13 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                               const isSelected = selectedSkinId === entry.id;
                               const swatchPreviewValue = isLiquidGlassSkin(entry.id) ? 64 : 16;
                               const { className, style } = resolveSkinAppearance(swatchPreviewValue, entry);
+                              const isNeonSwatch = isNeonSkin(entry.id);
 
                               return (
                                 <div
                                   key={entry.id}
                                   onClick={() => handleSkinTap(entry.id, entry.hex)}
-                                  className={`relative aspect-square flex items-center justify-center cursor-pointer ${premiumUiCompartmentButtonClassName} ${isSelected ? premiumUiListItemHighlightClassName : ''}`}
+                                  className={`relative aspect-square flex items-center justify-center cursor-pointer ${premiumUiCompartmentButtonClassName} ${isSelected ? premiumUiListItemHighlightClassName : ''} ${isNeonSwatch ? 'bg-slate-950/10 shadow-[inset_0_0_0_1px_rgba(2,6,23,0.12)]' : ''}`}
                                   style={{ boxSizing: 'border-box' }}
                                 >
                                   <div className={`w-full h-full relative ${className}`} style={{ ...style, borderRadius: 0 }} data-premium-ui-allow-gradient="true" data-premium-ui-allow-shadow="true" data-skin-swatch="true">
@@ -556,6 +557,7 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                                 className={`
                                   relative aspect-square rounded-2xl transition-all duration-150 ${isNeonSwatch ? '' : 'overflow-hidden'}
                                   ${isSelected ? 'ring-2 ring-gray-900 ring-offset-2' : 'ring-1 ring-black/5'}
+                                  ${isNeonSwatch ? 'bg-slate-950/10 shadow-[inset_0_0_0_1px_rgba(2,6,23,0.12)]' : ''}
                                   ${className}
                                 `}
                                 style={style}

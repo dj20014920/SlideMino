@@ -21,14 +21,16 @@ type SkinModalProps = {
   onClose: () => void;
 };
 
+type SkinSectionKey = 'premium' | 'neon' | 'liquid' | 'mesh' | 'normal';
+
 // 스킨 미리보기 타일 렌더링
 const SkinPreviewTile = React.memo<{ value: number; skin: { id?: string; hex: string; style?: any }; tilePx: number }>(
   ({ value, skin, tilePx }) => {
     const { isPremiumUiThemeActive, premiumUiObjects } = useBlockCustomization();
     const premiumUiTileFaceClassName = premiumUiObjects.extended.text.tileFaceClassName;
     const premiumUiTileNumberClassName = premiumUiObjects.extended.text.tileNumberClassName;
-    const isNeonBlock = skin.id === 'skin_digital_neon_block';
     const { className, style } = resolveSkinAppearance(value, skin);
+    const isNeonBlock = className === 'skin-neon-block';
     const { text, fontPx } = getTileNumberLayout(value, tilePx);
 
     return (
@@ -87,6 +89,13 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
   const [acquisitionIsDuplicate, setAcquisitionIsDuplicate] = useState(false);
   const [remainingAds, setRemainingAds] = useState(skinRewardAdService.getRemainingDailyViews());
   const [adError, setAdError] = useState<string | null>(null);
+  const [openSections, setOpenSections] = useState<Readonly<Record<SkinSectionKey, boolean>>>({
+    premium: true,
+    neon: true,
+    liquid: true,
+    mesh: true,
+    normal: true,
+  });
 
   const ownedIds = useMemo(
     () => new Set(skinSettings.ownedSkins.map(s => s.id)),
@@ -115,18 +124,22 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
   const COLS = 6;
   const isMeshSwatchSkin = (id: string) => id.startsWith('skin_mesh_swatch');
   const isLiquidGlassSkin = (id: string) => id.startsWith('skin_digital_liquid_glass');
+  const isNeonParallelSkin = (id: string) => id.startsWith('skin_digital_neon_block_parallel_');
+  const isNeonSkin = (id: string) => id === 'skin_digital_neon_block' || isNeonParallelSkin(id);
   type SkinSection = {
+    key: SkinSectionKey;
     titleKey: string;
     skins: typeof SKIN_CATALOG[number][];
     rows: typeof SKIN_CATALOG[number][][];
     rowOffset: number; // 전체 행 기준 offset (selectedRowIndex 계산용)
   };
   const skinSections = useMemo((): SkinSection[] => {
+    const premium = SKIN_CATALOG.filter(e => e.premium);
+    const neon = SKIN_CATALOG.filter(e => !e.premium && isNeonSkin(e.id));
     const liquidGlass = SKIN_CATALOG.filter(e => isLiquidGlassSkin(e.id));
     const mesh = SKIN_CATALOG.filter(e => isMeshSwatchSkin(e.id));
-    const premium = SKIN_CATALOG.filter(e => e.premium);
     const normal = SKIN_CATALOG.filter(
-      (e) => !e.premium && !isMeshSwatchSkin(e.id) && !isLiquidGlassSkin(e.id)
+      (e) => !e.premium && !isNeonSkin(e.id) && !isMeshSwatchSkin(e.id) && !isLiquidGlassSkin(e.id)
     );
 
     const toRows = (arr: typeof SKIN_CATALOG[number][]) => {
@@ -135,32 +148,50 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
       return r;
     };
 
+    const neonRows = toRows(neon);
     const liquidGlassRows = toRows(liquidGlass);
     const meshRows = toRows(mesh);
     const normalRows = toRows(normal);
     const premiumRows = toRows(premium);
 
     return [
-      { titleKey: 'modals:skin.sectionPremium', skins: premium, rows: premiumRows, rowOffset: 0 },
+      { key: 'premium', titleKey: 'modals:skin.sectionPremium', skins: premium, rows: premiumRows, rowOffset: 0 },
       {
-        titleKey: 'modals:skin.sectionLiquidGlass',
-        skins: liquidGlass,
-        rows: liquidGlassRows,
+        key: 'neon',
+        titleKey: 'modals:skin.sectionNeon',
+        skins: neon,
+        rows: neonRows,
         rowOffset: premiumRows.length,
       },
       {
+        key: 'liquid',
+        titleKey: 'modals:skin.sectionLiquidGlass',
+        skins: liquidGlass,
+        rows: liquidGlassRows,
+        rowOffset: premiumRows.length + neonRows.length,
+      },
+      {
+        key: 'mesh',
         titleKey: 'modals:skin.sectionMesh',
         skins: mesh,
         rows: meshRows,
-        rowOffset: premiumRows.length + liquidGlassRows.length,
+        rowOffset: premiumRows.length + neonRows.length + liquidGlassRows.length,
       },
       {
+        key: 'normal',
         titleKey: 'modals:skin.sectionNormal',
         skins: normal,
         rows: normalRows,
-        rowOffset: premiumRows.length + liquidGlassRows.length + meshRows.length,
+        rowOffset: premiumRows.length + neonRows.length + liquidGlassRows.length + meshRows.length,
       },
     ];
+  }, []);
+
+  const toggleSection = useCallback((sectionKey: SkinSectionKey) => {
+    setOpenSections((prev) => ({
+      ...prev,
+      [sectionKey]: !prev[sectionKey],
+    }));
   }, []);
 
   // 선택된 스킨이 속한 [섹션인덱스, 행인덱스] 계산
@@ -315,13 +346,21 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                   {skinSections.map((section, sectionIdx) => (
                     <div key={sectionIdx}>
                       <div className={premiumUiSkinTabStripClassName} style={{ padding: 0, borderBottom: 'none', marginBottom: '6px' }}>
-                        <div className={premiumUiSkinTabButtonClassName} data-active="true" style={{ marginBottom: 0, padding: '2px 8px', fontSize: '10px', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <button
+                          type="button"
+                          aria-expanded={openSections[section.key]}
+                          onClick={() => toggleSection(section.key)}
+                          className={premiumUiSkinTabButtonClassName}
+                          data-active="true"
+                          style={{ marginBottom: 0, padding: '2px 8px', fontSize: '10px', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          <span className="font-bold" aria-hidden="true">{openSections[section.key] ? '▾' : '▸'}</span>
                           {sectionIdx === 0 ? <span className="font-bold">&#9670;</span> : sectionIdx === 1 ? <span className="font-bold">&#9670;</span> : <span className="font-bold">&#9632;</span>}
                           {t(section.titleKey as any)}
                           <span style={{ marginLeft: '2px', fontWeight: 'normal' }}>({section.skins.length})</span>
-                        </div>
+                        </button>
                       </div>
-                      {section.rows.map((rowSkins, rowIndex) => (
+                      {openSections[section.key] && section.rows.map((rowSkins, rowIndex) => (
                         <React.Fragment key={rowIndex}>
                           <div className="grid grid-cols-6 gap-2">
                             {rowSkins.map((entry) => {
@@ -482,14 +521,21 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
               {skinSections.map((section, sectionIdx) => (
                 <div key={sectionIdx}>
                   {/* 섹션 헤더 */}
-                  <div className="flex items-center gap-2 mb-2.5">
+                  <button
+                    type="button"
+                    aria-expanded={openSections[section.key]}
+                    onClick={() => toggleSection(section.key)}
+                    className="w-full flex items-center gap-2 mb-2.5 text-left"
+                  >
+                    <span className="text-xs text-gray-400" aria-hidden="true">{openSections[section.key] ? '▾' : '▸'}</span>
                     <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">
                       {t(section.titleKey as any)}{sectionIdx === 0 ? ' 💎' : sectionIdx === 1 ? ' ✦' : ''}
                     </span>
                     <div className="flex-1 h-px bg-gray-200" />
                     <span className="text-xs text-gray-400">{section.skins.length}</span>
-                  </div>
-                  <div className="space-y-2.5">
+                  </button>
+                  {openSections[section.key] && (
+                    <div className="space-y-2.5">
                     {section.rows.map((rowSkins, rowIndex) => (
                       <React.Fragment key={rowIndex}>
                         {/* 스킨 행 */}
@@ -500,7 +546,7 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                             const isSelected = selectedSkinId === entry.id;
                             const swatchPreviewValue = isLiquidGlassSkin(entry.id) ? 64 : 16;
                             const { className, style } = resolveSkinAppearance(swatchPreviewValue, entry);
-                            const isNeonSwatch = entry.id === 'skin_digital_neon_block';
+                            const isNeonSwatch = isNeonSkin(entry.id);
 
                             return (
                               <button
@@ -595,7 +641,8 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                         </AnimatePresence>
                       </React.Fragment>
                     ))}
-                  </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

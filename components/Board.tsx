@@ -13,7 +13,7 @@ import { canPlacePiece } from '../services/gameLogic';
 import { getTileColor, getTileNumberLayout, getSlideAnimationDurationMs, BOARD_CELL_GAP_PX } from '../constants';
 import { useBlockCustomization } from '../context/BlockCustomizationContext';
 import EvervaultTileOverlay from './EvervaultTileOverlay';
-import { clamp } from '../services/blockCustomization';
+import { clamp, type ResolvedTileAppearance } from '../services/blockCustomization';
 
 const EVERVAULT_SKIN_ID = 'skin_digital_evervault';
 
@@ -41,6 +41,8 @@ interface BoardProps {
   revivePendingTileId?: string | null;
   onReviveTileTap?: (tileId: string) => void;
   reviveDestroyEffects?: ReviveDestroyEffect[];
+  mergedNumberBurstTileIds?: ReadonlySet<string>;
+  mergedNumberBurstByTileId?: Readonly<Record<string, number>>;
 }
 
 const BackgroundGrid = React.memo<{
@@ -88,18 +90,18 @@ const EMPTY_REVIVE_DESTROY_EFFECTS: ReviveDestroyEffect[] = [];
 const MergingTilesLayer = React.memo<{
   animatingMerges: (MergingTile & { currentX: number; currentY: number; distance: number })[];
   layout: GridLayout;
+  getResolvedAppearance: (value: number) => ResolvedTileAppearance;
   isPremiumUiThemeActive: boolean;
   premiumUiTileFaceClassName: string;
   premiumUiTileNumberClassName: string;
-}>(({ animatingMerges, layout, isPremiumUiThemeActive, premiumUiTileFaceClassName, premiumUiTileNumberClassName }) => {
-  const { resolveTileAppearance } = useBlockCustomization();
+}>(({ animatingMerges, layout, getResolvedAppearance, isPremiumUiThemeActive, premiumUiTileFaceClassName, premiumUiTileNumberClassName }) => {
   return (
     <div className="absolute inset-0 z-5 pointer-events-none">
       {animatingMerges.map((mt) => {
         const duration = getSlideAnimationDurationMs(mt.distance);
         const transform = `translate3d(${layout.posPx[mt.currentX]}px, ${layout.posPx[mt.currentY]}px, 0)`;
         const { text, fontPx } = getTileNumberLayout(mt.value, layout.cellPx);
-        const appearance = resolveTileAppearance(mt.value);
+        const appearance = getResolvedAppearance(mt.value);
         const preserveAppearanceInWin98 = Boolean(appearance.style?.backgroundColor || appearance.style?.backgroundImage || appearance.style?.boxShadow);
         const isNeonBlock = appearance.className === 'skin-neon-block';
         return (
@@ -144,6 +146,7 @@ const MergingTilesLayer = React.memo<{
 const TilesLayer = React.memo<{
   tiles: (Tile & { x: number; y: number; distance: number })[];
   layout: GridLayout;
+  getResolvedAppearance: (value: number) => ResolvedTileAppearance;
   valueOverrides?: Record<string, number>;
   reviveSelectionEnabled?: boolean;
   revivePendingTileId?: string | null;
@@ -151,12 +154,15 @@ const TilesLayer = React.memo<{
   isEvervaultSkin?: boolean;
   mergeFlashTileIds?: ReadonlySet<string>;
   onMergeFlashEnd?: (tileId: string) => void;
+  mergedNumberBurstTileIds?: ReadonlySet<string>;
+  mergedNumberBurstByTileId?: Readonly<Record<string, number>>;
   isPremiumUiThemeActive?: boolean;
   premiumUiTileFaceClassName: string;
   premiumUiTileNumberClassName: string;
 }>(({
   tiles,
   layout,
+  getResolvedAppearance,
   valueOverrides,
   reviveSelectionEnabled = false,
   revivePendingTileId = null,
@@ -164,11 +170,12 @@ const TilesLayer = React.memo<{
   isEvervaultSkin = false,
   mergeFlashTileIds,
   onMergeFlashEnd,
+  mergedNumberBurstTileIds,
+  mergedNumberBurstByTileId,
   isPremiumUiThemeActive = false,
   premiumUiTileFaceClassName,
   premiumUiTileNumberClassName,
 }) => {
-  const { resolveTileAppearance } = useBlockCustomization();
   const canSelectTiles = reviveSelectionEnabled && typeof onReviveTileTap === 'function';
 
   return (
@@ -183,10 +190,23 @@ const TilesLayer = React.memo<{
         const displayValue = valueOverrides?.[tile.id] ?? tile.value;
         const transform = `translate3d(${layout.posPx[tile.x]}px, ${layout.posPx[tile.y]}px, 0)`;
         const { text, fontPx } = getTileNumberLayout(displayValue, layout.cellPx);
-        const appearance = resolveTileAppearance(displayValue);
+        const appearance = getResolvedAppearance(displayValue);
         const preserveAppearanceInWin98 = Boolean(appearance.style?.backgroundColor || appearance.style?.backgroundImage || appearance.style?.boxShadow);
         const isNeonBlock = appearance.className === 'skin-neon-block';
         const isPendingTarget = canSelectTiles && revivePendingTileId === tile.id;
+        const isMergeNumberBursting = !!mergedNumberBurstTileIds?.has(tile.id);
+        const mergedBurstValue = mergedNumberBurstByTileId?.[tile.id] ?? displayValue;
+        const mergeBurstStep = isMergeNumberBursting
+          ? (() => {
+              if (mergedBurstValue >= 8192) return 4;
+              if (mergedBurstValue >= 2048) return 3;
+              if (mergedBurstValue >= 512) return 2;
+              if (mergedBurstValue >= 128) return 1;
+              return 0;
+            })()
+          : 0;
+        const mergeBurstScale = 1 + [0.12, 0.145, 0.17, 0.195, 0.22][mergeBurstStep];
+        const mergeBurstShadowAlpha = [0.22, 0.26, 0.3, 0.34, 0.38][mergeBurstStep];
         const evervaultIntensity = isEvervaultSkin
           ? clamp(Math.log2(Math.max(1, displayValue)) / 15, 0, 1)
           : 0;
@@ -244,7 +264,17 @@ const TilesLayer = React.memo<{
               willChange: duration ? 'transform' : undefined,
             }}
           >
-            <span className={`${isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''} ${isNeonBlock ? 'skin-neon-block-number' : ''}`} style={{ position: 'relative', zIndex: 2 }}>{text}</span>
+            <span className={`${isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''} ${isNeonBlock ? 'skin-neon-block-number' : ''}`} style={{ position: 'relative', zIndex: 2 }}>
+              <span
+                className={isMergeNumberBursting ? 'tile-number-merge-burst' : ''}
+                style={isMergeNumberBursting ? ({
+                  ['--merge-burst-scale' as any]: mergeBurstScale.toFixed(3),
+                  ['--merge-burst-shadow-alpha' as any]: mergeBurstShadowAlpha.toFixed(3),
+                }) : undefined}
+              >
+                {text}
+              </span>
+            </span>
             {isEvervaultSkin && evervaultIntensity > 0.01 && (
               <EvervaultTileOverlay
                 intensity={evervaultIntensity}
@@ -263,18 +293,18 @@ const TilesLayer = React.memo<{
 const ReviveDestroyLayer = React.memo<{
   effects: ReviveDestroyEffect[];
   layout: GridLayout;
+  getResolvedAppearance: (value: number) => ResolvedTileAppearance;
   isPremiumUiThemeActive: boolean;
   premiumUiTileFaceClassName: string;
   premiumUiTileNumberClassName: string;
-}>(({ effects, layout, isPremiumUiThemeActive, premiumUiTileFaceClassName, premiumUiTileNumberClassName }) => {
-  const { resolveTileAppearance } = useBlockCustomization();
+}>(({ effects, layout, getResolvedAppearance, isPremiumUiThemeActive, premiumUiTileFaceClassName, premiumUiTileNumberClassName }) => {
   if (effects.length === 0) return null;
 
   return (
     <div className="absolute inset-0 z-30 pointer-events-none">
       {effects.map((effect) => {
         const transform = `translate3d(${layout.posPx[effect.x]}px, ${layout.posPx[effect.y]}px, 0)`;
-        const appearance = resolveTileAppearance(effect.value);
+        const appearance = getResolvedAppearance(effect.value);
         const preserveAppearanceInWin98 = Boolean(appearance.style?.backgroundColor || appearance.style?.backgroundImage || appearance.style?.boxShadow);
         const isNeonBlock = appearance.className === 'skin-neon-block';
         const { text, fontPx } = getTileNumberLayout(effect.value, layout.cellPx);
@@ -373,6 +403,8 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
   revivePendingTileId = null,
   onReviveTileTap,
   reviveDestroyEffects = EMPTY_REVIVE_DESTROY_EFFECTS,
+  mergedNumberBurstTileIds,
+  mergedNumberBurstByTileId,
 }, ref) {
   const baseBoardPx = 420;
   const resolvedScale = boardScale ?? 1;
@@ -443,7 +475,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
   }, [mergingTiles]);
 
   // ── Evervault skin: detect active skin & track merge flash ──
-  const { activeSkin, isPremiumUiThemeActive, premiumUiObjects } = useBlockCustomization();
+  const { activeSkin, isPremiumUiThemeActive, premiumUiObjects, resolveTileAppearance } = useBlockCustomization();
   const premiumUiBoardCellClassName = premiumUiObjects.extended.board.boardCellClassName;
   const premiumUiBoardShellClassName = premiumUiObjects.extended.board.boardShellClassName || premiumUiObjects.blockClassName;
   const premiumUiGhostValidClassName = premiumUiObjects.extended.board.ghostValidClassName;
@@ -453,6 +485,21 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
   const isEvervaultSkin = activeSkin?.id === EVERVAULT_SKIN_ID;
 
   const [mergeFlashTileIds, setMergeFlashTileIds] = useState<ReadonlySet<string>>(new Set());
+
+  const appearanceCacheRef = useRef(new Map<number, ResolvedTileAppearance>());
+  const resolveTileAppearanceRef = useRef(resolveTileAppearance);
+  useEffect(() => {
+    resolveTileAppearanceRef.current = resolveTileAppearance;
+    appearanceCacheRef.current.clear();
+  }, [resolveTileAppearance]);
+  const getResolvedAppearance = useCallback((value: number): ResolvedTileAppearance => {
+    const cache = appearanceCacheRef.current;
+    const cached = cache.get(value);
+    if (cached) return cached;
+    const resolved = resolveTileAppearanceRef.current(value);
+    cache.set(value, resolved);
+    return resolved;
+  }, []);
 
   // When mergingTiles arrive, find the RECEIVING tiles at the destination
   useEffect(() => {
@@ -640,6 +687,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
         <MergingTilesLayer
           animatingMerges={animatingMerges}
           layout={layout}
+          getResolvedAppearance={getResolvedAppearance}
           isPremiumUiThemeActive={isPremiumUiThemeActive}
           premiumUiTileFaceClassName={premiumUiTileFaceClassName}
           premiumUiTileNumberClassName={premiumUiTileNumberClassName}
@@ -649,6 +697,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
         <TilesLayer
           tiles={renderTiles}
           layout={layout}
+          getResolvedAppearance={getResolvedAppearance}
           valueOverrides={valueOverrides}
           reviveSelectionEnabled={reviveSelectionEnabled}
           revivePendingTileId={revivePendingTileId}
@@ -656,6 +705,8 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
           isEvervaultSkin={isEvervaultSkin}
           mergeFlashTileIds={mergeFlashTileIds}
           onMergeFlashEnd={handleMergeFlashEnd}
+          mergedNumberBurstTileIds={mergedNumberBurstTileIds}
+          mergedNumberBurstByTileId={mergedNumberBurstByTileId}
           isPremiumUiThemeActive={isPremiumUiThemeActive}
           premiumUiTileFaceClassName={premiumUiTileFaceClassName}
           premiumUiTileNumberClassName={premiumUiTileNumberClassName}
@@ -665,6 +716,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
         <ReviveDestroyLayer
           effects={reviveDestroyEffects}
           layout={layout}
+          getResolvedAppearance={getResolvedAppearance}
           isPremiumUiThemeActive={isPremiumUiThemeActive}
           premiumUiTileFaceClassName={premiumUiTileFaceClassName}
           premiumUiTileNumberClassName={premiumUiTileNumberClassName}

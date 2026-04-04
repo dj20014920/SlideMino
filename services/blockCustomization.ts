@@ -576,6 +576,7 @@ const buildMeshSkinStyle = (value: number, seedHex: string, options?: { circular
 
 const LIQUID_GLASS_SKIN_PREFIX = 'skin_digital_liquid_glass_';
 const LEGACY_LIQUID_GLASS_SKIN_ID = 'skin_digital_liquid_glass';
+const NEON_BLOCK_PARALLEL_SKIN_PREFIX = 'skin_digital_neon_block_parallel_';
 
 const isLiquidGlassSkinId = (skinId: string): boolean => (
   skinId === LEGACY_LIQUID_GLASS_SKIN_ID || skinId.startsWith(LIQUID_GLASS_SKIN_PREFIX)
@@ -691,6 +692,31 @@ export const resolveSkinAppearance = (value: number, skin: { id?: string; hex: s
 
   // ── Neon Block: 원본 버튼 UI를 정사각형 블록으로 변환 (CSS 클래스 기반) ──
   const NEON_BLOCK_SKIN_ID = 'skin_digital_neon_block';
+  const isNeonParallelSkin = skinId.startsWith(NEON_BLOCK_PARALLEL_SKIN_PREFIX);
+  if (isNeonParallelSkin) {
+    const tintRgb = hexToRgb(skin.hex);
+    const tintHsl = rgbToHsl(tintRgb);
+    const intensity = clamp(Math.log2(Math.max(1, value)) / 16, 0, 1);
+    const edgeAlpha = 0.26 + intensity * 0.36;
+    const edgeSideAlpha = 0.22 + intensity * 0.3;
+    const cornerAlpha = 0.28 + intensity * 0.28;
+    const afterAlpha = 0.2 + intensity * 0.32;
+
+    const style: CSSProperties = {
+      ['--button-color' as any]: '#101010',
+      ['--highlight-color-hue' as any]: `${Math.round(tintHsl.h)}deg`,
+      ['--neon-edge-alpha' as any]: edgeAlpha.toFixed(3),
+      ['--neon-edge-side-alpha' as any]: edgeSideAlpha.toFixed(3),
+      ['--neon-corner-alpha' as any]: cornerAlpha.toFixed(3),
+      ['--neon-after-edge-alpha' as any]: afterAlpha.toFixed(3),
+    };
+
+    return {
+      className: 'skin-neon-block',
+      style: sanitizeTileAppearanceStyle(style),
+    };
+  }
+
   if (skinId === NEON_BLOCK_SKIN_ID) {
     return {
       className: 'skin-neon-block',

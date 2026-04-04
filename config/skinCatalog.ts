@@ -84,6 +84,22 @@ const LIQUID_GLASS_PARALLEL_SKINS: SkinCatalogEntry[] = LIQUID_GLASS_SWATCHES.ma
   },
 }));
 
+const NEON_PARALLEL_SKINS: SkinCatalogEntry[] = LIQUID_GLASS_SWATCHES.map(({ hex, nameKey }, index) => ({
+  id: `skin_digital_neon_block_parallel_${index + 1}`,
+  hex,
+  category: 'neon',
+  nameKey,
+  premium: false,
+  style: {
+    type: 'css-pattern',
+    value: 'none',
+    textColor: '#ffffff',
+    customCss: [
+      'border-radius: 4px',
+    ].join('; ') + ';',
+  },
+}));
+
 // ==========================================
 // 🎨 스킨 스타일 정의 (Complex Skins)
 // ==========================================
@@ -93,7 +109,7 @@ export const ADDITIONAL_SKIN_CATALOG: SkinCatalogEntry[] = [
   {
     id: 'skin_digital_neon_block',
     hex: '#101010',
-    category: 'digital',
+    category: 'neon',
     nameKey: 'neonBlock',
     premium: false,
     style: {
@@ -105,6 +121,7 @@ export const ADDITIONAL_SKIN_CATALOG: SkinCatalogEntry[] = [
       ].join('; ') + ';',
     },
   },
+  ...NEON_PARALLEL_SKINS,
 
   // 대리석: HSL Progression(light grey → dark grey) + 교차 라이닝 오버레이
   {

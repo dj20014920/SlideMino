@@ -22,7 +22,8 @@ import {
   placePieceOnGrid,
   getTurnActionAvailability,
   slideGrid,
-  hasPossibleMoves
+  hasPossibleMoves,
+  type MergedTile,
 } from './services/gameLogic';
 import { Board, type BoardHandle, type ReviveDestroyEffect } from './components/Board';
 import { Slot } from './components/Slot';
@@ -173,6 +174,8 @@ import { rescheduleNotifications } from './services/notificationService';
 
 const EMPTY_TILE_VALUE_OVERRIDES: Record<string, number> = {};
 const EMPTY_MERGING_TILES: MergingTile[] = [];
+const EMPTY_TILE_ID_SET: ReadonlySet<string> = new Set<string>();
+const EMPTY_TILE_BURST_MAP: Readonly<Record<string, number>> = Object.freeze({});
 const DRAG_OVERLAY_SCALE = 0.65;
 // 손가락 위로 올릴 높이 = 보드 셀 pitch 기준 배수
 // → 기기 크기(폰/태블릿)에 관계없이 항상 적절한 비율 유지
@@ -1108,6 +1111,8 @@ const App: React.FC = () => {
   // Animation Lock
   const [isAnimating, setIsAnimating] = useState(false);
   const [tileValueOverrides, setTileValueOverrides] = useState<Record<string, number>>(EMPTY_TILE_VALUE_OVERRIDES);
+  const [mergedNumberBurstTileIds, setMergedNumberBurstTileIds] = useState<ReadonlySet<string>>(EMPTY_TILE_ID_SET);
+  const [mergedNumberBurstByTileId, setMergedNumberBurstByTileId] = useState<Readonly<Record<string, number>>>(EMPTY_TILE_BURST_MAP);
 
   // --- Dragging State ---
   const [draggingPiece, setDraggingPiece] = useState<Piece | null>(null);
@@ -1140,6 +1145,7 @@ const App: React.FC = () => {
   const isReviveSelectionModeRef = useRef(false); // 부활 선택 모드 동기 가드 (state보다 먼저 반영)
   const mergeClearTimeoutRef = useRef<number | null>(null);
   const mergeFinalizeTimeoutRef = useRef<number | null>(null);
+  const mergedNumberBurstClearTimeoutRef = useRef<number | null>(null);
   const unlockTimeoutRef = useRef<number | null>(null);
   const comboMessageTimeoutRef = useRef<number | null>(null);
   const blockRefreshNoticeTimeoutRef = useRef<number | null>(null);
@@ -1192,6 +1198,15 @@ const App: React.FC = () => {
     }
     previousGameStateRef.current = gameState;
   }, [gameState]);
+
+  const buildMergedBurstValueMap = useCallback((mergedTiles: readonly MergedTile[]): Readonly<Record<string, number>> => {
+    if (mergedTiles.length === 0) return EMPTY_TILE_BURST_MAP;
+    const map: Record<string, number> = {};
+    for (const tile of mergedTiles) {
+      map[tile.id] = tile.toValue;
+    }
+    return map;
+  }, []);
 
   const pauseActivePlayTimer = useCallback(() => {
     const startedAt = activePlayStartedAtRef.current;
@@ -1944,6 +1959,10 @@ const App: React.FC = () => {
       window.clearTimeout(mergeFinalizeTimeoutRef.current);
       mergeFinalizeTimeoutRef.current = null;
     }
+    if (mergedNumberBurstClearTimeoutRef.current) {
+      window.clearTimeout(mergedNumberBurstClearTimeoutRef.current);
+      mergedNumberBurstClearTimeoutRef.current = null;
+    }
     if (unlockTimeoutRef.current) {
       window.clearTimeout(unlockTimeoutRef.current);
       unlockTimeoutRef.current = null;
@@ -1963,6 +1982,8 @@ const App: React.FC = () => {
     setMaxScoreThisRun(0);
     setMergingTiles(EMPTY_MERGING_TILES);
     setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
+    setMergedNumberBurstTileIds(EMPTY_TILE_ID_SET);
+    setMergedNumberBurstByTileId(EMPTY_TILE_BURST_MAP);
     slideLockRef.current = false;
     setIsAnimating(false);
     setPhase(Phase.PLACE);
@@ -2054,6 +2075,7 @@ const App: React.FC = () => {
       resetEventTimer();
       if (mergeClearTimeoutRef.current) { window.clearTimeout(mergeClearTimeoutRef.current); mergeClearTimeoutRef.current = null; }
       if (mergeFinalizeTimeoutRef.current) { window.clearTimeout(mergeFinalizeTimeoutRef.current); mergeFinalizeTimeoutRef.current = null; }
+      if (mergedNumberBurstClearTimeoutRef.current) { window.clearTimeout(mergedNumberBurstClearTimeoutRef.current); mergedNumberBurstClearTimeoutRef.current = null; }
       if (unlockTimeoutRef.current) { window.clearTimeout(unlockTimeoutRef.current); unlockTimeoutRef.current = null; }
       if (comboMessageTimeoutRef.current) { window.clearTimeout(comboMessageTimeoutRef.current); comboMessageTimeoutRef.current = null; }
       reviveDestroyEffectTimeoutsRef.current.forEach((tid) => window.clearTimeout(tid));
@@ -2076,6 +2098,8 @@ const App: React.FC = () => {
       setMaxScoreThisRun(0);
       setMergingTiles(EMPTY_MERGING_TILES);
       setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
+      setMergedNumberBurstTileIds(EMPTY_TILE_ID_SET);
+      setMergedNumberBurstByTileId(EMPTY_TILE_BURST_MAP);
       slideLockRef.current = false;
       setIsAnimating(false);
       setPhase(Phase.PLACE);
@@ -2142,6 +2166,7 @@ const App: React.FC = () => {
     clearEventGameState();
     if (mergeClearTimeoutRef.current) { window.clearTimeout(mergeClearTimeoutRef.current); mergeClearTimeoutRef.current = null; }
     if (mergeFinalizeTimeoutRef.current) { window.clearTimeout(mergeFinalizeTimeoutRef.current); mergeFinalizeTimeoutRef.current = null; }
+    if (mergedNumberBurstClearTimeoutRef.current) { window.clearTimeout(mergedNumberBurstClearTimeoutRef.current); mergedNumberBurstClearTimeoutRef.current = null; }
     if (unlockTimeoutRef.current) { window.clearTimeout(unlockTimeoutRef.current); unlockTimeoutRef.current = null; }
     if (comboMessageTimeoutRef.current) { window.clearTimeout(comboMessageTimeoutRef.current); comboMessageTimeoutRef.current = null; }
     reviveDestroyEffectTimeoutsRef.current.forEach((tid) => window.clearTimeout(tid));
@@ -2171,6 +2196,8 @@ const App: React.FC = () => {
     setMaxScoreThisRun(0);
     setMergingTiles(EMPTY_MERGING_TILES);
     setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
+    setMergedNumberBurstTileIds(EMPTY_TILE_ID_SET);
+    setMergedNumberBurstByTileId(EMPTY_TILE_BURST_MAP);
     slideLockRef.current = false;
     setIsAnimating(false);
     setPhase(Phase.PLACE);
@@ -2236,6 +2263,7 @@ const App: React.FC = () => {
     // 이벤트 이어하기: 다른 모드 세이브는 건드리지 않음
     if (mergeClearTimeoutRef.current) { window.clearTimeout(mergeClearTimeoutRef.current); mergeClearTimeoutRef.current = null; }
     if (mergeFinalizeTimeoutRef.current) { window.clearTimeout(mergeFinalizeTimeoutRef.current); mergeFinalizeTimeoutRef.current = null; }
+    if (mergedNumberBurstClearTimeoutRef.current) { window.clearTimeout(mergedNumberBurstClearTimeoutRef.current); mergedNumberBurstClearTimeoutRef.current = null; }
     if (unlockTimeoutRef.current) { window.clearTimeout(unlockTimeoutRef.current); unlockTimeoutRef.current = null; }
     if (comboMessageTimeoutRef.current) { window.clearTimeout(comboMessageTimeoutRef.current); comboMessageTimeoutRef.current = null; }
     reviveDestroyEffectTimeoutsRef.current.forEach((tid) => window.clearTimeout(tid));
@@ -2258,6 +2286,8 @@ const App: React.FC = () => {
     setMaxScoreThisRun(saved.score);
     setMergingTiles(EMPTY_MERGING_TILES);
     setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
+    setMergedNumberBurstTileIds(EMPTY_TILE_ID_SET);
+    setMergedNumberBurstByTileId(EMPTY_TILE_BURST_MAP);
     slideLockRef.current = false;
     setIsAnimating(false);
     setPhase(saved.phase as Phase);
@@ -2539,6 +2569,8 @@ const App: React.FC = () => {
     // 애니메이션 관련 상태 정리
     setMergingTiles(EMPTY_MERGING_TILES);
     setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
+    setMergedNumberBurstTileIds(EMPTY_TILE_ID_SET);
+    setMergedNumberBurstByTileId(EMPTY_TILE_BURST_MAP);
   }, [lastSnapshot, undoRemaining, isAnimating]);
 
   // 🆕 리워드 광고 시청 핸들러
@@ -2669,6 +2701,10 @@ const App: React.FC = () => {
           window.clearTimeout(mergeFinalizeTimeoutRef.current);
           mergeFinalizeTimeoutRef.current = null;
         }
+        if (mergedNumberBurstClearTimeoutRef.current) {
+          window.clearTimeout(mergedNumberBurstClearTimeoutRef.current);
+          mergedNumberBurstClearTimeoutRef.current = null;
+        }
         if (unlockTimeoutRef.current) {
           window.clearTimeout(unlockTimeoutRef.current);
           unlockTimeoutRef.current = null;
@@ -2676,6 +2712,8 @@ const App: React.FC = () => {
 
         setMergingTiles(EMPTY_MERGING_TILES);
         setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
+        setMergedNumberBurstTileIds(EMPTY_TILE_ID_SET);
+        setMergedNumberBurstByTileId(EMPTY_TILE_BURST_MAP);
         slideLockRef.current = false;
         setIsAnimating(false);
         setLastSnapshot(null);
@@ -2872,6 +2910,7 @@ const App: React.FC = () => {
     return () => {
       if (mergeClearTimeoutRef.current) window.clearTimeout(mergeClearTimeoutRef.current);
       if (mergeFinalizeTimeoutRef.current) window.clearTimeout(mergeFinalizeTimeoutRef.current);
+      if (mergedNumberBurstClearTimeoutRef.current) window.clearTimeout(mergedNumberBurstClearTimeoutRef.current);
       if (unlockTimeoutRef.current) window.clearTimeout(unlockTimeoutRef.current);
       if (comboMessageTimeoutRef.current) window.clearTimeout(comboMessageTimeoutRef.current);
       if (blockRefreshNoticeTimeoutRef.current) window.clearTimeout(blockRefreshNoticeTimeoutRef.current);
@@ -3341,6 +3380,19 @@ const App: React.FC = () => {
     if (scoreAdded > 0) {
       mergeFinalizeTimeoutRef.current = window.setTimeout(() => {
         setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
+        const mergedBurstIds = new Set(mergedTiles.map((tile) => tile.id));
+        if (mergedBurstIds.size > 0) {
+          setMergedNumberBurstTileIds(mergedBurstIds);
+          setMergedNumberBurstByTileId(buildMergedBurstValueMap(mergedTiles));
+          if (mergedNumberBurstClearTimeoutRef.current) {
+            window.clearTimeout(mergedNumberBurstClearTimeoutRef.current);
+          }
+          mergedNumberBurstClearTimeoutRef.current = window.setTimeout(() => {
+            setMergedNumberBurstTileIds(EMPTY_TILE_ID_SET);
+            setMergedNumberBurstByTileId(EMPTY_TILE_BURST_MAP);
+            mergedNumberBurstClearTimeoutRef.current = null;
+          }, 280);
+        }
 
         // 이벤트 점수 배율 & 트리플킬 보너스 적용
         let finalScore = scoreAdded;
@@ -4754,6 +4806,8 @@ const App: React.FC = () => {
                     revivePendingTileId={revivePendingTileId}
                     onReviveTileTap={handleReviveTileTap}
                     reviveDestroyEffects={reviveDestroyEffects}
+                    mergedNumberBurstTileIds={mergedNumberBurstTileIds}
+                    mergedNumberBurstByTileId={mergedNumberBurstByTileId}
                   />
                 </div>
               </div>
@@ -4772,6 +4826,8 @@ const App: React.FC = () => {
                 revivePendingTileId={revivePendingTileId}
                 onReviveTileTap={handleReviveTileTap}
                 reviveDestroyEffects={reviveDestroyEffects}
+                mergedNumberBurstTileIds={mergedNumberBurstTileIds}
+                mergedNumberBurstByTileId={mergedNumberBurstByTileId}
               />
             )}
           </div>

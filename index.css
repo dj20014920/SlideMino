@@ -183,6 +183,10 @@
   --transition: 0.4s;
   --button-color: #101010;
   --highlight-color-hue: 210deg;
+  --neon-edge-alpha: 0.55;
+  --neon-edge-side-alpha: 0.45;
+  --neon-corner-alpha: 0.5;
+  --neon-after-edge-alpha: 0.45;
 
   position: relative !important;
   user-select: none;
@@ -234,14 +238,14 @@
   transition: box-shadow var(--transition), filter var(--transition);
   /* 4방향 + 4모서리 hue glow — 테두리 전체를 빈틈없이 감쌈 (강도 높임) */
   box-shadow:
-    /* 상단 */ 0 -6px 12px -4px hsla(var(--highlight-color-hue), 100%, 70%, 0.55) inset,
-    /* 하단 */ 0 6px 12px -4px hsla(var(--highlight-color-hue), 100%, 70%, 0.55) inset,
-    /* 좌측 */ -6px 0 12px -4px hsla(var(--highlight-color-hue), 100%, 70%, 0.45) inset,
-    /* 우측 */ 6px 0 12px -4px hsla(var(--highlight-color-hue), 100%, 70%, 0.45) inset,
-    /* 좌상단 모서리 */ -5px -5px 10px -3px hsla(var(--highlight-color-hue), 100%, 70%, 0.5) inset,
-    /* 우상단 모서리 */ 5px -5px 10px -3px hsla(var(--highlight-color-hue), 100%, 70%, 0.5) inset,
-    /* 좌하단 모서리 */ -5px 5px 10px -3px hsla(var(--highlight-color-hue), 100%, 70%, 0.5) inset,
-    /* 우하단 모서리 */ 5px 5px 10px -3px hsla(var(--highlight-color-hue), 100%, 70%, 0.5) inset,
+    /* 상단 */ 0 -6px 12px -4px hsla(var(--highlight-color-hue), 100%, 70%, var(--neon-edge-alpha)) inset,
+    /* 하단 */ 0 6px 12px -4px hsla(var(--highlight-color-hue), 100%, 70%, var(--neon-edge-alpha)) inset,
+    /* 좌측 */ -6px 0 12px -4px hsla(var(--highlight-color-hue), 100%, 70%, var(--neon-edge-side-alpha)) inset,
+    /* 우측 */ 6px 0 12px -4px hsla(var(--highlight-color-hue), 100%, 70%, var(--neon-edge-side-alpha)) inset,
+    /* 좌상단 모서리 */ -5px -5px 10px -3px hsla(var(--highlight-color-hue), 100%, 70%, var(--neon-corner-alpha)) inset,
+    /* 우상단 모서리 */ 5px -5px 10px -3px hsla(var(--highlight-color-hue), 100%, 70%, var(--neon-corner-alpha)) inset,
+    /* 좌하단 모서리 */ -5px 5px 10px -3px hsla(var(--highlight-color-hue), 100%, 70%, var(--neon-corner-alpha)) inset,
+    /* 우하단 모서리 */ 5px 5px 10px -3px hsla(var(--highlight-color-hue), 100%, 70%, var(--neon-corner-alpha)) inset,
     /* 외부 베젤 */ 1px 1px 1px rgba(255, 255, 255, 0.133),
     2px 2px 2px rgba(255, 255, 255, 0.067),
     -1px -1px 1px rgba(0, 0, 0, 0.133),
@@ -260,10 +264,10 @@
   pointer-events: none;
   /* 테두리에서만 보이는 미세 edge glow — 중앙 침범 금지 (강도 높임) */
   background-image:
-    /* 상단 edge: 위에서 18%만 */ linear-gradient(180deg, hsla(var(--highlight-color-hue), 100%, 70%, 0.45) 0%, transparent 18%),
-    /* 하단 edge: 아래에서 18%만 */ linear-gradient(0deg, hsla(var(--highlight-color-hue), 100%, 70%, 0.45) 0%, transparent 18%),
-    /* 좌측 edge: 왼쪽에서 18%만 */ linear-gradient(90deg, hsla(var(--highlight-color-hue), 100%, 70%, 0.35) 0%, transparent 18%),
-    /* 우측 edge: 오른쪽에서 18%만 */ linear-gradient(270deg, hsla(var(--highlight-color-hue), 100%, 70%, 0.35) 0%, transparent 18%),
+    /* 상단 edge: 위에서 18%만 */ linear-gradient(180deg, hsla(var(--highlight-color-hue), 100%, 70%, var(--neon-after-edge-alpha)) 0%, transparent 18%),
+    /* 하단 edge: 아래에서 18%만 */ linear-gradient(0deg, hsla(var(--highlight-color-hue), 100%, 70%, var(--neon-after-edge-alpha)) 0%, transparent 18%),
+    /* 좌측 edge: 왼쪽에서 18%만 */ linear-gradient(90deg, hsla(var(--highlight-color-hue), 100%, 70%, calc(var(--neon-after-edge-alpha) * 0.78)) 0%, transparent 18%),
+    /* 우측 edge: 오른쪽에서 18%만 */ linear-gradient(270deg, hsla(var(--highlight-color-hue), 100%, 70%, calc(var(--neon-after-edge-alpha) * 0.78)) 0%, transparent 18%),
     /* 원본 하단 gradient */ linear-gradient(
       0deg,
       #fff,
@@ -288,6 +292,34 @@
   animation: neonBlockNumberPulse 2s ease-in-out infinite;
   transition: color var(--transition), text-shadow var(--transition);
   z-index: 2;
+}
+
+/* Merge number burst — subtle, fast, auto-finish */
+@keyframes tileMergeNumberBurst {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+    text-shadow: 0 0 0 rgba(255, 255, 255, 0);
+  }
+  45% {
+    transform: scale(var(--merge-burst-scale, 1.12));
+    opacity: 0.94;
+    text-shadow:
+      0 0 6px rgba(255, 255, 255, var(--merge-burst-shadow-alpha, 0.22)),
+      0 0 10px rgba(140, 190, 255, calc(var(--merge-burst-shadow-alpha, 0.22) * 0.54));
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+    text-shadow: 0 0 0 rgba(255, 255, 255, 0);
+  }
+}
+
+.tile-number-merge-burst {
+  display: inline-block;
+  transform-origin: center;
+  will-change: transform, opacity, text-shadow;
+  animation: tileMergeNumberBurst 0.28s ease-out 1 both;
 }
 
 /* Modal safe area for bottom-fixed chrome (native ad + bottom nav) */

@@ -96,7 +96,7 @@ export interface BlockCustomizationSettingsV1 {
 
 // --- Skin system ---
 
-export type SkinCategory = 'basic' | 'material' | 'digital' | 'art' | 'food' | 'nature';
+export type SkinCategory = 'basic' | 'material' | 'digital' | 'art' | 'food' | 'nature' | 'neon';
 
 export interface SkinStyle {
   type: 'solid' | 'gradient' | 'image' | 'css-pattern';

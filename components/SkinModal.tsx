@@ -15,6 +15,7 @@ import { trackAnalyticsEvent } from '../services/analyticsService';
 import { getSkinFallbackDisplayName } from '../services/skinDisplayName';
 import { SkinAcquisitionOverlay } from './SkinAcquisitionOverlay';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
+import ExploreGalaxyOverlay from './ExploreGalaxyOverlay';
 
 type SkinModalProps = {
   open: boolean;
@@ -22,6 +23,7 @@ type SkinModalProps = {
 };
 
 type SkinSectionKey = 'premium' | 'neon' | 'liquid' | 'mesh' | 'normal';
+const EXPLORE_GALAXY_SKIN_ID = 'skin_digital_explore_galaxy';
 
 // 스킨 미리보기 타일 렌더링
 const SkinPreviewTile = React.memo<{ value: number; skin: { id?: string; hex: string; style?: any }; tilePx: number }>(
@@ -31,11 +33,12 @@ const SkinPreviewTile = React.memo<{ value: number; skin: { id?: string; hex: st
     const premiumUiTileNumberClassName = premiumUiObjects.extended.text.tileNumberClassName;
     const { className, style } = resolveSkinAppearance(value, skin);
     const isNeonBlock = className === 'skin-neon-block';
+    const isExploreGalaxy = skin.id === EXPLORE_GALAXY_SKIN_ID;
     const { text, fontPx } = getTileNumberLayout(value, tilePx);
 
     return (
       <div
-        className={`${isNeonBlock ? '' : 'rounded-2xl'} ${isPremiumUiThemeActive ? premiumUiTileFaceClassName : ''} flex items-center justify-center font-semibold ${isNeonBlock ? '' : 'overflow-hidden'} text-center select-none shrink-0 ${className}`}
+        className={`${isNeonBlock ? '' : 'rounded-2xl'} ${isPremiumUiThemeActive ? premiumUiTileFaceClassName : ''} ${isExploreGalaxy ? 'explore-galaxy-phase-sync' : ''} flex items-center justify-center font-semibold ${isNeonBlock ? '' : 'overflow-hidden'} text-center select-none shrink-0 ${className}`}
         data-skin-preview-tile="true"
         data-premium-ui-allow-gradient="true"
         data-premium-ui-allow-shadow="true"
@@ -48,6 +51,15 @@ const SkinPreviewTile = React.memo<{ value: number; skin: { id?: string; hex: st
           ...style,
         }}
       >
+        {isExploreGalaxy && (
+          <ExploreGalaxyOverlay
+            size={4}
+            cellPx={tilePx / 4}
+            active
+            mode="swatch"
+            zIndex={1}
+          />
+        )}
         <span className={`${isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''} ${isNeonBlock ? 'skin-neon-block-number' : ''}`}>{text}</span>
       </div>
     );
@@ -370,6 +382,7 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                               const swatchPreviewValue = isLiquidGlassSkin(entry.id) ? 64 : 16;
                               const { className, style } = resolveSkinAppearance(swatchPreviewValue, entry);
                               const isNeonSwatch = isNeonSkin(entry.id);
+                              const isExploreGalaxySwatch = entry.id === EXPLORE_GALAXY_SKIN_ID;
 
                               return (
                                 <div
@@ -378,7 +391,16 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                                   className={`relative aspect-square flex items-center justify-center cursor-pointer ${premiumUiCompartmentButtonClassName} ${isSelected ? premiumUiListItemHighlightClassName : ''} ${isNeonSwatch ? 'bg-slate-950/10 shadow-[inset_0_0_0_1px_rgba(2,6,23,0.12)]' : ''}`}
                                   style={{ boxSizing: 'border-box' }}
                                 >
-                                  <div className={`w-full h-full relative ${className}`} style={{ ...style, borderRadius: 0 }} data-premium-ui-allow-gradient="true" data-premium-ui-allow-shadow="true" data-skin-swatch="true">
+                                  <div className={`w-full h-full relative ${className} ${isExploreGalaxySwatch ? 'explore-galaxy-phase-sync' : ''}`} style={{ ...style, borderRadius: 0 }} data-premium-ui-allow-gradient="true" data-premium-ui-allow-shadow="true" data-skin-swatch="true">
+                                    {isExploreGalaxySwatch && (
+                                      <ExploreGalaxyOverlay
+                                        size={4}
+                                        cellPx={10}
+                                        active
+                                        mode="swatch"
+                                        zIndex={1}
+                                      />
+                                    )}
                                     {!isOwned && <div className="absolute inset-0 z-[5] bg-black/30" />}
                                     {entry.premium && (
                                       <div className="absolute top-0 right-0 z-20" style={{ fontSize: '8px', lineHeight: 1 }}>💎</div>
@@ -548,6 +570,7 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                             const swatchPreviewValue = isLiquidGlassSkin(entry.id) ? 64 : 16;
                             const { className, style } = resolveSkinAppearance(swatchPreviewValue, entry);
                             const isNeonSwatch = isNeonSkin(entry.id);
+                            const isExploreGalaxySwatch = entry.id === EXPLORE_GALAXY_SKIN_ID;
 
                             return (
                               <button
@@ -558,10 +581,20 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                                   relative aspect-square rounded-2xl transition-all duration-150 ${isNeonSwatch ? '' : 'overflow-hidden'}
                                   ${isSelected ? 'ring-2 ring-gray-900 ring-offset-2' : 'ring-1 ring-black/5'}
                                   ${isNeonSwatch ? 'bg-slate-950/10 shadow-[inset_0_0_0_1px_rgba(2,6,23,0.12)]' : ''}
+                                  ${isExploreGalaxySwatch ? 'explore-galaxy-phase-sync' : ''}
                                   ${className}
                                 `}
                                 style={style}
                               >
+                                {isExploreGalaxySwatch && (
+                                  <ExploreGalaxyOverlay
+                                    size={4}
+                                    cellPx={10}
+                                    active
+                                    mode="swatch"
+                                    zIndex={1}
+                                  />
+                                )}
                                 {!isOwned && (
                                   <div className="absolute inset-0 bg-black/40 z-[5]" />
                                 )}

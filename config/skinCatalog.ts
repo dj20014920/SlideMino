@@ -125,11 +125,28 @@ const NEON_ORDERED_SKINS: SkinCatalogEntry[] = [
   ...NEON_PARALLEL_SKINS.slice(NEON_CORE_INSERT_INDEX),
 ];
 
+const EXPLORE_GALAXY_PREMIUM_SKIN: SkinCatalogEntry = {
+  id: 'skin_digital_explore_galaxy',
+  hex: '#2b1b75',
+  category: 'digital',
+  nameKey: 'exploreGalaxy',
+  premium: true,
+  style: {
+    type: 'css-pattern',
+    value: 'none',
+    textColor: '#e5e7eb',
+    customCss: [
+      'border-radius: 4px',
+    ].join('; ') + ';',
+  },
+};
+
 // ==========================================
 // 🎨 스킨 스타일 정의 (Complex Skins)
 // ==========================================
 
 export const ADDITIONAL_SKIN_CATALOG: SkinCatalogEntry[] = [
+  EXPLORE_GALAXY_PREMIUM_SKIN,
   ...NEON_ORDERED_SKINS,
 
   // 대리석: HSL Progression(light grey → dark grey) + 교차 라이닝 오버레이

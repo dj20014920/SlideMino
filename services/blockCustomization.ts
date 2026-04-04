@@ -577,6 +577,7 @@ const buildMeshSkinStyle = (value: number, seedHex: string, options?: { circular
 const LIQUID_GLASS_SKIN_PREFIX = 'skin_digital_liquid_glass_';
 const LEGACY_LIQUID_GLASS_SKIN_ID = 'skin_digital_liquid_glass';
 const NEON_BLOCK_PARALLEL_SKIN_PREFIX = 'skin_digital_neon_block_parallel_';
+const EXPLORE_GALAXY_SKIN_ID = 'skin_digital_explore_galaxy';
 
 const isLiquidGlassSkinId = (skinId: string): boolean => (
   skinId === LEGACY_LIQUID_GLASS_SKIN_ID || skinId.startsWith(LIQUID_GLASS_SKIN_PREFIX)
@@ -731,6 +732,27 @@ export const resolveSkinAppearance = (value: number, skin: { id?: string; hex: s
     return {
       className: 'skin-neon-block',
       style: sanitizeTileAppearanceStyle(style as CSSProperties),
+    };
+  }
+
+  if (skinId === EXPLORE_GALAXY_SKIN_ID) {
+    const style: CSSProperties = {
+      backgroundColor: 'transparent',
+      backgroundImage: 'none',
+      border: 'none',
+      boxShadow: 'none',
+      color: '#e5e7eb',
+      textShadow: '0 1px 2px rgba(0,0,0,0.65), 0 0 10px rgba(194, 184, 255, 0.32)',
+    };
+    if (styleData?.customCss) {
+      applyStructuralCss(style, styleData.customCss as string);
+    }
+    if (typeof styleData?.textColor === 'string' && styleData.textColor) {
+      style.color = styleData.textColor;
+    }
+    return {
+      className: 'skin-explore-galaxy-tile',
+      style: sanitizeTileAppearanceStyle(style),
     };
   }
 

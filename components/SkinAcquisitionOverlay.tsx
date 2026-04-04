@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { hexToRgb, resolveSkinAppearance } from '../services/blockCustomization';
 import { SKIN_CATALOG } from '../constants';
 import { getSkinFallbackDisplayName } from '../services/skinDisplayName';
+import ExploreGalaxyOverlay from './ExploreGalaxyOverlay';
 
 type SkinAcquisitionOverlayProps = {
   skin: { id?: string; hex: string; style?: any };
@@ -38,6 +39,7 @@ export const SkinAcquisitionOverlay: React.FC<SkinAcquisitionOverlayProps> = ({
   const [canDismiss, setCanDismiss] = useState(false); // 클릭해서 닫을 수 있는지 여부
   const skinHex = skin.hex;
   const appearance = useMemo(() => resolveSkinAppearance(2048, skin), [skin]);
+  const isExploreGalaxy = skin.id === 'skin_digital_explore_galaxy';
   const displayName = useMemo(() => {
     const catalogEntry = skin.id ? SKIN_CATALOG.find((entry) => entry.id === skin.id) : undefined;
     const fallbackName = getSkinFallbackDisplayName(
@@ -314,13 +316,22 @@ export const SkinAcquisitionOverlay: React.FC<SkinAcquisitionOverlayProps> = ({
                     stiffness: 200,
                     damping: 15
                   }}
-                  className="relative w-32 h-32 rounded-3xl z-20 overflow-hidden ring-4 ring-white/30"
+                  className={`relative w-32 h-32 rounded-3xl z-20 overflow-hidden ring-4 ring-white/30 ${isExploreGalaxy ? 'explore-galaxy-phase-sync' : ''}`}
                   style={{
                     backgroundColor: skinHex,
                     ...appearance.style,
                     boxShadow: `0 0 50px ${colors.glow}, 0 0 100px ${colors.corona}, ${appearance.style?.boxShadow ?? ''}`,
                   }}
                 >
+                  {isExploreGalaxy && (
+                    <ExploreGalaxyOverlay
+                      size={4}
+                      cellPx={32}
+                      active
+                      mode="swatch"
+                      zIndex={1}
+                    />
+                  )}
                   {/* 블록 내부의 하이라이트 */}
                   <div className="absolute inset-0 bg-gradient-to-tr from-black/20 to-white/30" />
                   <motion.div

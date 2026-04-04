@@ -13,7 +13,9 @@ import { canPlacePiece } from '../services/gameLogic';
 import { getTileColor, getTileNumberLayout, getSlideAnimationDurationMs, BOARD_CELL_GAP_PX } from '../constants';
 import { useBlockCustomization } from '../context/BlockCustomizationContext';
 import EvervaultTileOverlay from './EvervaultTileOverlay';
+import ExploreGalaxyOverlay from './ExploreGalaxyOverlay';
 import { clamp, type ResolvedTileAppearance } from '../services/blockCustomization';
+import { getNativePlatform } from '../utils/platform';
 
 const EVERVAULT_SKIN_ID = 'skin_digital_evervault';
 
@@ -50,7 +52,12 @@ const BackgroundGrid = React.memo<{
   layout: GridLayout;
   isPremiumUiThemeActive: boolean;
   premiumUiBoardCellClassName: string;
-}>(({ size, layout, isPremiumUiThemeActive, premiumUiBoardCellClassName }) => {
+}>(({
+  size,
+  layout,
+  isPremiumUiThemeActive,
+  premiumUiBoardCellClassName,
+}) => {
   if (layout.cellPx <= 0) return null;
   return (
     <div className="absolute inset-0 z-0 pointer-events-none">
@@ -82,6 +89,8 @@ type GridLayout = {
   pitchPx: number;
   posPx: number[];
 };
+
+const EXPLORE_GALAXY_SKIN_ID = 'skin_digital_explore_galaxy';
 
 const tileTransitionEase = 'cubic-bezier(0.25,0.1,0.25,1.0)';
 const reviveDestroyAnimation = 'reviveBreakFade 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards';
@@ -356,7 +365,16 @@ const GhostOverlay = React.memo<{
   isPremiumUiThemeActive: boolean;
   premiumUiGhostValidClassName: string;
   premiumUiGhostInvalidClassName: string;
-}>(({ size, layout, ghostCells, isPremiumUiThemeActive, premiumUiGhostValidClassName, premiumUiGhostInvalidClassName }) => {
+  isExploreGalaxySkin: boolean;
+}>(({
+  size,
+  layout,
+  ghostCells,
+  isPremiumUiThemeActive,
+  premiumUiGhostValidClassName,
+  premiumUiGhostInvalidClassName,
+  isExploreGalaxySkin,
+}) => {
   if (ghostCells.cells.length === 0) return null;
 
   return (
@@ -364,11 +382,9 @@ const GhostOverlay = React.memo<{
       {ghostCells.cells.map((cell, idx) => {
         if (cell.x < 0 || cell.x >= size || cell.y < 0 || cell.y >= size) return null;
         const transform = `translate3d(${layout.posPx[cell.x]}px, ${layout.posPx[cell.y]}px, 0)`;
-
-        return (
-          <div
-            key={`ghost-${idx}`}
-            className={`
+        const ghostClassName = isExploreGalaxySkin
+          ? 'absolute rounded-xl opacity-100 border-2 box-border transition-colors duration-150'
+          : `
               absolute ${isPremiumUiThemeActive ? '' : 'rounded-xl'} ${isPremiumUiThemeActive ? 'opacity-100' : 'opacity-70'} border-2 box-border
               transition-colors duration-150
               ${isPremiumUiThemeActive
@@ -378,13 +394,25 @@ const GhostOverlay = React.memo<{
                 : ghostCells.isValid
                   ? 'bg-gray-800/50 border-gray-600'
                   : 'bg-red-400/50 border-red-300'}
-            `}
+            `;
+        const ghostStyle = isExploreGalaxySkin
+          ? ({
+              backgroundColor: ghostCells.isValid ? '#e7ebf5' : '#f1d8df',
+              borderColor: ghostCells.isValid ? '#b6bfd4' : '#cf95a5',
+            } as React.CSSProperties)
+          : undefined;
+
+        return (
+          <div
+            key={`ghost-${idx}`}
+            className={ghostClassName}
             style={{
               width: `${layout.cellPx}px`,
               height: `${layout.cellPx}px`,
               left: 0,
               top: 0,
               transform,
+              ...(ghostStyle ?? {}),
             }}
           />
         );
@@ -486,6 +514,8 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
   const premiumUiTileFaceClassName = premiumUiObjects.extended.text.tileFaceClassName;
   const premiumUiTileNumberClassName = premiumUiObjects.extended.text.tileNumberClassName;
   const isEvervaultSkin = activeSkin?.id === EVERVAULT_SKIN_ID;
+  const isExploreGalaxySkin = activeSkin?.id === EXPLORE_GALAXY_SKIN_ID;
+  const exploreGalaxyRenderMode = getNativePlatform() === 'ios' ? 'ios-safe' : 'normal';
 
   const [mergeFlashTileIds, setMergeFlashTileIds] = useState<ReadonlySet<string>>(new Set());
 
@@ -638,7 +668,56 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
       ? 'p-2'
       : 'p-4'
     : 'p-3';
-  const glowOpacityClass = isPremiumUiThemeActive ? 'opacity-0' : phase === Phase.SLIDE ? 'opacity-100' : 'opacity-0';
+  const glowOpacityClass = isPremiumUiThemeActive || isExploreGalaxySkin ? 'opacity-0' : phase === Phase.SLIDE ? 'opacity-100' : 'opacity-0';
+  const occupiedCells = useMemo(() => {
+    const occupiedMap = new Map<string, { x: number; y: number }>();
+    renderTiles.forEach((tile) => occupiedMap.set(`${tile.x},${tile.y}`, { x: tile.x, y: tile.y }));
+    animatingMerges.forEach((tile) => {
+      occupiedMap.set(`${tile.fromX},${tile.fromY}`, { x: tile.fromX, y: tile.fromY });
+      occupiedMap.set(`${tile.toX},${tile.toY}`, { x: tile.toX, y: tile.toY });
+    });
+    reviveDestroyEffects.forEach((effect) => occupiedMap.set(`${effect.x},${effect.y}`, { x: effect.x, y: effect.y }));
+    return Array.from(occupiedMap.values());
+  }, [renderTiles, animatingMerges, reviveDestroyEffects]);
+  const galaxyMaskCanvasPx = useMemo(() => {
+    if (layout.cellPx <= 0 || layout.posPx.length !== size) return 0;
+    return layout.posPx[size - 1] + layout.cellPx;
+  }, [layout.cellPx, layout.posPx, size]);
+  const galaxyMaskCornerPx = useMemo(() => {
+    return 4;
+  }, [layout.cellPx]);
+  const maskTileInsetPx = useMemo(() => {
+    return 0;
+  }, []);
+  const galaxyMaskImage = useMemo(() => {
+    if (!isExploreGalaxySkin || galaxyMaskCanvasPx <= 0 || occupiedCells.length === 0) return null;
+    const rectMarkup = occupiedCells
+      .map((cell) => {
+        const x = layout.posPx[cell.x] + maskTileInsetPx;
+        const y = layout.posPx[cell.y] + maskTileInsetPx;
+        const side = Math.max(0, layout.cellPx - maskTileInsetPx * 2);
+        const radius = Math.max(0, Math.min(galaxyMaskCornerPx, side * 0.5));
+        return `<rect x="${x}" y="${y}" width="${side}" height="${side}" rx="${radius}" ry="${radius}" fill="white" />`;
+      })
+      .join('');
+    const maskSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${galaxyMaskCanvasPx}" height="${galaxyMaskCanvasPx}" viewBox="0 0 ${galaxyMaskCanvasPx} ${galaxyMaskCanvasPx}" preserveAspectRatio="none">${rectMarkup}</svg>`;
+    return `url("data:image/svg+xml;utf8,${encodeURIComponent(maskSvg)}")`;
+  }, [isExploreGalaxySkin, galaxyMaskCanvasPx, occupiedCells, layout.posPx, layout.cellPx, galaxyMaskCornerPx, maskTileInsetPx]);
+  const galaxyMaskStyle = useMemo(() => {
+    if (!galaxyMaskImage) return undefined;
+    return {
+      WebkitMaskImage: galaxyMaskImage,
+      maskImage: galaxyMaskImage,
+      WebkitMaskRepeat: 'no-repeat',
+      maskRepeat: 'no-repeat',
+      WebkitMaskPosition: '0 0',
+      maskPosition: '0 0',
+      WebkitMaskSize: '100% 100%',
+      maskSize: '100% 100%',
+      WebkitMaskMode: 'alpha',
+      maskMode: 'alpha',
+    } as React.CSSProperties;
+  }, [galaxyMaskImage]);
 
   return (
     <div
@@ -670,7 +749,9 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
         aria-hidden="true"
       />
       {/* Container for content aiming to match padding-box area */}
-      <div className="relative w-full h-full">
+      <div
+        className={`relative w-full h-full ${isExploreGalaxySkin ? 'explore-galaxy-phase-sync' : ''} ${isExploreGalaxySkin && exploreGalaxyRenderMode === 'ios-safe' ? 'explore-galaxy-render-ios-safe' : ''}`}
+      >
         <style>{`
           @keyframes reviveBreakFade {
             0% { opacity: 0.95; transform: scale(1); filter: saturate(1); }
@@ -682,6 +763,21 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
             100% { opacity: 0; transform: scale(1); }
           }
         `}</style>
+
+        {isExploreGalaxySkin && galaxyMaskStyle && (
+          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 8 }}>
+            <div className="absolute inset-0 pointer-events-none" style={galaxyMaskStyle}>
+              <ExploreGalaxyOverlay
+                size={size}
+                cellPx={layout.cellPx}
+                active
+                mode="board"
+                renderMode={exploreGalaxyRenderMode}
+                zIndex={0}
+              />
+            </div>
+          </div>
+        )}
 
         {/* 1. Background Grid (Empty Slots) */}
         <BackgroundGrid
@@ -739,6 +835,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
             isPremiumUiThemeActive={isPremiumUiThemeActive}
             premiumUiGhostValidClassName={premiumUiGhostValidClassName}
             premiumUiGhostInvalidClassName={premiumUiGhostInvalidClassName}
+            isExploreGalaxySkin={isExploreGalaxySkin}
           />
         )}
       </div>

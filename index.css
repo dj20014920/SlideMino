@@ -362,3 +362,267 @@
   touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
 }
+
+/* ==============================================
+   🌌 Explore Galaxy Skin (global board render + tile clipping)
+   - 원본 Galaxy Button 레이어를 보드 단일 캔버스로 운용
+   - 타일이 존재하는 영역만 마스크로 노출
+   - 블록 테두리 회전광은 모든 블록 동일 위상으로 동기화
+   ============================================== */
+
+@keyframes explore-galaxy-orbit {
+  to {
+    transform: translate(-50%, -50%) rotate(10deg) rotate(calc(var(--orbit-offset, 0deg) + 360deg)) translateY(calc(var(--distance) * 1px));
+  }
+}
+
+@keyframes explore-galaxy-move-x {
+  0% {
+    translate: -100px 0;
+  }
+  100% {
+    translate: 100px 0;
+  }
+}
+
+@keyframes explore-galaxy-move-y {
+  0% {
+    transform: translate(0, -50px);
+  }
+  100% {
+    transform: translate(0, 50px);
+  }
+}
+
+@keyframes explore-galaxy-flip {
+  to {
+    rotate: 360deg;
+  }
+}
+
+@keyframes explore-galaxy-rotate {
+  to {
+    transform: rotate(90deg);
+  }
+}
+
+@keyframes explore-galaxy-border-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@property --explore-border-angle {
+  syntax: "<angle>";
+  inherits: true;
+  initial-value: 0deg;
+}
+
+@keyframes explore-galaxy-sync-angle {
+  to {
+    --explore-border-angle: 360deg;
+  }
+}
+
+.explore-galaxy-phase-sync {
+  --explore-border-angle: 0deg;
+  animation: explore-galaxy-sync-angle 2.2s linear infinite;
+}
+
+.skin-explore-galaxy-layer {
+  --explore-transition: 0.25s;
+  --explore-spark: 1.8s;
+  --explore-hue: 245;
+  --explore-active: 1;
+  --explore-cut: 0.02em;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  opacity: var(--explore-active);
+  transition: opacity var(--explore-transition);
+  background:
+    radial-gradient(
+      120% 120% at 50% 50%,
+      hsl(var(--explore-hue) 97% 98% / 0.18) 40%,
+      transparent 50%
+    ) 0 0 / 100% 100% no-repeat,
+    radial-gradient(
+      120% 120% at 50% 50%,
+      hsl(var(--explore-hue) 97% 70% / 0.24) 30%,
+      transparent 70%
+    ) 0 0 / 100% 100% no-repeat,
+    hsl(var(--explore-hue) 97% 7%);
+}
+
+.skin-explore-galaxy-layer[data-explore-galaxy-layer='swatch'] {
+  border-radius: inherit;
+}
+
+.skin-explore-galaxy-layer--ios-safe .explore-galaxy-spark::before {
+  opacity: 0.72;
+}
+
+.explore-galaxy-core {
+  position: absolute;
+  width: 100%;
+  aspect-ratio: 1;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  overflow: hidden;
+  opacity: var(--explore-active);
+  transition: opacity var(--explore-transition);
+}
+
+.explore-galaxy-ring {
+  height: var(--explore-ring-diameter, 200%);
+  width: var(--explore-ring-diameter, 200%);
+  position: absolute;
+  top: calc(var(--explore-ring-center, 50%) + var(--explore-ring-offset-y, 0px));
+  left: var(--explore-ring-center, 50%);
+  border-radius: 50%;
+  transform: translate(-28%, -40%) rotateX(-24deg) rotateY(-30deg) rotateX(90deg);
+  transform-style: preserve-3d;
+}
+
+.explore-galaxy-container {
+  position: absolute;
+  inset: 0;
+  opacity: var(--explore-active);
+  transition: opacity var(--explore-transition);
+  mask: radial-gradient(white, transparent);
+}
+
+.explore-galaxy-star {
+  height: calc(var(--size) * 1px);
+  aspect-ratio: 1;
+  background: white;
+  border-radius: 50%;
+  position: absolute;
+  opacity: var(--alpha);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(10deg) rotate(var(--orbit-offset, 0deg)) translateY(calc(var(--distance) * 1px));
+  animation: explore-galaxy-orbit calc(var(--duration) * 1s) calc(var(--delay) * -1s) infinite linear;
+  filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.65));
+}
+
+.explore-galaxy-star--static {
+  animation:
+    explore-galaxy-move-x calc(var(--duration) * 0.1s) calc(var(--delay) * -0.1s) infinite linear,
+    explore-galaxy-move-y calc(var(--duration) * 0.2s) calc(var(--delay) * -0.2s) infinite linear;
+  transform: translate(0, 0);
+  top: 50%;
+  left: 50%;
+  max-height: 4px;
+  filter: brightness(4);
+  opacity: 0.92;
+}
+
+.explore-galaxy-spark {
+  position: absolute;
+  inset: 0;
+  border-radius: 2rem;
+  rotate: 0deg;
+  overflow: hidden;
+  mask: linear-gradient(white, transparent 50%);
+  animation: explore-galaxy-flip calc(var(--explore-spark) * 2) infinite steps(2, end);
+}
+
+.explore-galaxy-spark::before {
+  content: "";
+  position: absolute;
+  width: 200%;
+  aspect-ratio: 1;
+  top: 0%;
+  left: 50%;
+  z-index: -1;
+  translate: -50% -15%;
+  rotate: 0;
+  transform: rotate(-90deg);
+  opacity: 0.92;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0 340deg,
+    white 360deg
+  );
+  transition: opacity var(--explore-transition);
+  animation: explore-galaxy-rotate var(--explore-spark) linear infinite both;
+}
+
+.explore-galaxy-backdrop {
+  position: absolute;
+  inset: var(--explore-cut);
+  background: radial-gradient(120% 120% at 80% 20%, rgba(160, 142, 255, 0.34) 0%, rgba(39, 22, 112, 0.18) 34%, rgba(11, 7, 41, 0.96) 78%);
+  border-radius: 2rem;
+  transition: background var(--explore-transition);
+}
+
+.skin-explore-galaxy-tile {
+  --explore-border-radius: 4px;
+  --explore-border-strength: 1;
+  --explore-border-blur: 9px;
+  position: relative !important;
+  isolation: isolate;
+  z-index: 0;
+  overflow: hidden !important;
+  border-radius: var(--explore-border-radius) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  background-color: transparent !important;
+  box-shadow:
+    inset 0px 1px 1px rgba(255, 255, 255, 0.22),
+    inset 0px 2px 2px rgba(255, 255, 255, 0.14),
+    inset 0px 4px 4px rgba(255, 255, 255, 0.08),
+    inset 0px 8px 8px rgba(255, 255, 255, 0.04),
+    inset 0px 16px 16px rgba(255, 255, 255, 0.035),
+    0px -1px 1px rgba(0, 0, 0, 0.03),
+    0px -2px 2px rgba(0, 0, 0, 0.04),
+    0px -4px 4px rgba(0, 0, 0, 0.06),
+    0px -8px 8px rgba(0, 0, 0, 0.08),
+    0px -16px 16px rgba(0, 0, 0, 0.1) !important;
+}
+
+.skin-explore-galaxy-tile::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  padding: 1px;
+  background:
+    conic-gradient(
+      from var(--explore-border-angle, 0deg),
+      rgba(168, 159, 255, 0.0) 0deg,
+      rgba(168, 159, 255, 0.3) 35deg,
+      rgba(255, 255, 255, 0.95) 95deg,
+      rgba(125, 98, 255, 0.82) 132deg,
+      rgba(168, 159, 255, 0.12) 220deg,
+      rgba(168, 159, 255, 0.0) 360deg
+    );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  mix-blend-mode: screen;
+  filter: drop-shadow(0 0 4px rgba(162, 147, 255, 0.42));
+  opacity: calc(0.86 * var(--explore-border-strength));
+}
+
+.skin-explore-galaxy-tile[data-tile-kind] {
+  position: absolute !important;
+}
+
+.explore-galaxy-render-ios-safe .skin-explore-galaxy-tile::after {
+  mix-blend-mode: normal;
+  filter: none;
+  opacity: calc(0.62 * var(--explore-border-strength));
+  background:
+    linear-gradient(
+      135deg,
+      rgba(168, 159, 255, 0.12) 0%,
+      rgba(255, 255, 255, 0.42) 34%,
+      rgba(125, 98, 255, 0.44) 62%,
+      rgba(168, 159, 255, 0.1) 100%
+    );
+}

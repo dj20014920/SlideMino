@@ -376,33 +376,14 @@
   }
 }
 
-@keyframes explore-galaxy-move-x {
-  0% {
-    translate: -100px 0;
+@keyframes explore-galaxy-field-twinkle {
+  0%, 100% {
+    opacity: calc(var(--alpha) * 0.72);
+    filter: brightness(0.88) drop-shadow(0 0 2px color-mix(in srgb, var(--star-glow, rgba(196, 224, 255, 0.6)) 74%, transparent));
   }
-  100% {
-    translate: 100px 0;
-  }
-}
-
-@keyframes explore-galaxy-move-y {
-  0% {
-    transform: translate(0, -50px);
-  }
-  100% {
-    transform: translate(0, 50px);
-  }
-}
-
-@keyframes explore-galaxy-flip {
-  to {
-    rotate: 360deg;
-  }
-}
-
-@keyframes explore-galaxy-rotate {
-  to {
-    transform: rotate(90deg);
+  45% {
+    opacity: var(--alpha);
+    filter: brightness(1.2) drop-shadow(0 0 5px color-mix(in srgb, var(--star-glow, rgba(196, 224, 255, 0.6)) 90%, transparent));
   }
 }
 
@@ -431,7 +412,6 @@
 
 .skin-explore-galaxy-layer {
   --explore-transition: 0.25s;
-  --explore-spark: 1.8s;
   --explore-hue: 245;
   --explore-active: 1;
   --explore-cut: 0.02em;
@@ -456,10 +436,6 @@
 
 .skin-explore-galaxy-layer[data-explore-galaxy-layer='swatch'] {
   border-radius: inherit;
-}
-
-.skin-explore-galaxy-layer--ios-safe .explore-galaxy-spark::before {
-  opacity: 0.72;
 }
 
 .explore-galaxy-core {
@@ -490,13 +466,13 @@
   inset: 0;
   opacity: var(--explore-active);
   transition: opacity var(--explore-transition);
-  mask: radial-gradient(white, transparent);
+  mask: radial-gradient(120% 120% at 50% 52%, white 12%, rgba(255, 255, 255, 0.7) 62%, transparent 100%);
 }
 
 .explore-galaxy-star {
   height: calc(var(--size) * 1px);
   aspect-ratio: 1;
-  background: white;
+  background: var(--star-color, white);
   border-radius: 50%;
   position: absolute;
   opacity: var(--alpha);
@@ -504,50 +480,32 @@
   left: 50%;
   transform: translate(-50%, -50%) rotate(10deg) rotate(var(--orbit-offset, 0deg)) translateY(calc(var(--distance) * 1px));
   animation: explore-galaxy-orbit calc(var(--duration) * 1s) calc(var(--delay) * -1s) infinite linear;
-  filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.65));
+  filter: drop-shadow(0 0 calc(var(--size) * 0.8px) var(--star-glow, rgba(255, 255, 255, 0.62)));
 }
 
-.explore-galaxy-star--static {
-  animation:
-    explore-galaxy-move-x calc(var(--duration) * 0.1s) calc(var(--delay) * -0.1s) infinite linear,
-    explore-galaxy-move-y calc(var(--duration) * 0.2s) calc(var(--delay) * -0.2s) infinite linear;
-  transform: translate(0, 0);
-  top: 50%;
-  left: 50%;
-  max-height: 4px;
-  filter: brightness(4);
-  opacity: 0.92;
-}
-
-.explore-galaxy-spark {
+.explore-galaxy-field-star {
   position: absolute;
-  inset: 0;
-  border-radius: 2rem;
-  rotate: 0deg;
-  overflow: hidden;
-  mask: linear-gradient(white, transparent 50%);
-  animation: explore-galaxy-flip calc(var(--explore-spark) * 2) infinite steps(2, end);
+  width: calc(var(--size) * 1px);
+  height: calc(var(--size) * 1px);
+  top: var(--y);
+  left: var(--x);
+  border-radius: 999px;
+  background: var(--star-color, #f7fbff);
+  opacity: var(--alpha);
+  animation: explore-galaxy-field-twinkle var(--twinkle-duration, 4s) var(--twinkle-delay, 0s) ease-in-out infinite;
+  filter: drop-shadow(0 0 calc(var(--size) * 1.2px) var(--star-glow, rgba(189, 217, 255, 0.58)));
 }
 
-.explore-galaxy-spark::before {
-  content: "";
-  position: absolute;
-  width: 200%;
-  aspect-ratio: 1;
-  top: 0%;
-  left: 50%;
-  z-index: -1;
-  translate: -50% -15%;
-  rotate: 0;
-  transform: rotate(-90deg);
-  opacity: 0.92;
-  background: conic-gradient(
-    from 0deg,
-    transparent 0 340deg,
-    white 360deg
-  );
-  transition: opacity var(--explore-transition);
-  animation: explore-galaxy-rotate var(--explore-spark) linear infinite both;
+.explore-galaxy-field-star--near {
+  z-index: 3;
+}
+
+.explore-galaxy-field-star--mid {
+  z-index: 2;
+}
+
+.explore-galaxy-field-star--far {
+  z-index: 1;
 }
 
 .explore-galaxy-backdrop {
@@ -563,6 +521,7 @@
   --explore-border-strength: 1;
   --explore-border-blur: 9px;
   position: relative !important;
+  box-sizing: border-box;
   isolation: isolate;
   z-index: 0;
   overflow: hidden !important;

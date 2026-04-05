@@ -34,6 +34,7 @@ interface BoardProps {
   grid: Grid;
   activePiece: Piece | null;
   boardRef: React.RefObject<HTMLDivElement>;
+  galaxySessionSeed?: string;
   phase: Phase;
   mergingTiles: MergingTile[];
   valueOverrides?: Record<string, number>;
@@ -95,6 +96,12 @@ const EXPLORE_GALAXY_SKIN_ID = 'skin_digital_explore_galaxy';
 const tileTransitionEase = 'cubic-bezier(0.25,0.1,0.25,1.0)';
 const reviveDestroyAnimation = 'reviveBreakFade 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards';
 const EMPTY_REVIVE_DESTROY_EFFECTS: ReviveDestroyEffect[] = [];
+const createGalaxyMountSeed = (): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `fallback-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+};
 
 const MergingTilesLayer = React.memo<{
   animatingMerges: (MergingTile & { currentX: number; currentY: number; distance: number })[];
@@ -425,6 +432,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
   grid,
   activePiece,
   boardRef,
+  galaxySessionSeed,
   phase,
   mergingTiles,
   valueOverrides,
@@ -448,6 +456,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
   }));
   const [hoverLocation, setHoverLocation] = useState<{ x: number; y: number } | null>(null);
   const hoverLocationRef = useRef<{ x: number; y: number } | null>(null);
+  const galaxyMountSeedRef = useRef<string>(createGalaxyMountSeed());
 
   useImperativeHandle(ref, () => ({
     setHoverLocation: (pos) => {
@@ -705,6 +714,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
   }, [isExploreGalaxySkin, galaxyMaskCanvasPx, occupiedCells, layout.posPx, layout.cellPx, galaxyMaskCornerPx, maskTileInsetPx]);
   const galaxyMaskStyle = useMemo(() => {
     if (!galaxyMaskImage) return undefined;
+    const maskSize = `${galaxyMaskCanvasPx}px ${galaxyMaskCanvasPx}px`;
     return {
       WebkitMaskImage: galaxyMaskImage,
       maskImage: galaxyMaskImage,
@@ -712,12 +722,16 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
       maskRepeat: 'no-repeat',
       WebkitMaskPosition: '0 0',
       maskPosition: '0 0',
-      WebkitMaskSize: '100% 100%',
-      maskSize: '100% 100%',
+      WebkitMaskSize: maskSize,
+      maskSize,
       WebkitMaskMode: 'alpha',
       maskMode: 'alpha',
     } as React.CSSProperties;
-  }, [galaxyMaskImage]);
+  }, [galaxyMaskCanvasPx, galaxyMaskImage]);
+  const galaxyStarfieldSeed = useMemo(
+    () => `${galaxySessionSeed ?? 'session-default'}::${galaxyMountSeedRef.current}`,
+    [galaxySessionSeed]
+  );
 
   return (
     <div
@@ -765,11 +779,31 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
         `}</style>
 
         {isExploreGalaxySkin && galaxyMaskStyle && (
-          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 8 }}>
-            <div className="absolute inset-0 pointer-events-none" style={galaxyMaskStyle}>
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              top: 0,
+              left: 0,
+              width: `${galaxyMaskCanvasPx}px`,
+              height: `${galaxyMaskCanvasPx}px`,
+              zIndex: 8,
+            }}
+          >
+            <div
+              className="absolute pointer-events-none"
+              style={{
+                top: 0,
+                left: 0,
+                width: `${galaxyMaskCanvasPx}px`,
+                height: `${galaxyMaskCanvasPx}px`,
+                ...galaxyMaskStyle,
+              }}
+            >
               <ExploreGalaxyOverlay
                 size={size}
                 cellPx={layout.cellPx}
+                boardSpanPx={galaxyMaskCanvasPx}
+                starfieldSeed={galaxyStarfieldSeed}
                 active
                 mode="board"
                 renderMode={exploreGalaxyRenderMode}

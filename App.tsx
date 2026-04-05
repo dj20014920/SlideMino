@@ -4813,6 +4813,7 @@ const App: React.FC = () => {
                     ref={boardHandleRef}
                     htmlId="game-board"
                     grid={grid}
+                    galaxySessionSeed={sessionIdRef.current}
                     phase={phase}
                     activePiece={draggingPiece}
                     boardRef={boardRef}
@@ -4833,6 +4834,7 @@ const App: React.FC = () => {
                 ref={boardHandleRef}
                 htmlId="game-board"
                 grid={grid}
+                galaxySessionSeed={sessionIdRef.current}
                 phase={phase}
                 activePiece={draggingPiece}
                 boardRef={boardRef}

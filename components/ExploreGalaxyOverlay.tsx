@@ -43,8 +43,12 @@ type FieldStarToken = {
   y: number;
   size: number;
   alpha: number;
-  duration: number;
-  delay: number;
+  twinkleDuration: number;
+  twinkleDelay: number;
+  driftRadius: number;
+  driftAngle: number;
+  driftDuration: number;
+  driftDelay: number;
   color: string;
   glow: string;
   layer: StarLayer;
@@ -57,6 +61,14 @@ const STAR_PALETTE: StarPalette[] = [
   { key: 'orange-dwarf', color: '#ffd2a6', glow: 'rgba(255, 171, 110, 0.66)', sizeMul: 0.94, alphaMul: 0.88, weight: 0.24 },
   { key: 'white-dwarf', color: '#f7fbff', glow: 'rgba(227, 242, 255, 0.65)', sizeMul: 0.78, alphaMul: 0.82, weight: 0.32 },
 ];
+const ORBIT_DURATION_SEC = {
+  maxSpeed: 7.5,
+  average: 12.5,
+  slowest: 18,
+} as const;
+
+const BASE_RING_SCALE = 1.75;
+const EXPANDED_RING_SCALE = 2.25;
 
 const hashSeed = (seed: string): number => {
   let hash = 2166136261;
@@ -75,6 +87,15 @@ const createSeededRandom = (seed: string) => {
     t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+};
+
+const shuffleIndexes = (length: number, rng: () => number): number[] => {
+  const indexes = Array.from({ length }, (_, idx) => idx);
+  for (let i = indexes.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rng() * (i + 1));
+    [indexes[i], indexes[j]] = [indexes[j], indexes[i]];
+  }
+  return indexes;
 };
 
 const pickLayer = (rng: () => number): StarLayer => {
@@ -114,41 +135,102 @@ const isConstrainedConflict = (
 
 const createFieldStars = (count: number, span: number, rng: () => number): FieldStarToken[] => {
   const stars: (FieldStarToken & { large: boolean })[] = [];
+  const center = span * 0.5;
   const layerConfig = {
-    near: { size: [1.9, 3.6], alpha: [0.56, 0.94], duration: [2.8, 4.2] },
-    mid: { size: [1.2, 2.6], alpha: [0.38, 0.72], duration: [3.8, 5.8] },
-    far: { size: [0.8, 1.8], alpha: [0.2, 0.5], duration: [4.6, 7] },
+    near: {
+      size: [1.9, 3.6],
+      alpha: [0.56, 0.94],
+      twinkle: [2.8, 4.2],
+      drift: [7.5, 11.8],
+      driftDistance: [8, 16],
+    },
+    mid: {
+      size: [1.2, 2.6],
+      alpha: [0.38, 0.72],
+      twinkle: [3.8, 5.8],
+      drift: [10.6, 14.8],
+      driftDistance: [5, 11],
+    },
+    far: {
+      size: [0.8, 1.8],
+      alpha: [0.2, 0.5],
+      twinkle: [4.6, 7],
+      drift: [13.6, 17.8],
+      driftDistance: [2, 6],
+    },
   } as const;
-  const maxAttempts = Math.max(count * 45, 220);
-  let attempts = 0;
-  while (stars.length < count && attempts < maxAttempts) {
-    attempts += 1;
+  const tryAppendStar = (x: number, y: number) => {
     const layer = pickLayer(rng);
     const palette = pickPalette(rng, layer);
     const cfg = layerConfig[layer];
     const baseSize = cfg.size[0] + (cfg.size[1] - cfg.size[0]) * rng();
     const size = baseSize * palette.sizeMul;
     const candidate = {
-      x: Math.round(rng() * span),
-      y: Math.round(rng() * span),
+      x: Math.round(x),
+      y: Math.round(y),
       size,
       layer,
       large: Boolean(palette.large),
     };
-    if (stars.some((star) => isConstrainedConflict(candidate, star))) continue;
+    if (stars.some((star) => isConstrainedConflict(candidate, star))) return false;
+    const driftDistance = cfg.driftDistance[0] + (cfg.driftDistance[1] - cfg.driftDistance[0]) * rng();
+    const dx = candidate.x - center;
+    const dy = candidate.y - center;
+    const radius = Math.max(1, Math.hypot(dx, dy));
+    // Screen-space clockwise tangent: (-dy, dx)
+    const tangentX = -dy / radius;
+    const tangentY = dx / radius;
     stars.push({
       key: `field-${stars.length}`,
       x: candidate.x,
       y: candidate.y,
       size,
       alpha: (cfg.alpha[0] + (cfg.alpha[1] - cfg.alpha[0]) * rng()) * palette.alphaMul,
-      duration: cfg.duration[0] + (cfg.duration[1] - cfg.duration[0]) * rng(),
-      delay: rng() * 8,
+      twinkleDuration: cfg.twinkle[0] + (cfg.twinkle[1] - cfg.twinkle[0]) * rng(),
+      twinkleDelay: rng() * 8,
+      driftRadius: driftDistance,
+      driftAngle: (Math.atan2(tangentY, tangentX) * 180) / Math.PI,
+      driftDuration: cfg.drift[0] + (cfg.drift[1] - cfg.drift[0]) * rng(),
+      driftDelay: rng() * 9,
       color: palette.color,
       glow: palette.glow,
       layer,
       large: candidate.large,
     });
+    return true;
+  };
+
+  // 화면 전역 분포를 균등하게 만들기 위해 격자 셀을 랜덤 순회하며 배치한다.
+  const gridSide = Math.max(2, Math.ceil(Math.sqrt(count)));
+  const cellSpan = span / gridSide;
+  const shuffledCellIndexes = shuffleIndexes(gridSide * gridSide, rng);
+  for (const cellIndex of shuffledCellIndexes) {
+    if (stars.length >= count) break;
+    const row = Math.floor(cellIndex / gridSide);
+    const col = cellIndex % gridSide;
+    let placed = false;
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      const jitterMin = Math.max(0.08, 0.14 - attempt * 0.02);
+      const jitterMax = Math.min(0.92, 0.86 + attempt * 0.02);
+      const x = (col + (jitterMin + (jitterMax - jitterMin) * rng())) * cellSpan;
+      const y = (row + (jitterMin + (jitterMax - jitterMin) * rng())) * cellSpan;
+      if (tryAppendStar(x, y)) {
+        placed = true;
+        break;
+      }
+    }
+    if (!placed && stars.length < count) {
+      const centerX = (col + 0.5) * cellSpan;
+      const centerY = (row + 0.5) * cellSpan;
+      tryAppendStar(centerX, centerY);
+    }
+  }
+
+  const maxAttempts = Math.max(count * 24, 120);
+  let attempts = 0;
+  while (stars.length < count && attempts < maxAttempts) {
+    attempts += 1;
+    tryAppendStar(rng() * span, rng() * span);
   }
   return stars.slice(0, count).map(({ large: _large, ...star }) => star);
 };
@@ -157,9 +239,24 @@ const createOrbitStarTokens = (count: number, ringDiameter: number, rng: () => n
   const tokens: OrbitStarToken[] = [];
   const largeAngles: number[] = [];
   const layerConfig = {
-    near: { distance: [0.34, 0.48], size: [2, 4.4], alpha: [0.48, 0.88], duration: [7.5, 11] },
-    mid: { distance: [0.25, 0.4], size: [1.5, 3.2], alpha: [0.34, 0.7], duration: [8.8, 12.5] },
-    far: { distance: [0.18, 0.34], size: [1.1, 2.4], alpha: [0.22, 0.56], duration: [10.5, 14.8] },
+    near: {
+      distance: [0.34, 0.48],
+      size: [2, 4.4],
+      alpha: [0.48, 0.88],
+      duration: [ORBIT_DURATION_SEC.maxSpeed, ORBIT_DURATION_SEC.average + 0.8],
+    },
+    mid: {
+      distance: [0.25, 0.4],
+      size: [1.5, 3.2],
+      alpha: [0.34, 0.7],
+      duration: [ORBIT_DURATION_SEC.maxSpeed + 1.6, ORBIT_DURATION_SEC.average + 3.2],
+    },
+    far: {
+      distance: [0.18, 0.34],
+      size: [1.1, 2.4],
+      alpha: [0.22, 0.56],
+      duration: [ORBIT_DURATION_SEC.average + 1.8, ORBIT_DURATION_SEC.slowest],
+    },
   } as const;
   for (let idx = 0; idx < count; idx += 1) {
     const layer = pickLayer(rng);
@@ -205,10 +302,11 @@ const ExploreGalaxyOverlay = React.memo<ExploreGalaxyOverlayProps>(({
   if (!active || cellPx <= 0) return null;
   const boardSpan = boardSpanPx ?? (cellPx * size);
   const resolvedSeed = starfieldSeed ?? `explore-galaxy:${mode}:${size}:${Math.round(boardSpan)}:${Math.round(cellPx)}`;
-  const starCount = Math.max(24, Math.round(size * size * 1.45));
+  const ringDiameter = boardSpan * EXPANDED_RING_SCALE;
+  const ringAreaScale = (ringDiameter / (boardSpan * BASE_RING_SCALE)) ** 2;
+  const starCount = Math.max(24, Math.round(size * size * 1.45 * ringAreaScale));
   const fieldStarCount = Math.max(28, Math.round(size * size * 1.05));
-  const ringDiameter = boardSpan * 1.75;
-  const ringOffsetY = cellPx * 0.06;
+  const ringOffsetY = cellPx * -0.02;
   const center = boardSpan * 0.5;
   const fieldStars = React.useMemo(() => {
     const rng = createSeededRandom(`${resolvedSeed}:field`);
@@ -244,8 +342,12 @@ const ExploreGalaxyOverlay = React.memo<ExploreGalaxyOverlayProps>(({
             style={{
               ['--x' as any]: `${star.x}px`,
               ['--y' as any]: `${star.y}px`,
-              ['--twinkle-duration' as any]: `${star.duration}s`,
-              ['--twinkle-delay' as any]: `${star.delay}s`,
+              ['--twinkle-duration' as any]: `${star.twinkleDuration}s`,
+              ['--twinkle-delay' as any]: `${star.twinkleDelay}s`,
+              ['--drift-radius' as any]: `${star.driftRadius}px`,
+              ['--drift-angle' as any]: `${star.driftAngle}deg`,
+              ['--drift-duration' as any]: `${star.driftDuration}s`,
+              ['--drift-delay' as any]: `${star.driftDelay}s`,
               ['--size' as any]: star.size,
               ['--alpha' as any]: star.alpha,
               ['--star-color' as any]: star.color,

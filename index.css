@@ -387,6 +387,15 @@
   }
 }
 
+@keyframes explore-galaxy-field-drift {
+  from {
+    transform: rotate(var(--drift-angle, 0deg)) translate3d(var(--drift-radius, 0px), 0, 0);
+  }
+  to {
+    transform: rotate(calc(var(--drift-angle, 0deg) + 360deg)) translate3d(var(--drift-radius, 0px), 0, 0);
+  }
+}
+
 @keyframes explore-galaxy-border-rotate {
   to {
     transform: rotate(360deg);
@@ -457,7 +466,7 @@
   top: calc(var(--explore-ring-center, 50%) + var(--explore-ring-offset-y, 0px));
   left: var(--explore-ring-center, 50%);
   border-radius: 50%;
-  transform: translate(-28%, -40%) rotateX(-24deg) rotateY(-30deg) rotateX(90deg);
+  transform: translate(-40%, -42%) rotateX(-24deg) rotateY(-30deg) rotateX(90deg);
   transform-style: preserve-3d;
 }
 
@@ -492,7 +501,9 @@
   border-radius: 999px;
   background: var(--star-color, #f7fbff);
   opacity: var(--alpha);
-  animation: explore-galaxy-field-twinkle var(--twinkle-duration, 4s) var(--twinkle-delay, 0s) ease-in-out infinite;
+  animation:
+    explore-galaxy-field-twinkle var(--twinkle-duration, 4s) var(--twinkle-delay, 0s) ease-in-out infinite,
+    explore-galaxy-field-drift var(--drift-duration, 12s) var(--drift-delay, 0s) linear infinite;
   filter: drop-shadow(0 0 calc(var(--size) * 1.2px) var(--star-glow, rgba(189, 217, 255, 0.58)));
 }
 

@@ -38,7 +38,7 @@ uniform bool uTransparent;
 
 varying vec2 vUv;
 
-#define NUM_LAYER 4.0
+#define NUM_LAYER 2.0
 #define STAR_COLOR_CUTOFF 0.2
 #define MAT45 mat2(0.7071, -0.7071, 0.7071, 0.7071)
 #define PERIOD 3.0
@@ -244,7 +244,7 @@ export default function Galaxy({
     let program: Program;
 
     function resize() {
-      const scale = 1;
+      const scale = 0.5; // 모바일 성능: 0.5x 해상도, CSS upscale로 시각적 차이 최소
       renderer.setSize(ctn.offsetWidth * scale, ctn.offsetHeight * scale);
       if (program) {
         program.uniforms.uResolution.value = new Color(
@@ -289,9 +289,16 @@ export default function Galaxy({
 
     const mesh = new Mesh(gl, { geometry, program });
     let animateId: number;
+    let frameCount = 0;
 
     function update(t: number) {
       animateId = requestAnimationFrame(update);
+      frameCount++;
+
+      // 모바일 성능 최적화: 인터랙션 없을 때 30fps로 제한 (짝수 프레임만 렌더)
+      const isInteracting = smoothMouseActive.current > 0.01;
+      if (!isInteracting && frameCount % 2 !== 0) return;
+
       if (!disableAnimation) {
         program.uniforms.uTime.value = t * 0.001;
         program.uniforms.uStarSpeed.value = (t * 0.001 * starSpeed) / 10.0;

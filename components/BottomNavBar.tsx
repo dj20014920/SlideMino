@@ -59,6 +59,8 @@ function useBottomChromeHeight(navHeight: number) {
     const root = document.documentElement;
     root.style.setProperty('--bottom-nav-height', `${Math.max(0, Math.round(navHeight))}px`);
     root.style.setProperty('--bottom-ad-height', `${Math.max(0, Math.round(adHeight))}px`);
+    // nav 측정값은 콘텐츠 높이만 포함(safe area 미포함),
+    // outer div의 paddingBottom이 safe area를 담당하므로 여기서 합산한다.
     root.style.setProperty(
       '--bottom-chrome-height',
       'calc(var(--bottom-nav-height, 0px) + var(--bottom-ad-height, 0px) + var(--app-safe-bottom, 0px))'
@@ -217,14 +219,13 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
     onHeightChange?.(navHeight);
   }, [navHeight, onHeightChange]);
 
-  const bottomOffset = '0px';
-
   // 프리미엄 UI 테마: 하단 태스크바 스타일
+  // outer div가 paddingBottom으로 safe area를 담당 → 태스크바 자체 높이는 원래 크기 유지
   if (isPremiumUiThemeActive) {
     return (
       <div
-        className="fixed left-0 right-0 z-[100]"
-        style={{ bottom: bottomOffset, paddingBottom: 'var(--app-safe-bottom)' }}
+        className="fixed left-0 right-0 z-[100] galaxy-nav-wrapper"
+        style={{ bottom: 0, paddingBottom: 'var(--app-safe-bottom)' }}
       >
         {/* 잠금 안내 토스트 */}
         {lockToast && (
@@ -271,10 +272,20 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
   }
 
   // 기본 테마: 모던 글래스모피즘 하단 네비게이션
+  // outer div: paddingBottom으로 safe area 배경 채움, inline background로 galaxy CSS override 방지
+  // nav: 원래 compact 사이즈(py-1.5) 유지
   return (
     <div
       className="fixed left-0 right-0 z-[100]"
-      style={{ bottom: bottomOffset, paddingBottom: 'var(--app-safe-bottom)' }}
+      style={{
+        bottom: 0,
+        paddingBottom: 'var(--app-safe-bottom)',
+        background: 'rgba(255, 255, 255, 0.88)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        borderTop: '1px solid rgba(255, 255, 255, 0.6)',
+        boxShadow: '0 -1px 12px rgba(0,0,0,0.08)',
+      }}
     >
       {/* 잠금 안내 토스트 */}
       {lockToast && (
@@ -284,50 +295,41 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
           </div>
         </div>
       )}
-      <div className="mx-auto max-w-md px-3">
-        <nav
-          ref={(node) => {
-            navMeasureRef.current = node;
-          }}
-          className="
-            flex items-stretch justify-around
-            bg-white/80 backdrop-blur-xl
-            border border-white/60
-            rounded-2xl
-            shadow-lg shadow-black/5
-            px-1 py-1.5
-          "
-        >
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={item.locked ? () => showLockToast(item.lockMessage!) : item.onPress}
-              className={`
-                relative flex flex-col items-center justify-center
-                gap-0.5 flex-1 py-2 px-1
-                rounded-xl
-                transition-all duration-150 ease-out
-                ${item.locked
-                  ? 'text-gray-300'
-                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100/60 active:scale-95 active:bg-gray-200/60'
-                }
-              `}
-            >
-              <span className="relative">
-                {item.locked ? <Lock size={18} className="text-gray-300" /> : item.icon}
-                {!item.locked && item.badge != null && (
-                  <span className="absolute -top-1.5 -right-2.5 min-w-[16px] h-4 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold px-1">
-                    {item.badge}
-                  </span>
-                )}
-              </span>
-              <span className="text-[10px] font-semibold leading-tight truncate max-w-[60px]">
-                {item.label}
-              </span>
-            </button>
-          ))}
-        </nav>
-      </div>
+      <nav
+        ref={(node) => {
+          navMeasureRef.current = node;
+        }}
+        className="flex items-stretch justify-around px-1 py-1"
+      >
+        {navItems.map((item) => (
+          <button
+            key={item.id}
+            onClick={item.locked ? () => showLockToast(item.lockMessage!) : item.onPress}
+            className={`
+              relative flex flex-col items-center justify-center
+              gap-0.5 flex-1 py-1 px-1
+              rounded-xl
+              transition-all duration-150 ease-out
+              ${item.locked
+                ? 'text-gray-300'
+                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100/60 active:scale-95 active:bg-gray-200/60'
+              }
+            `}
+          >
+            <span className="relative">
+              {item.locked ? <Lock size={18} className="text-gray-300" /> : item.icon}
+              {!item.locked && item.badge != null && (
+                <span className="absolute -top-1.5 -right-2.5 min-w-[16px] h-4 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold px-1">
+                  {item.badge}
+                </span>
+              )}
+            </span>
+            <span className="text-[10px] font-semibold leading-tight truncate max-w-[60px]">
+              {item.label}
+            </span>
+          </button>
+        ))}
+      </nav>
     </div>
   );
 };

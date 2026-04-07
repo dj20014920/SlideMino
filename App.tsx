@@ -1250,13 +1250,13 @@ const App: React.FC = () => {
     const updateChromeHeights = () => {
       const measuredHeader = headerRef.current?.getBoundingClientRect().height;
       const measuredFooter = footerRef.current?.getBoundingClientRect().height;
-      const safeBottom = Math.max(0, getSafeAreaInsetPx('bottom'));
       const root = document.documentElement;
 
       setLayoutChromeHeights((prev) => {
         const nextHeader = measuredHeader ? Math.max(56, measuredHeader) : prev.header;
         const baseFooter = measuredFooter ? Math.max(STABLE_BANNER_RESERVE_PX, measuredFooter) : STABLE_BANNER_RESERVE_PX;
-        const nextFooter = baseFooter + safeBottom;
+        // AdBanner spacer가 safe area를 포함하므로 여기서 다시 더하지 않는다.
+        const nextFooter = baseFooter;
         root.style.setProperty('--bottom-ad-height', `${Math.max(0, Math.round(baseFooter))}px`);
         root.style.setProperty('--bottom-chrome-height', `${Math.max(0, Math.round(nextFooter))}px`);
         const isHeaderStable = Math.abs(prev.header - nextHeader) <= 0.5;
@@ -4592,23 +4592,6 @@ const App: React.FC = () => {
       >
         {/* 상단 크롬 래퍼: safe-area + 이벤트/데일리 배너 + 헤더를 하나로 측정 */}
         <div ref={headerRef} className="w-full flex flex-col items-center shrink-0" style={{ paddingTop: 'var(--game-safe-top)' }}>
-          {isPremiumUiThemeActive && (
-            <div
-              className={`${premiumWindowClassName} w-full`}
-              style={{
-                maxWidth: `${gameLayoutProfile.columnWidthPx}px`,
-                marginTop: '8px',
-              }}
-            >
-              <div className={premiumTitleBarClassName}>
-                <div className={premiumTitleBarTextClassName}>{premiumTopWindowTitleSingleLine}</div>
-                <div className={premiumTitleBarControlsClassName}>
-                  <button aria-label="Help" onClick={openHelpModal} />
-                  <button aria-label="Close" onClick={handleHomeButtonClick} disabled={isAnimating} />
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* 데일리 챌린지 배너 */}
           {gameMode === 'daily_challenge' && (
@@ -4973,7 +4956,7 @@ const App: React.FC = () => {
           transition-opacity duration-200
           ${isSwipeFocusMode ? 'opacity-20 pointer-events-none' : 'opacity-100'}
         `}>
-            <AdBanner includeSafeBottomInReservedSpace={false} />
+            <AdBanner includeSafeBottomInReservedSpace={true} />
           </div>
         </div>
 

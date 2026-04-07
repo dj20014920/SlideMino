@@ -115,12 +115,11 @@ body.theme-explore-galaxy .galaxy-app-shell [class*="border-white"]:not([data-sk
 body.theme-explore-galaxy .galaxy-window,
 body.theme-explore-galaxy [data-premium-ui-surface="true"] {
   color: var(--galaxy-text) !important;
-  background: rgba(255, 255, 255, 0.04) !important;
+  background: rgba(8, 18, 55, 0.72) !important;
   border: 1px solid rgba(100, 160, 255, 0.35) !important;
   box-shadow: 0 2px 16px rgba(0, 0, 0, 0.3), 0 0 0 0.5px rgba(120, 180, 255, 0.2) !important;
   border-radius: var(--galaxy-radius) !important;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  /* backdrop-filter 제거 — 모바일 GPU 부하 최적화 */
 }
 
 body.theme-explore-galaxy .galaxy-window-body {
@@ -182,11 +181,7 @@ body.theme-explore-galaxy .galaxy-title-bar-controls button:hover {
    6. 특수 윈도우 (Top / Menu / Modal)
    ────────────────────────────────────────── */
 body.theme-explore-galaxy .galaxy-top-window {
-  margin-bottom: 8px;
-}
-
-body.theme-explore-galaxy .galaxy-top-window .galaxy-title-bar-text {
-  font-size: 13px !important;
+  display: none !important;
 }
 
 body.theme-explore-galaxy .galaxy-menu-window {
@@ -531,11 +526,18 @@ body.theme-explore-galaxy .galaxy-slot-rotate-btn:hover {
 /* ──────────────────────────────────────────
    14. 하단 네비게이션 (Taskbar)
    ────────────────────────────────────────── */
+
+/* 네비 outer wrapper — safe area zone 배경 채움
+   paddingBottom으로 home indicator 영역을 태스크바 배경색으로 덮어
+   nav가 화면 최하단에 딱 붙어 보이게 한다. */
+body.theme-explore-galaxy .galaxy-nav-wrapper {
+  background: rgba(2, 4, 28, 0.88) !important;
+}
+
 body.theme-explore-galaxy .galaxy-bottom-nav {
-  background: rgba(0, 0, 20, 0.60) !important;
+  background: rgba(2, 4, 28, 0.88) !important;
   border-top: 1px solid var(--galaxy-border) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
+  /* backdrop-filter 제거 — 모바일 GPU 부하 최적화, 불투명도로 보완 */
   min-height: var(--galaxy-nav-height) !important;
   display: flex !important;
   align-items: center !important;
@@ -629,15 +631,11 @@ body.theme-explore-galaxy .galaxy-muted {
 }
 
 body.theme-explore-galaxy .galaxy-tile-face {
-  font-family: 'Orbitron', sans-serif !important;
-  font-weight: 700 !important;
-  text-shadow: 0 0 6px rgba(56, 189, 248, 0.4) !important;
+  /* font-family 제거 — 앱 기본 폰트와 통일 */
 }
 
 body.theme-explore-galaxy .galaxy-tile-number {
-  font-family: 'Orbitron', 'Courier New', monospace !important;
-  font-weight: 900 !important;
-  letter-spacing: 0.02em !important;
+  /* font-family 제거 — 앱 기본 폰트와 통일 */
 }
 
 /* ──────────────────────────────────────────
@@ -747,6 +745,9 @@ body.theme-explore-galaxy textarea::placeholder {
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
+  /* 레이아웃/페인트 격리 — WebGL 레이어와 DOM 간 invalidation 전파 차단 */
+  contain: strict;
+  isolation: isolate;
 }
 
 .galaxy-global-background canvas {
@@ -760,25 +761,18 @@ body.theme-explore-galaxy textarea::placeholder {
    ────────────────────────────────────────── */
 
 /* 일반 타일: 유리처럼 반투명, 뒷배경의 우주 UI가 보임 */
-/* fallback: backdrop-filter 미지원 환경 */
+/* backdrop-filter 제거 — 모바일 25+ 레이어 GPU 부하 제거 */
+/* inset box-shadow로 유리 내부 발광 효과를 대신 구현 */
 .skin-explore-galaxy-tile {
-  background: rgba(40, 70, 160, 0.60) !important;
-  border: 1px solid rgba(120, 180, 255, 0.40) !important;
+  background: rgba(20, 45, 120, 0.22) !important;
+  border: 1px solid rgba(100, 160, 255, 0.35) !important;
   box-shadow:
-    0 0 12px rgba(80, 140, 255, 0.20),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15),
-    inset 0 0 8px rgba(100, 160, 255, 0.08) !important;
+    0 0 10px rgba(60, 120, 255, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 0 14px rgba(80, 140, 255, 0.12) !important;
   border-radius: 8px !important;
   color: #e8f4ff !important;
-  text-shadow: 0 0 8px rgba(150, 210, 255, 0.80), 0 1px 2px rgba(0, 0, 0, 0.70) !important;
-}
-/* 진정한 글라스 효과: backdrop-filter 지원 환경 (iOS 15+, 모던 Safari) */
-@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
-  .skin-explore-galaxy-tile {
-    background: rgba(120, 160, 255, 0.10) !important;
-    backdrop-filter: blur(8px) !important;
-    -webkit-backdrop-filter: blur(8px) !important;
-  }
+  text-shadow: 0 0 10px rgba(150, 210, 255, 0.90), 0 1px 2px rgba(0, 0, 0, 0.80) !important;
 }
 
 /* 숫자가 클수록 더 밝게 빛나는 효과는 JS 인라인 스타일로 처리됨 */

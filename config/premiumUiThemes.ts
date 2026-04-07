@@ -285,6 +285,113 @@ export const RETRO_WINDOWS_98_PREMIUM_UI_THEME: PremiumUiThemeConfig = {
   usageGuide: SHARED_PREMIUM_UI_USAGE_GUIDE,
 };
 
+export const EXPLORE_GALAXY_PREMIUM_UI_THEME: PremiumUiThemeConfig = {
+  id: 'explore_galaxy',
+  family: 'explore_galaxy',
+  rootClassName: 'theme-explore-galaxy',
+  labels: {
+    ...DEFAULT_PREMIUM_UI_LABELS,
+    topWindowTitle: '은하 탐험\n(Explore Galaxy)',
+    menuWindowTitle: '난이도 선택',
+    difficultyLegend: '난이도 선택 메뉴',
+    utilityLegend: '메뉴',
+    languageLegend: '언어',
+    gameWindowTitle: '탐험 중...',
+    statusBarText: 'Galaxy Explorer',
+    statusBarVersion: 'v∞',
+  },
+  objects: {
+    appShellClassName: 'galaxy-app-shell',
+    modalOverlayClassName: 'galaxy-modal-overlay',
+    windowClassName: 'galaxy-window',
+    windowBodyClassName: 'galaxy-window-body',
+    titleBarClassName: 'galaxy-title-bar',
+    titleBarTextClassName: 'galaxy-title-bar-text',
+    titleBarControlsClassName: 'galaxy-title-bar-controls',
+    blockClassName: 'galaxy-board-shell',
+    buttons: {
+      menuClassName: 'galaxy-menu-btn',
+      gameClassName: 'galaxy-game-btn',
+      iconClassName: 'galaxy-icon-btn',
+      pillClassName: 'galaxy-pill-btn',
+      headerMainClassName: 'galaxy-header-main-btn',
+      headerIconClassName: 'galaxy-header-icon-btn',
+      headerActionClassName: 'galaxy-header-action-btn',
+      compartmentClassName: 'galaxy-compartment',
+    },
+    tabs: {
+      level: { containerClassName: 'galaxy-tabstrip', buttonClassName: 'galaxy-tabstrip-tab' },
+      skin: { containerClassName: 'galaxy-tabstrip', buttonClassName: 'galaxy-tabstrip-tab' },
+      mission: { containerClassName: 'galaxy-tabstrip', buttonClassName: 'galaxy-tabstrip-tab' },
+    },
+    panels: {
+      sunkenClassName: 'galaxy-sunken',
+      sunkenWhiteClassName: 'galaxy-sunken-white',
+      listItemClassName: 'galaxy-list-item',
+      listItemHighlightClassName: 'galaxy-list-item-highlight',
+      badgeClassName: 'galaxy-badge',
+      fieldsetClassName: 'galaxy-fieldset',
+    },
+    progress: {
+      trackClassName: 'galaxy-progress-track',
+      fillClassName: 'galaxy-progress-fill',
+    },
+    board: {
+      gameHeaderClassName: 'galaxy-game-header',
+      gameWindowClassName: 'galaxy-game-board-window',
+      gameBodyClassName: 'galaxy-board-body',
+      slotShellClassName: 'galaxy-slot-shell',
+      slotMiniCellClassName: 'galaxy-slot-mini-cell',
+      slotRotateButtonClassName: 'galaxy-slot-rotate-btn',
+    },
+    extended: {
+      windows: {
+        topWindowClassName: 'galaxy-top-window',
+        menuWindowClassName: 'galaxy-menu-window',
+        modalWindowClassName: 'galaxy-window',
+        radioGroupClassName: 'galaxy-radio-group',
+      },
+      text: {
+        mutedClassName: 'galaxy-muted',
+        tileFaceClassName: 'galaxy-tile-face',
+        tileNumberClassName: 'galaxy-tile-number',
+      },
+      buttons: {
+        exitHomeClassName: 'galaxy-exit-home-btn',
+        exitCancelClassName: 'galaxy-exit-cancel-btn',
+      },
+      tabs: {
+        leaderboardMode: { containerClassName: 'galaxy-tabstrip', buttonClassName: 'galaxy-tabstrip-tab' },
+        leaderboardFilter: { containerClassName: 'galaxy-tabstrip', buttonClassName: 'galaxy-tabstrip-tab' },
+        leaderboardEventPeriod: { containerClassName: 'galaxy-tabstrip', buttonClassName: 'galaxy-tabstrip-tab' },
+        weeklyEvent: { containerClassName: 'galaxy-tabstrip', buttonClassName: 'galaxy-tabstrip-tab' },
+      },
+      navigation: {
+        taskbarClassName: 'galaxy-bottom-nav',
+        taskbarButtonClassName: 'galaxy-bottom-nav-button',
+        taskbarBadgeClassName: 'galaxy-bottom-nav-badge',
+        lockToastClassName: 'galaxy-lock-toast',
+        navHeightPx: 52,
+      },
+      statusBar: {
+        containerClassName: 'galaxy-status-bar',
+        fieldClassName: 'galaxy-status-bar-field',
+      },
+      forms: {
+        fieldRowClassName: 'galaxy-field-row',
+        fieldRowStackedClassName: 'galaxy-field-row-stacked',
+      },
+      board: {
+        boardCellClassName: 'galaxy-board-cell',
+        boardShellClassName: 'galaxy-board-shell',
+        ghostValidClassName: 'galaxy-ghost-valid',
+        ghostInvalidClassName: 'galaxy-ghost-invalid',
+      },
+    },
+  },
+  usageGuide: SHARED_PREMIUM_UI_USAGE_GUIDE,
+};
+
 /**
  * 런타임 조회용 인덱스.
  * - 실제 적용은 context/BlockCustomizationContext.tsx에서 수행한다.
@@ -292,6 +399,7 @@ export const RETRO_WINDOWS_98_PREMIUM_UI_THEME: PremiumUiThemeConfig = {
  */
 const PREMIUM_UI_THEME_BY_ID: Record<PremiumUiThemeId, PremiumUiThemeConfig> = {
   retro_windows_98: RETRO_WINDOWS_98_PREMIUM_UI_THEME,
+  explore_galaxy: EXPLORE_GALAXY_PREMIUM_UI_THEME,
 };
 
 export const PREMIUM_UI_THEMES: readonly PremiumUiThemeConfig[] = Object.freeze(

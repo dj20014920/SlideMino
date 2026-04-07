@@ -1,0 +1,784 @@
+/*
+ * SlideMino — Explore Galaxy UI theme
+ * 우주 테마 프리미엄 UI: 딥 스페이스 + 홀로그래픽 글로우
+ */
+
+/* ──────────────────────────────────────────
+   1. CSS 변수
+   ────────────────────────────────────────── */
+:root {
+  --galaxy-bg: #02040e;
+  --galaxy-surface: rgba(255, 255, 255, 0.04);
+  --galaxy-surface-2: rgba(255, 255, 255, 0.07);
+  --galaxy-border: rgba(80, 160, 255, 0.28);
+  --galaxy-border-bright: rgba(120, 200, 255, 0.55);
+  --galaxy-accent: #38bdf8;
+  --galaxy-accent2: #a78bfa;
+  --galaxy-accent3: #34d399;
+  --galaxy-text: #e8f4ff;
+  --galaxy-text-dim: rgba(200, 225, 255, 0.65);
+  --galaxy-title-grad: linear-gradient(90deg, rgba(20, 40, 100, 0.30) 0%, rgba(30, 15, 80, 0.30) 50%, rgba(15, 30, 90, 0.30) 100%);
+  --galaxy-btn-bg: rgba(20, 50, 120, 0.35);
+  --galaxy-btn-border: rgba(80, 160, 255, 0.35);
+  --galaxy-btn-hover: rgba(30, 60, 140, 0.9);
+  --galaxy-btn-active: rgba(50, 100, 200, 0.95);
+  --galaxy-glow-sm: 0 0 8px rgba(56, 189, 248, 0.4);
+  --galaxy-glow-md: 0 0 16px rgba(56, 189, 248, 0.35), 0 0 32px rgba(167, 139, 250, 0.2);
+  --galaxy-glow-title: 0 0 12px rgba(100, 180, 255, 0.5);
+  --galaxy-radius: 10px;
+  --galaxy-radius-sm: 6px;
+  --galaxy-nav-height: 52px;
+}
+
+/* ──────────────────────────────────────────
+   2. 기본 폰트/색상 (body.theme-explore-galaxy)
+   ────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&display=swap');
+
+html.theme-explore-galaxy,
+body.theme-explore-galaxy {
+  color: var(--galaxy-text);
+  /* WebGL Galaxy canvas가 배경 역할이므로 body 배경은 투명하게 */
+  background: transparent !important;
+}
+
+body.theme-explore-galaxy,
+body.theme-explore-galaxy * {
+  box-sizing: border-box;
+}
+
+body.theme-explore-galaxy a {
+  color: var(--galaxy-accent);
+  text-decoration: underline;
+}
+
+/* ──────────────────────────────────────────
+   3. 앱 셸 (App Shell)
+   ────────────────────────────────────────── */
+body.theme-explore-galaxy .galaxy-app-shell {
+  background: transparent !important;
+  color: var(--galaxy-text) !important;
+  /* Galaxy WebGL 배경(z-index:0) 위에 위치 */
+  position: relative;
+  z-index: 1;
+}
+
+/* 배경 그라데이언트 오버레이 제거 - Galaxy WebGL 배경이 온전히 보이게 */
+body.theme-explore-galaxy .galaxy-app-shell::before {
+  content: none;
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 20%, rgba(30, 60, 120, 0.18) 0%, transparent 70%),
+              radial-gradient(ellipse at 80% 80%, rgba(60, 20, 100, 0.12) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Tailwind bg-gradient 클래스 중화 (앱셸 내부) */
+body.theme-explore-galaxy .galaxy-app-shell [class*="bg-gradient"]:not([data-premium-ui-allow-gradient="true"]):not([data-skin-preview-tile="true"]) {
+  background: transparent !important;
+}
+
+body.theme-explore-galaxy .galaxy-app-shell [class*="bg-white"]:not([data-skin-preview-tile="true"]):not(.galaxy-window):not(.galaxy-window-body) {
+  background: var(--galaxy-surface) !important;
+}
+
+body.theme-explore-galaxy .galaxy-app-shell [class*="bg-gray"]:not([data-skin-preview-tile="true"]) {
+  background: var(--galaxy-surface) !important;
+}
+
+body.theme-explore-galaxy .galaxy-app-shell [class*="text-gray-900"]:not([data-skin-preview-tile="true"]) {
+  color: var(--galaxy-text) !important;
+}
+
+body.theme-explore-galaxy .galaxy-app-shell [class*="text-gray-600"]:not([data-skin-preview-tile="true"]) {
+  color: var(--galaxy-text-dim) !important;
+}
+
+body.theme-explore-galaxy .galaxy-app-shell [class*="text-gray-500"]:not([data-skin-preview-tile="true"]) {
+  color: var(--galaxy-text-dim) !important;
+}
+
+body.theme-explore-galaxy .galaxy-app-shell [class*="border-gray"]:not([data-skin-preview-tile="true"]):not([data-premium-ui-surface="true"]) {
+  border-color: var(--galaxy-border) !important;
+}
+
+body.theme-explore-galaxy .galaxy-app-shell [class*="border-white"]:not([data-skin-preview-tile="true"]) {
+  border-color: var(--galaxy-border) !important;
+}
+
+/* rounded 강제 해제 없음 - 갤럭시는 곡선 유지 */
+
+/* ──────────────────────────────────────────
+   4. 윈도우 / 패널
+   ────────────────────────────────────────── */
+body.theme-explore-galaxy .galaxy-window,
+body.theme-explore-galaxy [data-premium-ui-surface="true"] {
+  color: var(--galaxy-text) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(100, 160, 255, 0.35) !important;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.3), 0 0 0 0.5px rgba(120, 180, 255, 0.2) !important;
+  border-radius: var(--galaxy-radius) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+body.theme-explore-galaxy .galaxy-window-body {
+  background: transparent !important;
+  color: var(--galaxy-text) !important;
+  padding: 12px !important;
+}
+
+/* ──────────────────────────────────────────
+   5. 타이틀 바
+   ────────────────────────────────────────── */
+body.theme-explore-galaxy .galaxy-title-bar {
+  background: var(--galaxy-title-grad) !important;
+  border-bottom: 1px solid var(--galaxy-border-bright) !important;
+  border-radius: var(--galaxy-radius) var(--galaxy-radius) 0 0 !important;
+  padding: 8px 12px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  box-shadow: var(--galaxy-glow-title) !important;
+  min-height: 36px;
+}
+
+body.theme-explore-galaxy .galaxy-title-bar-text {
+  font-family: 'Orbitron', 'Segoe UI', sans-serif !important;
+  font-weight: 700 !important;
+  font-size: 12px !important;
+  letter-spacing: 0.08em !important;
+  color: var(--galaxy-text) !important;
+  text-shadow: 0 0 8px rgba(150, 210, 255, 0.8) !important;
+  text-transform: uppercase;
+  white-space: pre-line;
+  line-height: 1.1;
+}
+
+body.theme-explore-galaxy .galaxy-title-bar-controls {
+  display: flex !important;
+  gap: 6px !important;
+  align-items: center !important;
+}
+
+body.theme-explore-galaxy .galaxy-title-bar-controls button {
+  width: 16px !important;
+  height: 16px !important;
+  border-radius: 50% !important;
+  border: 1px solid rgba(100, 180, 255, 0.4) !important;
+  background: rgba(60, 100, 200, 0.3) !important;
+  cursor: pointer !important;
+  transition: background 0.2s !important;
+  box-shadow: none !important;
+}
+
+body.theme-explore-galaxy .galaxy-title-bar-controls button:hover {
+  background: rgba(255, 80, 80, 0.7) !important;
+  border-color: rgba(255, 120, 120, 0.6) !important;
+}
+
+/* ──────────────────────────────────────────
+   6. 특수 윈도우 (Top / Menu / Modal)
+   ────────────────────────────────────────── */
+body.theme-explore-galaxy .galaxy-top-window {
+  margin-bottom: 8px;
+}
+
+body.theme-explore-galaxy .galaxy-top-window .galaxy-title-bar-text {
+  font-size: 13px !important;
+}
+
+body.theme-explore-galaxy .galaxy-menu-window {
+  max-height: calc(100dvh - 220px);
+  display: flex;
+  flex-direction: column;
+}
+
+body.theme-explore-galaxy .galaxy-menu-window .galaxy-window-body {
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--galaxy-accent) transparent;
+}
+
+body.theme-explore-galaxy .galaxy-menu-window .galaxy-window-body::-webkit-scrollbar {
+  width: 4px;
+}
+
+body.theme-explore-galaxy .galaxy-menu-window .galaxy-window-body::-webkit-scrollbar-thumb {
+  background: var(--galaxy-accent);
+  border-radius: 4px;
+}
+
+/* ──────────────────────────────────────────
+   7. 모달 오버레이
+   ────────────────────────────────────────── */
+body.theme-explore-galaxy .galaxy-modal-overlay {
+  background: rgba(0, 0, 10, 0.60) !important;
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+}
+
+/* ──────────────────────────────────────────
+   8. 버튼 공통 기반
+   ────────────────────────────────────────── */
+body.theme-explore-galaxy .galaxy-menu-btn,
+body.theme-explore-galaxy .galaxy-game-btn,
+body.theme-explore-galaxy .galaxy-icon-btn,
+body.theme-explore-galaxy .galaxy-pill-btn,
+body.theme-explore-galaxy .galaxy-header-main-btn,
+body.theme-explore-galaxy .galaxy-header-icon-btn,
+body.theme-explore-galaxy .galaxy-header-action-btn,
+body.theme-explore-galaxy .galaxy-compartment,
+body.theme-explore-galaxy .galaxy-exit-home-btn,
+body.theme-explore-galaxy .galaxy-exit-cancel-btn {
+  background: var(--galaxy-btn-bg) !important;
+  color: var(--galaxy-text) !important;
+  border: 1px solid var(--galaxy-btn-border) !important;
+  border-radius: var(--galaxy-radius-sm) !important;
+  box-shadow: var(--galaxy-glow-sm) !important;
+  transition: background 0.18s, box-shadow 0.18s, border-color 0.18s !important;
+  cursor: pointer !important;
+  font-family: inherit !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.theme-explore-galaxy .galaxy-menu-btn:hover,
+body.theme-explore-galaxy .galaxy-game-btn:hover,
+body.theme-explore-galaxy .galaxy-icon-btn:hover,
+body.theme-explore-galaxy .galaxy-pill-btn:hover,
+body.theme-explore-galaxy .galaxy-header-main-btn:hover,
+body.theme-explore-galaxy .galaxy-header-icon-btn:hover,
+body.theme-explore-galaxy .galaxy-header-action-btn:hover,
+body.theme-explore-galaxy .galaxy-exit-home-btn:hover,
+body.theme-explore-galaxy .galaxy-exit-cancel-btn:hover {
+  background: var(--galaxy-btn-hover) !important;
+  border-color: var(--galaxy-accent) !important;
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.55), 0 0 28px rgba(56, 189, 248, 0.2) !important;
+}
+
+body.theme-explore-galaxy .galaxy-menu-btn:active,
+body.theme-explore-galaxy .galaxy-game-btn:active,
+body.theme-explore-galaxy .galaxy-icon-btn:active,
+body.theme-explore-galaxy .galaxy-pill-btn:active,
+body.theme-explore-galaxy .galaxy-header-main-btn:active,
+body.theme-explore-galaxy .galaxy-header-icon-btn:active,
+body.theme-explore-galaxy .galaxy-header-action-btn:active,
+body.theme-explore-galaxy .galaxy-exit-home-btn:active,
+body.theme-explore-galaxy .galaxy-exit-cancel-btn:active {
+  background: var(--galaxy-btn-active) !important;
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.6) !important;
+}
+
+/* 버튼별 개별 조정 */
+body.theme-explore-galaxy .galaxy-header-main-btn {
+  min-width: 120px;
+  height: 36px;
+  padding: 0 12px !important;
+  font-size: 12px;
+}
+
+body.theme-explore-galaxy .galaxy-header-icon-btn {
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  min-height: 36px !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+body.theme-explore-galaxy .galaxy-header-action-btn {
+  min-width: 120px;
+  height: 36px;
+  padding: 0 12px !important;
+  font-size: 12px;
+}
+
+body.theme-explore-galaxy .galaxy-pill-btn {
+  border-radius: 999px !important;
+  padding: 6px 16px !important;
+}
+
+body.theme-explore-galaxy .galaxy-compartment {
+  background: rgba(8, 20, 55, 0.7) !important;
+  border: 1px solid var(--galaxy-border) !important;
+  border-radius: var(--galaxy-radius-sm) !important;
+}
+
+/* 종료 버튼 색상 구분 */
+body.theme-explore-galaxy .galaxy-exit-home-btn {
+  border-color: rgba(239, 68, 68, 0.5) !important;
+  color: #fca5a5 !important;
+}
+
+body.theme-explore-galaxy .galaxy-exit-home-btn:hover {
+  background: rgba(127, 29, 29, 0.7) !important;
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 14px rgba(239, 68, 68, 0.4) !important;
+}
+
+body.theme-explore-galaxy .galaxy-exit-cancel-btn {
+  border-color: var(--galaxy-accent3) !important;
+  color: var(--galaxy-accent3) !important;
+}
+
+body.theme-explore-galaxy .galaxy-exit-cancel-btn:hover {
+  background: rgba(6, 78, 59, 0.6) !important;
+  border-color: var(--galaxy-accent3) !important;
+  box-shadow: 0 0 14px rgba(52, 211, 153, 0.4) !important;
+}
+
+/* ──────────────────────────────────────────
+   9. 탭 스트립
+   ────────────────────────────────────────── */
+body.theme-explore-galaxy .galaxy-tabstrip {
+  display: flex !important;
+  gap: 4px !important;
+  padding: 4px !important;
+  background: rgba(4, 10, 30, 0.6) !important;
+  border: 1px solid var(--galaxy-border) !important;
+  border-radius: var(--galaxy-radius-sm) !important;
+}
+
+body.theme-explore-galaxy .galaxy-tabstrip-tab {
+  background: transparent !important;
+  color: var(--galaxy-text-dim) !important;
+  border: 1px solid transparent !important;
+  border-radius: 4px !important;
+  padding: 5px 12px !important;
+  font-size: 12px !important;
+  cursor: pointer !important;
+  transition: all 0.18s !important;
+  white-space: nowrap;
+}
+
+body.theme-explore-galaxy .galaxy-tabstrip-tab:hover {
+  color: var(--galaxy-text) !important;
+  background: rgba(30, 60, 120, 0.5) !important;
+  border-color: var(--galaxy-border) !important;
+}
+
+body.theme-explore-galaxy .galaxy-tabstrip-tab[aria-selected="true"],
+body.theme-explore-galaxy .galaxy-tabstrip-tab.active,
+body.theme-explore-galaxy .galaxy-tabstrip-tab[data-active="true"] {
+  background: var(--galaxy-btn-bg) !important;
+  color: var(--galaxy-accent) !important;
+  border-color: var(--galaxy-accent) !important;
+  box-shadow: var(--galaxy-glow-sm) !important;
+  font-weight: 600 !important;
+}
+
+/* ──────────────────────────────────────────
+   10. 패널 / 리스트
+   ────────────────────────────────────────── */
+body.theme-explore-galaxy .galaxy-sunken {
+  background: rgba(0, 0, 0, 0.20) !important;
+  border: 1px solid rgba(80, 140, 255, 0.20) !important;
+  border-radius: var(--galaxy-radius-sm) !important;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5) !important;
+  color: var(--galaxy-text) !important;
+}
+
+body.theme-explore-galaxy .galaxy-sunken-white {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid var(--galaxy-border) !important;
+  border-radius: var(--galaxy-radius-sm) !important;
+  color: var(--galaxy-text) !important;
+}
+
+body.theme-explore-galaxy .galaxy-list-item {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid var(--galaxy-border) !important;
+  border-radius: var(--galaxy-radius-sm) !important;
+  color: var(--galaxy-text) !important;
+  transition: background 0.15s, border-color 0.15s !important;
+}
+
+body.theme-explore-galaxy .galaxy-list-item:hover {
+  background: rgba(60, 120, 255, 0.15) !important;
+  border-color: var(--galaxy-accent) !important;
+}
+
+body.theme-explore-galaxy .galaxy-list-item-highlight {
+  color: var(--galaxy-accent) !important;
+  font-weight: 700 !important;
+  text-shadow: 0 0 6px rgba(56, 189, 248, 0.5) !important;
+}
+
+body.theme-explore-galaxy .galaxy-badge {
+  background: rgba(30, 60, 140, 0.8) !important;
+  color: var(--galaxy-accent) !important;
+  border: 1px solid var(--galaxy-accent) !important;
+  border-radius: 999px !important;
+  padding: 1px 8px !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  box-shadow: var(--galaxy-glow-sm) !important;
+  letter-spacing: 0.04em;
+}
+
+body.theme-explore-galaxy .galaxy-fieldset {
+  border: 1px solid var(--galaxy-border) !important;
+  border-radius: var(--galaxy-radius-sm) !important;
+  padding: 10px 12px !important;
+  background: rgba(0, 0, 0, 0.15) !important;
+}
+
+body.theme-explore-galaxy .galaxy-fieldset legend {
+  color: var(--galaxy-accent) !important;
+  font-family: 'Orbitron', sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.06em !important;
+  text-shadow: 0 0 6px rgba(56, 189, 248, 0.5) !important;
+  padding: 0 6px !important;
+}
+
+/* ──────────────────────────────────────────
+   11. 진행바
+   ────────────────────────────────────────── */
+body.theme-explore-galaxy .galaxy-progress-track {
+  background: rgba(4, 10, 30, 0.8) !important;
+  border: 1px solid var(--galaxy-border) !important;
+  border-radius: 999px !important;
+  height: 8px !important;
+  overflow: hidden !important;
+}
+
+body.theme-explore-galaxy .galaxy-progress-fill {
+  background: linear-gradient(90deg, var(--galaxy-accent2), var(--galaxy-accent)) !important;
+  border-radius: 999px !important;
+  height: 100% !important;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.6) !important;
+  transition: width 0.3s ease !important;
+}
+
+/* ──────────────────────────────────────────
+   12. 보드 셸 (인게임 그리드 배경만, 타일 제외)
+   ────────────────────────────────────────── */
+body.theme-explore-galaxy .galaxy-board-shell {
+  background: rgba(0, 0, 0, 0.35) !important;
+  border: 1px solid rgba(60, 100, 255, 0.35) !important;
+  border-radius: var(--galaxy-radius) !important;
+  box-shadow: 0 0 20px rgba(30, 60, 160, 0.4), inset 0 0 30px rgba(0, 0, 0, 0.3) !important;
+}
+
+body.theme-explore-galaxy .galaxy-board-cell {
+  background: rgba(15, 35, 90, 0.50) !important;
+  border: 1px solid rgba(80, 130, 255, 0.30) !important;
+  border-radius: 8px !important;
+}
+
+body.theme-explore-galaxy .galaxy-ghost-valid {
+  background: rgba(56, 189, 248, 0.18) !important;
+  border: 2px solid rgba(56, 189, 248, 0.6) !important;
+  border-radius: 6px !important;
+}
+
+body.theme-explore-galaxy .galaxy-ghost-invalid {
+  background: rgba(239, 68, 68, 0.18) !important;
+  border: 2px solid rgba(239, 68, 68, 0.5) !important;
+  border-radius: 6px !important;
+}
+
+body.theme-explore-galaxy .galaxy-game-header {
+  align-items: flex-start;
+}
+
+body.theme-explore-galaxy .galaxy-game-board-window {
+  max-width: 520px;
+}
+
+body.theme-explore-galaxy .galaxy-board-body {
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  background: transparent !important;
+}
+
+/* ──────────────────────────────────────────
+   13. 슬롯 (다음 조각 미리보기)
+   ────────────────────────────────────────── */
+body.theme-explore-galaxy .galaxy-slot-shell {
+  background: rgba(0, 0, 0, 0.30) !important;
+  border: 1px solid rgba(80, 160, 255, 0.35) !important;
+  border-radius: var(--galaxy-radius-sm) !important;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.5), 0 0 24px rgba(56, 189, 248, 0.2) !important;
+}
+
+body.theme-explore-galaxy .galaxy-slot-mini-cell {
+  background: rgba(15, 35, 90, 0.70) !important;
+  border: 1px solid rgba(80, 140, 255, 0.4) !important;
+  border-radius: 4px !important;
+}
+
+body.theme-explore-galaxy .galaxy-slot-rotate-btn {
+  background: var(--galaxy-btn-bg) !important;
+  border: 1px solid var(--galaxy-btn-border) !important;
+  border-radius: var(--galaxy-radius-sm) !important;
+  color: var(--galaxy-accent) !important;
+  box-shadow: var(--galaxy-glow-sm) !important;
+}
+
+body.theme-explore-galaxy .galaxy-slot-rotate-btn:hover {
+  background: var(--galaxy-btn-hover) !important;
+  border-color: var(--galaxy-accent) !important;
+}
+
+/* ──────────────────────────────────────────
+   14. 하단 네비게이션 (Taskbar)
+   ────────────────────────────────────────── */
+body.theme-explore-galaxy .galaxy-bottom-nav {
+  background: rgba(0, 0, 20, 0.60) !important;
+  border-top: 1px solid var(--galaxy-border) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  min-height: var(--galaxy-nav-height) !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+body.theme-explore-galaxy .galaxy-bottom-nav-button {
+  background: transparent !important;
+  color: var(--galaxy-text-dim) !important;
+  border: none !important;
+  border-radius: var(--galaxy-radius-sm) !important;
+  padding: 6px 10px !important;
+  cursor: pointer !important;
+  transition: color 0.18s, background 0.18s !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 2px !important;
+  font-size: 10px !important;
+}
+
+body.theme-explore-galaxy .galaxy-bottom-nav-button:hover,
+body.theme-explore-galaxy .galaxy-bottom-nav-button[aria-pressed="true"],
+body.theme-explore-galaxy .galaxy-bottom-nav-button.active {
+  color: var(--galaxy-accent) !important;
+  background: rgba(20, 50, 120, 0.4) !important;
+  text-shadow: 0 0 6px rgba(56, 189, 248, 0.6) !important;
+}
+
+body.theme-explore-galaxy .galaxy-bottom-nav-badge {
+  background: var(--galaxy-accent2) !important;
+  color: #fff !important;
+  border-radius: 999px !important;
+  font-size: 9px !important;
+  font-weight: 700 !important;
+  padding: 1px 5px !important;
+  box-shadow: 0 0 6px rgba(167, 139, 250, 0.5) !important;
+}
+
+body.theme-explore-galaxy .galaxy-lock-toast {
+  background: rgba(4, 10, 30, 0.92) !important;
+  border: 1px solid var(--galaxy-border) !important;
+  border-radius: var(--galaxy-radius-sm) !important;
+  color: var(--galaxy-text-dim) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+/* ──────────────────────────────────────────
+   15. 상태바
+   ────────────────────────────────────────── */
+body.theme-explore-galaxy .galaxy-status-bar {
+  background: rgba(4, 10, 30, 0.9) !important;
+  border-top: 1px solid var(--galaxy-border) !important;
+  display: flex !important;
+  gap: 4px !important;
+  padding: 3px 6px !important;
+  font-size: 11px !important;
+  color: var(--galaxy-text-dim) !important;
+  font-family: 'Orbitron', monospace !important;
+  letter-spacing: 0.04em !important;
+}
+
+body.theme-explore-galaxy .galaxy-status-bar-field {
+  border: 1px solid var(--galaxy-border) !important;
+  padding: 2px 8px !important;
+  color: var(--galaxy-text-dim) !important;
+  background: transparent !important;
+}
+
+/* ──────────────────────────────────────────
+   16. 폼 레이아웃
+   ────────────────────────────────────────── */
+body.theme-explore-galaxy .galaxy-field-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin-bottom: 8px !important;
+}
+
+body.theme-explore-galaxy .galaxy-field-row-stacked {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  margin-bottom: 8px !important;
+}
+
+/* ──────────────────────────────────────────
+   17. 텍스트 유틸리티
+   ────────────────────────────────────────── */
+body.theme-explore-galaxy .galaxy-muted {
+  color: var(--galaxy-text-dim) !important;
+}
+
+body.theme-explore-galaxy .galaxy-tile-face {
+  font-family: 'Orbitron', sans-serif !important;
+  font-weight: 700 !important;
+  text-shadow: 0 0 6px rgba(56, 189, 248, 0.4) !important;
+}
+
+body.theme-explore-galaxy .galaxy-tile-number {
+  font-family: 'Orbitron', 'Courier New', monospace !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.02em !important;
+}
+
+/* ──────────────────────────────────────────
+   18. 라디오 그룹
+   ────────────────────────────────────────── */
+body.theme-explore-galaxy .galaxy-radio-group input[type="radio"] {
+  accent-color: var(--galaxy-accent);
+}
+
+body.theme-explore-galaxy .galaxy-radio-group input[type="radio"] + label {
+  color: var(--galaxy-text) !important;
+  cursor: pointer;
+}
+
+/* ──────────────────────────────────────────
+   19. h1/h2 타이틀 스타일링
+   ────────────────────────────────────────── */
+body.theme-explore-galaxy .galaxy-app-shell h1 {
+  font-family: 'Orbitron', sans-serif !important;
+  font-size: 2.4rem !important;
+  font-weight: 900 !important;
+  color: var(--galaxy-text) !important;
+  text-shadow: 0 0 20px rgba(56, 189, 248, 0.6), 0 0 40px rgba(167, 139, 250, 0.3) !important;
+  letter-spacing: 0.04em !important;
+  line-height: 1.1 !important;
+}
+
+body.theme-explore-galaxy .galaxy-app-shell h2,
+body.theme-explore-galaxy .galaxy-app-shell h3 {
+  font-family: 'Orbitron', sans-serif !important;
+  color: var(--galaxy-text) !important;
+  text-shadow: 0 0 8px rgba(56, 189, 248, 0.4) !important;
+  letter-spacing: 0.03em !important;
+}
+
+/* ──────────────────────────────────────────
+   20. 스크롤바 전역
+   ────────────────────────────────────────── */
+body.theme-explore-galaxy ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+body.theme-explore-galaxy ::-webkit-scrollbar-track {
+  background: rgba(4, 10, 30, 0.5);
+}
+
+body.theme-explore-galaxy ::-webkit-scrollbar-thumb {
+  background: var(--galaxy-accent);
+  border-radius: 3px;
+}
+
+/* ──────────────────────────────────────────
+   21. 일반 버튼 폴백 (프리미엄 테마 내 미분류 버튼)
+   ────────────────────────────────────────── */
+body.theme-explore-galaxy .galaxy-app-shell button:not([class*="galaxy-"]):not([data-skin-preview-tile="true"]):not([data-premium-ui-allow-gradient="true"]) {
+  background: var(--galaxy-btn-bg);
+  color: var(--galaxy-text);
+  border: 1px solid var(--galaxy-btn-border);
+  border-radius: var(--galaxy-radius-sm);
+  transition: background 0.18s, border-color 0.18s;
+}
+
+body.theme-explore-galaxy .galaxy-app-shell button:not([class*="galaxy-"]):not([data-skin-preview-tile="true"]):hover {
+  background: var(--galaxy-btn-hover);
+  border-color: var(--galaxy-accent);
+}
+
+/* ──────────────────────────────────────────
+   22. 입력 폼 요소
+   ────────────────────────────────────────── */
+body.theme-explore-galaxy input[type="text"],
+body.theme-explore-galaxy input[type="email"],
+body.theme-explore-galaxy input[type="number"],
+body.theme-explore-galaxy textarea {
+  background: rgba(4, 12, 40, 0.8) !important;
+  color: var(--galaxy-text) !important;
+  border: 1px solid var(--galaxy-border) !important;
+  border-radius: var(--galaxy-radius-sm) !important;
+  padding: 8px 12px !important;
+  outline: none !important;
+  caret-color: var(--galaxy-accent) !important;
+  transition: border-color 0.18s !important;
+}
+
+body.theme-explore-galaxy input[type="text"]:focus,
+body.theme-explore-galaxy input[type="email"]:focus,
+body.theme-explore-galaxy input[type="number"]:focus,
+body.theme-explore-galaxy textarea:focus {
+  border-color: var(--galaxy-accent) !important;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.35) !important;
+}
+
+/* placeholder */
+body.theme-explore-galaxy input::placeholder,
+body.theme-explore-galaxy textarea::placeholder {
+  color: var(--galaxy-text-dim) !important;
+}
+
+/* ──────────────────────────────────────────
+   23. 전역 WebGL 배경 레이어
+   ────────────────────────────────────────── */
+.galaxy-global-background {
+  position: fixed;
+  inset: 0;
+  /* z-index 0: 모든 UI 뒤, body 배경(transparent) 위 */
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.galaxy-global-background canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block !important;
+}
+
+/* ──────────────────────────────────────────
+   24. Galaxy 스킨 타일 (유리 블록)
+   ────────────────────────────────────────── */
+
+/* 일반 타일: 유리처럼 반투명, 뒷배경의 우주 UI가 보임 */
+.skin-explore-galaxy-tile {
+  background: rgba(120, 160, 255, 0.10) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(120, 180, 255, 0.40) !important;
+  box-shadow:
+    0 0 12px rgba(80, 140, 255, 0.20),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    inset 0 0 8px rgba(100, 160, 255, 0.08) !important;
+  border-radius: 8px !important;
+  color: #e8f4ff !important;
+  text-shadow: 0 0 8px rgba(150, 210, 255, 0.80), 0 1px 2px rgba(0, 0, 0, 0.70) !important;
+}
+
+/* 숫자가 클수록 더 밝게 빛나는 효과는 JS 인라인 스타일로 처리됨 */
+/* 게임 ghost(배치 예정 위치) 오버레이와의 충돌 방지 */
+.skin-explore-galaxy-tile[data-ghost] {
+  background: rgba(80, 140, 255, 0.18) !important;
+  border-color: rgba(100, 180, 255, 0.60) !important;
+  box-shadow: 0 0 16px rgba(80, 140, 255, 0.40) !important;
+}
+

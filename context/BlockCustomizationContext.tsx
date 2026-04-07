@@ -1,4 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import Galaxy from '../components/Galaxy';
 import type {
   BlockCustomizationSettingsV1,
   PremiumUiMicroOverrides,
@@ -355,9 +357,47 @@ export function BlockCustomizationProvider({ children }: { children: React.React
     [gate, settings, resetAll, resolver, skinSettings, activeSkin, isPremiumUiThemeActive, premiumUiTheme, premiumUiObjects, premiumUiOverrides, addSkin, setActiveSkin, addFragments, addScoreMilestoneFragments, purchaseSkin]
   );
 
+  const isGalaxyTheme = premiumUiTheme?.id === 'explore_galaxy';
+
+  const galaxyMouseControllerRef = useRef<{ setPos: (x: number, y: number) => void; clearPos: () => void } | null>(null);
+
+  // DRAG_MOVE / DRAG_END 이벤트 구독 → Galaxy 별 반발력 제어
+  useEffect(() => {
+    if (!isGalaxyTheme) return;
+    const unsub1 = gameEventBus.on('DRAG_MOVE', ({ x, y }) => {
+      galaxyMouseControllerRef.current?.setPos(x, y);
+    });
+    const unsub2 = gameEventBus.on('DRAG_END', () => {
+      galaxyMouseControllerRef.current?.clearPos();
+    });
+    return () => { unsub1(); unsub2(); };
+  }, [isGalaxyTheme]);
+
   return (
     <BlockCustomizationContext.Provider value={value}>
       {children}
+      {isGalaxyTheme && createPortal(
+        <div className="galaxy-global-background">
+          {/* 원본 reactbits.dev Galaxy: 블랙 배경 + 흰색 별 + 중앙 스타버스트 광선 효과 */}
+          <Galaxy
+            mouseInteraction={false}
+            mouseRepulsion={true}
+            repulsionStrength={3}
+            autoCenterRepulsion={0.8}
+            density={1.2}
+            glowIntensity={0.45}
+            saturation={0.15}
+            hueShift={220}
+            rotationSpeed={0.06}
+            twinkleIntensity={0.4}
+            starSpeed={0.5}
+            speed={1}
+            transparent={false}
+            getMouseControlRef={(ctrl) => { galaxyMouseControllerRef.current = ctrl; }}
+          />
+        </div>,
+        document.body
+      )}
     </BlockCustomizationContext.Provider>
   );
 }

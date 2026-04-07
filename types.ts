@@ -130,8 +130,8 @@ export interface PremiumUiMicroOverrides {
  *
  * 현재는 Win98 계열 1종을 운영한다.
  */
-export type PremiumUiThemeFamily = 'win98';
-export type PremiumUiThemeId = 'retro_windows_98';
+export type PremiumUiThemeFamily = 'win98' | 'explore_galaxy';
+export type PremiumUiThemeId = 'retro_windows_98' | 'explore_galaxy';
 
 export interface PremiumUiTabObject {
   containerClassName: string;

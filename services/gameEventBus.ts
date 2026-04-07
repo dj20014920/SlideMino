@@ -117,6 +117,15 @@ export interface GameEventMap {
     badge: LevelBadge | null;
     special: string | null;
   };
+
+  /** 블록 드래그 중 마우스/터치 위치 */
+  DRAG_MOVE: {
+    x: number;
+    y: number;
+  };
+
+  /** 블록 드래그 종료 */
+  DRAG_END: Record<string, never>;
 }
 
 // ====== 이벤트 핸들러 타입 ======

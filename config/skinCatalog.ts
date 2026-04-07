@@ -131,6 +131,7 @@ const EXPLORE_GALAXY_PREMIUM_SKIN: SkinCatalogEntry = {
   category: 'digital',
   nameKey: 'exploreGalaxy',
   premium: true,
+  premiumUiThemeId: 'explore_galaxy',
   style: {
     type: 'css-pattern',
     value: 'none',

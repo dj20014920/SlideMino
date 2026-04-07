@@ -3107,6 +3107,8 @@ const App: React.FC = () => {
   const handlePointerMove = (e: React.PointerEvent) => {
     if (dragPointerIdRef.current !== null && e.pointerId !== dragPointerIdRef.current) return;
     if (!draggingPiece || !boardMetricsRef.current) return;
+    // Galaxy 인터랙션: 드래그 중 마우스 위치 전달
+    gameEventBus.emit('DRAG_MOVE', { x: e.clientX, y: e.clientY });
     latestPointerRef.current = { x: e.clientX, y: e.clientY };
     if (rafIdRef.current) return;
 
@@ -3175,6 +3177,8 @@ const App: React.FC = () => {
     // 1. 드래그 중인 조각이 있다면 -> 조각 놓기 처리
     if (draggingPiece) {
       if (dragPointerIdRef.current !== null && e.pointerId !== dragPointerIdRef.current) return;
+      // Galaxy 인터랙션: 드래그 종료
+      gameEventBus.emit('DRAG_END', {});
       // 드래그 종료 시 스와이프 시작 좌표가 남아있으면 다음 입력에서 오동작 가능
       swipeStartRef.current = null;
       // 빠른 탭(이동 없음) 시 fallback: handlePointerMove와 동일한 (0,0) 앵커 사용
@@ -4813,7 +4817,6 @@ const App: React.FC = () => {
                     ref={boardHandleRef}
                     htmlId="game-board"
                     grid={grid}
-                    galaxySessionSeed={sessionIdRef.current}
                     phase={phase}
                     activePiece={draggingPiece}
                     boardRef={boardRef}
@@ -4834,7 +4837,6 @@ const App: React.FC = () => {
                 ref={boardHandleRef}
                 htmlId="game-board"
                 grid={grid}
-                galaxySessionSeed={sessionIdRef.current}
                 phase={phase}
                 activePiece={draggingPiece}
                 boardRef={boardRef}

@@ -10,16 +10,16 @@
   --galaxy-bg: #000008;
   --galaxy-surface: rgba(0, 0, 0, 0.75);
   --galaxy-surface-2: rgba(5, 5, 8, 0.82);
-  --galaxy-border: rgba(70, 80, 100, 0.18);
-  --galaxy-border-bright: rgba(100, 110, 130, 0.38);
+  --galaxy-border: rgba(110, 130, 170, 0.42);
+  --galaxy-border-bright: rgba(150, 175, 220, 0.55);
   --galaxy-accent: #a8c8ff;
   --galaxy-accent2: #c4a8ff;
   --galaxy-accent3: #80e8c0;
   --galaxy-text: #dce8ff;
   --galaxy-text-dim: rgba(180, 205, 255, 0.60);
   --galaxy-title-grad: linear-gradient(90deg, rgba(0, 0, 0, 0.58) 0%, rgba(5, 0, 10, 0.58) 50%, rgba(0, 0, 0, 0.58) 100%);
-  --galaxy-btn-bg: rgba(0, 0, 0, 0.60);
-  --galaxy-btn-border: rgba(70, 80, 100, 0.22);
+  --galaxy-btn-bg: rgba(8, 12, 24, 0.72);
+  --galaxy-btn-border: rgba(125, 150, 195, 0.50);
   --galaxy-btn-hover: rgba(15, 15, 25, 0.72);
   --galaxy-btn-active: rgba(20, 20, 32, 0.88);
   --galaxy-glow-sm: 0 0 6px rgba(168, 200, 255, 0.25);
@@ -233,9 +233,9 @@ body.theme-explore-galaxy .galaxy-app-shell [class*="border-white"]:not([data-sk
 body.theme-explore-galaxy .galaxy-window,
 body.theme-explore-galaxy [data-premium-ui-surface="true"] {
   color: var(--galaxy-text) !important;
-  background: rgba(0, 0, 0, 0.75) !important;
-  border: 1px solid rgba(70, 80, 100, 0.35) !important;
-  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.3), 0 0 0 0.5px rgba(80, 90, 110, 0.2) !important;
+  background: rgba(0, 0, 0, 0.68) !important;
+  border: 1px solid rgba(125, 150, 195, 0.52) !important;
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.34), 0 0 0 0.5px rgba(140, 165, 210, 0.26) !important;
   border-radius: var(--galaxy-radius) !important;
   /* backdrop-filter 제거 — 모바일 GPU 부하 최적화 */
 }
@@ -283,8 +283,8 @@ body.theme-explore-galaxy .galaxy-title-bar-controls button {
   width: 16px !important;
   height: 16px !important;
   border-radius: 50% !important;
-  border: 1px solid rgba(70, 80, 100, 0.4) !important;
-  background: rgba(15, 15, 25, 0.50) !important;
+  border: 1px solid rgba(125, 150, 195, 0.55) !important;
+  background: rgba(20, 24, 38, 0.64) !important;
   cursor: pointer !important;
   transition: background 0.2s !important;
   box-shadow: none !important;
@@ -457,9 +457,9 @@ body.theme-explore-galaxy .galaxy-tabstrip {
 }
 
 body.theme-explore-galaxy .galaxy-tabstrip-tab {
-  background: transparent !important;
+  background: rgba(10, 14, 26, 0.38) !important;
   color: var(--galaxy-text-dim) !important;
-  border: 1px solid transparent !important;
+  border: 1px solid rgba(125, 150, 195, 0.32) !important;
   border-radius: 4px !important;
   padding: 5px 12px !important;
   font-size: 12px !important;
@@ -488,8 +488,8 @@ body.theme-explore-galaxy .galaxy-tabstrip-tab[data-active="true"] {
    10. 패널 / 리스트
    ────────────────────────────────────────── */
 body.theme-explore-galaxy .galaxy-sunken {
-  background: rgba(0, 0, 0, 0.20) !important;
-  border: 1px solid rgba(60, 65, 80, 0.20) !important;
+  background: rgba(6, 10, 20, 0.34) !important;
+  border: 1px solid rgba(120, 145, 190, 0.42) !important;
   border-radius: var(--galaxy-radius-sm) !important;
   box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5) !important;
   color: var(--galaxy-text) !important;
@@ -503,7 +503,7 @@ body.theme-explore-galaxy .galaxy-sunken-white {
 }
 
 body.theme-explore-galaxy .galaxy-list-item {
-  background: rgba(255, 255, 255, 0.03) !important;
+  background: rgba(255, 255, 255, 0.07) !important;
   border: 1px solid var(--galaxy-border) !important;
   border-radius: var(--galaxy-radius-sm) !important;
   color: var(--galaxy-text) !important;
@@ -537,7 +537,7 @@ body.theme-explore-galaxy .galaxy-fieldset {
   border: 1px solid var(--galaxy-border) !important;
   border-radius: var(--galaxy-radius-sm) !important;
   padding: 10px 12px !important;
-  background: rgba(0, 0, 0, 0.15) !important;
+  background: rgba(8, 12, 22, 0.30) !important;
 }
 
 body.theme-explore-galaxy .galaxy-fieldset legend {
@@ -573,16 +573,17 @@ body.theme-explore-galaxy .galaxy-progress-fill {
    12. 보드 셸 (인게임 그리드 배경만, 타일 제외)
    ────────────────────────────────────────── */
 body.theme-explore-galaxy .galaxy-board-shell {
-  background: rgba(0, 0, 0, 0.35) !important;
-  border: 1px solid rgba(55, 60, 78, 0.35) !important;
+  background: rgba(0, 0, 0, 0.22) !important;
+  border: 1px solid rgba(118, 140, 180, 0.56) !important;
   border-radius: var(--galaxy-radius) !important;
-  box-shadow: 0 0 20px rgba(10, 10, 20, 0.4), inset 0 0 30px rgba(0, 0, 0, 0.3) !important;
+  box-shadow: 0 0 18px rgba(8, 12, 26, 0.34), inset 0 0 0 1px rgba(150, 180, 230, 0.22) !important;
 }
 
 body.theme-explore-galaxy .galaxy-board-cell {
-  background: rgba(8, 8, 12, 0.55) !important;
-  border: 1px solid rgba(55, 60, 78, 0.30) !important;
+  background: rgba(8, 8, 12, 0.32) !important;
+  border: 1px solid rgba(140, 168, 214, 0.56) !important;
   border-radius: 8px !important;
+  box-shadow: inset 0 0 0 1px rgba(20, 28, 42, 0.55) !important;
 }
 
 body.theme-explore-galaxy .galaxy-ghost-valid {
@@ -605,6 +606,18 @@ body.theme-explore-galaxy .galaxy-game-board-window {
   max-width: 520px;
 }
 
+body.theme-explore-galaxy .galaxy-window.galaxy-game-board-window {
+  background: transparent !important;
+  border-color: rgba(148, 176, 222, 0.32) !important;
+  box-shadow: 0 0 0 1px rgba(148, 176, 222, 0.18) !important;
+}
+
+body.theme-explore-galaxy .galaxy-game-board-window .galaxy-title-bar {
+  background: linear-gradient(180deg, rgba(8, 14, 32, 0.34), rgba(8, 12, 26, 0.14)) !important;
+  border-bottom: 1px solid rgba(148, 176, 222, 0.38) !important;
+  box-shadow: 0 0 10px rgba(56, 120, 200, 0.18) !important;
+}
+
 body.theme-explore-galaxy .galaxy-board-body {
   margin: 0;
   display: flex;
@@ -617,14 +630,14 @@ body.theme-explore-galaxy .galaxy-board-body {
    ────────────────────────────────────────── */
 body.theme-explore-galaxy .galaxy-slot-shell {
   background: rgba(0, 0, 0, 0.30) !important;
-  border: 1px solid rgba(55, 60, 78, 0.35) !important;
+  border: 1px solid rgba(125, 150, 195, 0.48) !important;
   border-radius: var(--galaxy-radius-sm) !important;
   box-shadow: 0 0 12px rgba(50, 60, 80, 0.40), 0 0 24px rgba(50, 60, 80, 0.15) !important;
 }
 
 body.theme-explore-galaxy .galaxy-slot-mini-cell {
   background: rgba(8, 8, 12, 0.72) !important;
-  border: 1px solid rgba(55, 60, 78, 0.35) !important;
+  border: 1px solid rgba(125, 150, 195, 0.48) !important;
   border-radius: 4px !important;
 }
 
@@ -662,13 +675,13 @@ body.theme-explore-galaxy .galaxy-bottom-nav {
 }
 
 body.theme-explore-galaxy .galaxy-bottom-nav-button {
-  background: transparent !important;
+  background: rgba(8, 12, 24, 0.30) !important;
   color: var(--galaxy-text-dim) !important;
-  border: none !important;
+  border: 1px solid rgba(125, 150, 195, 0.36) !important;
   border-radius: var(--galaxy-radius-sm) !important;
   padding: 6px 10px !important;
   cursor: pointer !important;
-  transition: color 0.18s, background 0.18s !important;
+  transition: color 0.18s, background 0.18s, border-color 0.18s !important;
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
@@ -681,6 +694,7 @@ body.theme-explore-galaxy .galaxy-bottom-nav-button[aria-pressed="true"],
 body.theme-explore-galaxy .galaxy-bottom-nav-button.active {
   color: var(--galaxy-accent) !important;
   background: rgba(15, 15, 30, 0.50) !important;
+  border-color: var(--galaxy-accent) !important;
   text-shadow: 0 0 6px rgba(56, 189, 248, 0.6) !important;
 }
 
@@ -721,7 +735,7 @@ body.theme-explore-galaxy .galaxy-status-bar-field {
   border: 1px solid var(--galaxy-border) !important;
   padding: 2px 8px !important;
   color: var(--galaxy-text-dim) !important;
-  background: transparent !important;
+  background: rgba(8, 12, 20, 0.36) !important;
 }
 
 /* ──────────────────────────────────────────
@@ -829,7 +843,7 @@ body.theme-explore-galaxy input[type="text"],
 body.theme-explore-galaxy input[type="email"],
 body.theme-explore-galaxy input[type="number"],
 body.theme-explore-galaxy textarea {
-  background: rgba(0, 0, 0, 0.80) !important;
+  background: rgba(8, 12, 24, 0.72) !important;
   color: var(--galaxy-text) !important;
   border: 1px solid var(--galaxy-border) !important;
   border-radius: var(--galaxy-radius-sm) !important;
@@ -900,4 +914,3 @@ body.theme-explore-galaxy textarea::placeholder {
   border-color: rgba(80, 100, 130, 0.55) !important;
   box-shadow: 0 0 16px rgba(50, 60, 90, 0.45) !important;
 }
-

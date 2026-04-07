@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Galaxy from '../components/Galaxy';
 import type {
@@ -216,7 +216,7 @@ export function BlockCustomizationProvider({ children }: { children: React.React
    * - externalStylesheet가 있으면 동적으로 주입/정리한다.
    * - 테마 전환 시 기존 테마 클래스/스타일시트를 먼저 제거해 충돌을 방지한다.
    */
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (typeof document === 'undefined') return;
     const htmlEl = document.documentElement;
     const bodyEl = document.body;

@@ -194,6 +194,7 @@ export const SkinAcquisitionOverlay: React.FC<SkinAcquisitionOverlayProps> = ({
                   }}
                   className="absolute w-20 h-20 rounded-xl flex items-center justify-center text-3xl font-bold bg-white text-gray-800 border-2 border-white/50 shadow-[0_0_15px_rgba(255,255,255,0.3)] z-10"
                   style={{ left: '50%', top: '50%', marginLeft: '-40px', marginTop: '-40px' }}
+                  data-galaxy-exempt="true"
                 >
                   ?
                 </motion.div>
@@ -231,6 +232,7 @@ export const SkinAcquisitionOverlay: React.FC<SkinAcquisitionOverlayProps> = ({
                   }}
                   className="absolute w-20 h-20 rounded-xl flex items-center justify-center text-3xl font-bold bg-white text-gray-800 border-2 border-white/50 shadow-[0_0_15px_rgba(255,255,255,0.3)] z-10"
                   style={{ left: '50%', top: '50%', marginLeft: '-40px', marginTop: '-40px' }}
+                  data-galaxy-exempt="true"
                 >
                   ?
                 </motion.div>
@@ -244,6 +246,7 @@ export const SkinAcquisitionOverlay: React.FC<SkinAcquisitionOverlayProps> = ({
                       transition={{ duration: 0.6, ease: "easeOut" }}
                       className="absolute inset-0 z-50 bg-white"
                       style={{ mixBlendMode: 'screen' }}
+                      data-galaxy-exempt="true"
                     />
                     <motion.div
                         initial={{ scale: 0 }}

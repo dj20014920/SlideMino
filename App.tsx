@@ -4722,6 +4722,7 @@ const App: React.FC = () => {
                 <button
                   id="game-undo-btn"
                   type="button"
+                  data-premium-ui-allow-gradient="true"
                   onPointerDown={(e) => {
                     e.stopPropagation();
                   }}

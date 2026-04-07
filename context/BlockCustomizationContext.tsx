@@ -360,6 +360,9 @@ export function BlockCustomizationProvider({ children }: { children: React.React
   const isGalaxyTheme = premiumUiTheme?.id === 'explore_galaxy';
 
   const galaxyMouseControllerRef = useRef<{ setPos: (x: number, y: number) => void; clearPos: () => void } | null>(null);
+  const handleGetMouseControlRef = useCallback((ctrl: { setPos: (x: number, y: number) => void; clearPos: () => void }) => {
+    galaxyMouseControllerRef.current = ctrl;
+  }, []);
 
   // DRAG_MOVE / DRAG_END 이벤트 구독 → Galaxy 별 반발력 제어
   useEffect(() => {
@@ -379,21 +382,22 @@ export function BlockCustomizationProvider({ children }: { children: React.React
       {isGalaxyTheme && createPortal(
         <div className="galaxy-global-background">
           {/* 원본 reactbits.dev Galaxy: 블랙 배경 + 흰색 별 + 중앙 스타버스트 광선 효과 */}
+          {/* reactbits.dev 기본값 그대로 — mouseInteraction만 false(외부 제어), transparent=false(블랙 배경 유지) */}
           <Galaxy
             mouseInteraction={false}
             mouseRepulsion={true}
-            repulsionStrength={3}
-            autoCenterRepulsion={0.8}
-            density={1.2}
-            glowIntensity={0.45}
-            saturation={0.15}
-            hueShift={220}
-            rotationSpeed={0.06}
-            twinkleIntensity={0.4}
+            repulsionStrength={2}
+            autoCenterRepulsion={0}
+            density={1}
+            glowIntensity={0.3}
+            saturation={0}
+            hueShift={140}
+            rotationSpeed={0.1}
+            twinkleIntensity={0.3}
             starSpeed={0.5}
             speed={1}
             transparent={false}
-            getMouseControlRef={(ctrl) => { galaxyMouseControllerRef.current = ctrl; }}
+            getMouseControlRef={handleGetMouseControlRef}
           />
         </div>,
         document.body

@@ -3107,8 +3107,6 @@ const App: React.FC = () => {
   const handlePointerMove = (e: React.PointerEvent) => {
     if (dragPointerIdRef.current !== null && e.pointerId !== dragPointerIdRef.current) return;
     if (!draggingPiece || !boardMetricsRef.current) return;
-    // Galaxy 인터랙션: 드래그 중 마우스 위치 전달
-    gameEventBus.emit('DRAG_MOVE', { x: e.clientX, y: e.clientY });
     latestPointerRef.current = { x: e.clientX, y: e.clientY };
     if (rafIdRef.current) return;
 
@@ -3118,6 +3116,8 @@ const App: React.FC = () => {
       rafIdRef.current = null;
       if (!pointer || !metrics) return;
       currentPointerPosRef.current = pointer;
+      // Galaxy 인터랙션: RAF-throttled — 드래그 중 별 반발력 위치 전달
+      gameEventBus.emit('DRAG_MOVE', { x: pointer.x, y: pointer.y });
 
       applyDragOverlayTransform(pointer.x, pointer.y);
       // ghost 앵커: 시각적 블럭의 (0,0) 셀 중심 위치 기준
@@ -3272,6 +3272,8 @@ const App: React.FC = () => {
       return;
     }
     if (dragPointerIdRef.current !== null && e.pointerId !== dragPointerIdRef.current) return;
+    // Galaxy 인터랙션: 터치 인터럽트(전화, 알림 등) 시에도 반발력 해제
+    gameEventBus.emit('DRAG_END', {});
     swipeStartRef.current = null;
     resetDraggingState();
   };

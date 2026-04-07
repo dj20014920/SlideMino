@@ -377,6 +377,7 @@ export default function Galaxy({
     repulsionStrength,
     autoCenterRepulsion,
     transparent,
+    getMouseControlRef,
   ]);
 
   return <div ref={ctnDom} className={`galaxy-container${className ? ` ${className}` : ''}`} style={style} />;

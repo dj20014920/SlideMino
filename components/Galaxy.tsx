@@ -242,10 +242,31 @@ export default function Galaxy({
     }
 
     let program: Program;
+    let rectCache: DOMRect | null = null;
+
+    const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
+    const isRectValid = (rect: DOMRect | null) => Boolean(rect && rect.width > 0 && rect.height > 0);
+    const refreshRectCache = () => {
+      const nextRect = ctn.getBoundingClientRect();
+      rectCache = nextRect.width > 0 && nextRect.height > 0 ? nextRect : null;
+    };
+    const getInteractionRect = (): DOMRect => {
+      if (!isRectValid(rectCache)) refreshRectCache();
+      if (isRectValid(rectCache)) return rectCache!;
+      return ctn.getBoundingClientRect();
+    };
+    const resolveMouseNorm = (x: number, y: number) => {
+      const rect = getInteractionRect();
+      return {
+        x: clamp01((x - rect.left) / Math.max(rect.width, 1)),
+        y: clamp01(1.0 - (y - rect.top) / Math.max(rect.height, 1)),
+      };
+    };
 
     function resize() {
       const scale = 0.5; // 모바일 성능: 0.5x 해상도, CSS upscale로 시각적 차이 최소
       renderer.setSize(ctn.offsetWidth * scale, ctn.offsetHeight * scale);
+      refreshRectCache();
       if (program) {
         program.uniforms.uResolution.value = new Color(
           gl.canvas.width,
@@ -323,10 +344,7 @@ export default function Galaxy({
     ctn.appendChild(gl.canvas);
 
     function handleMouseMove(e: MouseEvent) {
-      const rect = ctn.getBoundingClientRect();
-      const x = (e.clientX - rect.left) / rect.width;
-      const y = 1.0 - (e.clientY - rect.top) / rect.height;
-      targetMousePos.current = { x, y };
+      targetMousePos.current = resolveMouseNorm(e.clientX, e.clientY);
       targetMouseActive.current = 1.0;
     }
 
@@ -342,11 +360,7 @@ export default function Galaxy({
     if (getMouseControlRef) {
       getMouseControlRef({
         setPos: (x, y) => {
-          const rect = ctn.getBoundingClientRect();
-          targetMousePos.current = {
-            x: (x - rect.left) / rect.width,
-            y: 1.0 - (y - rect.top) / rect.height,
-          };
+          targetMousePos.current = resolveMouseNorm(x, y);
           targetMouseActive.current = 1.0;
         },
         clearPos: () => {

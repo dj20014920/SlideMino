@@ -171,6 +171,13 @@ class GameEventBus {
   }
 
   /**
+   * 특정 이벤트의 구독자 존재 여부
+   */
+  hasListeners<K extends keyof GameEventMap>(event: K): boolean {
+    return (this.listeners.get(event)?.size ?? 0) > 0;
+  }
+
+  /**
    * 모든 구독 해제 (테스트·정리용)
    */
   clear(): void {

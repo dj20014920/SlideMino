@@ -1,12 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { loadAdSenseScript } from '../services/adsense';
-import { getNativePlatform, isNativeApp, isAppIntoS } from '../utils/platform';
+import { isNativeApp, isAppIntoS } from '../utils/platform';
 import { getCookieConsent, onCookieConsentChange } from '../services/adConsent';
 import { bannerAdService } from '../services/bannerAdService';
 import { isScreenshotMode } from '../services/adConfig';
 import { isVirtualDevice } from '../services/admob';
 import { trackAnalyticsEvent } from '../services/analyticsService';
-import { getSafeAreaInsetPx } from '../utils/safeArea';
 
 interface AdBannerProps {
     /** 네이티브 배너를 하단 고정 UI 위로 띄우기 위한 margin (px) */
@@ -26,34 +25,26 @@ const AdBanner: React.FC<AdBannerProps> = ({
     const [consent, setConsent] = useState<'accepted' | 'declined' | null>(null);
 
     const native = isNativeApp();
-    const nativePlatform = getNativePlatform();
     const appIntoS = isAppIntoS();
 
     const getNativeBannerFallbackHeightPx = (): number => 50;
-
-    const getSafeBottomInsetPx = (): number => {
-        return getSafeAreaInsetPx('bottom');
-    };
 
     const [nativeBannerHeightPx, setNativeBannerHeightPx] = useState(() => {
         const measured = bannerAdService.getCurrentBannerHeightPx();
         return measured > 0 ? measured : getNativeBannerFallbackHeightPx();
     });
-    const [safeBottomInsetPx, setSafeBottomInsetPx] = useState(() => getSafeBottomInsetPx());
     const [nativeBannerAllowed, setNativeBannerAllowed] = useState<boolean | null>(null);
     const adSlotRef = useRef<HTMLElement | null>(null);
     const webImpressionTrackedRef = useRef(false);
 
     const handleResize = useCallback(() => {
         setNativeBannerHeightPx((prev) => (prev > 0 ? prev : getNativeBannerFallbackHeightPx()));
-        setSafeBottomInsetPx(getSafeBottomInsetPx());
     }, []);
 
     useEffect(() => {
         if (!native) return;
         const applyFallback = () => {
             setNativeBannerHeightPx((prev) => (prev > 0 ? prev : getNativeBannerFallbackHeightPx()));
-            setSafeBottomInsetPx(getSafeBottomInsetPx());
         };
         const unsubscribe = bannerAdService.onBannerSizeChange((height) => {
             setNativeBannerHeightPx(height > 0 ? height : getNativeBannerFallbackHeightPx());
@@ -71,12 +62,8 @@ const AdBanner: React.FC<AdBannerProps> = ({
 
     const nativeBottomMarginForSdk = useMemo(() => {
         const normalized = Math.max(0, Math.round(nativeBottomMarginPx));
-        if (!native) return normalized;
-        if (nativePlatform !== 'ios') return normalized;
-        // iOS AdMob 배너는 safeAreaLayoutGuide 기준으로 배치되므로
-        // 네비 높이를 그대로 margin에 넣으면 safe-bottom만큼 추가 간격이 생긴다.
-        return Math.max(0, normalized - Math.round(safeBottomInsetPx));
-    }, [native, nativeBottomMarginPx, nativePlatform, safeBottomInsetPx]);
+        return normalized;
+    }, [nativeBottomMarginPx]);
 
     useEffect(() => {
         if (!native) return;

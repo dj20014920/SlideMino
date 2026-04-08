@@ -419,9 +419,9 @@ const getGameLayoutProfile = (
   const slotHeightPx = shouldHeightLimitColumn
     ? Math.min(rawSlotHeightPx, safeHeight * 0.17)
     : rawSlotHeightPx;
-  // 상단 버튼 영역과 보드 간격을 과도하게 키우지 않도록 상단 비중을 축소
-  const mainTopPaddingPx = Math.round(whitespacePx * 0.45);
-  const mainBottomPaddingPx = Math.round(whitespacePx * 0.55);
+  // 상단 버튼 영역과 보드 간격을 더 붙이고, 하단 여백을 늘려 광고 영역과의 간섭을 완화
+  const mainTopPaddingPx = Math.round(whitespacePx * 0.3);
+  const mainBottomPaddingPx = Math.max(0, whitespacePx - mainTopPaddingPx);
   const measuredHeaderHeightPx = clamp(chromeHeights.header, 56, 180);
   const measuredFooterHeightPx = clamp(chromeHeights.footer, STABLE_BANNER_RESERVE_PX, 260);
   const availableMainHeightPx = Math.max(180, safeHeight - measuredHeaderHeightPx - measuredFooterHeightPx);
@@ -1154,6 +1154,7 @@ const App: React.FC = () => {
   const reviveDestroyEffectTimeoutsRef = useRef<number[]>([]);
   const dragPointerIdRef = useRef<number | null>(null);
   const currentPointerPosRef = useRef<{ x: number, y: number } | null>(null);
+  const lastDragMoveEmitPosRef = useRef<{ x: number, y: number } | null>(null);
   const scoreRef = useRef<number>(score);
   const maxScoreThisRunRef = useRef<number>(maxScoreThisRun);
   const boardSizeRef = useRef<BoardSize>(boardSize);
@@ -1254,8 +1255,13 @@ const App: React.FC = () => {
 
       setLayoutChromeHeights((prev) => {
         const nextHeader = measuredHeader ? Math.max(56, measuredHeader) : prev.header;
-        const baseFooter = measuredFooter ? Math.max(STABLE_BANNER_RESERVE_PX, measuredFooter) : STABLE_BANNER_RESERVE_PX;
-        // AdBanner spacer가 safe area를 포함하므로 여기서 다시 더하지 않는다.
+        const nativeSafeBottomPx = isNative ? Math.max(0, Math.round(getSafeAreaInsetPx('bottom'))) : 0;
+        const footerFallbackPx = STABLE_BANNER_RESERVE_PX + nativeSafeBottomPx;
+        // 초기 측정 전에는 safe-bottom을 포함한 fallback을 사용하고,
+        // 측정값이 들어오면 실제 footer 높이(AdBanner spacer 포함)를 신뢰한다.
+        const baseFooter = measuredFooter
+          ? Math.max(STABLE_BANNER_RESERVE_PX, measuredFooter)
+          : footerFallbackPx;
         const nextFooter = baseFooter;
         root.style.setProperty('--bottom-ad-height', `${Math.max(0, Math.round(baseFooter))}px`);
         root.style.setProperty('--bottom-chrome-height', `${Math.max(0, Math.round(nextFooter))}px`);
@@ -1311,7 +1317,7 @@ const App: React.FC = () => {
       root.style.removeProperty('--bottom-ad-height');
       root.style.removeProperty('--bottom-chrome-height');
     };
-  }, [shouldTrackGameChrome]);
+  }, [shouldTrackGameChrome, isNative]);
 
   // --- Initialization ---
 
@@ -3095,6 +3101,7 @@ const App: React.FC = () => {
     }
     latestPointerRef.current = null;
     currentPointerPosRef.current = null;
+    lastDragMoveEmitPosRef.current = null;
     setPressedSlotIndex(-1);
     setDraggingPiece(null);
     setDragOriginIndex(-1);
@@ -3117,7 +3124,12 @@ const App: React.FC = () => {
       if (!pointer || !metrics) return;
       currentPointerPosRef.current = pointer;
       // Galaxy 인터랙션: RAF-throttled — 드래그 중 별 반발력 위치 전달
-      gameEventBus.emit('DRAG_MOVE', { x: pointer.x, y: pointer.y });
+      const prevEmitPos = lastDragMoveEmitPosRef.current;
+      const hasMeaningfulMove = !prevEmitPos || Math.hypot(pointer.x - prevEmitPos.x, pointer.y - prevEmitPos.y) >= 1;
+      if (hasMeaningfulMove && gameEventBus.hasListeners('DRAG_MOVE')) {
+        gameEventBus.emit('DRAG_MOVE', { x: pointer.x, y: pointer.y });
+        lastDragMoveEmitPosRef.current = pointer;
+      }
 
       applyDragOverlayTransform(pointer.x, pointer.y);
       // ghost 앵커: 시각적 블럭의 (0,0) 셀 중심 위치 기준

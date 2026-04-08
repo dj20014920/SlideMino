@@ -69,6 +69,25 @@ const ORBIT_DURATION_SEC = {
 
 const BASE_RING_SCALE = 1.75;
 const EXPANDED_RING_SCALE = 2.25;
+const TOKEN_CACHE_LIMIT = 96;
+const fieldStarTokenCache = new Map<string, FieldStarToken[]>();
+const orbitStarTokenCache = new Map<string, OrbitStarToken[]>();
+
+const getCachedTokenSet = <T,>(
+  cache: Map<string, T>,
+  key: string,
+  factory: () => T,
+): T => {
+  const cached = cache.get(key);
+  if (cached) return cached;
+  const generated = factory();
+  cache.set(key, generated);
+  if (cache.size > TOKEN_CACHE_LIMIT) {
+    const firstKey = cache.keys().next().value;
+    if (typeof firstKey === 'string') cache.delete(firstKey);
+  }
+  return generated;
+};
 
 const hashSeed = (seed: string): number => {
   let hash = 2166136261;
@@ -308,14 +327,20 @@ const ExploreGalaxyOverlay = React.memo<ExploreGalaxyOverlayProps>(({
   const fieldStarCount = Math.max(28, Math.round(size * size * 1.05));
   const ringOffsetY = cellPx * -0.02;
   const center = boardSpan * 0.5;
+  const fieldCacheKey = `${resolvedSeed}|field|${fieldStarCount}|${boardSpan}`;
+  const orbitCacheKey = `${resolvedSeed}|orbit|${starCount}|${ringDiameter}`;
   const fieldStars = React.useMemo(() => {
-    const rng = createSeededRandom(`${resolvedSeed}:field`);
-    return createFieldStars(fieldStarCount, boardSpan, rng);
-  }, [resolvedSeed, fieldStarCount, boardSpan]);
+    return getCachedTokenSet(fieldStarTokenCache, fieldCacheKey, () => {
+      const rng = createSeededRandom(`${resolvedSeed}:field`);
+      return createFieldStars(fieldStarCount, boardSpan, rng);
+    });
+  }, [resolvedSeed, fieldStarCount, boardSpan, fieldCacheKey]);
   const orbitStars = React.useMemo(() => {
-    const rng = createSeededRandom(`${resolvedSeed}:orbit`);
-    return createOrbitStarTokens(starCount, ringDiameter, rng);
-  }, [resolvedSeed, starCount, ringDiameter]);
+    return getCachedTokenSet(orbitStarTokenCache, orbitCacheKey, () => {
+      const rng = createSeededRandom(`${resolvedSeed}:orbit`);
+      return createOrbitStarTokens(starCount, ringDiameter, rng);
+    });
+  }, [resolvedSeed, starCount, ringDiameter, orbitCacheKey]);
   return (
     <div
       // renderMode switches effect intensity only (normal vs ios-safe); clipping is handled by the board SVG mask.

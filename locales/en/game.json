@@ -78,10 +78,10 @@
     "swipeBack": "Swipe right to go back",
     "tapToDismiss": "Tap to close",
     "recommendTitle": "Start Here!",
-    "recommendDesc": "For your first run, we recommend the default 5×5 mode.",
+    "recommendDesc": "For your first run, we recommend the default 7×7 mode.",
     "modeGuideTitle": "Quick Mode Guide",
     "modeGuideBeginner": "Beginner 7×7: more room and easier recovery from mistakes.",
-    "modeGuideNormal": "Normal 5×5: balanced default mode, best for first games.",
+    "modeGuideNormal": "Normal 5×5: balanced default mode.",
     "modeGuideExpert": "Expert 4×4: tight space and high-pressure difficulty.",
     "tapToDismissMode": "Tap this bubble to dismiss.",
     "close": "Close"

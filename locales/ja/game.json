@@ -78,10 +78,10 @@
     "swipeBack": "右にスワイプして戻る",
     "tapToDismiss": "タップして閉じる",
     "recommendTitle": "最初のプレイはここから！",
-    "recommendDesc": "最初のプレイは標準の5×5モードがおすすめです。",
+    "recommendDesc": "最初のプレイは標準の7×7モードがおすすめです。",
     "modeGuideTitle": "モード早見表",
     "modeGuideBeginner": "初心者 7×7: 空きが多く、ミスを立て直しやすい。",
-    "modeGuideNormal": "ノーマル 5×5: バランス型。最初のプレイに最適。",
+    "modeGuideNormal": "ノーマル 5×5: バランス型の標準モード。",
     "modeGuideExpert": "エキスパート 4×4: 盤面が詰まりやすい高難度。",
     "tapToDismissMode": "この吹き出しをタップすると閉じます。",
     "close": "閉じる"

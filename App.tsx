@@ -3858,18 +3858,19 @@ const App: React.FC = () => {
         {([
           { size: 4 as BoardSize, label: t('game:difficulties.expert'), sizeLabel: t('game:boardSizes.4x4'), emoji: '🔥' },
           { size: 5 as BoardSize, label: t('game:difficulties.normal'), sizeLabel: t('game:boardSizes.5x5'), emoji: '' },
-          { size: 7 as BoardSize, label: t('game:difficulties.beginner'), sizeLabel: t('game:boardSizes.7x7'), emoji: '' },
+          { size: 7 as BoardSize, label: t('game:difficulties.beginner'), sizeLabel: t('game:boardSizes.7x7'), emoji: '', id: 'mode-btn-beginner' },
           { size: 8 as BoardSize, label: t('game:difficulties.easy'), sizeLabel: t('game:boardSizes.8x8'), emoji: '' },
           { size: 10 as BoardSize, label: t('game:difficulties.infinite'), sizeLabel: t('game:boardSizes.10x10'), emoji: '' },
-        ]).map(mode => {
+        ] as Array<{ size: BoardSize; label: string; sizeLabel: string; emoji: string; id?: string }>).map(mode => {
           const hasResume = activeNormalSize === mode.size;
           return (
             <div key={mode.size} className={`w-full h-[52px] ${premiumMenuRowContainerClassName}`}>
               <div className="flex h-full">
                 <button
+                  id={mode.id}
                   onClick={() => {
                     tryStartGame(mode.size);
-                    if (mode.size === 5) localStorage.setItem('tutorial_game_mode_seen_v1', 'true');
+                    if (mode.size === 7) localStorage.setItem('tutorial_game_mode_seen_v1', 'true');
                   }}
                   className={`h-full flex-1 text-left font-bold px-4 flex items-center justify-between ${premiumMenuRowPrimaryButtonClassName}`}
                 >
@@ -4073,8 +4074,8 @@ const App: React.FC = () => {
 
         {([
           { size: 4 as BoardSize, label: t('game:difficulties.expert'), sizeLabel: t('game:boardSizes.4x4'), gradient: 'from-red-600 via-red-700 to-red-900', border: 'border-red-400/30', shadow: 'shadow-red-900/20', hoverShadow: 'hover:shadow-red-600/30', mutedColor: 'text-red-200/70' },
-          { size: 5 as BoardSize, label: t('game:difficulties.normal'), sizeLabel: t('game:boardSizes.5x5'), gradient: 'from-blue-600 to-blue-700', border: 'border-blue-400/30', shadow: 'shadow-blue-900/20', hoverShadow: 'hover:shadow-blue-600/30', mutedColor: 'text-blue-200/70', id: 'mode-btn-beginner' },
-          { size: 7 as BoardSize, label: t('game:difficulties.beginner'), sizeLabel: t('game:boardSizes.7x7'), gradient: 'from-indigo-600 to-indigo-800', border: 'border-indigo-400/30', shadow: 'shadow-indigo-900/20', hoverShadow: 'hover:shadow-indigo-600/30', mutedColor: 'text-indigo-200/70' },
+          { size: 5 as BoardSize, label: t('game:difficulties.normal'), sizeLabel: t('game:boardSizes.5x5'), gradient: 'from-blue-600 to-blue-700', border: 'border-blue-400/30', shadow: 'shadow-blue-900/20', hoverShadow: 'hover:shadow-blue-600/30', mutedColor: 'text-blue-200/70' },
+          { size: 7 as BoardSize, label: t('game:difficulties.beginner'), sizeLabel: t('game:boardSizes.7x7'), gradient: 'from-indigo-600 to-indigo-800', border: 'border-indigo-400/30', shadow: 'shadow-indigo-900/20', hoverShadow: 'hover:shadow-indigo-600/30', mutedColor: 'text-indigo-200/70', id: 'mode-btn-beginner' },
           { size: 8 as BoardSize, label: t('game:difficulties.easy'), sizeLabel: t('game:boardSizes.8x8'), gradient: 'from-gray-800 to-gray-900', border: 'border-white/10', shadow: 'shadow-lg', hoverShadow: '', mutedColor: 'text-gray-400' },
           { size: 10 as BoardSize, label: t('game:difficulties.infinite'), sizeLabel: t('game:boardSizes.10x10'), gradient: 'bg-black', border: 'border-white/10', shadow: 'shadow-lg', hoverShadow: '', mutedColor: 'text-gray-500', isBlack: true },
         ] as Array<{ size: BoardSize; label: string; sizeLabel: string; gradient: string; border: string; shadow: string; hoverShadow: string; mutedColor: string; id?: string; isBlack?: boolean }>).map((mode) => {
@@ -4085,7 +4086,7 @@ const App: React.FC = () => {
                 id={mode.id}
                 onClick={() => {
                   tryStartGame(mode.size);
-                  if (mode.size === 5) localStorage.setItem('tutorial_game_mode_seen_v1', 'true');
+                  if (mode.size === 7) localStorage.setItem('tutorial_game_mode_seen_v1', 'true');
                 }}
                 className={`
                   relative group w-full py-4 px-6 rounded-2xl ${premiumMenuButtonClassName}

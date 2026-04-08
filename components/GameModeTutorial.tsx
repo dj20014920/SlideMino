@@ -297,7 +297,7 @@ export const GameModeTutorial: React.FC<GameModeTutorialProps> = ({ suppressed =
                   {t('game:tutorial.recommendTitle', '첫 게임은 여기서 시작하세요!')}
                 </h3>
                 <p className="text-xs text-blue-100 leading-relaxed">
-                  {t('game:tutorial.recommendDesc', '첫 게임은 기본 5×5 모드를 추천합니다.')}
+                  {t('game:tutorial.recommendDesc', '첫 게임은 기본 7×7 모드를 추천합니다.')}
                 </p>
               </div>
             </div>
@@ -308,7 +308,7 @@ export const GameModeTutorial: React.FC<GameModeTutorialProps> = ({ suppressed =
               </p>
               <ul className="space-y-0.5 text-blue-100">
                 <li>{t('game:tutorial.modeGuideBeginner', '뉴비 7×7: 공간이 넓어 실수 복구가 쉽습니다.')}</li>
-                <li>{t('game:tutorial.modeGuideNormal', '일반 5×5: 표준 밸런스, 첫 게임 추천 모드입니다.')}</li>
+                <li>{t('game:tutorial.modeGuideNormal', '일반 5×5: 표준 밸런스 모드입니다.')}</li>
                 <li>{t('game:tutorial.modeGuideExpert', '고수 4×4: 공간이 빠르게 막히는 고난도 모드입니다.')}</li>
               </ul>
             </div>

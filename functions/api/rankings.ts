@@ -3,7 +3,7 @@
  * Defense in Depth - Layer 3: SQL Injection 방어, Rate Limiting
  */
 
-import { resetSeasonIfNeeded } from '../utils/seasonReset';
+import { getSeasonBoundaries, resetSeasonIfNeeded } from '../utils/seasonReset';
 import { checkRateLimit, getClientIp } from '../utils/rateLimit';
 import { validateDifficulty, validateScore } from '../utils/validation';
 import { buildCorsHeaders } from '../utils/cors';
@@ -11,6 +11,146 @@ import { buildCorsHeaders } from '../utils/cors';
 interface Env {
   DB: D1Database;
   RANKINGS_RATE_LIMITER?: RateLimit; // Rate Limiting 바인딩 (선택적)
+}
+
+const VALID_BOARD_SIZES = new Set(['4', '5', '7', '8', '10']);
+
+const normalizeBoardTab = (rawTab: string | null): 'ALL' | string => {
+  if (!rawTab) return 'ALL';
+  const trimmed = rawTab.trim().toUpperCase();
+  if (trimmed === 'ALL') return 'ALL';
+  const match = trimmed.match(/^(\d+)(?:X\1)?$/i);
+  if (!match) return 'ALL';
+  const board = match[1];
+  return VALID_BOARD_SIZES.has(board) ? board : 'ALL';
+};
+
+type LeaderboardRow = {
+  name: string;
+  score: number;
+  difficulty: string;
+  timestamp: number;
+  levelBadge: string | null;
+};
+
+type MergedScoreBinding = string | number;
+
+function buildMergedScoresCte(
+  seasonId: string,
+  seasonStartMs: number,
+  seasonEndMs: number,
+  boardTab: 'ALL' | string
+): { cteSql: string; bindings: MergedScoreBinding[] } {
+  const memberBestConditions = ['rmb.season_id = ?'];
+  const legacyConditions = [
+    'r.updated_at >= ?',
+    'r.updated_at <= ?',
+    `r.difficulty IN ('4', '5', '7', '8', '10')`,
+  ];
+  const memberBestBindings: MergedScoreBinding[] = [seasonId];
+  const legacyBindings: MergedScoreBinding[] = [seasonStartMs, seasonEndMs];
+
+  if (boardTab !== 'ALL') {
+    memberBestConditions.push('rmb.board_size = ?');
+    legacyConditions.push('r.difficulty = ?');
+    memberBestBindings.push(boardTab);
+    legacyBindings.push(boardTab);
+  }
+
+  return {
+    cteSql: `WITH merged_scores AS (
+       SELECT
+         rmb.name,
+         rmb.best_score AS score,
+         rmb.board_size AS difficulty,
+         rmb.updated_at AS timestamp,
+         rmb.session_id,
+         rmb.member_key,
+         0 AS source_priority
+       FROM ranking_member_best rmb
+       WHERE ${memberBestConditions.join(' AND ')}
+       UNION ALL
+       SELECT
+         r.name,
+         r.score,
+         r.difficulty,
+         r.updated_at AS timestamp,
+         r.session_id,
+         COALESCE(NULLIF(r.install_id_hash, ''), 'legacy:' || r.session_id) AS member_key,
+         1 AS source_priority
+       FROM rankings r
+       WHERE ${legacyConditions.join(' AND ')}
+     )`,
+    bindings: [...memberBestBindings, ...legacyBindings],
+  };
+}
+
+async function fetchMergedLeaderboard(
+  env: Env,
+  seasonId: string,
+  seasonStartMs: number,
+  seasonEndMs: number,
+  boardTab: 'ALL' | string
+): Promise<LeaderboardRow[]> {
+  const { cteSql, bindings } = buildMergedScoresCte(seasonId, seasonStartMs, seasonEndMs, boardTab);
+  const partitionBy = boardTab === 'ALL' ? 'member_key' : 'difficulty, member_key';
+  const query = await env.DB.prepare(
+    `${cteSql},
+     deduped AS (
+       SELECT
+         ms.name,
+         ms.score,
+         ms.difficulty,
+         ms.timestamp,
+         ms.session_id,
+         ROW_NUMBER() OVER (
+           PARTITION BY ${partitionBy}
+           ORDER BY ms.score DESC, ms.timestamp ASC, ms.source_priority ASC
+         ) AS row_num
+       FROM merged_scores ms
+     )
+     SELECT d.name, d.score, d.difficulty, d.timestamp, rb.level_badge AS levelBadge
+     FROM deduped d
+     LEFT JOIN ranking_badges rb ON rb.session_id = d.session_id
+     WHERE d.row_num = 1
+     ORDER BY d.score DESC, d.timestamp ASC
+     LIMIT 100`
+  ).bind(...bindings).all<LeaderboardRow>();
+  return query.results ?? [];
+}
+
+type LiveRankMetrics = {
+  higher_count: number | string;
+  next_higher_score: number | null;
+  total: number | string;
+};
+
+async function fetchLiveRankMetrics(
+  env: Env,
+  seasonId: string,
+  seasonStartMs: number,
+  seasonEndMs: number,
+  difficulty: string,
+  score: number
+): Promise<LiveRankMetrics | null> {
+  const { cteSql, bindings } = buildMergedScoresCte(seasonId, seasonStartMs, seasonEndMs, difficulty);
+  return env.DB.prepare(
+    `${cteSql},
+     deduped AS (
+       SELECT
+         ms.score,
+         ROW_NUMBER() OVER (
+           PARTITION BY ms.difficulty, ms.member_key
+           ORDER BY ms.score DESC, ms.timestamp ASC, ms.source_priority ASC
+         ) AS row_num
+       FROM merged_scores ms
+     )
+     SELECT
+       SUM(CASE WHEN row_num = 1 AND score > ? THEN 1 ELSE 0 END) AS higher_count,
+       MIN(CASE WHEN row_num = 1 AND score > ? THEN score ELSE NULL END) AS next_higher_score,
+       SUM(CASE WHEN row_num = 1 THEN 1 ELSE 0 END) AS total
+     FROM deduped`
+  ).bind(...bindings, score, score).first<LiveRankMetrics>();
 }
 
 /**
@@ -66,6 +206,23 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     const requestUrl = new URL(request.url);
     const mode = requestUrl.searchParams.get('mode');
+    const boardTab = normalizeBoardTab(requestUrl.searchParams.get('tab'));
+    const { seasonId, seasonStartMs, seasonEndMs } = getSeasonBoundaries(new Date());
+
+    await env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS ranking_member_best (
+         id INTEGER PRIMARY KEY AUTOINCREMENT,
+         season_id TEXT NOT NULL,
+         board_size TEXT NOT NULL,
+         member_key TEXT NOT NULL,
+         name TEXT NOT NULL,
+         best_score INTEGER NOT NULL DEFAULT 0,
+         session_id TEXT NOT NULL,
+         install_id_hash TEXT,
+         platform TEXT,
+         updated_at INTEGER NOT NULL
+       )`
+    ).run();
 
     // mode=live: 현재 점수 기준 실시간 순위 계산 (게임 중 헤더 표시용)
     if (mode === 'live') {
@@ -95,32 +252,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       const score = scoreValidation.value!;
 
       try {
-        // 3개의 쿼리를 병렬 실행: 상위 점수 수, 바로 윗 점수, 해당 난이도 총 엔트리 수
-        const [higherCountResult, nextHigherScoreResult, totalEntriesResult] = await Promise.all([
-          env.DB.prepare(
-            `SELECT COUNT(*) as higher_count
-             FROM rankings
-             WHERE difficulty = ? AND score > ?`
-          ).bind(difficulty, score).first<{ higher_count: number | string }>(),
-
-          env.DB.prepare(
-            `SELECT MIN(score) as next_higher_score
-             FROM rankings
-             WHERE difficulty = ? AND score > ?`
-          ).bind(difficulty, score).first<{ next_higher_score: number | null }>(),
-
-          env.DB.prepare(
-            `SELECT COUNT(*) as total
-             FROM rankings
-             WHERE difficulty = ?`
-          ).bind(difficulty).first<{ total: number | string }>(),
-        ]);
-
-        const higherCount = Number(higherCountResult?.higher_count ?? 0);
-        const nextHigherScore = typeof nextHigherScoreResult?.next_higher_score === 'number'
-          ? nextHigherScoreResult.next_higher_score
+        const metrics = await fetchLiveRankMetrics(env, seasonId, seasonStartMs, seasonEndMs, difficulty, score);
+        const higherCount = Number(metrics?.higher_count ?? 0);
+        const nextHigherScore = typeof metrics?.next_higher_score === 'number'
+          ? metrics.next_higher_score
           : null;
-        const totalEntries = Number(totalEntriesResult?.total ?? 0);
+        const totalEntries = Number(metrics?.total ?? 0);
 
         const rank = Math.max(1, higherCount + 1);
         // 동점이면 같은 순위이므로 nextHigherScore에 도달하면 순위 상승 (+1 불필요)
@@ -160,13 +297,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
          )`
       ).run();
 
-      const { results } = await env.DB.prepare(
-        `SELECT r.name, r.score, r.difficulty, r.timestamp, rb.level_badge as levelBadge
-         FROM rankings r
-         LEFT JOIN ranking_badges rb ON rb.session_id = r.session_id
-         ORDER BY r.score DESC, r.updated_at ASC
-         LIMIT 100`
-      ).all();
+      const results = await fetchMergedLeaderboard(env, seasonId, seasonStartMs, seasonEndMs, boardTab);
 
       // 구버전 클라이언트(6e7394a) 호환: 배열을 직접 반환한다.
       // 현재 클라이언트의 rankingService.getLeaderboard()는 배열/객체 양쪽 모두 파싱 가능.

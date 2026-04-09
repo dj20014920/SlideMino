@@ -265,6 +265,8 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
     const midSaveHintKey = context === 'HOME'
         ? 'modals:activeGameExit.midSaveButtonHint'
         : 'modals:activeGameExit.midSaveButtonHintNewGame';
+    const showManualMidSave = context !== 'HOME';
+    const showManualRegisterFlow = context !== 'HOME';
     const midSaveConfirmKey = context === 'HOME'
         ? 'modals:activeGameExit.continueAfterMidSave'
         : 'modals:activeGameExit.confirmMidSaveNewGame';
@@ -285,7 +287,7 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
             >
                 {isPremiumUi && (
                     <div className={premiumUiTitleBarClassName}>
-                        <div className={premiumUiTitleBarTextClassName}>Menu?</div>
+                        <div className={premiumUiTitleBarTextClassName}>{t(titleKey)}</div>
                         <div className={premiumUiTitleBarControlsClassName}>
                             <button aria-label="Close" onClick={onCancel} />
                         </div>
@@ -341,36 +343,40 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                                     )}
                                 </div>
 
-                                <div className="flex flex-col items-center gap-1">
+                                {showManualMidSave && (
+                                    <div className="flex flex-col items-center gap-1">
+                                        <button
+                                            type="button"
+                                            onClick={handleIntermediateSaveClick}
+                                            className={isPremiumUi
+                                                ? `w-full py-2 px-3 ${premiumUiMenuButtonClassName} text-sm font-semibold`
+                                                : 'w-full py-4 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-bold text-lg shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/35 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200'}
+                                        >
+                                            <span className="flex items-center justify-center gap-2">
+                                                <Send size={isPremiumUi ? 14 : 18} className={isPremiumUi ? '' : 'text-emerald-100'} />
+                                                {t('modals:activeGameExit.midSaveButton')}
+                                            </span>
+                                        </button>
+                                        <p className={isPremiumUi ? 'text-xs text-gray-500' : 'text-xs text-gray-400'}>
+                                            {t(midSaveHintKey)}
+                                        </p>
+                                    </div>
+                                )}
+
+                                {showManualRegisterFlow && (
                                     <button
                                         type="button"
-                                        onClick={handleIntermediateSaveClick}
+                                        onClick={handleRegisterAndExitClick}
                                         className={isPremiumUi
                                             ? `w-full py-2 px-3 ${premiumUiMenuButtonClassName} text-sm font-semibold`
-                                            : 'w-full py-4 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-bold text-lg shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/35 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200'}
+                                            : 'w-full py-4 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-bold text-lg shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:shadow-indigo-500/35 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-200'}
                                     >
                                         <span className="flex items-center justify-center gap-2">
-                                            <Send size={isPremiumUi ? 14 : 18} className={isPremiumUi ? '' : 'text-emerald-100'} />
-                                            {t('modals:activeGameExit.midSaveButton')}
+                                            <Medal size={isPremiumUi ? 14 : 20} className={isPremiumUi ? '' : 'text-indigo-100'} />
+                                            {t(registerButtonKey)}
                                         </span>
                                     </button>
-                                    <p className={isPremiumUi ? 'text-xs text-gray-500' : 'text-xs text-gray-400'}>
-                                        {t(midSaveHintKey)}
-                                    </p>
-                                </div>
-
-                                <button
-                                    type="button"
-                                    onClick={handleRegisterAndExitClick}
-                                    className={isPremiumUi
-                                        ? `w-full py-2 px-3 ${premiumUiMenuButtonClassName} text-sm font-semibold`
-                                        : 'w-full py-4 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-bold text-lg shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:shadow-indigo-500/35 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-200'}
-                                >
-                                    <span className="flex items-center justify-center gap-2">
-                                        <Medal size={isPremiumUi ? 14 : 20} className={isPremiumUi ? '' : 'text-indigo-100'} />
-                                        {t(registerButtonKey)}
-                                    </span>
-                                </button>
+                                )}
 
                                 <button
                                     type="button"

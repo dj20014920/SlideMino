@@ -1,7 +1,8 @@
 {
   "actions": {
     "replayTutorial": "重播教程",
-    "resetDone": "重置完成！"
+    "resetDone": "重置完成！",
+    "later": "稍后再说"
   },
   "buttons": {
     "confirm": "确认",

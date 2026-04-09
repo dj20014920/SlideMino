@@ -13,7 +13,7 @@ import {
   validateGameConsistency,
   validateSessionId,
 } from '../utils/validation';
-import { resetSeasonIfNeeded } from '../utils/seasonReset';
+import { getSeasonBoundaries, resetSeasonIfNeeded } from '../utils/seasonReset';
 import { hashInstallId } from '../utils/hash';
 import { checkRateLimit, getClientIp } from '../utils/rateLimit';
 import { buildCorsHeaders } from '../utils/cors';
@@ -35,11 +35,19 @@ interface SubmitRequest {
   installId?: unknown;             // 시즌 보상 지급을 위한 install ID (선택적)
   platform?: unknown;              // 플랫폼 ('android', 'ios', 'web')
   levelBadge?: unknown;            // 레벨 배지 ID (예: lv15)
+  mode?: unknown;                  // 'final' | 'progress' (진행 중 자동 저장)
 }
 
 const VALID_LEVEL_BADGES = new Set([
   'lv5', 'lv10', 'lv15', 'lv20', 'lv25', 'lv30', 'lv35', 'lv40', 'lv45', 'lv50',
 ]);
+
+const toMemberKey = (installIdHash: string | null, sessionId: string): string => {
+  if (typeof installIdHash === 'string' && installIdHash.length > 0) {
+    return installIdHash;
+  }
+  return `legacy:${sessionId}`;
+};
 
 /**
  * 에러 응답 생성 (보안 강화: 상세 정보 숨김)
@@ -154,6 +162,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const levelBadge = typeof data.levelBadge === 'string' && VALID_LEVEL_BADGES.has(data.levelBadge)
       ? data.levelBadge
       : null;
+    const submitMode = data.mode === 'progress' ? 'progress' : 'final';
 
     // ========== 안티-치트 검증 (Layer 3) ==========
     const consistencyCheck = validateGameConsistency(score, difficulty, duration, moves);
@@ -183,6 +192,28 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // UPSERT(ON CONFLICT)를 사용하지 않아 session_id UNIQUE 인덱스가 없어도 동작한다.
     try {
       const now = Date.now();
+      const seasonId = getSeasonBoundaries(new Date(now)).seasonId;
+      const memberKey = toMemberKey(installIdHash, sessionId);
+
+      await env.DB.prepare(
+        `CREATE TABLE IF NOT EXISTS ranking_member_best (
+           id INTEGER PRIMARY KEY AUTOINCREMENT,
+           season_id TEXT NOT NULL,
+           board_size TEXT NOT NULL,
+           member_key TEXT NOT NULL,
+           name TEXT NOT NULL,
+           best_score INTEGER NOT NULL DEFAULT 0,
+           session_id TEXT NOT NULL,
+           install_id_hash TEXT,
+           platform TEXT,
+           updated_at INTEGER NOT NULL
+         )`
+      ).run();
+
+      await env.DB.prepare(
+        `CREATE UNIQUE INDEX IF NOT EXISTS idx_ranking_member_best_uniq
+         ON ranking_member_best (season_id, board_size, member_key)`
+      ).run();
 
       // 중간 저장 지원 (원자적):
       //   1) session_id 미존재 → INSERT (WHERE NOT EXISTS로 중복 방지)
@@ -199,18 +230,31 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
            SET score = ?, name = ?, moves = ?, duration = ?, updated_at = ?, install_id_hash = COALESCE(?, install_id_hash), platform = COALESCE(?, platform)
            WHERE session_id = ? AND ? > score`
         ).bind(score, sanitizedName, moves, duration, now, installIdHash, platform, sessionId, score),
+        env.DB.prepare(
+          `INSERT INTO ranking_member_best (
+             season_id, board_size, member_key, name, best_score, session_id, install_id_hash, platform, updated_at
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(season_id, board_size, member_key) DO UPDATE SET
+             name = excluded.name,
+             best_score = excluded.best_score,
+             session_id = excluded.session_id,
+             install_id_hash = COALESCE(excluded.install_id_hash, ranking_member_best.install_id_hash),
+             platform = COALESCE(excluded.platform, ranking_member_best.platform),
+             updated_at = excluded.updated_at
+           WHERE excluded.best_score > ranking_member_best.best_score`
+        ).bind(seasonId, difficulty, memberKey, sanitizedName, score, sessionId, installIdHash, platform, now),
       ]);
 
-      // 랭킹 배지 별도 테이블 저장 (기존 rankings 스키마와 분리해 호환성 유지)
-      await env.DB.prepare(
-        `CREATE TABLE IF NOT EXISTS ranking_badges (
-           session_id TEXT PRIMARY KEY,
-           level_badge TEXT NOT NULL,
-           updated_at INTEGER NOT NULL
-         )`
-      ).run();
-
       if (levelBadge) {
+        // 랭킹 배지 별도 테이블 저장 (기존 rankings 스키마와 분리해 호환성 유지)
+        await env.DB.prepare(
+          `CREATE TABLE IF NOT EXISTS ranking_badges (
+             session_id TEXT PRIMARY KEY,
+             level_badge TEXT NOT NULL,
+             updated_at INTEGER NOT NULL
+           )`
+        ).run();
+
         await env.DB.prepare(
           `INSERT INTO ranking_badges (session_id, level_badge, updated_at)
            VALUES (?, ?, ?)
@@ -220,13 +264,23 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         ).bind(sessionId, levelBadge, now).run();
       }
 
+      if (submitMode === 'progress') {
+        return new Response(
+          JSON.stringify({ success: true }),
+          {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
       // ========== 순위 조회 ==========
       // 같은 난이도 내에서 현재 점수보다 높은 점수의 개수 + 1
       const rankResult = await env.DB.prepare(
         `SELECT COUNT(*) + 1 as rank
-         FROM rankings
-         WHERE difficulty = ? AND score > ?`
-      ).bind(difficulty, score).first();
+         FROM ranking_member_best
+         WHERE season_id = ? AND board_size = ? AND best_score > ?`
+      ).bind(seasonId, difficulty, score).first();
 
       const currentRank = (rankResult as { rank: number } | null)?.rank ?? 1;
 

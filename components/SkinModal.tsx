@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, Lock, X } from 'lucide-react';
@@ -14,12 +14,15 @@ import { isSkinRewardAdSupported } from '../services/adConfig';
 import { trackAnalyticsEvent } from '../services/analyticsService';
 import { getSkinFallbackDisplayName } from '../services/skinDisplayName';
 import { SkinAcquisitionOverlay } from './SkinAcquisitionOverlay';
+import { TutorialTooltip } from './TutorialTooltip';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import ExploreGalaxyOverlay from './ExploreGalaxyOverlay';
 
 type SkinModalProps = {
   open: boolean;
   onClose: () => void;
+  freeDraw?: boolean;
+  onFreeDrawUsed?: (consumed: boolean) => void;
 };
 
 type SkinSectionKey = 'premium' | 'neon' | 'liquid' | 'mesh' | 'normal';
@@ -66,7 +69,7 @@ const SkinPreviewTile = React.memo<{ value: number; skin: { id?: string; hex: st
   }
 );
 
-export function SkinModal({ open, onClose }: SkinModalProps) {
+export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModalProps) {
   const { t, i18n } = useTranslation();
   useBodyScrollLock(open);
   const {
@@ -78,6 +81,7 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
     premiumUiObjects,
     premiumUiOverrides,
     addFragments,
+    commitSkinDrawResult,
     purchaseSkin,
   } = useBlockCustomization();
   const premiumUiModalOverlayClassName = premiumUiObjects.modalOverlayClassName;
@@ -108,6 +112,12 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
     mesh: true,
     normal: true,
   });
+
+  // ── 무료 뽑기 상태 ──
+  const [freeDrawResultSkinId, setFreeDrawResultSkinId] = useState<string | null>(null);
+  const [showApplyTooltip, setShowApplyTooltip] = useState(false);
+  const freeDrawTriggeredRef = useRef(false);
+  const tooltipTimerRef = useRef<number | null>(null);
 
   const ownedIds = useMemo(
     () => new Set(skinSettings.ownedSkins.map(s => s.id)),
@@ -217,6 +227,45 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
     return null;
   }, [selectedSkinId, skinSections]);
 
+  const clearTooltipTimer = useCallback(() => {
+    if (tooltipTimerRef.current === null) return;
+    window.clearTimeout(tooltipTimerRef.current);
+    tooltipTimerRef.current = null;
+  }, []);
+
+  const ensureSkinTargetVisibleAndShowTooltip = useCallback((skinId: string) => {
+    const targetId = `skin-item-${skinId}`;
+    let attempts = 0;
+    const maxAttempts = 6;
+
+    const run = () => {
+      const target = document.getElementById(targetId);
+      if (!target) {
+        attempts += 1;
+        if (attempts <= maxAttempts) {
+          window.requestAnimationFrame(run);
+          return;
+        }
+        setShowApplyTooltip(true);
+        return;
+      }
+
+      target.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+        inline: 'nearest',
+      });
+
+      clearTooltipTimer();
+      tooltipTimerRef.current = window.setTimeout(() => {
+        setShowApplyTooltip(true);
+        tooltipTimerRef.current = null;
+      }, 120);
+    };
+
+    window.requestAnimationFrame(run);
+  }, [clearTooltipTimer]);
+
   // 모달 열릴 때 광고 미리 로드
   useEffect(() => {
     if (open && isSkinRewardAdSupported()) {
@@ -232,6 +281,55 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [open, onClose]);
+
+  // 무료 뽑기 자동 트리거
+  useEffect(() => {
+    if (!open || !freeDraw || freeDrawTriggeredRef.current) return;
+    freeDrawTriggeredRef.current = true;
+
+    const frameId = window.requestAnimationFrame(() => {
+      const result = drawSkin(skinSettings);
+      if (!result) {
+        onFreeDrawUsed?.(false);
+        return;
+      }
+
+      const committed = commitSkinDrawResult(result);
+      if (!committed) {
+        onFreeDrawUsed?.(false);
+        return;
+      }
+
+      if (result.type === 'new') {
+        setAcquisitionSkin(result.skin);
+        setAcquisitionIsDuplicate(false);
+        setFreeDrawResultSkinId(result.skin.id);
+      } else {
+        setAcquisitionSkin({ id: result.skin.id, hex: result.skin.hex, style: (result.skin as any).style });
+        setAcquisitionIsDuplicate(true);
+        setFreeDrawResultSkinId(result.skin.id);
+      }
+      onFreeDrawUsed?.(true);
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [open, freeDraw, skinSettings, commitSkinDrawResult, onFreeDrawUsed]);
+
+  // 모달 닫힐 때 무료 뽑기 상태 리셋
+  useEffect(() => {
+    if (!open) {
+      freeDrawTriggeredRef.current = false;
+      clearTooltipTimer();
+      setShowApplyTooltip(false);
+      setFreeDrawResultSkinId(null);
+    }
+  }, [open, clearTooltipTimer]);
+
+  useEffect(() => {
+    return () => {
+      clearTooltipTimer();
+    };
+  }, [clearTooltipTimer]);
 
   // 스킨 카탈로그 항목 탭 처리
   const handleSkinTap = useCallback((id: string, hex: string) => {
@@ -313,6 +411,30 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
     requestAnimationFrame(() => setIsPurchasing(false));
   }, [isPurchasing, purchaseSkin, ownedIds, skinSettings.fragments]);
 
+  // 획득 애니메이션 완료 핸들러
+  const handleAcquisitionComplete = useCallback(() => {
+    const drawnId = freeDrawResultSkinId;
+    setAcquisitionSkin(null);
+    setAcquisitionIsDuplicate(false);
+
+    if (drawnId) {
+      // 뽑은 스킨의 섹션 열기
+      const entry = SKIN_CATALOG.find(e => e.id === drawnId);
+      if (entry) {
+        const key: SkinSectionKey = entry.premium ? 'premium'
+          : isNeonSkin(entry.id) ? 'neon'
+          : isLiquidGlassSkin(entry.id) ? 'liquid'
+          : isMeshSwatchSkin(entry.id) ? 'mesh'
+          : 'normal';
+        setOpenSections(prev => ({ ...prev, [key]: true }));
+      }
+      setSelectedSkinId(drawnId);
+      setSelectedSkinHex(entry?.hex ?? null);
+      ensureSkinTargetVisibleAndShowTooltip(drawnId);
+      setFreeDrawResultSkinId(null);
+    }
+  }, [freeDrawResultSkinId, ensureSkinTargetVisibleAndShowTooltip]);
+
   // 미리보기 표시할 스킨: 선택된 스킨 > 활성 스킨 > 첫 번째 카탈로그
   const previewSkin = useMemo(() => {
     if (selectedSkinId) {
@@ -387,6 +509,7 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                               return (
                                 <div
                                   key={entry.id}
+                                  id={`skin-item-${entry.id}`}
                                   onClick={() => handleSkinTap(entry.id, entry.hex)}
                                   className={`relative aspect-square flex items-center justify-center cursor-pointer ${premiumUiCompartmentButtonClassName} ${isSelected ? premiumUiListItemHighlightClassName : ''} ${isNeonSwatch ? 'bg-slate-950/10 shadow-[inset_0_0_0_1px_rgba(2,6,23,0.12)]' : ''}`}
                                   style={{ boxSizing: 'border-box' }}
@@ -499,10 +622,20 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
               isDuplicate={acquisitionIsDuplicate}
               fragmentsEarned={acquisitionIsDuplicate ? FRAGMENTS_PER_DUPLICATE : undefined}
               totalFragments={skinSettings.fragments}
-              onComplete={() => { setAcquisitionSkin(null); setAcquisitionIsDuplicate(false); }}
+              onComplete={handleAcquisitionComplete}
             />
           )}
         </AnimatePresence>
+
+        {showApplyTooltip && (
+          <TutorialTooltip
+            isVisible={showApplyTooltip}
+            targetId={selectedSkinId ? `skin-item-${selectedSkinId}` : null}
+            onDismiss={() => setShowApplyTooltip(false)}
+            title={t('modals:skin.applyHintTitle')}
+            description={t('modals:skin.applyHintDesc')}
+          />
+        )}
       </>
     )
   }
@@ -575,6 +708,7 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
                             return (
                               <button
                                 key={entry.id}
+                                id={`skin-item-${entry.id}`}
                                 type="button"
                                 onClick={() => handleSkinTap(entry.id, entry.hex)}
                                 className={`
@@ -724,10 +858,20 @@ export function SkinModal({ open, onClose }: SkinModalProps) {
             isDuplicate={acquisitionIsDuplicate}
             fragmentsEarned={acquisitionIsDuplicate ? FRAGMENTS_PER_DUPLICATE : undefined}
             totalFragments={skinSettings.fragments}
-            onComplete={() => { setAcquisitionSkin(null); setAcquisitionIsDuplicate(false); }}
+            onComplete={handleAcquisitionComplete}
           />
         )}
       </AnimatePresence>
+
+      {showApplyTooltip && (
+        <TutorialTooltip
+          isVisible={showApplyTooltip}
+          targetId={selectedSkinId ? `skin-item-${selectedSkinId}` : null}
+          onDismiss={() => setShowApplyTooltip(false)}
+          title={t('modals:skin.applyHintTitle')}
+          description={t('modals:skin.applyHintDesc')}
+        />
+      )}
     </>
   );
 }

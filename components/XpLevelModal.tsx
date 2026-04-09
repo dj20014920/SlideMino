@@ -152,6 +152,10 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
   const seasonRemMs = getSeasonRemainingMs();
   const todayTotalXp = todayLog.reduce((sum, e) => sum + e.amount, 0);
   const maxBarXp = weeklySummary.reduce((max, d) => Math.max(max, d.total), 1);
+  const hashUnavailableLabel = String(t('common:xp.hashUnavailable' as any, { defaultValue: 'ID unavailable' }));
+  const installHashDisplay = installHash
+    ? `${installHash.slice(0, 8)}...${installHash.slice(-6)}`
+    : hashUnavailableLabel;
 
   return (
     <div
@@ -193,9 +197,9 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
                         });
                       }
                     }}
-                    title={installHash ? `ID: ${installHash}` : progress.seasonId}
+                    title={installHash ? `ID: ${installHash}` : hashUnavailableLabel}
                   >
-                    {installHash ? `${installHash.slice(0, 8)}...${installHash.slice(-6)}` : progress.seasonId}
+                    {installHashDisplay}
                     {installHash && (hashCopied ? ' \u2713' : ' [copy]')}
                   </button>
                 </div>
@@ -252,10 +256,10 @@ export const XpLevelModal: React.FC<XpLevelModalProps> = ({ open, onClose, onSpe
                       });
                     }
                   }}
-                  title={installHash ? `ID: ${installHash}` : progress.seasonId}
+                  title={installHash ? `ID: ${installHash}` : hashUnavailableLabel}
                 >
                   <span className="font-mono truncate max-w-[120px]">
-                    {installHash ? `${installHash.slice(0, 8)}...${installHash.slice(-6)}` : progress.seasonId}
+                    {installHashDisplay}
                   </span>
                   {installHash && (hashCopied ? <Check size={10} /> : <Copy size={10} />)}
                 </button>

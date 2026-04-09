@@ -98,6 +98,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const eventType = typeof data.eventType === 'string' ? data.eventType : '';
     const attemptNumber = typeof data.attemptNumber === 'number' ? data.attemptNumber : 0;
     const isIntermediate = data.isIntermediate === true;
+    const isProgress = data.isProgress === true;
 
     if (!eventId || !eventType || attemptNumber < 1 || attemptNumber > 3) {
       return errorResponse('Invalid event parameters', 400, corsHeaders);
@@ -197,7 +198,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         ]);
 
         // 중간 저장에서도 배지 저장 (앱 크래시 대비)
-        if (levelBadge) {
+        if (levelBadge && !isProgress) {
           await env.DB.prepare(
             `INSERT INTO event_ranking_badges (event_id, install_id_hash, level_badge, updated_at)
              VALUES (?, ?, ?, ?)
@@ -205,6 +206,16 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
                level_badge = excluded.level_badge,
                updated_at = excluded.updated_at`
           ).bind(eventId, installIdHash, levelBadge, now).run();
+        }
+
+        if (isProgress) {
+          return new Response(JSON.stringify({
+            success: true,
+            isIntermediate: true,
+          }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
         }
 
         const rankResult = await env.DB.prepare(

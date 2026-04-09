@@ -38,6 +38,7 @@
   },
   "liveRank": {
     "estimatedRank": "예상 #{{rank}}",
+    "autoSaveNotice": "[!점수는 자동저장됩니다!]",
     "pointsToNext": "다음 순위까지 {{points}}점",
     "topRank": "현재 1위권"
   },
@@ -59,8 +60,14 @@
     "rewardEarned": "+{{amount}} 되돌리기 충전 완료!",
     "loading": "광고 준비 중...",
     "error": "광고를 불러올 수 없습니다.\n잠시 후 다시 시도해주세요.",
+    "errorWithReason": "광고 처리 실패: {{reason}}",
     "dailyLimitReached": "오늘의 광고 시청 횟수를 모두 사용했습니다.\n내일 다시 시도해주세요.",
     "notSupported": "현재 환경에서는 광고 기능이 지원되지 않습니다."
+  },
+  "firstSkinReward": {
+    "title": "첫 스킨 뽑기 보상!",
+    "description": "첫 100점 달성을 축하해요!\n무료 스킨 뽑기 1회를 바로 사용할 수 있어요.",
+    "goToDraw": "무료 뽑기 하러 가기"
   },
   "blockRefresh": {
     "refreshButton": "블록 새로고침",

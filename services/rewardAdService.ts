@@ -437,6 +437,7 @@ class RewardAdService {
     // 2. Race condition 방지
     if (this.isProcessingShow) {
       console.warn('[RewardAdService] 이미 광고 처리 중');
+      callbacks.onError(new Error('이미 광고를 처리 중입니다. 잠시 후 다시 시도해주세요.'));
       return;
     }
 
@@ -458,7 +459,6 @@ class RewardAdService {
     if (!this.dailyLimiter.canWatchAd()) {
       console.warn('[RewardAdService] 일일 한도 도달');
       callbacks.onDailyLimitReached?.();
-      callbacks.onError(new Error('오늘의 광고 시청 횟수를 모두 사용했습니다.'));
       return;
     }
 
@@ -585,12 +585,14 @@ class RewardAdService {
     // 세션 확인 및 멱등성 보장
     if (!this.currentSessionId) {
       console.error('[RewardAdService] 세션 ID 없음');
+      callbacks.onError(new Error('보상 처리 세션이 유효하지 않습니다. 다시 시도해주세요.'));
       return;
     }
 
     const isValid = this.sessionManager.markRewarded(this.currentSessionId);
     if (!isValid) {
       console.warn('[RewardAdService] 보상 이미 지급됨 (중복 방지)');
+      callbacks.onError(new Error('보상 지급 상태를 확인할 수 없습니다. 잠시 후 다시 시도해주세요.'));
       return;
     }
 
@@ -598,6 +600,7 @@ class RewardAdService {
     const recorded = this.dailyLimiter.recordAdWatch();
     if (!recorded) {
       console.error('[RewardAdService] 시청 기록 실패');
+      callbacks.onError(new Error('광고 시청 기록에 실패해 보상을 지급하지 못했습니다.'));
       return;
     }
 

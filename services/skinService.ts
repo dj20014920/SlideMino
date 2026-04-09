@@ -10,7 +10,17 @@ import { SKIN_CATALOG, FRAGMENTS_PER_DUPLICATE, FRAGMENT_COST_NORMAL, FRAGMENT_C
 import type { SkinItem, SkinSettings, SkinDrawResult } from '../types';
 import { gameEventBus } from './gameEventBus';
 
-const SKIN_STORAGE_KEY = 'slidemino.skin.v2';
+const SKIN_STORAGE_KEY = 'slidemino.skin.v3';
+const SKIN_STORAGE_BACKUP_KEY = 'slidemino.skin.v3.backup';
+const LEGACY_SKIN_STORAGE_KEY = 'slidemino.skin.v2';
+const SKIN_SETTINGS_ENVELOPE_TAG = 'skin-settings-envelope-v1';
+
+type SkinSettingsEnvelope = {
+  tag: typeof SKIN_SETTINGS_ENVELOPE_TAG;
+  checksum: string;
+  savedAt: number;
+  settings: unknown;
+};
 
 export const DEFAULT_SKIN_SETTINGS: SkinSettings = {
   version: 2,
@@ -38,68 +48,145 @@ const sanitizeSkinItem = (raw: unknown): SkinItem | null => {
   return { id: obj.id, hex: obj.hex, acquiredAt: obj.acquiredAt };
 };
 
-export const loadSkinSettings = (): SkinSettings => {
+const safeGetItem = (key: string): string | null => {
   try {
-    const raw = localStorage.getItem(SKIN_STORAGE_KEY);
-    if (!raw) return DEFAULT_SKIN_SETTINGS;
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
 
-    const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed !== 'object' || parsed === null) return DEFAULT_SKIN_SETTINGS;
+const safeSetItem = (key: string, value: string): boolean => {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
-    const obj = parsed as Record<string, unknown>;
-    if (obj.version !== 2) return DEFAULT_SKIN_SETTINGS;
+const computeChecksum = (value: string): string => {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index++) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16);
+};
 
-    const ownedSkins: SkinItem[] = [];
-    const validCatalogIds = new Set(SKIN_CATALOG.map((entry) => entry.id));
-    const seenSkinIds = new Set<string>();
-    if (Array.isArray(obj.ownedSkins)) {
-      for (const item of obj.ownedSkins) {
-        const sanitized = sanitizeSkinItem(item);
-        if (!sanitized) continue;
-        if (!validCatalogIds.has(sanitized.id)) continue;
-        if (seenSkinIds.has(sanitized.id)) continue;
-        seenSkinIds.add(sanitized.id);
-        ownedSkins.push(sanitized);
-      }
+const normalizeSkinSettings = (parsed: unknown): SkinSettings | null => {
+  if (typeof parsed !== 'object' || parsed === null) return null;
+  const obj = parsed as Record<string, unknown>;
+  if (obj.version !== 2) return null;
+
+  const ownedSkins: SkinItem[] = [];
+  const validCatalogIds = new Set(SKIN_CATALOG.map((entry) => entry.id));
+  const seenSkinIds = new Set<string>();
+  if (Array.isArray(obj.ownedSkins)) {
+    for (const item of obj.ownedSkins) {
+      const sanitized = sanitizeSkinItem(item);
+      if (!sanitized) continue;
+      if (!validCatalogIds.has(sanitized.id)) continue;
+      if (seenSkinIds.has(sanitized.id)) continue;
+      seenSkinIds.add(sanitized.id);
+      ownedSkins.push(sanitized);
     }
+  }
 
-    // activeSkinId: 보유 중인 스킨일 때만 유지
-    const activeSkinId =
-      typeof obj.activeSkinId === 'string' &&
-      ownedSkins.some(s => s.id === obj.activeSkinId)
-        ? obj.activeSkinId
-        : null;
+  const activeSkinId =
+    typeof obj.activeSkinId === 'string' &&
+    ownedSkins.some(s => s.id === obj.activeSkinId)
+      ? obj.activeSkinId
+      : null;
 
-    // fragments: 기존 데이터에 없으면 0으로 초기화 (하위 호환)
-    const fragments =
-      typeof obj.fragments === 'number' && Number.isFinite(obj.fragments)
-        ? Math.max(0, Math.floor(obj.fragments))
-        : 0;
+  const fragments =
+    typeof obj.fragments === 'number' && Number.isFinite(obj.fragments)
+      ? Math.max(0, Math.floor(obj.fragments))
+      : 0;
 
-    const scoreMilestoneCredits =
-      typeof obj.scoreMilestoneCredits === 'number' && Number.isFinite(obj.scoreMilestoneCredits)
-        ? Math.max(0, Math.floor(obj.scoreMilestoneCredits))
-        : 0;
+  const scoreMilestoneCredits =
+    typeof obj.scoreMilestoneCredits === 'number' && Number.isFinite(obj.scoreMilestoneCredits)
+      ? Math.max(0, Math.floor(obj.scoreMilestoneCredits))
+      : 0;
 
-    const daily1024Date =
-      typeof obj.daily1024Date === 'string' ? obj.daily1024Date : '';
-    const daily1024Earned =
-      typeof obj.daily1024Earned === 'number' && Number.isFinite(obj.daily1024Earned)
-        ? Math.max(0, Math.floor(obj.daily1024Earned))
-        : 0;
+  const daily1024Date =
+    typeof obj.daily1024Date === 'string' ? obj.daily1024Date : '';
+  const daily1024Earned =
+    typeof obj.daily1024Earned === 'number' && Number.isFinite(obj.daily1024Earned)
+      ? Math.max(0, Math.floor(obj.daily1024Earned))
+      : 0;
 
-    return { version: 2, ownedSkins, activeSkinId, fragments, scoreMilestoneCredits, daily1024Date, daily1024Earned };
+  return { version: 2, ownedSkins, activeSkinId, fragments, scoreMilestoneCredits, daily1024Date, daily1024Earned };
+};
+
+const buildEnvelope = (settings: SkinSettings): SkinSettingsEnvelope => {
+  const serializedSettings = JSON.stringify(settings);
+  return {
+    tag: SKIN_SETTINGS_ENVELOPE_TAG,
+    checksum: computeChecksum(serializedSettings),
+    savedAt: Date.now(),
+    settings,
+  };
+};
+
+const parseEnvelope = (raw: string | null): SkinSettings | null => {
+  if (!raw) return null;
+
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== 'object' || parsed === null) return null;
+    const envelope = parsed as Record<string, unknown>;
+    if (envelope.tag !== SKIN_SETTINGS_ENVELOPE_TAG) return null;
+    if (typeof envelope.checksum !== 'string') return null;
+    if (envelope.settings === undefined) return null;
+
+    const serializedSettings = JSON.stringify(envelope.settings);
+    if (computeChecksum(serializedSettings) !== envelope.checksum) return null;
+
+    return normalizeSkinSettings(envelope.settings);
+  } catch {
+    return null;
+  }
+};
+
+const saveEnvelope = (settings: SkinSettings): boolean => {
+  const envelopeRaw = JSON.stringify(buildEnvelope(settings));
+  const legacyRaw = JSON.stringify(settings);
+  const primarySaved = safeSetItem(SKIN_STORAGE_KEY, envelopeRaw);
+  if (!primarySaved) return false;
+
+  // 백업/레거시는 best-effort
+  safeSetItem(SKIN_STORAGE_BACKUP_KEY, envelopeRaw);
+  safeSetItem(LEGACY_SKIN_STORAGE_KEY, legacyRaw);
+  return true;
+};
+
+export const loadSkinSettings = (): SkinSettings => {
+  const primary = parseEnvelope(safeGetItem(SKIN_STORAGE_KEY));
+  if (primary) return primary;
+
+  const backup = parseEnvelope(safeGetItem(SKIN_STORAGE_BACKUP_KEY));
+  if (backup) {
+    saveEnvelope(backup);
+    return backup;
+  }
+
+  try {
+    const legacyRaw = safeGetItem(LEGACY_SKIN_STORAGE_KEY);
+    if (!legacyRaw) return DEFAULT_SKIN_SETTINGS;
+    const legacyParsed: unknown = JSON.parse(legacyRaw);
+    const legacySettings = normalizeSkinSettings(legacyParsed);
+    if (!legacySettings) return DEFAULT_SKIN_SETTINGS;
+
+    saveEnvelope(legacySettings);
+    return legacySettings;
   } catch {
     return DEFAULT_SKIN_SETTINGS;
   }
 };
 
-export const saveSkinSettings = (settings: SkinSettings): void => {
-  try {
-    localStorage.setItem(SKIN_STORAGE_KEY, JSON.stringify(settings));
-  } catch {
-    // localStorage 저장 실패는 무시 (용량 초과/private mode)
-  }
+export const saveSkinSettings = (settings: SkinSettings): boolean => {
+  return saveEnvelope(settings);
 };
 
 /**
@@ -161,6 +248,95 @@ export const isCollectionComplete = (settings: SkinSettings): boolean => {
  * 스킨 조각 추가 — 이벤트 버스를 통해 Context에 위임.
  * 직접 localStorage를 쓰지 않아 Context의 debounced save와 경합하지 않습니다.
  */
+// ── First-score skin reward (최초 100점 달성 보상) ──
+const FIRST_SCORE_REWARD_KEY = 'slidemino.first_score_skin_reward';
+const FIRST_SCORE_REWARD_BACKUP_KEY = `${FIRST_SCORE_REWARD_KEY}.backup`;
+const FIRST_SCORE_REWARD_SESSION_KEY = `${FIRST_SCORE_REWARD_KEY}.session`;
+const CLAIMED_REWARD_VALUE = 'claimed';
+let firstScoreRewardClaimedMemoryLatch = false;
+
+const getStorage = (kind: 'local' | 'session'): Storage | null => {
+  try {
+    if (typeof window === 'undefined') return null;
+    return kind === 'local' ? window.localStorage : window.sessionStorage;
+  } catch (error) {
+    console.warn('[skinService] Failed to access storage layer', { kind, error });
+    return null;
+  }
+};
+
+const readStorageFlag = (storage: Storage | null, key: string): boolean => {
+  if (!storage) return false;
+  try {
+    return storage.getItem(key) === CLAIMED_REWARD_VALUE;
+  } catch (error) {
+    console.warn('[skinService] Failed to read reward flag', { key, error });
+    return false;
+  }
+};
+
+const writeStorageFlag = (storage: Storage | null, key: string): boolean => {
+  if (!storage) return false;
+  try {
+    storage.setItem(key, CLAIMED_REWARD_VALUE);
+    return true;
+  } catch (error) {
+    console.warn('[skinService] Failed to write reward flag', { key, error });
+    return false;
+  }
+};
+
+/** 최초 100점 스킨 보상을 이미 수령했는지 확인 */
+export function isFirstScoreSkinRewardClaimed(): boolean {
+  if (firstScoreRewardClaimedMemoryLatch) return true;
+
+  const localStorageRef = getStorage('local');
+  const sessionStorageRef = getStorage('session');
+
+  const sessionClaimed = readStorageFlag(sessionStorageRef, FIRST_SCORE_REWARD_SESSION_KEY);
+  const primaryClaimed = readStorageFlag(localStorageRef, FIRST_SCORE_REWARD_KEY);
+  const backupClaimed = readStorageFlag(localStorageRef, FIRST_SCORE_REWARD_BACKUP_KEY);
+
+  const claimed = sessionClaimed || primaryClaimed || backupClaimed;
+  if (!claimed) return false;
+
+  firstScoreRewardClaimedMemoryLatch = true;
+
+  // best-effort self-healing (손상/부분실패 복구)
+  if (!sessionClaimed) {
+    writeStorageFlag(sessionStorageRef, FIRST_SCORE_REWARD_SESSION_KEY);
+  }
+  if (!primaryClaimed) {
+    writeStorageFlag(localStorageRef, FIRST_SCORE_REWARD_KEY);
+  }
+  if (!backupClaimed) {
+    writeStorageFlag(localStorageRef, FIRST_SCORE_REWARD_BACKUP_KEY);
+  }
+
+  return true;
+}
+
+/** 최초 100점 스킨 보상을 수령 처리 (되돌릴 수 없음) */
+export function claimFirstScoreSkinReward(): boolean {
+  firstScoreRewardClaimedMemoryLatch = true;
+
+  const localStorageRef = getStorage('local');
+  const sessionStorageRef = getStorage('session');
+
+  const sessionSaved = writeStorageFlag(sessionStorageRef, FIRST_SCORE_REWARD_SESSION_KEY);
+  const primarySaved = writeStorageFlag(localStorageRef, FIRST_SCORE_REWARD_KEY);
+  const backupSaved = writeStorageFlag(localStorageRef, FIRST_SCORE_REWARD_BACKUP_KEY);
+  const persistSucceeded = primarySaved || backupSaved;
+
+  if (!persistSucceeded) {
+    console.warn('[skinService] Reward claim could not be persisted to localStorage; session latch only.', {
+      sessionSaved,
+    });
+  }
+
+  return persistSucceeded || sessionSaved;
+}
+
 export const addFragments = (amount: number, source: string = 'unknown'): void => {
   const safeAmount = Math.max(0, Math.floor(amount));
   if (safeAmount <= 0) return;

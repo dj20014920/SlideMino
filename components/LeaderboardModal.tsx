@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { CalendarClock, Trophy, X } from 'lucide-react';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import { useBlockCustomization } from '../context/BlockCustomizationContext';
-import { rankingService, RankEntry } from '../services/rankingService';
+import { rankingService, RankEntry, type LeaderboardTab } from '../services/rankingService';
 import {
   fetchEventRankings,
   formatEventRemaining,
@@ -21,7 +21,7 @@ interface LeaderboardModalProps {
 }
 
 type LeaderboardModeTab = 'NORMAL' | 'WEEKLY_EVENT';
-type NormalLeaderboardTab = 'ALL' | '4x4' | '5x5' | '7x7' | '8x8' | '10x10';
+type NormalLeaderboardTab = LeaderboardTab;
 type EventPeriodTab = 'CURRENT' | 'PREVIOUS';
 
 interface EventLeaderboardState {
@@ -111,7 +111,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
     setHasError(false);
 
     try {
-      const result = await rankingService.getLeaderboard();
+      const result = await rankingService.getLeaderboard(activeTab);
       setRankings(result.data);
       setIsOffline(result.offline);
       setFromCache(result.fromCache);
@@ -123,7 +123,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeTab]);
 
   const fetchWeeklyEventLeaderboard = useCallback(async (period: EventPeriodTab, showLoading: boolean) => {
     const isCurrent = period === 'CURRENT';
@@ -268,12 +268,6 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
     fetchWeeklyEventLeaderboard,
   ]);
 
-  const filteredRankings = rankings.filter((entry) => {
-    if (activeTab === 'ALL') return true;
-    const label = formatDifficultyLabel(entry.difficulty);
-    return label === activeTab;
-  });
-
   if (!open) return null;
 
   const countdownText = countdown.totalMs <= 0
@@ -405,12 +399,12 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
                 <div className="text-center py-10 text-gray-400">{t('common:labels.loading')}</div>
               ) : hasError ? (
                 <div className="text-center py-10 text-red-400">{t('modals:leaderboard.error')}</div>
-              ) : filteredRankings.length === 0 ? (
+              ) : rankings.length === 0 ? (
                 <div className="text-center py-10 text-gray-400" style={{ whiteSpace: 'pre-line' }}>
                   {t('modals:leaderboard.empty')}
                 </div>
               ) : (
-                filteredRankings.map((entry, index) => {
+                rankings.map((entry, index) => {
                   const levelBadge = getLevelBadgeById(entry.levelBadge ?? null);
                   return (
                     <div

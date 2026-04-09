@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { LoadingScreen } from './components/LoadingScreen';
 import { useTranslation } from 'react-i18next';
 import { SplashScreen } from '@capacitor/splash-screen';
@@ -62,6 +62,8 @@ import { useBlockCustomization } from './context/BlockCustomizationContext';
 import {
   drawSkin,
   loadSkinSettings,
+  isFirstScoreSkinRewardClaimed,
+  claimFirstScoreSkinReward,
 } from './services/skinService';
 import {
   saveGameState,
@@ -91,6 +93,7 @@ import { blockRefreshRewardInterstitialAdService } from './services/blockRefresh
 import {
   trackAnalyticsEvent,
   trackAppLaunchOnce,
+  getAnalyticsInstallId,
   getAnalyticsSessionId,
   trackLegacyInstallDetectedOnce,
   trackSessionEndOnce,
@@ -150,6 +153,7 @@ import {
   saveEventGameState,
   loadEventGameState,
   hasActiveEventGame,
+  submitEventScore,
   type WeeklyEventRule,
   EVENT_RULES,
 } from './services/weeklyEventService';
@@ -183,6 +187,11 @@ const DRAG_LIFT_CELLS = 1.5;
 const LIVE_RANK_POLL_INTERVAL_MS = 5000;
 const LIVE_RANK_SCORE_SYNC_DEBOUNCE_MS = 350;
 const LIVE_RANK_MIN_REQUEST_INTERVAL_MS = 1000;
+const AUTO_RANK_SUBMIT_MIN_INTERVAL_MS = 12_000;
+const AUTO_RANK_SUBMIT_FORCE_INTERVAL_MS = 45_000;
+const AUTO_RANK_SUBMIT_SCORE_DELTA_THRESHOLD = 150;
+const AUTO_RANK_SUBMIT_DEBOUNCE_MS = 900;
+const HOME_NAV_FLUSH_TIMEOUT_MS = 320;
 const SKIN_GIFT_CLAIM_RETRY_DELAYS_MS = [0, 2000, 10000, 30000] as const;
 const SKIN_GIFT_CLAIM_POLL_INTERVAL_MS = 3 * 60 * 1000;
 
@@ -917,6 +926,13 @@ const App: React.FC = () => {
   const [isSkinOpen, setIsSkinOpen] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
 
+  // ── 최초 100점 스킨 보상 ──
+  const [showFirstSkinRewardModal, setShowFirstSkinRewardModal] = useState(false);
+  const [skinModalFreeDraw, setSkinModalFreeDraw] = useState(false);
+  const [firstSkinRewardPendingDraw, setFirstSkinRewardPendingDraw] = useState(false);
+  const firstSkinRewardTriggeredRef = useRef(false);
+  const isFirstSkinRewardInputBlocked = showFirstSkinRewardModal;
+
   // 스트릭 + 시즌 보상 상태
   const [isStreakInfoOpen, setIsStreakInfoOpen] = useState(false);
   const [isSeasonRewardOpen, setIsSeasonRewardOpen] = useState(false);
@@ -1140,6 +1156,13 @@ const App: React.FC = () => {
   const liveRankRequestInFlightRef = useRef(false);
   const liveRankRequestQueuedRef = useRef(false);
   const liveRankRequestSequenceRef = useRef(0);
+  const autoRankSessionIdRef = useRef<string>('');
+  const autoRankLastSubmittedScoreRef = useRef(0);
+  const autoRankLastSubmittedAtRef = useRef(0);
+  const autoRankSubmitInFlightRef = useRef(false);
+  const autoRankSubmitQueuedRef = useRef(false);
+  const autoRankSubmitQueuedForceRef = useRef(false);
+  const submitAutoRankProgressRef = useRef<(force?: boolean) => Promise<void>>(async () => undefined);
   const hoverGridPosRef = useRef<{ x: number; y: number } | null>(null);
   const swipeStartRef = useRef<{ x: number, y: number } | null>(null); // 스와이프 시작 좌표
   const slideLockRef = useRef(false); // state 반영 전에도 즉시 입력 차단
@@ -1224,13 +1247,16 @@ const App: React.FC = () => {
   }, []);
 
   const syncActivePlayTimer = useCallback(() => {
-    const shouldRun = gameStateRef.current === GameState.PLAYING && isDocumentVisible();
+    const shouldRun =
+      gameStateRef.current === GameState.PLAYING &&
+      isDocumentVisible() &&
+      !showFirstSkinRewardModal;
     if (shouldRun) {
       resumeActivePlayTimer();
       return;
     }
     pauseActivePlayTimer();
-  }, [pauseActivePlayTimer, resumeActivePlayTimer]);
+  }, [pauseActivePlayTimer, resumeActivePlayTimer, showFirstSkinRewardModal]);
 
   const getCurrentActiveDurationMs = useCallback((): number => {
     const startedAt = activePlayStartedAtRef.current;
@@ -1447,7 +1473,7 @@ const App: React.FC = () => {
   useEffect(() => {
     syncActivePlayTimer();
     syncEventTimer();
-  }, [gameState, syncActivePlayTimer, syncEventTimer]);
+  }, [gameState, showFirstSkinRewardModal, syncActivePlayTimer, syncEventTimer]);
 
   const restoreSavedGame = useCallback((saved: SavedGameState) => {
     // maxScoreThisRun: 저장값과 현재 score 중 큰 값으로 복원
@@ -1690,6 +1716,27 @@ const App: React.FC = () => {
     }
   }, []);
 
+  const goToMenuWithHomeFlush = useCallback(() => {
+    let moved = false;
+    const moveToMenu = () => {
+      if (moved) return;
+      moved = true;
+      goToMenu();
+    };
+
+    const timeoutId = window.setTimeout(moveToMenu, HOME_NAV_FLUSH_TIMEOUT_MS);
+    void submitAutoRankProgressRef.current(true)
+      .catch((error) => {
+        if (import.meta.env.DEV) {
+          console.warn('[AutoRank] home flush failed', error);
+        }
+      })
+      .finally(() => {
+        window.clearTimeout(timeoutId);
+        moveToMenu();
+      });
+  }, [goToMenu]);
+
   const buildActiveGameRankingSnapshot = useCallback((): ActiveGameRankingSnapshot | null => {
     if (gameState === GameState.PLAYING || gameState === GameState.GAME_OVER) {
       // 이벤트 모드는 이벤트 전용 타이머 사용
@@ -1738,7 +1785,7 @@ const App: React.FC = () => {
     const snapshot = buildActiveGameRankingSnapshot();
     if (!snapshot) {
       if (context === 'HOME') {
-        goToMenu();
+        goToMenuWithHomeFlush();
         return;
       }
       if (typeof nextDifficulty === 'number') {
@@ -1753,7 +1800,7 @@ const App: React.FC = () => {
     setActiveGameExitContext(context);
     setActiveGameRankingSnapshot(snapshot);
     openActiveGameExitDialog();
-  }, [buildActiveGameRankingSnapshot, goToMenu, openActiveGameExitDialog, startGameWithSessionNamePrompt]);
+  }, [buildActiveGameRankingSnapshot, goToMenuWithHomeFlush, openActiveGameExitDialog, startGameWithSessionNamePrompt]);
 
   const handleGameOverClose = useCallback(() => {
     // 게임오버 결과 확인을 마치고 메뉴로 돌아갈 때 해당 모드의 복구 상태만 정리한다.
@@ -1793,8 +1840,8 @@ const App: React.FC = () => {
       openActiveGameExitModal('HOME');
       return;
     }
-    goToMenu();
-  }, [gameState, goToMenu, openActiveGameExitModal]);
+    goToMenuWithHomeFlush();
+  }, [gameState, goToMenuWithHomeFlush, openActiveGameExitModal]);
 
   const handleActiveGameExitCancel = useCallback(() => {
     if (activeGameExitContext === 'NEW_GAME') {
@@ -1881,18 +1928,19 @@ const App: React.FC = () => {
 
   const handleActiveGameExitProceedWithoutRegister = useCallback(() => {
     const context = activeGameExitContext;
+
     setIsActiveGameExitModalOpen(false);
     setActiveGameRankingSnapshot(null);
 
     if (context === 'HOME') {
-      goToMenu();
+      goToMenuWithHomeFlush();
       return;
     }
 
     if (typeof pendingDifficulty === 'number') {
       startGameWithSessionNamePrompt(pendingDifficulty as BoardSize);
     }
-  }, [activeGameExitContext, goToMenu, pendingDifficulty, startGameWithSessionNamePrompt]);
+  }, [activeGameExitContext, goToMenuWithHomeFlush, pendingDifficulty, startGameWithSessionNamePrompt]);
 
   const handleActiveGameExitNameLocked = useCallback((name: string) => {
     setSessionLockedPlayerName(name);
@@ -1923,14 +1971,14 @@ const App: React.FC = () => {
     }
 
     if (context === 'HOME') {
-      goToMenu();
+      goToMenuWithHomeFlush();
       return;
     }
 
     if (typeof pendingDifficulty === 'number') {
       startGameWithSessionNamePrompt(pendingDifficulty as BoardSize);
     }
-  }, [activeGameExitContext, gameMode, goToMenu, pendingDifficulty, startGameWithSessionNamePrompt]);
+  }, [activeGameExitContext, gameMode, goToMenuWithHomeFlush, pendingDifficulty, startGameWithSessionNamePrompt]);
 
   // 난이도 선택 시 진행중 게임 경고 -> 이름 입력 모달
   const tryStartGame = useCallback((size: BoardSize) => {
@@ -2445,6 +2493,119 @@ const App: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState, score]);
 
+  // ── 최초 100점 돌파 시 무료 스킨 뽑기권 지급 ──
+  useEffect(() => {
+    if (gameState !== GameState.PLAYING) return;
+    if (gameMode !== 'normal') return;
+    if (score < 100) return;
+    // 영속적 플래그 먼저 확인 (악용 방지: localStorage 기반)
+    if (isFirstScoreSkinRewardClaimed()) return;
+    // 인메모리 가드로 동일 렌더 내 재진입 방지
+    if (firstSkinRewardTriggeredRef.current) return;
+
+    firstSkinRewardTriggeredRef.current = true;
+    setShowFirstSkinRewardModal(true);
+  }, [gameMode, gameState, score]);
+
+  useEffect(() => {
+    if (!showFirstSkinRewardModal) return;
+    trackAnalyticsEvent({
+      name: 'first_skin_reward_shown',
+      meta: { score: scoreRef.current },
+    });
+  }, [showFirstSkinRewardModal]);
+
+  const handleFirstSkinRewardLater = useCallback(() => {
+    trackAnalyticsEvent({ name: 'first_skin_reward_later' });
+    setShowFirstSkinRewardModal(false);
+    // "나중에" 선택 시 보상 소비를 취소해 이후 재진입 가능하게 유지
+    firstSkinRewardTriggeredRef.current = false;
+  }, []);
+
+  // ── 최초 100점 돌파 → 무료 스킨 뽑기권 → 게임 저장 + 랭킹 반영 + 스킨탭 이동 ──
+  const handleGoToSkinDraw = useCallback(() => {
+    trackAnalyticsEvent({ name: 'first_skin_reward_draw_entry' });
+    setShowFirstSkinRewardModal(false);
+    // 실제 무료 뽑기 소비 성공 시점까지 보상 보류
+    setFirstSkinRewardPendingDraw(true);
+
+    // 게임 저장
+    const commonState: SavedGameState = {
+      version: 1,
+      gameState: GameState.PLAYING,
+      grid,
+      slots,
+      score,
+      phase,
+      boardSize,
+      canSkipSlide,
+      undoRemaining,
+      blockRefreshRemaining,
+      showBlockRefreshAdButton,
+      lastSnapshot,
+      hasUsedRevive: hasUsedReviveThisRun,
+      isReviveSelectionMode,
+      reviveBreakRemaining,
+      revivePendingTileId,
+      moveCount: moveCountRef.current,
+      startedAt: gameStartTimeRef.current ?? Date.now(),
+      activeDurationMs: getCurrentActiveDurationMs(),
+      maxScoreThisRun,
+      sessionId: sessionIdRef.current,
+      playerName: playerName || rankingService.getSavedName() || '',
+      sessionLockedPlayerName: sessionLockedPlayerName ?? undefined,
+      gameMode: 'normal',
+      eventPlayedMs: getCurrentEventPlayedMs(),
+      savedAt: Date.now(),
+    };
+    saveGameState(commonState);
+
+    // 랭킹 제출 (조용히 — 실패해도 스킨 뽑기는 진행)
+    // rankingService.submitScore는 내부에 오프라인 큐(slidemino_pending_scores_v1)가 있어
+    // 네트워크 실패 시 자동 재시도됩니다.
+    const activeDuration = getCurrentActiveDurationSeconds();
+    const submitScoreSilently = async () => {
+      const name = playerName || rankingService.getSavedName() || '익명';
+      try {
+        await rankingService.submitScore(
+          sessionIdRef.current,
+          name,
+          score,
+          `${boardSize}x${boardSize}`,
+          activeDuration,
+          moveCountRef.current,
+          getAnalyticsInstallId(),
+          undefined
+        );
+      } catch (e) {
+        // 오프라인 큐 실패 시 콘솔 경고 (재시도는 rankingService 내부 처리)
+        console.warn('[FirstSkinReward] Score submission failed, queued for retry:', e);
+      }
+    };
+    void submitScoreSilently();
+
+    // 게임 상태 MENU로 전환
+    // 무료 스킨 보상 진입/복귀 시 이어하기 상태 유지를 위해 저장 상태는 유지한다.
+    setGameState(GameState.MENU);
+    setGameMode('normal');
+    resetEventTimer();
+
+    // 스킨 모달 열기 + 무료 뽑기 트리거
+    setSkinModalFreeDraw(true);
+    setIsSkinOpen(true);
+  }, [
+    grid, slots, score, phase, boardSize,
+    canSkipSlide,
+    undoRemaining, blockRefreshRemaining, showBlockRefreshAdButton,
+    lastSnapshot,
+    hasUsedReviveThisRun,
+    isReviveSelectionMode, reviveBreakRemaining, revivePendingTileId,
+    maxScoreThisRun,
+    playerName, sessionLockedPlayerName,
+    getCurrentEventPlayedMs, getCurrentActiveDurationMs, getCurrentActiveDurationSeconds,
+    resetEventTimer,
+  ]);
+
   const showBlockRefreshNotice = useCallback((message: string, durationMs = 1600) => {
     setBlockRefreshNotice(message);
     if (blockRefreshNoticeTimeoutRef.current) {
@@ -2623,7 +2784,10 @@ const App: React.FC = () => {
       },
       onError: (error) => {
         console.error('[App] 광고 오류:', error);
-        showComboMessage(String(t('game:rewardAd.error')), 2200);
+        const message = error instanceof Error && error.message
+          ? String(t('game:rewardAd.errorWithReason', { reason: error.message } as any))
+          : String(t('game:rewardAd.error'));
+        showComboMessage(message, 2500);
       },
       onDailyLimitReached: () => {
         showComboMessage(String(t('game:rewardAd.dailyLimitReached')), 2200);
@@ -3042,6 +3206,7 @@ const App: React.FC = () => {
 
   // Memoized callback to prevent Slot re-renders
   const handlePointerDown = useCallback((e: React.PointerEvent, piece: Piece, index: number) => {
+    if (isFirstSkinRewardInputBlocked) return;
     if (draggingPiece) return;
     if (isReviveSelectionMode) return;
     const isSlidePhaseButSkippable = phase === Phase.SLIDE && canSkipSlide;
@@ -3073,7 +3238,7 @@ const App: React.FC = () => {
     applyDragOverlayTransform(e.clientX, e.clientY);
 
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
-  }, [phase, canSkipSlide, draggingPiece, isReviveSelectionMode, readBoardMetrics, applyDragOverlayTransform]);
+  }, [phase, canSkipSlide, draggingPiece, isReviveSelectionMode, readBoardMetrics, applyDragOverlayTransform, isFirstSkinRewardInputBlocked]);
 
   // RAF 기반으로 포인터 이벤트를 1프레임에 1번으로 합쳐서(코얼레싱) 렌더/연산 폭주를 방지
   const rafIdRef = useRef<number | null>(null);
@@ -3157,6 +3322,7 @@ const App: React.FC = () => {
   };
 
   const handleSwipeStart = (e: React.PointerEvent) => {
+    if (isFirstSkinRewardInputBlocked) return;
     // 슬라이드는 보드 영역에서만 시작하지 않고 전체 화면 허용
     // 단, 버튼 등 상호작용 요소 위에서는 스와이프 시작 방지
     if (isReviveSelectionMode) return;
@@ -3170,6 +3336,7 @@ const App: React.FC = () => {
   };
 
   const handleScreenPointerDown = (e: React.PointerEvent) => {
+    if (isFirstSkinRewardInputBlocked) return;
     if (isReviveSelectionMode) return;
 
     if (draggingPiece) {
@@ -3294,6 +3461,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isFirstSkinRewardInputBlocked) return;
       if (e.key === 'r' || e.key === 'R') {
         if (draggingPiece) rotateActivePiece();
       }
@@ -3329,9 +3497,11 @@ const App: React.FC = () => {
     draggingPiece,
     rotateActivePiece,
     isReviveSelectionMode,
+    isFirstSkinRewardInputBlocked,
   ]);
 
   const executeSlide = (dir: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT') => {
+    if (isFirstSkinRewardInputBlocked) return;
     if (slideLockRef.current) return; // Double check
 
     const {
@@ -3627,6 +3797,121 @@ const App: React.FC = () => {
       window.clearTimeout(timeoutId);
     };
   }, [gameState, score, boardSize, refreshLiveRankEstimate]);
+
+  const submitAutoRankProgress = useCallback(async (force = false) => {
+    if (!force && gameStateRef.current !== GameState.PLAYING) return;
+    if (gameModeRef.current === 'daily_challenge') return;
+
+    const scoreNow = Math.max(0, Math.floor(scoreRef.current));
+    if (scoreNow <= 0) return;
+
+    const sessionId = sessionIdRef.current;
+    if (autoRankSessionIdRef.current !== sessionId) {
+      autoRankSessionIdRef.current = sessionId;
+      autoRankLastSubmittedScoreRef.current = 0;
+      autoRankLastSubmittedAtRef.current = 0;
+    }
+
+    const now = Date.now();
+    const scoreDelta = scoreNow - autoRankLastSubmittedScoreRef.current;
+    const elapsedSinceLast = now - autoRankLastSubmittedAtRef.current;
+    const shouldSubmitByDelta = scoreDelta >= AUTO_RANK_SUBMIT_SCORE_DELTA_THRESHOLD;
+    const shouldSubmitByInterval = scoreDelta > 0 && elapsedSinceLast >= AUTO_RANK_SUBMIT_FORCE_INTERVAL_MS;
+
+    if (!force) {
+      if (elapsedSinceLast < AUTO_RANK_SUBMIT_MIN_INTERVAL_MS) return;
+      if (!shouldSubmitByDelta && !shouldSubmitByInterval) return;
+    }
+
+    if (autoRankSubmitInFlightRef.current) {
+      autoRankSubmitQueuedRef.current = true;
+      autoRankSubmitQueuedForceRef.current = autoRankSubmitQueuedForceRef.current || force;
+      return;
+    }
+
+    autoRankSubmitInFlightRef.current = true;
+    const safePlayerName =
+      getReusablePlayerName(sessionLockedPlayerName) ??
+      getReusablePlayerName(playerName) ??
+      getReusablePlayerName(rankingService.getSavedName()) ??
+      '익명';
+
+    try {
+      let succeeded = false;
+      if (gameModeRef.current === 'weekly_event') {
+        const eventResult = await submitEventScore({
+          name: safePlayerName,
+          score: scoreNow,
+          moves: moveCountRef.current,
+          duration: toDurationSeconds(getCurrentEventPlayedMs()),
+          attemptNumber: eventAttemptNumberRef.current,
+          isIntermediate: true,
+          isProgress: true,
+        });
+        succeeded = Boolean(eventResult.success);
+      } else {
+        const submitResult = await rankingService.submitProgressScore(
+          sessionId,
+          safePlayerName,
+          scoreNow,
+          `${boardSizeRef.current}x${boardSizeRef.current}`,
+          getCurrentActiveDurationSeconds(),
+          moveCountRef.current,
+          getAnalyticsInstallId()
+        );
+        succeeded = Boolean(submitResult.success);
+      }
+
+      if (succeeded) {
+        autoRankLastSubmittedScoreRef.current = scoreNow;
+      }
+      autoRankLastSubmittedAtRef.current = Date.now();
+    } catch (error) {
+      autoRankLastSubmittedAtRef.current = Date.now();
+      console.error('[AutoRank] progress submit failed', error);
+    } finally {
+      autoRankSubmitInFlightRef.current = false;
+      if (autoRankSubmitQueuedRef.current) {
+        const queuedForce = autoRankSubmitQueuedForceRef.current;
+        autoRankSubmitQueuedRef.current = false;
+        autoRankSubmitQueuedForceRef.current = false;
+        void submitAutoRankProgress(queuedForce);
+      }
+    }
+  }, [getCurrentActiveDurationSeconds, getCurrentEventPlayedMs, playerName, sessionLockedPlayerName]);
+
+  useEffect(() => {
+    submitAutoRankProgressRef.current = submitAutoRankProgress;
+  }, [submitAutoRankProgress]);
+
+  useEffect(() => {
+    if (gameState !== GameState.PLAYING) {
+      if (!autoRankSubmitInFlightRef.current) {
+        autoRankSubmitQueuedRef.current = false;
+        autoRankSubmitQueuedForceRef.current = false;
+      }
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void submitAutoRankProgress();
+    }, AUTO_RANK_SUBMIT_DEBOUNCE_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [gameState, score, boardSize, gameMode, submitAutoRankProgress]);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      if (gameStateRef.current !== GameState.PLAYING) return;
+      void submitAutoRankProgress(true);
+    };
+    window.addEventListener('online', handleOnline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [submitAutoRankProgress]);
 
 
   // --- Render Helpers ---
@@ -4372,7 +4657,31 @@ const App: React.FC = () => {
 
           <SkinModal
             open={isSkinOpen}
-            onClose={() => setIsSkinOpen(false)}
+            onClose={() => {
+              setIsSkinOpen(false);
+              // 모달 닫힐 때 무료 뽑기 상태 리셋
+              if (!firstSkinRewardPendingDraw) {
+                setSkinModalFreeDraw(false);
+              }
+            }}
+            freeDraw={skinModalFreeDraw}
+            onFreeDrawUsed={(consumed) => {
+              if (firstSkinRewardPendingDraw) {
+                trackAnalyticsEvent({
+                  name: consumed ? 'first_skin_reward_consume_success' : 'first_skin_reward_consume_failure',
+                });
+              }
+              if (!consumed) return;
+              if (firstSkinRewardPendingDraw) {
+                const claimPersisted = claimFirstScoreSkinReward();
+                if (!claimPersisted) {
+                  console.warn('[App] First-score reward claim persistence degraded to session-only latch.');
+                }
+                setFirstSkinRewardPendingDraw(false);
+                firstSkinRewardTriggeredRef.current = false;
+              }
+              setSkinModalFreeDraw(false);
+            }}
           />
 
           <LeaderboardModal
@@ -4672,9 +4981,14 @@ const App: React.FC = () => {
                   {t('common:labels.score')}
                   {liveRankEstimate !== null && gameState === GameState.PLAYING
                     && score > 0 && liveRankEstimate.totalEntries >= 2 && (
-                      <span className="ml-2 text-xs font-semibold text-blue-600">
-                        {String(t('game:liveRank.estimatedRank', { rank: liveRankEstimate.rank } as any))}
-                      </span>
+                      <>
+                        <span className="ml-2 text-xs font-semibold text-blue-600">
+                          {String(t('game:liveRank.estimatedRank', { rank: liveRankEstimate.rank } as any))}
+                        </span>
+                        <span className="ml-2 text-[10px] font-semibold text-emerald-600">
+                          {String(t('game:liveRank.autoSaveNotice', { defaultValue: '[!점수는 자동저장됩니다!]' } as any))}
+                        </span>
+                      </>
                     )}
                 </h2>
                 <p className="text-3xl font-bold text-gray-900 tabular-nums">{score}</p>
@@ -5002,6 +5316,46 @@ const App: React.FC = () => {
             eventAttemptNumber={eventAttemptNumberRef.current}
             onViewRankings={handleGameOverViewRankings}
           />
+        )}
+
+        {/* ── 최초 100점 돌파 무료 스킨 뽑기권 모달 ── */}
+        {showFirstSkinRewardModal && (
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center"
+            style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+              className="mx-4 w-full max-w-sm rounded-3xl bg-white/95 backdrop-blur-md p-6 text-center shadow-2xl"
+            >
+              <div className="mb-3 text-4xl">🎁</div>
+              <h2 className="text-lg font-extrabold text-gray-900">
+                {t('game:firstSkinReward.title' as any)}
+              </h2>
+              <p className="mt-2 text-sm text-gray-600 leading-relaxed">
+                {t('game:firstSkinReward.description' as any)}
+              </p>
+              <div className="mt-5 flex flex-col gap-3">
+                <button
+                  type="button"
+                  className="w-full rounded-2xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-3 text-base font-bold text-white shadow-lg active:scale-[0.97] transition-transform"
+                  onClick={handleGoToSkinDraw}
+                >
+                  {t('game:firstSkinReward.goToDraw' as any)}
+                </button>
+                <button
+                  type="button"
+                  className="w-full rounded-2xl bg-gray-100 px-4 py-3 text-sm font-semibold text-gray-500 active:bg-gray-200 transition-colors"
+                  onClick={handleFirstSkinRewardLater}
+                >
+                  {t('common:actions.later' as any)}
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
 
         {activeGameRankingSnapshot && (

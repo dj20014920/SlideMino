@@ -1,7 +1,8 @@
 {
   "actions": {
     "replayTutorial": "チュートリアルを再生",
-    "resetDone": "リセット完了！"
+    "resetDone": "リセット完了！",
+    "later": "あとで"
   },
   "buttons": {
     "confirm": "確認",

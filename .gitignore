@@ -6,6 +6,7 @@ yarn-debug.log*
 pnpm-debug.log*
 lerna-debug.log*
 기능추가명세서.md
+releases/
 # Apps-in-Toss build outputs
 *.ait
 .granite/

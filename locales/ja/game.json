@@ -38,6 +38,7 @@
   },
   "liveRank": {
     "estimatedRank": "予想 #{{rank}}",
+    "autoSaveNotice": "スコアは自動保存されます！",
     "pointsToNext": "次の順位まで {{points}} 点",
     "topRank": "現在トップ順位です"
   },
@@ -59,8 +60,14 @@
     "rewardEarned": "+{{amount}} やり直し回数チャージ完了!",
     "loading": "広告準備中...",
     "error": "広告を読み込めません。\nしばらくしてから再度お試しください。",
+    "errorWithReason": "広告処理に失敗しました: {{reason}}",
     "dailyLimitReached": "本日の広告視聴回数に達しました。\n明日また試してください。",
     "notSupported": "現在の環境では広告機能がサポートされていません。"
+  },
+  "firstSkinReward": {
+    "title": "初回スキンガチャ報酬！",
+    "description": "初めて100点を達成しました！\n無料スキンガチャ1回を今すぐ使えます。",
+    "goToDraw": "無料ガチャへ"
   },
   "blockRefresh": {
     "refreshButton": "ブロック更新",

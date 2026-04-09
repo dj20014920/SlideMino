@@ -56,7 +56,7 @@ export const EVENT_RULES: Record<WeeklyEventType, WeeklyEventRule> = {
     shapeWeights: null,
     timeLimitSeconds: 1800, // 30분
     tripleKillBonus: 0,
-    disableUndo: true,
+    disableUndo: false,
     disableBlockRefresh: true,
     disableRevive: true,
   },
@@ -69,7 +69,7 @@ export const EVENT_RULES: Record<WeeklyEventType, WeeklyEventRule> = {
     shapeWeights: null,
     timeLimitSeconds: 1800,
     tripleKillBonus: 0,
-    disableUndo: true,
+    disableUndo: false,
     disableBlockRefresh: true,
     disableRevive: true,
   },
@@ -88,7 +88,7 @@ export const EVENT_RULES: Record<WeeklyEventType, WeeklyEventRule> = {
     },
     timeLimitSeconds: 1800,
     tripleKillBonus: 0,
-    disableUndo: true,
+    disableUndo: false,
     disableBlockRefresh: true,
     disableRevive: true,
   },
@@ -101,7 +101,7 @@ export const EVENT_RULES: Record<WeeklyEventType, WeeklyEventRule> = {
     shapeWeights: null,
     timeLimitSeconds: 1800,
     tripleKillBonus: 0,
-    disableUndo: true,
+    disableUndo: false,
     disableBlockRefresh: true,
     disableRevive: true,
   },
@@ -114,7 +114,7 @@ export const EVENT_RULES: Record<WeeklyEventType, WeeklyEventRule> = {
     shapeWeights: null,
     timeLimitSeconds: 900, // 15분
     tripleKillBonus: 0,
-    disableUndo: true,
+    disableUndo: false,
     disableBlockRefresh: true,
     disableRevive: true,
   },
@@ -127,7 +127,7 @@ export const EVENT_RULES: Record<WeeklyEventType, WeeklyEventRule> = {
     shapeWeights: null,
     timeLimitSeconds: 1800,
     tripleKillBonus: 333,
-    disableUndo: true,
+    disableUndo: false,
     disableBlockRefresh: true,
     disableRevive: true,
   },
@@ -144,7 +144,7 @@ export const EVENT_RULES: Record<WeeklyEventType, WeeklyEventRule> = {
     },
     timeLimitSeconds: 1800,
     tripleKillBonus: 0,
-    disableUndo: true,
+    disableUndo: false,
     disableBlockRefresh: true,
     disableRevive: true,
   },
@@ -157,7 +157,7 @@ export const EVENT_RULES: Record<WeeklyEventType, WeeklyEventRule> = {
     shapeWeights: null,
     timeLimitSeconds: 1800,
     tripleKillBonus: 0,
-    disableUndo: true,
+    disableUndo: false,
     disableBlockRefresh: true,
     disableRevive: true,
   },
@@ -711,11 +711,12 @@ export async function submitEventScore(params: {
   attemptNumber: number;
   levelBadge?: string;
   isIntermediate?: boolean;
+  isProgress?: boolean;
 }): Promise<EventSubmitResult> {
   try {
     const current = getCurrentEvent();
     const installId = getAnalyticsInstallId();
-    const { isIntermediate, ...scoreParams } = params;
+    const { isIntermediate, isProgress, ...scoreParams } = params;
     const res = await fetch(getApiUrl(`${API_BASE}/submit`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -725,6 +726,7 @@ export async function submitEventScore(params: {
         installId,
         ...scoreParams,
         ...(isIntermediate ? { isIntermediate: true } : {}),
+        ...(isProgress ? { isProgress: true } : {}),
       }),
     });
     const data = await res.json() as EventSubmitResult;

@@ -755,7 +755,6 @@ export const resolveSkinAppearance = (value: number, skin: { id?: string; hex: s
       style: sanitizeTileAppearanceStyle(style),
     };
   }
-
   // ── 1. Explicit palette skins (Neon, Pop Art, Stained Glass) ──
   const explicitPalette = SKIN_EXPLICIT_PALETTES[skinId];
   if (explicitPalette) {

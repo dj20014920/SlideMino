@@ -1,7 +1,8 @@
 {
   "actions": {
     "replayTutorial": "Replay Tutorial",
-    "resetDone": "Reset Done!"
+    "resetDone": "Reset Done!",
+    "later": "Later"
   },
   "buttons": {
     "confirm": "Confirm",

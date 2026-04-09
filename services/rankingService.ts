@@ -28,6 +28,8 @@ export interface LeaderboardResponse {
     seasonInfo?: { seasonId: string; endsAt: number } | null;
 }
 
+export type LeaderboardTab = 'ALL' | '4x4' | '5x5' | '7x7' | '8x8' | '10x10';
+
 export interface LiveRankEstimate {
     rank: number;
     pointsToNext: number;
@@ -52,6 +54,7 @@ interface PendingScore {
     installId?: string;
     platform?: string;
     levelBadge?: string;
+    mode?: 'final' | 'progress';
 }
 
 const STORAGE_KEY_NAME = 'slidemino_player_name';
@@ -66,6 +69,11 @@ const normalizeDifficultyForApi = (difficulty: string): string => {
     const trimmed = difficulty.trim();
     const match = trimmed.match(/^(\d+)(?:x\1)?$/i);
     return match ? match[1] : trimmed;
+};
+
+const normalizeLeaderboardTabForApi = (tab: LeaderboardTab): string => {
+    if (tab === 'ALL') return 'ALL';
+    return normalizeDifficultyForApi(tab);
 };
 
 const normalizeDurationForSubmit = (duration: number): number => {
@@ -121,12 +129,48 @@ const saveQueue = (queue: Record<string, PendingScore>): void => {
     safeWriteLocalStorage(STORAGE_KEY_QUEUE, JSON.stringify(queue));
 };
 
-const enqueueScore = (payload: Omit<PendingScore, 'updatedAt'>): void => {
-    const queue = loadQueue();
-    queue[payload.sessionId] = {
-        ...payload,
+const getPendingScoreMode = (item: Pick<PendingScore, 'mode'>): 'final' | 'progress' => {
+    return item.mode === 'progress' ? 'progress' : 'final';
+};
+
+const mergePendingScore = (
+    existing: PendingScore,
+    incoming: Omit<PendingScore, 'updatedAt'>
+): PendingScore => {
+    const existingMode = getPendingScoreMode(existing);
+    const incomingMode = getPendingScoreMode(incoming);
+
+    // final/progress 충돌 시 final 페이로드를 보존한다.
+    const finalPreferredBase = existingMode === 'final' && incomingMode !== 'final'
+        ? existing
+        : incoming;
+
+    // 점수는 동일 session 내 더 높은 값 우선으로 유지한다.
+    const scorePreferredBase = existing.score >= incoming.score ? existing : incoming;
+
+    return {
+        ...finalPreferredBase,
+        score: Math.max(existing.score, incoming.score),
+        duration: scorePreferredBase.duration,
+        moves: scorePreferredBase.moves,
+        timestamp: Math.max(existing.timestamp, incoming.timestamp),
+        installId: incoming.installId ?? existing.installId,
+        platform: incoming.platform ?? existing.platform,
+        levelBadge: incoming.levelBadge ?? existing.levelBadge,
+        mode: existingMode === 'final' || incomingMode === 'final' ? 'final' : 'progress',
         updatedAt: Date.now(),
     };
+};
+
+const enqueueScore = (payload: Omit<PendingScore, 'updatedAt'>): void => {
+    const queue = loadQueue();
+    const existing = queue[payload.sessionId];
+    queue[payload.sessionId] = existing
+        ? mergePendingScore(existing, payload)
+        : {
+            ...payload,
+            updatedAt: Date.now(),
+        };
     saveQueue(queue);
 };
 
@@ -241,7 +285,8 @@ const buildPayload = (
     duration: number,
     moves: number,
     installId?: string,
-    levelBadge?: string
+    levelBadge?: string,
+    mode: 'final' | 'progress' = 'final'
 ): Omit<PendingScore, 'updatedAt'> => {
     return {
         sessionId,
@@ -254,6 +299,7 @@ const buildPayload = (
         installId,
         platform: Capacitor.getPlatform(),
         levelBadge,
+        mode,
     };
 };
 
@@ -360,7 +406,7 @@ export const rankingService = {
     ): Promise<SubmitScoreResponse> => {
         // Save name locally first
         rankingService.saveName(name);
-        const payload = buildPayload(sessionId, name, score, difficulty, duration, moves, installId, levelBadge);
+        const payload = buildPayload(sessionId, name, score, difficulty, duration, moves, installId, levelBadge, 'final');
 
         if (!isOnline()) {
             if (!REALTIME_RANKING_ONLY) {
@@ -405,11 +451,60 @@ export const rankingService = {
             errorMessage: result.errorMessage,
         };
     },
+    /**
+     * 게임 진행 중 자동 저장용 진행 점수 제출
+     * - 네트워크/서버 일시 장애 시 오프라인 큐로 재전송 보장
+     */
+    submitProgressScore: async (
+        sessionId: string,
+        name: string,
+        score: number,
+        difficulty: string,
+        duration: number,
+        moves: number,
+        installId?: string
+    ): Promise<SubmitScoreResponse> => {
+        rankingService.saveName(name);
+        const payload = buildPayload(sessionId, name, score, difficulty, duration, moves, installId, undefined, 'progress');
+
+        if (!isOnline()) {
+            if (!REALTIME_RANKING_ONLY) {
+                enqueueScore(payload);
+                return { success: false, queued: true, offline: true };
+            }
+            return { success: false, offline: true };
+        }
+
+        const result = await postScore(payload);
+        if (result.success) {
+            return { success: true };
+        }
+
+        if (!REALTIME_RANKING_ONLY && shouldQueue(result.status)) {
+            enqueueScore(payload);
+            return {
+                success: false,
+                queued: true,
+                offline: !isOnline(),
+                status: result.status,
+                code: result.code,
+                errorMessage: result.errorMessage,
+            };
+        }
+
+        return {
+            success: false,
+            offline: !isOnline(),
+            status: result.status,
+            code: result.code,
+            errorMessage: result.errorMessage,
+        };
+    },
 
     /**
      * Fetch top scores
      */
-    getLeaderboard: async (): Promise<LeaderboardResponse> => {
+    getLeaderboard: async (tab: LeaderboardTab = 'ALL'): Promise<LeaderboardResponse> => {
         if (!isOnline()) {
             return {
                 data: [],
@@ -420,6 +515,7 @@ export const rankingService = {
 
         try {
             const url = new URL(getApiUrl('/api/rankings'), typeof window !== 'undefined' ? window.location.origin : 'https://slidemino.emozleep.space');
+            url.searchParams.set('tab', normalizeLeaderboardTabForApi(tab));
             url.searchParams.set('_ts', String(Date.now()));
             const response = await fetch(url.toString(), { cache: 'no-store' });
             updateServerTimeOffset(response);

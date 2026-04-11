@@ -9,6 +9,8 @@ const TARGET_GAP_PX = 12;
 const DEFAULT_BUBBLE_HEIGHT_PX = 220;
 const MIN_BUBBLE_WIDTH_PX = 220;
 const MAX_BUBBLE_WIDTH_PX = 360;
+const TARGET_RETRY_INTERVAL_MS = 250;
+const MAX_TARGET_CHECK_ATTEMPTS = 20;
 
 const clamp = (value: number, min: number, max: number): number => {
   if (min > max) return min;
@@ -16,10 +18,18 @@ const clamp = (value: number, min: number, max: number): number => {
 };
 
 interface GameModeTutorialProps {
+  enabled?: boolean;
   suppressed?: boolean;
+  onComplete?: () => void;
+  onSkip?: () => void;
 }
 
-export const GameModeTutorial: React.FC<GameModeTutorialProps> = ({ suppressed = false }) => {
+export const GameModeTutorial: React.FC<GameModeTutorialProps> = ({
+  enabled = true,
+  suppressed = false,
+  onComplete,
+  onSkip,
+}) => {
   const { t } = useTranslation();
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [isVisible, setIsVisible] = useState(false);
@@ -32,6 +42,16 @@ export const GameModeTutorial: React.FC<GameModeTutorialProps> = ({ suppressed =
   const bubbleRef = useRef<HTMLDivElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const dismissedRef = useRef(false);
+  const completionNotifiedRef = useRef(false);
+
+  const isTargetDisplayable = (el: HTMLElement): boolean => {
+    const style = window.getComputedStyle(el);
+    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+      return false;
+    }
+    const rect = el.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
+  };
 
   const hasSeenTutorial = (): boolean => {
     if (dismissedRef.current) return true;
@@ -42,10 +62,38 @@ export const GameModeTutorial: React.FC<GameModeTutorialProps> = ({ suppressed =
     }
   };
 
+  const completeTutorial = (reason: 'complete' | 'skip') => {
+    if (completionNotifiedRef.current) return;
+    completionNotifiedRef.current = true;
+    dismissedRef.current = true;
+    setTargetRect(null);
+    setIsVisible(false);
+
+    try {
+      localStorage.setItem(STORAGE_KEY, 'true');
+    } catch {
+      // Ignore storage failure in-session.
+    }
+
+    if (reason === 'skip') {
+      if (onSkip) {
+        onSkip();
+        return;
+      }
+    }
+    onComplete?.();
+  };
+
   useEffect(() => {
-    if (hasSeenTutorial()) return;
+    if (!enabled || suppressed || hasSeenTutorial()) {
+      setTargetRect(null);
+      setIsVisible(false);
+      return;
+    }
 
     let rafId: number | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let attempts = 0;
 
     const checkTarget = () => {
       if (hasSeenTutorial()) {
@@ -65,11 +113,20 @@ export const GameModeTutorial: React.FC<GameModeTutorialProps> = ({ suppressed =
           : nextViewport
       );
 
-      if (el) {
+      if (el && isTargetDisplayable(el)) {
         setTargetRect(el.getBoundingClientRect());
         setIsVisible(true);
+        attempts = 0;
       } else {
         setTargetRect(null);
+        setIsVisible(false);
+        attempts += 1;
+        if (attempts >= MAX_TARGET_CHECK_ATTEMPTS) {
+          completeTutorial('skip');
+          return;
+        }
+        if (retryTimer) clearTimeout(retryTimer);
+        retryTimer = setTimeout(scheduleCheck, TARGET_RETRY_INTERVAL_MS);
       }
     };
 
@@ -78,25 +135,19 @@ export const GameModeTutorial: React.FC<GameModeTutorialProps> = ({ suppressed =
       rafId = requestAnimationFrame(checkTarget);
     };
 
-    const timer1 = setTimeout(scheduleCheck, 250);
-    const timer2 = setTimeout(scheduleCheck, 700);
-    const timer3 = setTimeout(scheduleCheck, 1200);
-
     scheduleCheck();
     window.addEventListener('resize', scheduleCheck);
     window.addEventListener('orientationchange', scheduleCheck);
     window.addEventListener('scroll', scheduleCheck, true);
 
     return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-      clearTimeout(timer3);
+      if (retryTimer) clearTimeout(retryTimer);
       if (rafId !== null) cancelAnimationFrame(rafId);
       window.removeEventListener('resize', scheduleCheck);
       window.removeEventListener('orientationchange', scheduleCheck);
       window.removeEventListener('scroll', scheduleCheck, true);
     };
-  }, []);
+  }, [enabled, suppressed, onComplete, onSkip]);
 
   useEffect(() => {
     if (!isVisible || !bubbleRef.current) return;
@@ -144,14 +195,7 @@ export const GameModeTutorial: React.FC<GameModeTutorialProps> = ({ suppressed =
   }, [isVisible]);
 
   const handleDismiss = () => {
-    dismissedRef.current = true;
-    setTargetRect(null);
-    setIsVisible(false);
-    try {
-      localStorage.setItem(STORAGE_KEY, 'true');
-    } catch {
-      // Ignore storage failure in-session.
-    }
+    completeTutorial('complete');
   };
 
   const layout = useMemo(() => {
@@ -221,7 +265,7 @@ export const GameModeTutorial: React.FC<GameModeTutorialProps> = ({ suppressed =
     };
   }, [bubbleHeight, overlayOffset.left, overlayOffset.top, targetRect, viewport.height, viewport.width]);
 
-  if (suppressed || !isVisible || !targetRect || !layout) return null;
+  if (!enabled || suppressed || !isVisible || !targetRect || !layout) return null;
 
   return (
     <AnimatePresence>

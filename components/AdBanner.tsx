@@ -4,7 +4,6 @@ import { isNativeApp, isAppIntoS } from '../utils/platform';
 import { getCookieConsent, onCookieConsentChange } from '../services/adConsent';
 import { bannerAdService } from '../services/bannerAdService';
 import { isScreenshotMode } from '../services/adConfig';
-import { isVirtualDevice } from '../services/admob';
 import { trackAnalyticsEvent } from '../services/analyticsService';
 
 interface AdBannerProps {
@@ -33,7 +32,6 @@ const AdBanner: React.FC<AdBannerProps> = ({
         const measured = bannerAdService.getCurrentBannerHeightPx();
         return measured > 0 ? measured : getNativeBannerFallbackHeightPx();
     });
-    const [nativeBannerAllowed, setNativeBannerAllowed] = useState<boolean | null>(null);
     const adSlotRef = useRef<HTMLElement | null>(null);
     const webImpressionTrackedRef = useRef(false);
 
@@ -66,31 +64,14 @@ const AdBanner: React.FC<AdBannerProps> = ({
     }, [nativeBottomMarginPx]);
 
     useEffect(() => {
-        if (!native) return;
-        let mounted = true;
-        isVirtualDevice()
-            .then((virtual) => {
-                if (mounted) setNativeBannerAllowed(!virtual);
-            })
-            .catch(() => {
-                if (mounted) setNativeBannerAllowed(true);
-            });
-        return () => {
-            mounted = false;
-        };
-    }, [native]);
-
-    useEffect(() => {
         // 🆕 앱인토스 또는 네이티브: 중앙집중형 배너 서비스 사용
         if (appIntoS || native) {
-            if (native && nativeBannerAllowed === false) return;
-            if (native && nativeBannerAllowed === null) return;
             bannerAdService.showBanner({ bottomMarginPx: nativeBottomMarginForSdk });
             return () => {
                 bannerAdService.hideBanner();
             };
         }
-    }, [native, appIntoS, nativeBannerAllowed, nativeBottomMarginForSdk]);
+    }, [native, appIntoS, nativeBottomMarginForSdk]);
 
     useEffect(() => {
         // 앱인토스에서는 AdSense 쿠키 동의 불필요
@@ -149,8 +130,6 @@ const AdBanner: React.FC<AdBannerProps> = ({
 
     // 네이티브(앱인토스 포함): 네이티브 SDK가 직접 배너를 그리므로 공간만 확보
     if (native || appIntoS) {
-        if (native && nativeBannerAllowed === false) return null;
-        if (native && nativeBannerAllowed === null) return null;
         if (!reserveNativeSpace) return null;
         return (
             <div

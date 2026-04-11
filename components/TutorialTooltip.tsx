@@ -14,6 +14,30 @@ const clamp = (value: number, min: number, max: number): number => {
   return Math.min(Math.max(value, min), max);
 };
 
+const readAnchorNumber = (style: CSSStyleDeclaration, name: string, fallback: number): number => {
+  const raw = style.getPropertyValue(name).trim();
+  if (!raw) return fallback;
+  const parsed = Number(raw.replace('px', '').trim());
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const resolveAnchoredRect = (target: HTMLElement): DOMRect => {
+  const anchorTarget = target.dataset.tutorialAnchor === 'skin-swatch'
+    ? (target.querySelector<HTMLElement>('[data-skin-swatch="true"]') ?? target)
+    : target;
+  const baseRect = anchorTarget.getBoundingClientRect();
+  const style = window.getComputedStyle(anchorTarget);
+  const inset = readAnchorNumber(style, '--tutorial-anchor-inset', 0);
+  const offsetX = readAnchorNumber(style, '--tutorial-anchor-offset-x', 0);
+  const offsetY = readAnchorNumber(style, '--tutorial-anchor-offset-y', 0);
+
+  const left = baseRect.left + inset + offsetX;
+  const top = baseRect.top + inset + offsetY;
+  const width = Math.max(2, baseRect.width - inset * 2);
+  const height = Math.max(2, baseRect.height - inset * 2);
+  return new DOMRect(left, top, width, height);
+};
+
 interface TutorialTooltipProps {
   isVisible: boolean;
   targetId: string | null;
@@ -49,21 +73,9 @@ export const TutorialTooltip: React.FC<TutorialTooltipProps> = ({
       return;
     }
 
-    let rafId: number | null = null;
-
     const updateTarget = () => {
       if (!targetId) {
-        // If no target ID provided, maybe center screen or use a default ref?
-        // For now, if no ID, we don't show or fallback to center.
-        // Let's assume targetId is provided or handle null for center.
-        if (targetId === null) {
-           // Center screen 'virtual' target
-           const cx = window.innerWidth / 2;
-           const cy = window.innerHeight / 2;
-           setTargetRect({
-             left: cx - 1, top: cy - 1, width: 2, height: 2, right: cx + 1, bottom: cy + 1, x: cx, y: cy, toJSON: () => {}
-           });
-        }
+        setTargetRect(null);
         return;
       }
 
@@ -79,9 +91,9 @@ export const TutorialTooltip: React.FC<TutorialTooltipProps> = ({
       );
 
       if (el) {
-        setTargetRect(el.getBoundingClientRect());
+        setTargetRect(resolveAnchoredRect(el));
       } else {
-         // Retry if element not found immediately?
+        setTargetRect(null);
       }
     };
     
@@ -89,7 +101,9 @@ export const TutorialTooltip: React.FC<TutorialTooltipProps> = ({
     updateTarget();
     const interval = setInterval(updateTarget, 100);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+    };
   }, [isVisible, targetId]);
 
   useEffect(() => {
@@ -177,12 +191,12 @@ export const TutorialTooltip: React.FC<TutorialTooltipProps> = ({
     };
   }, [bubbleHeight, targetRect, viewport, forcePlacement]);
 
-  if (!isVisible || !layout) return null;
+  if (!isVisible || !targetRect || !layout) return null;
 
   return (
     <AnimatePresence>
        {/* Highlight Box around Target */}
-       {targetId && (
+       {targetRect && (
         <div
           className="fixed z-[9999] pointer-events-none transition-all duration-300"
           style={{
@@ -198,7 +212,8 @@ export const TutorialTooltip: React.FC<TutorialTooltipProps> = ({
        )}
 
         {/* Hand Pointer */}
-        <motion.div
+         {targetRect && (
+         <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0 }}
@@ -219,6 +234,7 @@ export const TutorialTooltip: React.FC<TutorialTooltipProps> = ({
                 <Hand size={48} className="fill-white/25 rotate-[-45deg]" strokeWidth={2} />
             </motion.div>
         </motion.div>
+        )}
 
         {/* Bubble */}
         <motion.div

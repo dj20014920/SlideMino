@@ -66,7 +66,7 @@
   },
   "firstSkinReward": {
     "title": "首次皮肤抽取奖励！",
-    "description": "恭喜首次达到100分！\n现在可立即使用1次免费皮肤抽取。",
+    "description": "恭喜首次达到50分！\n现在可立即使用1次免费皮肤抽取。",
     "goToDraw": "前往免费抽取"
   },
   "blockRefresh": {
@@ -86,11 +86,23 @@
     "tapToDismiss": "点击关闭",
     "recommendTitle": "第一局建议从这里开始！",
     "recommendDesc": "首次游玩推荐使用默认的 7×7 模式。",
+    "skinTitle": "皮肤入口位置",
+    "skinDesc": "100分奖励可在菜单里的皮肤按钮使用。",
     "modeGuideTitle": "模式速览",
     "modeGuideBeginner": "新手 7×7：空间更大，失误后更容易恢复。",
     "modeGuideNormal": "普通 5×5：平衡默认模式。",
     "modeGuideExpert": "专家 4×4：空间紧张，难度更高。",
     "tapToDismissMode": "点击此气泡可关闭。",
+    "rulesTitle": "游戏规则",
+    "rule1Label": "只有相同数字才能合成。",
+    "rule1Sub": "把相同方块合并成更大的数字。",
+    "rule2Label": "合成成功可额外滑动1次！",
+    "rule2Sub": "连续合成可叠加连击。",
+    "rule3Label": "合成失败则回到放置阶段。",
+    "rule3Sub": "滑动后若未合成，下回合先放置方块。",
+    "undoTitle": "工具提示",
+    "undoDesc": "用撤销和刷新补救失误，不够时可看广告补充。",
+    "gotIt": "知道了",
     "close": "关闭"
   },
   "dailyChallenge": {

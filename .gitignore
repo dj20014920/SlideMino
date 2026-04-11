@@ -156,3 +156,9 @@ services/skinGiftService.ts
 
 # Dev server log
 .devserver.log
+
+# Project-specific directories
+mcp-server/
+oh-my-githubcopilot/
+
+.github/

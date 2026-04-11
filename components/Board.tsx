@@ -1,4 +1,6 @@
 import React, {
+  Suspense,
+  lazy,
   useMemo,
   useEffect,
   useLayoutEffect,
@@ -16,6 +18,7 @@ import EvervaultTileOverlay from './EvervaultTileOverlay';
 import { clamp, type ResolvedTileAppearance } from '../services/blockCustomization';
 
 const EVERVAULT_SKIN_ID = 'skin_digital_evervault';
+const PixelBlast = lazy(() => import('../vendor/pixelblast/PixelBlast'));
 
 export type BoardHandle = {
   setHoverLocation: (pos: { x: number; y: number } | null) => void;
@@ -89,6 +92,15 @@ type GridLayout = {
 };
 
 const EXPLORE_GALAXY_SKIN_ID = 'skin_digital_explore_galaxy';
+const PIXELBLAST_VOID_SKIN_ID = 'skin_digital_pixelblast_void';
+const PENDING_MERGE_RIPPLE_TTL_MS = 4500;
+const MAX_PENDING_MERGE_RIPPLES = 4;
+
+type PendingMergeRipple = {
+  fingerprint: string;
+  targets: string[];
+  expiresAt: number;
+};
 
 const tileTransitionEase = 'cubic-bezier(0.25,0.1,0.25,1.0)';
 const reviveDestroyAnimation = 'reviveBreakFade 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards';
@@ -446,6 +458,12 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
   }));
   const [hoverLocation, setHoverLocation] = useState<{ x: number; y: number } | null>(null);
   const hoverLocationRef = useRef<{ x: number; y: number } | null>(null);
+  const pixelBlastLayerRef = useRef<HTMLDivElement | null>(null);
+  const mergeRippleFingerprintRef = useRef<string>('');
+  const pendingMergeRippleQueueRef = useRef<PendingMergeRipple[]>([]);
+  const pendingMergeReplayRafRef = useRef<number | null>(null);
+  const [pixelBlastRenderPhase, setPixelBlastRenderPhase] = useState<'unmounted' | 'active' | 'teardown'>('unmounted');
+  const pixelBlastTeardownRafRef = useRef<number | null>(null);
 
   useImperativeHandle(ref, () => ({
     setHoverLocation: (pos) => {
@@ -513,8 +531,34 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
   const premiumUiTileNumberClassName = premiumUiObjects.extended.text.tileNumberClassName;
   const isEvervaultSkin = activeSkin?.id === EVERVAULT_SKIN_ID;
   const isExploreGalaxySkin = activeSkin?.id === EXPLORE_GALAXY_SKIN_ID;
+  const isPixelBlastSkin = activeSkin?.id === PIXELBLAST_VOID_SKIN_ID;
 
   const [mergeFlashTileIds, setMergeFlashTileIds] = useState<ReadonlySet<string>>(new Set());
+
+  useEffect(() => {
+    if (pixelBlastTeardownRafRef.current !== null) {
+      cancelAnimationFrame(pixelBlastTeardownRafRef.current);
+      pixelBlastTeardownRafRef.current = null;
+    }
+
+    if (isPixelBlastSkin) {
+      setPixelBlastRenderPhase('active');
+      return;
+    }
+
+    setPixelBlastRenderPhase((prev) => (prev === 'unmounted' ? prev : 'teardown'));
+    pixelBlastTeardownRafRef.current = requestAnimationFrame(() => {
+      pixelBlastTeardownRafRef.current = null;
+      setPixelBlastRenderPhase((prev) => (prev === 'teardown' ? 'unmounted' : prev));
+    });
+
+    return () => {
+      if (pixelBlastTeardownRafRef.current !== null) {
+        cancelAnimationFrame(pixelBlastTeardownRafRef.current);
+        pixelBlastTeardownRafRef.current = null;
+      }
+    };
+  }, [isPixelBlastSkin]);
 
   const appearanceCacheRef = useRef(new Map<number, ResolvedTileAppearance>());
   const resolveTileAppearanceRef = useRef(resolveTileAppearance);
@@ -561,6 +605,173 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
     });
   }, []);
 
+  const triggerMergeRipple = useCallback((targets: string[], fingerprint: string): boolean => {
+    if (layout.cellPx <= 0 || layout.pitchPx <= 0) return false;
+    const boardEl = boardRef.current;
+    if (!boardEl) return false;
+    const globalCanvas = Array.from(document.querySelectorAll('.pixelblast-global-background canvas'))
+      .find((node): node is HTMLCanvasElement => node instanceof HTMLCanvasElement && node.isConnected);
+    const fallbackCanvas = pixelBlastLayerRef.current?.querySelector('canvas');
+    const canvasEl = globalCanvas instanceof HTMLCanvasElement
+      ? globalCanvas
+      : fallbackCanvas;
+    if (!(canvasEl instanceof HTMLCanvasElement)) return false;
+
+    const boardRect = boardEl.getBoundingClientRect();
+    const styles = window.getComputedStyle(boardEl);
+    const paddingLeft = parseFloat(styles.paddingLeft) || 0;
+    const paddingTop = parseFloat(styles.paddingTop) || 0;
+    const borderLeft = parseFloat(styles.borderLeftWidth) || 0;
+    const borderTop = parseFloat(styles.borderTopWidth) || 0;
+    const innerLeft = boardRect.left + borderLeft + paddingLeft;
+    const innerTop = boardRect.top + borderTop + paddingTop;
+
+    targets.forEach((target) => {
+      const [xStr, yStr] = target.split(',');
+      const x = Number(xStr);
+      const y = Number(yStr);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+      const clientX = innerLeft + x * layout.pitchPx + layout.cellPx * 0.5;
+      const clientY = innerTop + y * layout.pitchPx + layout.cellPx * 0.5;
+      if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return;
+
+      if (typeof window.PointerEvent === 'function') {
+        canvasEl.dispatchEvent(new PointerEvent('pointerdown', {
+          bubbles: false,
+          cancelable: true,
+          pointerId: 1,
+          pointerType: 'mouse',
+          isPrimary: true,
+          button: 0,
+          clientX,
+          clientY,
+        }));
+      } else {
+        canvasEl.dispatchEvent(new MouseEvent('pointerdown', {
+          bubbles: false,
+          cancelable: true,
+          button: 0,
+          clientX,
+          clientY,
+        }));
+      }
+    });
+
+    mergeRippleFingerprintRef.current = fingerprint;
+    return true;
+  }, [boardRef, layout.cellPx, layout.pitchPx]);
+
+  const getPendingMergeNow = useCallback(() => (
+    typeof performance !== 'undefined' ? performance.now() : Date.now()
+  ), []);
+
+  const prunePendingMergeQueue = useCallback((now: number) => {
+    const queue = pendingMergeRippleQueueRef.current;
+    if (queue.length === 0) return queue;
+    const nextQueue = queue.filter((pending) => (
+      now < pending.expiresAt && mergeRippleFingerprintRef.current !== pending.fingerprint
+    ));
+    if (nextQueue.length !== queue.length) {
+      pendingMergeRippleQueueRef.current = nextQueue;
+    }
+    return pendingMergeRippleQueueRef.current;
+  }, []);
+
+  const enqueuePendingMergeRipple = useCallback((pending: PendingMergeRipple) => {
+    if (mergeRippleFingerprintRef.current === pending.fingerprint) return;
+    const now = getPendingMergeNow();
+    const queue = prunePendingMergeQueue(now);
+    if (queue.some((item) => item.fingerprint === pending.fingerprint)) return;
+    const nextQueue = [...queue, pending];
+    if (nextQueue.length > MAX_PENDING_MERGE_RIPPLES) {
+      nextQueue.splice(0, nextQueue.length - MAX_PENDING_MERGE_RIPPLES);
+    }
+    pendingMergeRippleQueueRef.current = nextQueue;
+  }, [getPendingMergeNow, prunePendingMergeQueue]);
+
+  const schedulePendingMergeReplay = useCallback(() => {
+    if (pendingMergeReplayRafRef.current !== null) return;
+
+    const replay = () => {
+      pendingMergeReplayRafRef.current = null;
+
+      if (!isPixelBlastSkin) return;
+
+      const now = getPendingMergeNow();
+      const queue = prunePendingMergeQueue(now);
+      if (queue.length === 0) return;
+      const pending = queue[0];
+
+      const replayed = triggerMergeRipple(pending.targets, pending.fingerprint);
+      if (replayed) {
+        pendingMergeRippleQueueRef.current = pendingMergeRippleQueueRef.current.slice(1);
+      }
+
+      const remainingQueue = prunePendingMergeQueue(getPendingMergeNow());
+      if ((!replayed || remainingQueue.length > 0) && remainingQueue.length > 0) {
+        pendingMergeReplayRafRef.current = requestAnimationFrame(replay);
+      }
+    };
+
+    pendingMergeReplayRafRef.current = requestAnimationFrame(replay);
+  }, [getPendingMergeNow, isPixelBlastSkin, prunePendingMergeQueue, triggerMergeRipple]);
+
+  useEffect(() => {
+    if (!isPixelBlastSkin || pendingMergeRippleQueueRef.current.length === 0) return;
+    schedulePendingMergeReplay();
+  }, [isPixelBlastSkin, layout.cellPx, layout.pitchPx, schedulePendingMergeReplay]);
+
+  useEffect(() => {
+    return () => {
+      if (pendingMergeReplayRafRef.current !== null) {
+        cancelAnimationFrame(pendingMergeReplayRafRef.current);
+        pendingMergeReplayRafRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (mergingTiles.length === 0) {
+      mergeRippleFingerprintRef.current = '';
+      const queue = prunePendingMergeQueue(getPendingMergeNow());
+      if (queue.length > 0 && isPixelBlastSkin) {
+        schedulePendingMergeReplay();
+      } else if (pendingMergeReplayRafRef.current !== null) {
+        cancelAnimationFrame(pendingMergeReplayRafRef.current);
+        pendingMergeReplayRafRef.current = null;
+      }
+      return;
+    }
+    if (!isPixelBlastSkin) {
+      mergeRippleFingerprintRef.current = '';
+      pendingMergeRippleQueueRef.current = [];
+      if (pendingMergeReplayRafRef.current !== null) {
+        cancelAnimationFrame(pendingMergeReplayRafRef.current);
+        pendingMergeReplayRafRef.current = null;
+      }
+      return;
+    }
+    const uniqueTargets = Array.from(
+      new Set(mergingTiles.map((tile) => `${tile.toX},${tile.toY}`))
+    ).sort();
+    if (uniqueTargets.length === 0) return;
+
+    const mergeEventUnits = mergingTiles
+      .map((tile) => `${tile.id}@${tile.toX},${tile.toY}`)
+      .sort();
+    const fingerprint = mergeEventUnits.join('|');
+    if (mergeRippleFingerprintRef.current === fingerprint) return;
+
+    if (triggerMergeRipple(uniqueTargets, fingerprint)) return;
+
+    enqueuePendingMergeRipple({
+      fingerprint,
+      targets: uniqueTargets,
+      expiresAt: getPendingMergeNow() + PENDING_MERGE_RIPPLE_TTL_MS,
+    });
+    schedulePendingMergeReplay();
+  }, [enqueuePendingMergeRipple, getPendingMergeNow, isPixelBlastSkin, mergingTiles, prunePendingMergeQueue, schedulePendingMergeReplay, triggerMergeRipple]);
+
   // 드래그가 끝나면(= activePiece가 없어지면) hover를 즉시 정리해서 불필요한 렌더를 줄임
   useEffect(() => {
     if (activePiece) return;
@@ -581,9 +792,13 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
       const paddingTop = parseFloat(styles.paddingTop) || 0;
       const paddingRight = parseFloat(styles.paddingRight) || 0;
       const paddingBottom = parseFloat(styles.paddingBottom) || 0;
+      const borderLeft = parseFloat(styles.borderLeftWidth) || 0;
+      const borderTop = parseFloat(styles.borderTopWidth) || 0;
+      const borderRight = parseFloat(styles.borderRightWidth) || 0;
+      const borderBottom = parseFloat(styles.borderBottomWidth) || 0;
 
-      const innerWidth = rect.width - paddingLeft - paddingRight;
-      const innerHeight = rect.height - paddingTop - paddingBottom;
+      const innerWidth = rect.width - borderLeft - borderRight - paddingLeft - paddingRight;
+      const innerHeight = rect.height - borderTop - borderBottom - paddingTop - paddingBottom;
       const inner = Math.min(innerWidth, innerHeight);
       const totalGap = (size - 1) * BOARD_CELL_GAP_PX;
       const cellPx = (inner - totalGap) / size;
@@ -719,6 +934,27 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
           isPremiumUiThemeActive={isPremiumUiThemeActive}
           premiumUiBoardCellClassName={premiumUiBoardCellClassName}
         />
+
+        {pixelBlastRenderPhase !== 'unmounted' && (
+          <div
+            ref={pixelBlastLayerRef}
+            className={`absolute inset-0 z-[1] pointer-events-none transition-opacity duration-150 ${isPixelBlastSkin ? 'opacity-100' : 'opacity-0'}`}
+            aria-hidden={!isPixelBlastSkin}
+          >
+            <Suspense fallback={null}>
+              <PixelBlast
+                variant="square"
+                pixelSize={4}
+                patternScale={4}
+                patternDensity={0}
+                pixelSizeJitter={0}
+                speed={0.5}
+                edgeFade={0.25}
+                transparent
+              />
+            </Suspense>
+          </div>
+        )}
 
         {/* 2. Merging Tiles Layer (Absorbed tiles animating to merge destination) */}
         <MergingTilesLayer

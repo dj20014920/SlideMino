@@ -142,11 +142,29 @@ const EXPLORE_GALAXY_PREMIUM_SKIN: SkinCatalogEntry = {
   },
 };
 
+const PIXELBLAST_VOID_PREMIUM_SKIN: SkinCatalogEntry = {
+  id: 'skin_digital_pixelblast_void',
+  hex: '#7d5fff',
+  category: 'digital',
+  nameKey: 'pixelBlast',
+  premium: true,
+  premiumUiThemeId: 'pixelblast_void',
+  style: {
+    type: 'css-pattern',
+    value: 'none',
+    textColor: '#e5e7eb',
+    customCss: [
+      'border-radius: 4px',
+    ].join('; ') + ';',
+  },
+};
+
 // ==========================================
 // 🎨 스킨 스타일 정의 (Complex Skins)
 // ==========================================
 
 export const ADDITIONAL_SKIN_CATALOG: SkinCatalogEntry[] = [
+  PIXELBLAST_VOID_PREMIUM_SKIN,
   EXPLORE_GALAXY_PREMIUM_SKIN,
   ...NEON_ORDERED_SKINS,
 

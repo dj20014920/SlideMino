@@ -392,6 +392,28 @@ export const EXPLORE_GALAXY_PREMIUM_UI_THEME: PremiumUiThemeConfig = {
   usageGuide: SHARED_PREMIUM_UI_USAGE_GUIDE,
 };
 
+export const PIXELBLAST_VOID_PREMIUM_UI_THEME: PremiumUiThemeConfig = {
+  ...EXPLORE_GALAXY_PREMIUM_UI_THEME,
+  id: 'pixelblast_void',
+  family: 'pixelblast',
+  rootClassName: 'theme-pixelblast',
+  labels: {
+    ...DEFAULT_PREMIUM_UI_LABELS,
+    topWindowTitle: '픽셀 블라스트\n(Pixel Blast)',
+    menuWindowTitle: '난이도 선택',
+    difficultyLegend: '난이도 선택 메뉴',
+    utilityLegend: '메뉴',
+    languageLegend: '언어',
+    gameWindowTitle: 'Pixel Blast',
+    statusBarText: 'Pixel Blast',
+    statusBarVersion: 'v1.0',
+  },
+  objects: {
+    ...EXPLORE_GALAXY_PREMIUM_UI_THEME.objects,
+    appShellClassName: 'pixelblast-app-shell',
+  },
+};
+
 /**
  * 런타임 조회용 인덱스.
  * - 실제 적용은 context/BlockCustomizationContext.tsx에서 수행한다.
@@ -400,6 +422,7 @@ export const EXPLORE_GALAXY_PREMIUM_UI_THEME: PremiumUiThemeConfig = {
 const PREMIUM_UI_THEME_BY_ID: Record<PremiumUiThemeId, PremiumUiThemeConfig> = {
   retro_windows_98: RETRO_WINDOWS_98_PREMIUM_UI_THEME,
   explore_galaxy: EXPLORE_GALAXY_PREMIUM_UI_THEME,
+  pixelblast_void: PIXELBLAST_VOID_PREMIUM_UI_THEME,
 };
 
 export const PREMIUM_UI_THEMES: readonly PremiumUiThemeConfig[] = Object.freeze(

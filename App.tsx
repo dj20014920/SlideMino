@@ -63,7 +63,11 @@ import {
   drawSkin,
   loadSkinSettings,
   isFirstScoreSkinRewardClaimed,
+  isFirstScoreSkinRewardPending,
+  isFirstScoreSkinRewardShown,
+  markFirstScoreSkinRewardShown,
   claimFirstScoreSkinReward,
+  setFirstScoreSkinRewardPending,
 } from './services/skinService';
 import {
   saveGameState,
@@ -175,6 +179,16 @@ import {
 import { XpLevelModal } from './components/XpLevelModal';
 import { CalendarModal } from './components/CalendarModal';
 import { rescheduleNotifications } from './services/notificationService';
+import {
+  clearOnboardingProgress,
+  decideMenuOnboardingStep,
+  isEarlyOnboardingCompleted,
+  isGameplayTutorialBlocked as getIsGameplayTutorialBlocked,
+  isMenuTutorialSuppressed,
+  ONBOARDING_STORAGE_KEYS,
+  SKIN_TARGET_POLICY,
+  type MenuOnboardingStep,
+} from './services/onboardingOrchestrator';
 
 const EMPTY_TILE_VALUE_OVERRIDES: Record<string, number> = {};
 const EMPTY_MERGING_TILES: MergingTile[] = [];
@@ -745,7 +759,7 @@ const App: React.FC = () => {
 
   // ===== 로컬 푸시 알림 스케줄링 (앱 시작 시) =====
   useEffect(() => {
-    void rescheduleNotifications();
+    void rescheduleNotifications({ allowPermissionPrompt: isEarlyOnboardingCompleted() });
   }, []);
 
   // ===== XP/레벨 시스템 초기화 =====
@@ -823,7 +837,7 @@ const App: React.FC = () => {
         if (!isActive) return;
         window.dispatchEvent(new Event(APP_RESUME_EVENT));
         void runVersionCheck();
-        void rescheduleNotifications();
+        void rescheduleNotifications({ allowPermissionPrompt: isEarlyOnboardingCompleted() });
       }).then((handle) => {
         if (isDisposed) {
           void handle.remove();
@@ -926,10 +940,9 @@ const App: React.FC = () => {
   const [isSkinOpen, setIsSkinOpen] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
 
-  // ── 최초 100점 스킨 보상 ──
+  // ── 최초 50점 스킨 보상 ──
   const [showFirstSkinRewardModal, setShowFirstSkinRewardModal] = useState(false);
   const [skinModalFreeDraw, setSkinModalFreeDraw] = useState(false);
-  const [firstSkinRewardPendingDraw, setFirstSkinRewardPendingDraw] = useState(false);
   const firstSkinRewardTriggeredRef = useRef(false);
   const isFirstSkinRewardInputBlocked = showFirstSkinRewardModal;
 
@@ -1007,6 +1020,8 @@ const App: React.FC = () => {
   // Tutorial State: 0=Off, 1=Drag, 2=Swipe
   const [tutorialStep, setTutorialStep] = useState<number>(0);
   const [tutorialResetKey, setTutorialResetKey] = useState(0);
+  const [activeOnboardingStep, setActiveOnboardingStep] = useState<MenuOnboardingStep>('none');
+  const skinFeatureAutoSkipRetryTimerRef = useRef<number | null>(null);
 
   // Help Modal
   const [showHelpModal, setShowHelpModal] = useState(false);
@@ -1038,6 +1053,8 @@ const App: React.FC = () => {
   }, [openExclusiveModal]);
 
   const openSkinModal = useCallback(() => {
+    const shouldConsumePendingFreeDraw = isFirstScoreSkinRewardPending() && !isFirstScoreSkinRewardClaimed();
+    setSkinModalFreeDraw(shouldConsumePendingFreeDraw);
     openExclusiveModal('skin');
   }, [openExclusiveModal]);
 
@@ -1107,6 +1124,59 @@ const App: React.FC = () => {
     openExclusiveModal('help');
   }, [openExclusiveModal]);
 
+  const refreshMenuOnboardingStep = useCallback(() => {
+    const nextMenuStep = decideMenuOnboardingStep({
+      isMenuState: gameState === GameState.MENU,
+      isNameInputOpen,
+      isCustomizationOpen,
+      isSkinOpen,
+      isLeaderboardOpen,
+      isStreakInfoOpen,
+      isSeasonRewardOpen,
+      isMissionModalOpen,
+      isXpModalOpen,
+      isCalendarOpen,
+      isWeeklyEventModalOpen,
+      isActiveGameExitModalOpen,
+      showFirstSkinRewardModal,
+      hasSeenFirstSkinRewardFlow:
+        isFirstScoreSkinRewardShown()
+        || isFirstScoreSkinRewardClaimed()
+        || isFirstScoreSkinRewardPending(),
+    });
+
+    setActiveOnboardingStep(nextMenuStep);
+  }, [
+    gameState,
+    isActiveGameExitModalOpen,
+    isCalendarOpen,
+    isCustomizationOpen,
+    isLeaderboardOpen,
+    isMissionModalOpen,
+    isNameInputOpen,
+    isSeasonRewardOpen,
+    isSkinOpen,
+    isStreakInfoOpen,
+    isWeeklyEventModalOpen,
+    isXpModalOpen,
+    showFirstSkinRewardModal,
+  ]);
+
+  const handleSkinFeatureTutorialSkip = useCallback(() => {
+    setActiveOnboardingStep('none');
+
+    if (skinFeatureAutoSkipRetryTimerRef.current !== null) {
+      window.clearTimeout(skinFeatureAutoSkipRetryTimerRef.current);
+      skinFeatureAutoSkipRetryTimerRef.current = null;
+    }
+
+    // Auto-skip does not persist seen=true by design; defer one re-evaluation to avoid same-step immediate reselection.
+    skinFeatureAutoSkipRetryTimerRef.current = window.setTimeout(() => {
+      skinFeatureAutoSkipRetryTimerRef.current = null;
+      refreshMenuOnboardingStep();
+    }, SKIN_TARGET_POLICY.deferredRetryIntervalMs);
+  }, [refreshMenuOnboardingStep]);
+
   // 🆕 Reward Ad State
   const [isAdReady, setIsAdReady] = useState(false);
   const [isReviveAdReady, setIsReviveAdReady] = useState(false);
@@ -1119,10 +1189,20 @@ const App: React.FC = () => {
 
   // Check tutorial status on load
   useEffect(() => {
-    const tutorialCompleted = localStorage.getItem('tutorial_completed');
-    if (!tutorialCompleted) {
-      setTutorialStep(1); // Start with Drag tutorial
-    }
+    setTutorialStep(isEarlyOnboardingCompleted() ? 0 : 1);
+  }, []);
+
+  useEffect(() => {
+    refreshMenuOnboardingStep();
+  }, [refreshMenuOnboardingStep, tutorialResetKey]);
+
+  useEffect(() => {
+    return () => {
+      if (skinFeatureAutoSkipRetryTimerRef.current !== null) {
+        window.clearTimeout(skinFeatureAutoSkipRetryTimerRef.current);
+        skinFeatureAutoSkipRetryTimerRef.current = null;
+      }
+    };
   }, []);
 
   // Animation Lock
@@ -2109,12 +2189,7 @@ const App: React.FC = () => {
     gameEventBus.emit('GAME_STARTED', { mode: 'normal', boardSize: size });
 
     // 온보딩: 튜토리얼 미완료 시 활성화
-    const tutorialCompleted = localStorage.getItem('tutorial_completed');
-    if (!tutorialCompleted) {
-      setTutorialStep(1);
-    } else {
-      setTutorialStep(0);
-    }
+    setTutorialStep(isEarlyOnboardingCompleted() ? 0 : 1);
   }
 
   // --- 데일리 챌린지 시작 ---
@@ -2467,7 +2542,7 @@ const App: React.FC = () => {
         showComboMessage(String(t('common:streak.todayComplete', { count: result.currentStreak } as any)), 3000);
 
         // 출석 완료 → 스트릭 알림 취소 (재스케줄)
-        void rescheduleNotifications();
+        void rescheduleNotifications({ allowPermissionPrompt: isEarlyOnboardingCompleted() });
 
         // 출석 XP 지급
         grantXpStreak(result.currentStreak);
@@ -2493,13 +2568,13 @@ const App: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState, score]);
 
-  // ── 최초 100점 돌파 시 무료 스킨 뽑기권 지급 ──
+  // ── 최초 50점 돌파 시 무료 스킨 뽑기권 지급 ──
   useEffect(() => {
     if (gameState !== GameState.PLAYING) return;
     if (gameMode !== 'normal') return;
-    if (score < 100) return;
-    // 영속적 플래그 먼저 확인 (악용 방지: localStorage 기반)
-    if (isFirstScoreSkinRewardClaimed()) return;
+    if (score < 50) return;
+    // 노출 1회 플래그 먼저 확인 (재노출 방지: localStorage/sessionStorage 기반)
+    if (isFirstScoreSkinRewardShown()) return;
     // 인메모리 가드로 동일 렌더 내 재진입 방지
     if (firstSkinRewardTriggeredRef.current) return;
 
@@ -2509,6 +2584,14 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (!showFirstSkinRewardModal) return;
+    const pendingPersisted = setFirstScoreSkinRewardPending(true);
+    if (!pendingPersisted) {
+      console.warn('[App] First-score reward pending-state persistence degraded to session-only latch.');
+    }
+    const shownPersisted = markFirstScoreSkinRewardShown();
+    if (!shownPersisted) {
+      console.warn('[App] First-score reward shown-state persistence degraded to session-only latch.');
+    }
     trackAnalyticsEvent({
       name: 'first_skin_reward_shown',
       meta: { score: scoreRef.current },
@@ -2518,16 +2601,14 @@ const App: React.FC = () => {
   const handleFirstSkinRewardLater = useCallback(() => {
     trackAnalyticsEvent({ name: 'first_skin_reward_later' });
     setShowFirstSkinRewardModal(false);
-    // "나중에" 선택 시 보상 소비를 취소해 이후 재진입 가능하게 유지
-    firstSkinRewardTriggeredRef.current = false;
   }, []);
 
-  // ── 최초 100점 돌파 → 무료 스킨 뽑기권 → 게임 저장 + 랭킹 반영 + 스킨탭 이동 ──
+  // ── 최초 50점 돌파 → 무료 스킨 뽑기권 → 게임 저장 + 랭킹 반영 + 스킨탭 이동 ──
   const handleGoToSkinDraw = useCallback(() => {
     trackAnalyticsEvent({ name: 'first_skin_reward_draw_entry' });
     setShowFirstSkinRewardModal(false);
     // 실제 무료 뽑기 소비 성공 시점까지 보상 보류
-    setFirstSkinRewardPendingDraw(true);
+    setFirstScoreSkinRewardPending(true);
 
     // 게임 저장
     const commonState: SavedGameState = {
@@ -2591,8 +2672,7 @@ const App: React.FC = () => {
     resetEventTimer();
 
     // 스킨 모달 열기 + 무료 뽑기 트리거
-    setSkinModalFreeDraw(true);
-    setIsSkinOpen(true);
+    openSkinModal();
   }, [
     grid, slots, score, phase, boardSize,
     canSkipSlide,
@@ -2604,6 +2684,7 @@ const App: React.FC = () => {
     playerName, sessionLockedPlayerName,
     getCurrentEventPlayedMs, getCurrentActiveDurationMs, getCurrentActiveDurationSeconds,
     resetEventTimer,
+    openSkinModal,
   ]);
 
   const showBlockRefreshNotice = useCallback((message: string, durationMs = 1600) => {
@@ -3125,7 +3206,6 @@ const App: React.FC = () => {
     const paddingTop = parseFloat(styles.paddingTop) || 0;
     const paddingRight = parseFloat(styles.paddingRight) || 0;
     const paddingBottom = parseFloat(styles.paddingBottom) || 0;
-
     // Board 컴포넌트와 동일하게 grid.length 기반으로 계산하여 일관성 보장
     const size = grid.length;
     const innerWidth = rect.width - paddingLeft - paddingRight;
@@ -3534,7 +3614,8 @@ const App: React.FC = () => {
 
     if (tutorialStep === 2) {
       setTutorialStep(0);
-      localStorage.setItem('tutorial_completed', 'true');
+      localStorage.setItem(ONBOARDING_STORAGE_KEYS.tutorialCompleted, 'true');
+      void rescheduleNotifications({ allowPermissionPrompt: true });
     }
 
     // Increment move count for anti-cheat
@@ -4077,23 +4158,23 @@ const App: React.FC = () => {
 
   // ========== MENU SCREEN ==========
   if (gameState === GameState.MENU) {
-    const shouldSuppressGameModeTutorial =
-      isNameInputOpen ||
-      isCustomizationOpen ||
-      isSkinOpen ||
-      isLeaderboardOpen ||
-      isStreakInfoOpen ||
-      isSeasonRewardOpen ||
-      isMissionModalOpen ||
-      isXpModalOpen ||
-      isCalendarOpen ||
-      isWeeklyEventModalOpen ||
-      isActiveGameExitModalOpen;
+    const shouldSuppressGameModeTutorial = isMenuTutorialSuppressed({
+      isNameInputOpen,
+      isCustomizationOpen,
+      isSkinOpen,
+      isLeaderboardOpen,
+      isStreakInfoOpen,
+      isSeasonRewardOpen,
+      isMissionModalOpen,
+      isXpModalOpen,
+      isCalendarOpen,
+      isWeeklyEventModalOpen,
+      isActiveGameExitModalOpen,
+      showFirstSkinRewardModal,
+    });
 
     const handleReplayTutorial = () => {
-      localStorage.removeItem('tutorial_back_nav_seen_v1');
-      localStorage.removeItem('tutorial_game_mode_seen_v1');
-      localStorage.removeItem('tutorial_completed');
+      clearOnboardingProgress();
       setTutorialResetKey(prev => prev + 1);
       setTutorialStep(1);
       const btn = document.getElementById('replay-tutorial-btn');
@@ -4167,7 +4248,7 @@ const App: React.FC = () => {
                   id={mode.id}
                   onClick={() => {
                     tryStartGame(mode.size);
-                    if (mode.size === 7) localStorage.setItem('tutorial_game_mode_seen_v1', 'true');
+                    if (mode.size === 7) localStorage.setItem(ONBOARDING_STORAGE_KEYS.gameModeTutorialSeen, 'true');
                   }}
                   className={`h-full flex-1 text-left font-bold px-4 flex items-center justify-between ${premiumMenuRowPrimaryButtonClassName}`}
                 >
@@ -4383,7 +4464,7 @@ const App: React.FC = () => {
                 id={mode.id}
                 onClick={() => {
                   tryStartGame(mode.size);
-                  if (mode.size === 7) localStorage.setItem('tutorial_game_mode_seen_v1', 'true');
+                  if (mode.size === 7) localStorage.setItem(ONBOARDING_STORAGE_KEYS.gameModeTutorialSeen, 'true');
                 }}
                 className={`
                   relative group w-full py-4 px-6 rounded-2xl ${premiumMenuButtonClassName}
@@ -4659,25 +4740,23 @@ const App: React.FC = () => {
             open={isSkinOpen}
             onClose={() => {
               setIsSkinOpen(false);
-              // 모달 닫힐 때 무료 뽑기 상태 리셋
-              if (!firstSkinRewardPendingDraw) {
-                setSkinModalFreeDraw(false);
-              }
+              // 모달 닫힐 때 무료 뽑기 상태 리셋 (재진입 시 pending 상태 기반으로 다시 활성화)
+              setSkinModalFreeDraw(false);
             }}
             freeDraw={skinModalFreeDraw}
             onFreeDrawUsed={(consumed) => {
-              if (firstSkinRewardPendingDraw) {
+              const shouldConsumeFirstReward = isFirstScoreSkinRewardPending() && !isFirstScoreSkinRewardClaimed();
+              if (shouldConsumeFirstReward) {
                 trackAnalyticsEvent({
                   name: consumed ? 'first_skin_reward_consume_success' : 'first_skin_reward_consume_failure',
                 });
               }
               if (!consumed) return;
-              if (firstSkinRewardPendingDraw) {
+              if (shouldConsumeFirstReward) {
                 const claimPersisted = claimFirstScoreSkinReward();
                 if (!claimPersisted) {
                   console.warn('[App] First-score reward claim persistence degraded to session-only latch.');
                 }
-                setFirstSkinRewardPendingDraw(false);
                 firstSkinRewardTriggeredRef.current = false;
               }
               setSkinModalFreeDraw(false);
@@ -4723,9 +4802,16 @@ const App: React.FC = () => {
 
           <GameModeTutorial
             key={tutorialResetKey}
-            suppressed={shouldSuppressGameModeTutorial}
+            enabled={activeOnboardingStep === 'menu-game-mode'}
+            suppressed={shouldSuppressGameModeTutorial || activeOnboardingStep !== 'menu-game-mode'}
+            onComplete={refreshMenuOnboardingStep}
+            onSkip={refreshMenuOnboardingStep}
           />
-          <SkinFeatureTutorial isMenuVisible={true} />
+          <SkinFeatureTutorial
+            isEnabled={activeOnboardingStep === 'menu-skin-feature' && !shouldSuppressGameModeTutorial}
+            onComplete={refreshMenuOnboardingStep}
+            onSkip={handleSkinFeatureTutorialSkip}
+          />
 
           <StreakInfoModal
             open={isStreakInfoOpen}
@@ -4891,6 +4977,11 @@ const App: React.FC = () => {
     isAnimating ||
     isReviveSelectionMode ||
     Boolean(draggingPiece);
+  const gameplayTutorialBlocked = getIsGameplayTutorialBlocked({
+    isPlayingState: gameState === GameState.PLAYING,
+    showHelpModal,
+    showFirstSkinRewardModal,
+  });
 
   // ========== GAME SCREEN ==========
   return (
@@ -4977,18 +5068,13 @@ const App: React.FC = () => {
                 <Home size={18} />
               </button>
               <div className="space-y-0.5">
-                <h2 className="text-sm font-medium text-gray-400 uppercase tracking-wider">
+                <h2 className="text-sm font-medium text-gray-400 uppercase tracking-wider flex items-center gap-1.5 flex-wrap">
                   {t('common:labels.score')}
                   {liveRankEstimate !== null && gameState === GameState.PLAYING
                     && score > 0 && liveRankEstimate.totalEntries >= 2 && (
-                      <>
-                        <span className="ml-2 text-xs font-semibold text-blue-600">
-                          {String(t('game:liveRank.estimatedRank', { rank: liveRankEstimate.rank } as any))}
-                        </span>
-                        <span className="ml-2 text-[10px] font-semibold text-emerald-600">
-                          {String(t('game:liveRank.autoSaveNotice', { defaultValue: '[!점수는 자동저장됩니다!]' } as any))}
-                        </span>
-                      </>
+                      <span className="text-xs font-semibold text-blue-600">
+                        {String(t('game:liveRank.estimatedRank', { rank: liveRankEstimate.rank } as any))}
+                      </span>
                     )}
                 </h2>
                 <p className="text-3xl font-bold text-gray-900 tabular-nums">{score}</p>
@@ -4999,11 +5085,16 @@ const App: React.FC = () => {
                 )}
                 {liveRankEstimate !== null && gameState === GameState.PLAYING
                   && score > 0 && liveRankEstimate.totalEntries >= 2 && (
-                    <p className="text-xs font-semibold text-blue-500">
-                      {liveRankEstimate.pointsToNext > 0
-                        ? String(t('game:liveRank.pointsToNext', { points: liveRankEstimate.pointsToNext } as any))
-                        : t('game:liveRank.topRank')}
-                    </p>
+                    <>
+                      <p className="text-xs font-semibold text-blue-500">
+                        {liveRankEstimate.pointsToNext > 0
+                          ? String(t('game:liveRank.pointsToNext', { points: liveRankEstimate.pointsToNext } as any))
+                          : t('game:liveRank.topRank')}
+                      </p>
+                      <p className="text-[10px] font-semibold text-emerald-600">
+                        {String(t('game:liveRank.autoSaveNotice', { defaultValue: '[!점수는 자동저장됩니다!]' } as any))}
+                      </p>
+                    </>
                   )}
               </div>
             </div>
@@ -5269,10 +5360,13 @@ const App: React.FC = () => {
 
         </main>
 
-        {gameState !== GameState.GAME_OVER && !showHelpModal && (
+        {gameState !== GameState.GAME_OVER && (
           <>
-            <TutorialOverlay step={tutorialStep} />
-            <GameFeaturesTutorial tutorialStep={tutorialStep} />
+            {!gameplayTutorialBlocked && <TutorialOverlay step={tutorialStep} />}
+            <GameFeaturesTutorial
+              tutorialStep={tutorialStep}
+              blocked={gameplayTutorialBlocked}
+            />
           </>
         )}
         <HelpModal isOpen={showHelpModal} onClose={() => setShowHelpModal(false)} />
@@ -5318,7 +5412,7 @@ const App: React.FC = () => {
           />
         )}
 
-        {/* ── 최초 100점 돌파 무료 스킨 뽑기권 모달 ── */}
+        {/* ── 최초 50점 돌파 무료 스킨 뽑기권 모달 ── */}
         {showFirstSkinRewardModal && (
           <div
             className="fixed inset-0 z-[9999] flex items-center justify-center"

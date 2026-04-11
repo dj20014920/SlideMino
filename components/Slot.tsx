@@ -6,6 +6,7 @@ import { useBlockCustomization } from '../context/BlockCustomizationContext';
 
 const LIQUID_GLASS_SKIN_PREFIX = 'skin_digital_liquid_glass_';
 const LEGACY_LIQUID_GLASS_SKIN_ID = 'skin_digital_liquid_glass';
+const PIXELBLAST_VOID_SKIN_ID = 'skin_digital_pixelblast_void';
 
 const isLiquidGlassSkinId = (skinId?: string | null): boolean => (
   Boolean(skinId) && (
@@ -61,8 +62,11 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
   // Liquid Glass는 value=1이 완전 투명이므로 슬롯 프리뷰에서 블록이 안 보일 수 있다.
   // 프리뷰 전용으로 가시성이 확보되는 중간 값(16)을 사용한다.
   const isLiquidGlassPreview = isLiquidGlassSkinId(activeSkin?.id);
-  const previewValue = isLiquidGlassPreview ? 16 : 1;
+  const isPixelBlastPreview = activeSkin?.id === PIXELBLAST_VOID_SKIN_ID;
+  const previewValue = (isLiquidGlassPreview || isPixelBlastPreview) ? 16 : 1;
   const appearance = resolveTileAppearance(previewValue);
+  const previewAppearanceClassName = appearance.className;
+  const previewAppearanceStyle = appearance.style ?? {};
   const previewCellBoxShadow = [
     typeof appearance.style?.boxShadow === 'string' ? appearance.style.boxShadow : '',
     isLiquidGlassPreview ? 'inset 0 0 0 1px rgba(255,255,255,0.34)' : '',
@@ -81,7 +85,7 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
         transition-all duration-150 ease-out
         group
         ${disabled
-          ? 'opacity-30 pointer-events-none grayscale'
+          ? 'opacity-30 pointer-events-none'
           : isPressed
             ? isPremiumUiThemeActive
               ? 'brightness-95'
@@ -159,12 +163,12 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
                 key={i}
                 className={`
                   ${isPremiumUiThemeActive ? premiumUiSlotMiniCellClassName : 'rounded-lg border border-white/30'}
-                  ${appearance.className}
+                  ${previewAppearanceClassName}
                 `}
                 style={{
                   gridColumn: c.x + 1,
                   gridRow: c.y + 1,
-                  ...(appearance.style ?? {}),
+                  ...previewAppearanceStyle,
                   ...(isLiquidGlassPreview
                     ? {
                       backgroundColor: 'rgba(255,255,255,0.24)',

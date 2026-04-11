@@ -8,6 +8,7 @@ const STORAGE_KEY = 'tutorial_game_features_seen_v1';
 
 interface GameFeaturesTutorialProps {
   tutorialStep: number; // 0=none, 1=drag, 2=swipe
+  blocked?: boolean;
 }
 
 // ── 규칙 설명 전용 풀스크린 오버레이 ──
@@ -17,20 +18,20 @@ const RulesOverlay: React.FC<{ onDismiss: () => void }> = ({ onDismiss }) => {
   const rules = [
     {
       icon: <span className="text-2xl">🔢</span>,
-      label: t('game:tutorial.rule1Label', '같은 숫자끼리만 합쳐져요'),
-      sub: t('game:tutorial.rule1Sub', '2+2=4, 4+4=8... 숫자를 키워보세요!'),
+      label: t('game:tutorial.rule1Label', '같은 숫자만 합쳐져요.'),
+      sub: t('game:tutorial.rule1Sub', '같은 값끼리 붙여 더 큰 숫자를 만드세요.'),
       color: 'bg-indigo-500/30 border-indigo-300/40',
     },
     {
       icon: <CheckCircle2 className="w-6 h-6 text-emerald-300 flex-shrink-0" strokeWidth={2} />,
-      label: t('game:tutorial.rule2Label', '합치기 성공 → 스와이프 1번 더!'),
-      sub: t('game:tutorial.rule2Sub', '연속으로 합치면 콤보를 쌓을 수 있어요'),
+      label: t('game:tutorial.rule2Label', '합성 성공 시 스와이프 1회 추가!'),
+      sub: t('game:tutorial.rule2Sub', '연속 합성으로 콤보를 이어가세요.'),
       color: 'bg-emerald-500/30 border-emerald-300/40',
     },
     {
       icon: <XCircle className="w-6 h-6 text-rose-300 flex-shrink-0" strokeWidth={2} />,
-      label: t('game:tutorial.rule3Label', '합치기 실패 → 블럭 설치 차례로'),
-      sub: t('game:tutorial.rule3Sub', '스와이프했는데 합쳐진 블럭이 없으면 다음 블럭을 놓을 차례가 돼요'),
+      label: t('game:tutorial.rule3Label', '합성 실패 시 블록 설치 차례예요.'),
+      sub: t('game:tutorial.rule3Sub', '스와이프 후 합성이 없으면 설치 단계로 돌아갑니다.'),
       color: 'bg-rose-500/25 border-rose-300/40',
     },
   ];
@@ -109,12 +110,16 @@ const RulesOverlay: React.FC<{ onDismiss: () => void }> = ({ onDismiss }) => {
   );
 };
 
-export const GameFeaturesTutorial: React.FC<GameFeaturesTutorialProps> = ({ tutorialStep }) => {
+export const GameFeaturesTutorial: React.FC<GameFeaturesTutorialProps> = ({
+  tutorialStep,
+  blocked = false,
+}) => {
   const { t } = useTranslation();
   const [internalStep, setInternalStep] = useState(0); // 0: none, 1: rules, 2: undo
   const triggeredRef = React.useRef(false);
 
   useEffect(() => {
+    if (blocked) return;
     // 유령손 튜토리얼(step 1, 2)이 진행 중이면 대기
     if (tutorialStep !== 0) return;
     // 이미 트리거됐거나 완료된 경우 스킵
@@ -131,7 +136,7 @@ export const GameFeaturesTutorial: React.FC<GameFeaturesTutorialProps> = ({ tuto
       clearTimeout(timer);
       triggeredRef.current = false;
     };
-  }, [tutorialStep]);
+  }, [blocked, tutorialStep]);
 
   const handleDismissRules = () => {
     setInternalStep(2);
@@ -142,7 +147,7 @@ export const GameFeaturesTutorial: React.FC<GameFeaturesTutorialProps> = ({ tuto
     localStorage.setItem(STORAGE_KEY, 'true');
   };
 
-  if (internalStep === 0) return null;
+  if (blocked || internalStep === 0) return null;
 
   return (
     <>
@@ -155,7 +160,7 @@ export const GameFeaturesTutorial: React.FC<GameFeaturesTutorialProps> = ({ tuto
         targetId="game-undo-btn"
         onDismiss={handleDismissUndo}
         title={t('game:tutorial.undoTitle', '되돌리기 기능')}
-        description={t('game:tutorial.undoDesc', '실수로 블럭을 잘못 놓았거나 스와이프가 아쉬울 때, 이전 상태로 되돌릴 수 있어요.')}
+        description={t('game:tutorial.undoDesc', '되돌리기·새로고침으로 실수를 복구하고, 부족하면 광고로 충전하세요.')}
         forcePlacement="below"
       />
     </>

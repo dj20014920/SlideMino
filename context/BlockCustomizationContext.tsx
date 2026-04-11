@@ -6,6 +6,7 @@ import type {
   PremiumUiMicroOverrides,
   PremiumUiObjectMap,
   PremiumUiThemeConfig,
+  SkinDrawResult,
   SkinItem,
   SkinSettings,
 } from '../types';
@@ -51,6 +52,8 @@ type BlockCustomizationContextValue = {
   setActiveSkin: (id: string | null) => void;
   addFragments: (amount: number) => void;
   addScoreMilestoneFragments: (amount: number) => void;
+  commitSkinDrawResult: (result: SkinDrawResult) => boolean;
+  commitSkinDrawResultPersisted: (result: SkinDrawResult) => Promise<boolean>;
   purchaseSkin: (skinId: string) => void;
 };
 
@@ -60,6 +63,7 @@ export function BlockCustomizationProvider({ children }: { children: React.React
   const gate = useMemo(() => getFeatureGateDecision('blockCustomization'), []);
   const [settings, setSettings] = useState<BlockCustomizationSettingsV1>(() => loadBlockCustomizationSettings());
   const [skinSettings, setSkinSettings] = useState<SkinSettings>(() => loadSkinSettings());
+  const skinSettingsRef = useRef<SkinSettings>(skinSettings);
   const saveTimeoutRef = useRef<number | null>(null);
   const skinSaveTimeoutRef = useRef<number | null>(null);
   const prevOwnedSkinCountRef = useRef<number>(skinSettings.ownedSkins.length);
@@ -132,6 +136,7 @@ export function BlockCustomizationProvider({ children }: { children: React.React
 
   // 스킨 설정 자동 저장
   useEffect(() => {
+    skinSettingsRef.current = skinSettings;
     if (skinSaveTimeoutRef.current) {
       window.clearTimeout(skinSaveTimeoutRef.current);
       skinSaveTimeoutRef.current = null;
@@ -147,6 +152,28 @@ export function BlockCustomizationProvider({ children }: { children: React.React
       }
     };
   }, [skinSettings]);
+
+  const buildNextSkinSettingsFromDrawResult = useCallback(
+    (baseSettings: SkinSettings, result: SkinDrawResult): SkinSettings | null => {
+      if (result.type === 'new') {
+        if (baseSettings.ownedSkins.some((skin) => skin.id === result.skin.id)) return null;
+        return {
+          ...baseSettings,
+          ownedSkins: [...baseSettings.ownedSkins, result.skin],
+        };
+      }
+
+      const safeFragments = Number.isFinite(result.fragmentsEarned)
+        ? Math.max(0, Math.floor(result.fragmentsEarned))
+        : 0;
+      if (safeFragments <= 0) return null;
+      return {
+        ...baseSettings,
+        fragments: baseSettings.fragments + safeFragments,
+      };
+    },
+    []
+  );
 
   // 신규 스킨 획득 이벤트 발행 (XP 시스템 연동)
   useEffect(() => {
@@ -305,6 +332,34 @@ export function BlockCustomizationProvider({ children }: { children: React.React
     });
   }, []);
 
+  const commitSkinDrawResult = useCallback((result: SkinDrawResult): boolean => {
+    let committed = false;
+    setSkinSettings((prev) => {
+      const nextSettings = buildNextSkinSettingsFromDrawResult(prev, result);
+      if (!nextSettings) return prev;
+      committed = true;
+      return nextSettings;
+    });
+    return committed;
+  }, [buildNextSkinSettingsFromDrawResult]);
+
+  const commitSkinDrawResultPersisted = useCallback(async (result: SkinDrawResult): Promise<boolean> => {
+    const baseSettings = skinSettingsRef.current;
+    const nextSettings = buildNextSkinSettingsFromDrawResult(baseSettings, result);
+    if (!nextSettings) return false;
+
+    const persisted = saveSkinSettings(nextSettings);
+    if (!persisted) return false;
+
+    if (skinSaveTimeoutRef.current) {
+      window.clearTimeout(skinSaveTimeoutRef.current);
+      skinSaveTimeoutRef.current = null;
+    }
+    skinSettingsRef.current = nextSettings;
+    setSkinSettings(nextSettings);
+    return true;
+  }, [buildNextSkinSettingsFromDrawResult]);
+
   const purchaseSkin = useCallback((skinId: string) => {
     setSkinSettings(prev => {
       if (prev.ownedSkins.some(s => s.id === skinId)) return prev;
@@ -352,9 +407,11 @@ export function BlockCustomizationProvider({ children }: { children: React.React
       setActiveSkin,
       addFragments,
       addScoreMilestoneFragments,
+      commitSkinDrawResult,
+      commitSkinDrawResultPersisted,
       purchaseSkin,
     }),
-    [gate, settings, resetAll, resolver, skinSettings, activeSkin, isPremiumUiThemeActive, premiumUiTheme, premiumUiObjects, premiumUiOverrides, addSkin, setActiveSkin, addFragments, addScoreMilestoneFragments, purchaseSkin]
+    [gate, settings, resetAll, resolver, skinSettings, activeSkin, isPremiumUiThemeActive, premiumUiTheme, premiumUiObjects, premiumUiOverrides, addSkin, setActiveSkin, addFragments, addScoreMilestoneFragments, commitSkinDrawResult, commitSkinDrawResultPersisted, purchaseSkin]
   );
 
   const isGalaxyTheme = premiumUiTheme?.id === 'explore_galaxy';

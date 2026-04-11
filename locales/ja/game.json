@@ -66,7 +66,7 @@
   },
   "firstSkinReward": {
     "title": "初回スキンガチャ報酬！",
-    "description": "初めて100点を達成しました！\n無料スキンガチャ1回を今すぐ使えます。",
+    "description": "初めて50点を達成しました！\n無料スキンガチャ1回を今すぐ使えます。",
     "goToDraw": "無料ガチャへ"
   },
   "blockRefresh": {
@@ -86,11 +86,23 @@
     "tapToDismiss": "タップして閉じる",
     "recommendTitle": "最初のプレイはここから！",
     "recommendDesc": "最初のプレイは標準の7×7モードがおすすめです。",
+    "skinTitle": "スキンタブの場所",
+    "skinDesc": "100点報酬はメニューのスキンボタンから使えます。",
     "modeGuideTitle": "モード早見表",
     "modeGuideBeginner": "初心者 7×7: 空きが多く、ミスを立て直しやすい。",
     "modeGuideNormal": "ノーマル 5×5: バランス型の標準モード。",
     "modeGuideExpert": "エキスパート 4×4: 盤面が詰まりやすい高難度。",
     "tapToDismissMode": "この吹き出しをタップすると閉じます。",
+    "rulesTitle": "ゲームルール",
+    "rule1Label": "同じ数字だけ合成できます。",
+    "rule1Sub": "同じ値を重ねて数字を大きくしましょう。",
+    "rule2Label": "合成成功でスワイプ1回追加！",
+    "rule2Sub": "連続合成でコンボをつなげましょう。",
+    "rule3Label": "合成失敗ならブロック設置へ。",
+    "rule3Sub": "スワイプで合成がなければ設置ターンです。",
+    "undoTitle": "ツール案内",
+    "undoDesc": "やり直し・リフレッシュで立て直し、足りない分は広告で補充できます。",
+    "gotIt": "OK",
     "close": "閉じる"
   },
   "dailyChallenge": {

@@ -244,6 +244,8 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
           {navItems.map((item) => (
             <button
               key={item.id}
+              id={item.id === 'skin' ? 'menu-skin-btn' : undefined}
+              data-tutorial-anchor={item.id === 'skin' ? 'menu-skin-btn' : undefined}
               onClick={item.locked ? () => showLockToast(item.lockMessage!) : item.onPress}
               className={`
                 relative flex items-center gap-1 px-3 py-1 text-xs font-normal
@@ -304,6 +306,8 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
         {navItems.map((item) => (
           <button
             key={item.id}
+            id={item.id === 'skin' ? 'menu-skin-btn' : undefined}
+            data-tutorial-anchor={item.id === 'skin' ? 'menu-skin-btn' : undefined}
             onClick={item.locked ? () => showLockToast(item.lockMessage!) : item.onPress}
             className={`
               relative flex flex-col items-center justify-center

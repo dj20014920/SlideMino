@@ -66,7 +66,7 @@
   },
   "firstSkinReward": {
     "title": "첫 스킨 뽑기 보상!",
-    "description": "첫 100점 달성을 축하해요!\n무료 스킨 뽑기 1회를 바로 사용할 수 있어요.",
+    "description": "첫 50점 달성 보상으로 무료 스킨 뽑기 1회를 바로 사용할 수 있어요.",
     "goToDraw": "무료 뽑기 하러 가기"
   },
   "blockRefresh": {
@@ -86,11 +86,23 @@
     "tapToDismiss": "터치하여 닫기",
     "recommendTitle": "첫 게임은 여기서 시작하세요!",
     "recommendDesc": "처음 플레이는 기본 7×7 모드를 추천합니다.",
+    "skinTitle": "스킨 탭 위치",
+    "skinDesc": "100점 보상은 메뉴 하단 스킨 버튼에서 바로 사용하세요.",
     "modeGuideTitle": "모드 한눈에 보기",
     "modeGuideBeginner": "뉴비 7×7: 공간이 넓어 실수 복구가 쉽습니다.",
     "modeGuideNormal": "일반 5×5: 표준 밸런스 모드입니다.",
     "modeGuideExpert": "고수 4×4: 공간이 빨리 막히는 고난도 모드입니다.",
     "tapToDismissMode": "말풍선을 터치하면 닫힙니다.",
+    "rulesTitle": "게임 규칙",
+    "rule1Label": "같은 숫자만 합쳐져요.",
+    "rule1Sub": "같은 값끼리 붙여 더 큰 숫자를 만드세요.",
+    "rule2Label": "합성 성공 시 스와이프 1회 추가!",
+    "rule2Sub": "연속 합성으로 콤보를 이어가세요.",
+    "rule3Label": "합성 실패 시 블록 설치 차례예요.",
+    "rule3Sub": "스와이프 후 합성이 없으면 설치 단계로 돌아갑니다.",
+    "undoTitle": "도구 안내",
+    "undoDesc": "되돌리기·새로고침으로 실수를 복구하고, 부족하면 광고로 충전하세요.",
+    "gotIt": "확인했어요",
     "close": "닫기"
   },
   "dailyChallenge": {

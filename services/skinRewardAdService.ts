@@ -101,6 +101,8 @@ class SkinRewardAdService {
   private readonly hourlyFrequencyCap = new HourlyFrequencyCap(8);
   // 90초 내 5회 초과 시 2분 차단 (정상 사용은 도달 불가, 자동 스크립트만 감지)
   private readonly abuseGuard = new ClickAbuseGuard(5, 90_000, 120_000);
+  private showAttemptSequence = 0;
+  private activeShowAttemptId: number | null = null;
 
   constructor() {
     this.adUnitId = getSkinRewardAdId();
@@ -137,6 +139,11 @@ class SkinRewardAdService {
     AdMob.addListener(RewardAdPluginEvents.FailedToShow, () => {
       if (!this.isHandlingActiveShow()) return;
       this.loadStatus = 'failed';
+      console.warn('[SkinRewardAdService] 광고 표시 실패 이벤트 수신', {
+        attemptId: this.activeShowAttemptId,
+        loadStatus: this.loadStatus,
+      });
+      this.schedulePreloadSync('failed-to-show-event', 150);
       const callbacks = this.admobCallbacks;
       this.finalizeActiveShowSession();
       callbacks?.onError(new Error('스킨 광고 표시 실패'));
@@ -161,7 +168,7 @@ class SkinRewardAdService {
         this.scheduleFinalizeAfterDismiss();
       }
 
-      setTimeout(() => this.preloadAd(), 100);
+      this.schedulePreloadSync('dismissed', 100);
     });
   }
 
@@ -215,7 +222,15 @@ class SkinRewardAdService {
       return;
     }
 
-    if (this.isHandlingActiveShow()) return;
+    if (this.isHandlingActiveShow()) {
+      console.warn('[SkinRewardAdService] showRewardAd 중복 요청 차단', {
+        attemptId: this.activeShowAttemptId,
+        isProcessingShow: this.isProcessingShow,
+        hasCallbacks: this.admobCallbacks !== null,
+        loadStatus: this.loadStatus,
+      });
+      return;
+    }
 
     // 클릭 어뷰징 감지 (60초 내 과도한 요청 → 5분 차단)
     if (!this.abuseGuard.canProceed()) {
@@ -241,6 +256,12 @@ class SkinRewardAdService {
 
     if (this.loadStatus !== 'loaded') {
       if (this.loadStatus === 'not_loaded' || this.loadStatus === 'failed') this.preloadAd();
+      if (this.loadStatus === 'failed') {
+        console.warn('[SkinRewardAdService] showRewardAd 준비 실패 상태', {
+          lastLoadErrorCode: this.lastLoadError?.code ?? null,
+          lastLoadErrorMessage: this.lastLoadError?.message ?? null,
+        });
+      }
       if (this.loadStatus === 'failed' && this.lastLoadError?.code === 3) {
         callbacks.onError(new Error('현재 광고 재고가 부족합니다. 잠시 후 다시 시도해주세요.'));
         return;
@@ -249,6 +270,8 @@ class SkinRewardAdService {
       return;
     }
 
+    this.showAttemptSequence += 1;
+    this.activeShowAttemptId = this.showAttemptSequence;
     this.showCooldown.mark();
     this.clearFinalizeAfterDismissTimer();
     this.isProcessingShow = true;
@@ -266,9 +289,16 @@ class SkinRewardAdService {
       this.loadStatus = 'not_loaded';
       this.handleRewardEarned(reward);
     } catch (error) {
+      const normalizedError = this.normalizeAdMobError(error);
       this.loadStatus = 'failed';
+      console.warn('[SkinRewardAdService] 광고 표시 예외', {
+        attemptId: this.activeShowAttemptId,
+        code: normalizedError.code,
+        message: normalizedError.message,
+      });
+      this.schedulePreloadSync('failed-to-show-exception', 150);
       this.finalizeActiveShowSession();
-      callbacks.onError(error as Error);
+      callbacks.onError(new Error(normalizedError.message));
     }
   }
 
@@ -314,8 +344,13 @@ class SkinRewardAdService {
     this.finalizeAfterDismissTimer = setTimeout(() => {
       this.finalizeAfterDismissTimer = null;
       if (!this.rewardIssuedForCurrentShow && this.admobCallbacks) {
+        console.warn('[SkinRewardAdService] 보상 미수령으로 세션 종료', {
+          attemptId: this.activeShowAttemptId,
+          reason: 'dismiss-timeout',
+        });
         this.admobCallbacks.onError(new Error(this.rewardNotEarnedMessage));
       }
+      this.schedulePreloadSync('dismiss-timeout', 100);
       this.finalizeActiveShowSession();
     }, this.lateRewardGraceMs);
   }
@@ -333,6 +368,24 @@ class SkinRewardAdService {
     this.adClosedForCurrentShow = false;
     this.adClosedNotifiedForCurrentShow = false;
     this.admobCallbacks = null;
+    this.activeShowAttemptId = null;
+  }
+
+  private schedulePreloadSync(reason: string, delayMs = 0): void {
+    if (import.meta.env.DEV) {
+      console.debug('[SkinRewardAdService] preload 재동기화 예약', {
+        reason,
+        delayMs,
+        loadStatus: this.loadStatus,
+      });
+    }
+    if (delayMs <= 0) {
+      this.preloadAd();
+      return;
+    }
+    window.setTimeout(() => {
+      this.preloadAd();
+    }, delayMs);
   }
 
   private normalizeAdMobError(error: unknown): AdMobError {

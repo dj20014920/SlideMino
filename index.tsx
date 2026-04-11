@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import './styles/win98-theme.css';
 import './styles/galaxy-theme.css';
+import './styles/pixelblast-theme.css';
 import App from './App';
 import { BlockCustomizationProvider } from './context/BlockCustomizationContext';
 import { initI18n } from './i18n/config';

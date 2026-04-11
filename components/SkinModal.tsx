@@ -27,6 +27,9 @@ type SkinModalProps = {
 
 type SkinSectionKey = 'premium' | 'neon' | 'liquid' | 'mesh' | 'normal';
 const EXPLORE_GALAXY_SKIN_ID = 'skin_digital_explore_galaxy';
+const SKIN_SWATCH_GRID_CLASS_NAME = 'grid grid-cols-6 gap-2.5';
+const SKIN_TUTORIAL_ANCHOR_INSET_PX = 1;
+const getSkinItemTargetId = (skinId: string): string => `skin-item-${skinId}`;
 
 // 스킨 미리보기 타일 렌더링
 const SkinPreviewTile = React.memo<{ value: number; skin: { id?: string; hex: string; style?: any }; tilePx: number }>(
@@ -81,7 +84,7 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
     premiumUiObjects,
     premiumUiOverrides,
     addFragments,
-    commitSkinDrawResult,
+    commitSkinDrawResultPersisted,
     purchaseSkin,
   } = useBlockCustomization();
   const premiumUiModalOverlayClassName = premiumUiObjects.modalOverlayClassName;
@@ -115,8 +118,11 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
 
   // ── 무료 뽑기 상태 ──
   const [freeDrawResultSkinId, setFreeDrawResultSkinId] = useState<string | null>(null);
+  const [freeDrawError, setFreeDrawError] = useState<string | null>(null);
+  const [isProcessingFreeDraw, setIsProcessingFreeDraw] = useState(false);
   const [showApplyTooltip, setShowApplyTooltip] = useState(false);
-  const freeDrawTriggeredRef = useRef(false);
+  const freeDrawInFlightRef = useRef(false);
+  const freeDrawAutoAttemptedRef = useRef(false);
   const tooltipTimerRef = useRef<number | null>(null);
 
   const ownedIds = useMemo(
@@ -234,7 +240,7 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
   }, []);
 
   const ensureSkinTargetVisibleAndShowTooltip = useCallback((skinId: string) => {
-    const targetId = `skin-item-${skinId}`;
+    const targetId = getSkinItemTargetId(skinId);
     let attempts = 0;
     const maxAttempts = 6;
 
@@ -243,10 +249,10 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
       if (!target) {
         attempts += 1;
         if (attempts <= maxAttempts) {
-          window.requestAnimationFrame(run);
+          window.setTimeout(() => window.requestAnimationFrame(run), 80);
           return;
         }
-        setShowApplyTooltip(true);
+        setShowApplyTooltip(false);
         return;
       }
 
@@ -258,11 +264,16 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
 
       clearTooltipTimer();
       tooltipTimerRef.current = window.setTimeout(() => {
-        setShowApplyTooltip(true);
+        if (document.getElementById(targetId)) {
+          setShowApplyTooltip(true);
+        } else {
+          setShowApplyTooltip(false);
+        }
         tooltipTimerRef.current = null;
       }, 120);
     };
 
+    setShowApplyTooltip(false);
     window.requestAnimationFrame(run);
   }, [clearTooltipTimer]);
 
@@ -282,22 +293,24 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [open, onClose]);
 
-  // 무료 뽑기 자동 트리거
-  useEffect(() => {
-    if (!open || !freeDraw || freeDrawTriggeredRef.current) return;
-    freeDrawTriggeredRef.current = true;
-
-    const frameId = window.requestAnimationFrame(() => {
+  const attemptFreeDraw = useCallback(async (): Promise<boolean> => {
+    if (freeDrawInFlightRef.current) return false;
+    freeDrawInFlightRef.current = true;
+    setFreeDrawError(null);
+    setIsProcessingFreeDraw(true);
+    try {
       const result = drawSkin(skinSettings);
       if (!result) {
+        setFreeDrawError(String(t('modals:skin.freeDrawFailed')));
         onFreeDrawUsed?.(false);
-        return;
+        return false;
       }
 
-      const committed = commitSkinDrawResult(result);
+      const committed = await commitSkinDrawResultPersisted(result);
       if (!committed) {
+        setFreeDrawError(String(t('modals:skin.freeDrawFailed')));
         onFreeDrawUsed?.(false);
-        return;
+        return false;
       }
 
       if (result.type === 'new') {
@@ -305,23 +318,40 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
         setAcquisitionIsDuplicate(false);
         setFreeDrawResultSkinId(result.skin.id);
       } else {
-        setAcquisitionSkin({ id: result.skin.id, hex: result.skin.hex, style: (result.skin as any).style });
+        setAcquisitionSkin({ id: result.skin.id, hex: result.skin.hex, style: result.skin.style });
         setAcquisitionIsDuplicate(true);
         setFreeDrawResultSkinId(result.skin.id);
       }
       onFreeDrawUsed?.(true);
+      return true;
+    } finally {
+      freeDrawInFlightRef.current = false;
+      setIsProcessingFreeDraw(false);
+    }
+  }, [skinSettings, t, onFreeDrawUsed, commitSkinDrawResultPersisted]);
+
+  // 무료 뽑기 자동 트리거
+  useEffect(() => {
+    if (!open || !freeDraw || freeDrawAutoAttemptedRef.current) return;
+    freeDrawAutoAttemptedRef.current = true;
+
+    const frameId = window.requestAnimationFrame(() => {
+      void attemptFreeDraw();
     });
 
     return () => window.cancelAnimationFrame(frameId);
-  }, [open, freeDraw, skinSettings, commitSkinDrawResult, onFreeDrawUsed]);
+  }, [open, freeDraw, attemptFreeDraw]);
 
   // 모달 닫힐 때 무료 뽑기 상태 리셋
   useEffect(() => {
     if (!open) {
-      freeDrawTriggeredRef.current = false;
+      freeDrawAutoAttemptedRef.current = false;
+      freeDrawInFlightRef.current = false;
       clearTooltipTimer();
       setShowApplyTooltip(false);
       setFreeDrawResultSkinId(null);
+      setFreeDrawError(null);
+      setIsProcessingFreeDraw(false);
     }
   }, [open, clearTooltipTimer]);
 
@@ -385,10 +415,15 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
         setRemainingAds(skinRewardAdService.getRemainingDailyViews());
       },
       onError: (error) => {
-        setAdError(error.message);
+        const nextRemaining = skinRewardAdService.getRemainingDailyViews();
+        const message = error.message?.trim() || '광고 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+        setRemainingAds(nextRemaining);
+        setAdError(message);
+        skinRewardAdService.preloadAd();
       },
       onDailyLimitReached: () => {
-        setRemainingAds(0);
+        setRemainingAds(skinRewardAdService.getRemainingDailyViews());
+        setAdError(null);
       },
     });
   }, [skinSettings, addSkin, addFragments]);
@@ -496,7 +531,7 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
                       </div>
                       {openSections[section.key] && section.rows.map((rowSkins, rowIndex) => (
                         <React.Fragment key={rowIndex}>
-                          <div className="grid grid-cols-6 gap-2">
+                          <div className={SKIN_SWATCH_GRID_CLASS_NAME}>
                             {rowSkins.map((entry) => {
                               const isOwned = ownedIds.has(entry.id);
                               const isActive = skinSettings.activeSkinId === entry.id;
@@ -509,10 +544,14 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
                               return (
                                 <div
                                   key={entry.id}
-                                  id={`skin-item-${entry.id}`}
+                                  id={getSkinItemTargetId(entry.id)}
+                                  data-tutorial-anchor="skin-swatch"
                                   onClick={() => handleSkinTap(entry.id, entry.hex)}
                                   className={`relative aspect-square flex items-center justify-center cursor-pointer ${premiumUiCompartmentButtonClassName} ${isSelected ? premiumUiListItemHighlightClassName : ''} ${isNeonSwatch ? 'bg-slate-950/10 shadow-[inset_0_0_0_1px_rgba(2,6,23,0.12)]' : ''}`}
-                                  style={{ boxSizing: 'border-box' }}
+                                  style={{
+                                    boxSizing: 'border-box',
+                                    ['--tutorial-anchor-inset' as any]: `${SKIN_TUTORIAL_ANCHOR_INSET_PX}px`,
+                                  }}
                                 >
                                   <div className={`w-full h-full relative ${className} ${isExploreGalaxySwatch ? 'explore-galaxy-phase-sync' : ''}`} style={{ ...style, borderRadius: 0 }} data-premium-ui-allow-gradient="true" data-premium-ui-allow-shadow="true" data-skin-swatch="true">
                                     {isExploreGalaxySwatch && (
@@ -587,6 +626,19 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
 
               {isSkinRewardAdSupported() && (
                 <div style={{ marginTop: '12px', textAlign: 'center' }}>
+                  {freeDrawError && (
+                    <div className={`${premiumUiFieldRowStackedClassName} bg-danger justify-center`} style={{ marginBottom: '4px' }}>
+                      <p>{freeDrawError}</p>
+                      <button
+                        className={premiumUiCompartmentButtonClassName}
+                        onClick={() => { void attemptFreeDraw(); }}
+                        disabled={isProcessingFreeDraw}
+                        style={{ marginTop: '4px', width: '100%', fontWeight: 'bold' }}
+                      >
+                        {t('common:buttons.retry')}
+                      </button>
+                    </div>
+                  )}
                   {collectionComplete && (
                     <div className={`${premiumUiFieldRowStackedClassName} bg-info text-center justify-center`} style={{ marginBottom: '4px' }}>
                       <p>{t('modals:skin.collectionComplete')}</p>
@@ -630,7 +682,7 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
         {showApplyTooltip && (
           <TutorialTooltip
             isVisible={showApplyTooltip}
-            targetId={selectedSkinId ? `skin-item-${selectedSkinId}` : null}
+            targetId={selectedSkinId ? getSkinItemTargetId(selectedSkinId) : null}
             onDismiss={() => setShowApplyTooltip(false)}
             title={t('modals:skin.applyHintTitle')}
             description={t('modals:skin.applyHintDesc')}
@@ -695,7 +747,7 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
                     {section.rows.map((rowSkins, rowIndex) => (
                       <React.Fragment key={rowIndex}>
                         {/* 스킨 행 */}
-                        <div className="grid grid-cols-6 gap-2.5">
+                        <div className={SKIN_SWATCH_GRID_CLASS_NAME}>
                           {rowSkins.map((entry) => {
                             const isOwned = ownedIds.has(entry.id);
                             const isActive = skinSettings.activeSkinId === entry.id;
@@ -708,27 +760,34 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
                             return (
                               <button
                                 key={entry.id}
-                                id={`skin-item-${entry.id}`}
+                                id={getSkinItemTargetId(entry.id)}
+                                data-tutorial-anchor="skin-swatch"
                                 type="button"
                                 onClick={() => handleSkinTap(entry.id, entry.hex)}
                                 className={`
-                                  relative aspect-square rounded-2xl transition-all duration-150 ${isNeonSwatch ? '' : 'overflow-hidden'}
+                                  relative aspect-square rounded-2xl transition-all duration-150 overflow-hidden
                                   ${isSelected ? 'ring-2 ring-gray-900 ring-offset-2' : 'ring-1 ring-black/5'}
                                   ${isNeonSwatch ? 'bg-slate-950/10 shadow-[inset_0_0_0_1px_rgba(2,6,23,0.12)]' : ''}
-                                  ${isExploreGalaxySwatch ? 'explore-galaxy-phase-sync' : ''}
-                                  ${className}
                                 `}
-                                style={style}
+                                style={{
+                                  ['--tutorial-anchor-inset' as any]: `${SKIN_TUTORIAL_ANCHOR_INSET_PX}px`,
+                                }}
                               >
-                                {isExploreGalaxySwatch && (
-                                  <ExploreGalaxyOverlay
-                                    size={4}
-                                    cellPx={10}
-                                    active
-                                    mode="swatch"
-                                    zIndex={1}
-                                  />
-                                )}
+                                <div
+                                  className={`relative w-full h-full ${isNeonSwatch ? '' : 'overflow-hidden'} ${isExploreGalaxySwatch ? 'explore-galaxy-phase-sync' : ''} ${className}`}
+                                  style={style}
+                                  data-skin-swatch="true"
+                                >
+                                  {isExploreGalaxySwatch && (
+                                    <ExploreGalaxyOverlay
+                                      size={4}
+                                      cellPx={10}
+                                      active
+                                      mode="swatch"
+                                      zIndex={1}
+                                    />
+                                  )}
+                                </div>
                                 {!isOwned && (
                                   <div className="absolute inset-0 bg-black/40 z-[5]" />
                                 )}
@@ -819,6 +878,22 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
             {/* 뽑기 버튼 영역 */}
             {isSkinRewardAdSupported() && (
               <div className="space-y-2">
+                {freeDrawError && (
+                  <div className="text-center py-2 rounded-2xl bg-red-50 border border-red-200/60 text-red-600 font-semibold text-sm space-y-2">
+                    <div>{freeDrawError}</div>
+                    <button
+                      type="button"
+                      onClick={() => { void attemptFreeDraw(); }}
+                      disabled={isProcessingFreeDraw}
+                      className={`w-full py-2 rounded-xl text-sm font-semibold transition-all ${isProcessingFreeDraw
+                        ? 'bg-red-100 text-red-300 cursor-not-allowed'
+                        : 'bg-red-500 text-white hover:bg-red-600 active:scale-[0.98]'
+                        }`}
+                    >
+                      {t('common:buttons.retry')}
+                    </button>
+                  </div>
+                )}
                 {collectionComplete && (
                   <div className="text-center py-2 rounded-2xl bg-gradient-to-r from-amber-50 to-amber-100 border border-amber-200/60 text-amber-700 font-semibold text-sm">
                     {t('modals:skin.collectionComplete')}
@@ -866,7 +941,7 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
       {showApplyTooltip && (
         <TutorialTooltip
           isVisible={showApplyTooltip}
-          targetId={selectedSkinId ? `skin-item-${selectedSkinId}` : null}
+          targetId={selectedSkinId ? getSkinItemTargetId(selectedSkinId) : null}
           onDismiss={() => setShowApplyTooltip(false)}
           title={t('modals:skin.applyHintTitle')}
           description={t('modals:skin.applyHintDesc')}

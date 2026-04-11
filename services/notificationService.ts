@@ -131,9 +131,14 @@ function getTodayKstTime(hour: number, minute: number): Date {
  * 앱 실행 시, resume 시, 출석 완료 시 호출한다.
  * 네이티브가 아니거나 사용자가 비활성화했으면 no-op.
  */
-export async function rescheduleNotifications(): Promise<void> {
+interface RescheduleNotificationOptions {
+  allowPermissionPrompt?: boolean;
+}
+
+export async function rescheduleNotifications(options: RescheduleNotificationOptions = {}): Promise<void> {
   if (!isNativeApp()) return;
   if (!loadSettings().enabled) return;
+  const { allowPermissionPrompt = true } = options;
 
   try {
     const { LocalNotifications } = await import('@capacitor/local-notifications');
@@ -141,6 +146,7 @@ export async function rescheduleNotifications(): Promise<void> {
     // 권한 확인 (아직 미요청이면 요청)
     const perm = await LocalNotifications.checkPermissions();
     if (perm.display === 'prompt' || perm.display === 'prompt-with-rationale') {
+      if (!allowPermissionPrompt) return;
       const result = await LocalNotifications.requestPermissions();
       if (result.display !== 'granted') return; // 거부 시 조용히 포기
     } else if (perm.display !== 'granted') {

@@ -248,12 +248,22 @@ export const isCollectionComplete = (settings: SkinSettings): boolean => {
  * 스킨 조각 추가 — 이벤트 버스를 통해 Context에 위임.
  * 직접 localStorage를 쓰지 않아 Context의 debounced save와 경합하지 않습니다.
  */
-// ── First-score skin reward (최초 100점 달성 보상) ──
+// ── First-score skin reward (최초 50점 달성 보상) ──
 const FIRST_SCORE_REWARD_KEY = 'slidemino.first_score_skin_reward';
 const FIRST_SCORE_REWARD_BACKUP_KEY = `${FIRST_SCORE_REWARD_KEY}.backup`;
 const FIRST_SCORE_REWARD_SESSION_KEY = `${FIRST_SCORE_REWARD_KEY}.session`;
+const FIRST_SCORE_REWARD_SHOWN_KEY = `${FIRST_SCORE_REWARD_KEY}.shown`;
+const FIRST_SCORE_REWARD_SHOWN_BACKUP_KEY = `${FIRST_SCORE_REWARD_SHOWN_KEY}.backup`;
+const FIRST_SCORE_REWARD_SHOWN_SESSION_KEY = `${FIRST_SCORE_REWARD_SHOWN_KEY}.session`;
+const FIRST_SCORE_REWARD_PENDING_KEY = `${FIRST_SCORE_REWARD_KEY}.pending`;
+const FIRST_SCORE_REWARD_PENDING_BACKUP_KEY = `${FIRST_SCORE_REWARD_PENDING_KEY}.backup`;
+const FIRST_SCORE_REWARD_PENDING_SESSION_KEY = `${FIRST_SCORE_REWARD_PENDING_KEY}.session`;
 const CLAIMED_REWARD_VALUE = 'claimed';
+const SHOWN_REWARD_VALUE = 'shown';
+const PENDING_REWARD_VALUE = 'pending';
 let firstScoreRewardClaimedMemoryLatch = false;
+let firstScoreRewardShownMemoryLatch = false;
+let firstScoreRewardPendingMemoryLatch = false;
 
 const getStorage = (kind: 'local' | 'session'): Storage | null => {
   try {
@@ -265,20 +275,28 @@ const getStorage = (kind: 'local' | 'session'): Storage | null => {
   }
 };
 
-const readStorageFlag = (storage: Storage | null, key: string): boolean => {
+const readStorageFlag = (
+  storage: Storage | null,
+  key: string,
+  expectedValue: string = CLAIMED_REWARD_VALUE
+): boolean => {
   if (!storage) return false;
   try {
-    return storage.getItem(key) === CLAIMED_REWARD_VALUE;
+    return storage.getItem(key) === expectedValue;
   } catch (error) {
     console.warn('[skinService] Failed to read reward flag', { key, error });
     return false;
   }
 };
 
-const writeStorageFlag = (storage: Storage | null, key: string): boolean => {
+const writeStorageFlag = (
+  storage: Storage | null,
+  key: string,
+  value: string = CLAIMED_REWARD_VALUE
+): boolean => {
   if (!storage) return false;
   try {
-    storage.setItem(key, CLAIMED_REWARD_VALUE);
+    storage.setItem(key, value);
     return true;
   } catch (error) {
     console.warn('[skinService] Failed to write reward flag', { key, error });
@@ -286,7 +304,132 @@ const writeStorageFlag = (storage: Storage | null, key: string): boolean => {
   }
 };
 
-/** 최초 100점 스킨 보상을 이미 수령했는지 확인 */
+/** 최초 50점 스킨 보상 노출 여부(모달 표시) 확인 */
+export function isFirstScoreSkinRewardShown(): boolean {
+  if (firstScoreRewardShownMemoryLatch) return true;
+
+  const localStorageRef = getStorage('local');
+  const sessionStorageRef = getStorage('session');
+
+  const sessionShown = readStorageFlag(sessionStorageRef, FIRST_SCORE_REWARD_SHOWN_SESSION_KEY, SHOWN_REWARD_VALUE);
+  const primaryShown = readStorageFlag(localStorageRef, FIRST_SCORE_REWARD_SHOWN_KEY, SHOWN_REWARD_VALUE);
+  const backupShown = readStorageFlag(localStorageRef, FIRST_SCORE_REWARD_SHOWN_BACKUP_KEY, SHOWN_REWARD_VALUE);
+  const shown = sessionShown || primaryShown || backupShown || isFirstScoreSkinRewardClaimed();
+  if (!shown) return false;
+
+  firstScoreRewardShownMemoryLatch = true;
+
+  if (!sessionShown) {
+    writeStorageFlag(sessionStorageRef, FIRST_SCORE_REWARD_SHOWN_SESSION_KEY, SHOWN_REWARD_VALUE);
+  }
+  if (!primaryShown) {
+    writeStorageFlag(localStorageRef, FIRST_SCORE_REWARD_SHOWN_KEY, SHOWN_REWARD_VALUE);
+  }
+  if (!backupShown) {
+    writeStorageFlag(localStorageRef, FIRST_SCORE_REWARD_SHOWN_BACKUP_KEY, SHOWN_REWARD_VALUE);
+  }
+
+  return true;
+}
+
+/** 최초 50점 스킨 보상 노출 처리 (1회) */
+export function markFirstScoreSkinRewardShown(): boolean {
+  firstScoreRewardShownMemoryLatch = true;
+
+  const localStorageRef = getStorage('local');
+  const sessionStorageRef = getStorage('session');
+
+  const sessionSaved = writeStorageFlag(sessionStorageRef, FIRST_SCORE_REWARD_SHOWN_SESSION_KEY, SHOWN_REWARD_VALUE);
+  const primarySaved = writeStorageFlag(localStorageRef, FIRST_SCORE_REWARD_SHOWN_KEY, SHOWN_REWARD_VALUE);
+  const backupSaved = writeStorageFlag(localStorageRef, FIRST_SCORE_REWARD_SHOWN_BACKUP_KEY, SHOWN_REWARD_VALUE);
+  const persistSucceeded = primarySaved || backupSaved;
+
+  if (!persistSucceeded) {
+    console.warn('[skinService] Reward shown-state could not be persisted to localStorage; session latch only.', {
+      sessionSaved,
+    });
+  }
+
+  return persistSucceeded || sessionSaved;
+}
+
+/** 최초 50점 스킨 보상이 대기 상태인지 확인 (무료 뽑기 미소비) */
+export function isFirstScoreSkinRewardPending(): boolean {
+  if (isFirstScoreSkinRewardClaimed()) return false;
+  if (firstScoreRewardPendingMemoryLatch) return true;
+
+  const localStorageRef = getStorage('local');
+  const sessionStorageRef = getStorage('session');
+
+  const sessionPending = readStorageFlag(sessionStorageRef, FIRST_SCORE_REWARD_PENDING_SESSION_KEY, PENDING_REWARD_VALUE);
+  const primaryPending = readStorageFlag(localStorageRef, FIRST_SCORE_REWARD_PENDING_KEY, PENDING_REWARD_VALUE);
+  const backupPending = readStorageFlag(localStorageRef, FIRST_SCORE_REWARD_PENDING_BACKUP_KEY, PENDING_REWARD_VALUE);
+
+  const pending = sessionPending || primaryPending || backupPending;
+  if (!pending) return false;
+
+  firstScoreRewardPendingMemoryLatch = true;
+
+  if (!sessionPending) {
+    writeStorageFlag(sessionStorageRef, FIRST_SCORE_REWARD_PENDING_SESSION_KEY, PENDING_REWARD_VALUE);
+  }
+  if (!primaryPending) {
+    writeStorageFlag(localStorageRef, FIRST_SCORE_REWARD_PENDING_KEY, PENDING_REWARD_VALUE);
+  }
+  if (!backupPending) {
+    writeStorageFlag(localStorageRef, FIRST_SCORE_REWARD_PENDING_BACKUP_KEY, PENDING_REWARD_VALUE);
+  }
+
+  return true;
+}
+
+/** 최초 50점 스킨 보상 대기 상태 설정 */
+export function setFirstScoreSkinRewardPending(pending: boolean): boolean {
+  const localStorageRef = getStorage('local');
+  const sessionStorageRef = getStorage('session');
+
+  if (!pending) {
+    firstScoreRewardPendingMemoryLatch = false;
+    const removeFlag = (storage: Storage | null, key: string): boolean => {
+      if (!storage) return false;
+      try {
+        storage.removeItem(key);
+        return true;
+      } catch (error) {
+        console.warn('[skinService] Failed to clear reward pending flag', { key, error });
+        return false;
+      }
+    };
+
+    const sessionCleared = removeFlag(sessionStorageRef, FIRST_SCORE_REWARD_PENDING_SESSION_KEY);
+    const primaryCleared = removeFlag(localStorageRef, FIRST_SCORE_REWARD_PENDING_KEY);
+    const backupCleared = removeFlag(localStorageRef, FIRST_SCORE_REWARD_PENDING_BACKUP_KEY);
+    const persistSucceeded = primaryCleared || backupCleared;
+
+    if (!persistSucceeded) {
+      console.warn('[skinService] Reward pending-state clear degraded to session-only latch.', {
+        sessionCleared,
+      });
+    }
+    return persistSucceeded || sessionCleared;
+  }
+
+  firstScoreRewardPendingMemoryLatch = true;
+  const sessionSaved = writeStorageFlag(sessionStorageRef, FIRST_SCORE_REWARD_PENDING_SESSION_KEY, PENDING_REWARD_VALUE);
+  const primarySaved = writeStorageFlag(localStorageRef, FIRST_SCORE_REWARD_PENDING_KEY, PENDING_REWARD_VALUE);
+  const backupSaved = writeStorageFlag(localStorageRef, FIRST_SCORE_REWARD_PENDING_BACKUP_KEY, PENDING_REWARD_VALUE);
+  const persistSucceeded = primarySaved || backupSaved;
+
+  if (!persistSucceeded) {
+    console.warn('[skinService] Reward pending-state could not be persisted to localStorage; session latch only.', {
+      sessionSaved,
+    });
+  }
+
+  return persistSucceeded || sessionSaved;
+}
+
+/** 최초 50점 스킨 보상을 이미 수령했는지 확인 */
 export function isFirstScoreSkinRewardClaimed(): boolean {
   if (firstScoreRewardClaimedMemoryLatch) return true;
 
@@ -316,9 +459,11 @@ export function isFirstScoreSkinRewardClaimed(): boolean {
   return true;
 }
 
-/** 최초 100점 스킨 보상을 수령 처리 (되돌릴 수 없음) */
+/** 최초 50점 스킨 보상을 수령 처리 (되돌릴 수 없음) */
 export function claimFirstScoreSkinReward(): boolean {
   firstScoreRewardClaimedMemoryLatch = true;
+  firstScoreRewardShownMemoryLatch = true;
+  firstScoreRewardPendingMemoryLatch = false;
 
   const localStorageRef = getStorage('local');
   const sessionStorageRef = getStorage('session');
@@ -326,6 +471,10 @@ export function claimFirstScoreSkinReward(): boolean {
   const sessionSaved = writeStorageFlag(sessionStorageRef, FIRST_SCORE_REWARD_SESSION_KEY);
   const primarySaved = writeStorageFlag(localStorageRef, FIRST_SCORE_REWARD_KEY);
   const backupSaved = writeStorageFlag(localStorageRef, FIRST_SCORE_REWARD_BACKUP_KEY);
+  setFirstScoreSkinRewardPending(false);
+  writeStorageFlag(sessionStorageRef, FIRST_SCORE_REWARD_SHOWN_SESSION_KEY, SHOWN_REWARD_VALUE);
+  writeStorageFlag(localStorageRef, FIRST_SCORE_REWARD_SHOWN_KEY, SHOWN_REWARD_VALUE);
+  writeStorageFlag(localStorageRef, FIRST_SCORE_REWARD_SHOWN_BACKUP_KEY, SHOWN_REWARD_VALUE);
   const persistSucceeded = primarySaved || backupSaved;
 
   if (!persistSucceeded) {

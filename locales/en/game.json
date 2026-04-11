@@ -66,7 +66,7 @@
   },
   "firstSkinReward": {
     "title": "First Skin Draw Reward!",
-    "description": "Congrats on your first 100 points!\nYou can use 1 free skin draw right now.",
+    "description": "Congrats on your first 50 points!\nYou can use 1 free skin draw right now.",
     "goToDraw": "Go to Free Draw"
   },
   "blockRefresh": {
@@ -86,11 +86,23 @@
     "tapToDismiss": "Tap to close",
     "recommendTitle": "Start Here!",
     "recommendDesc": "For your first run, we recommend the default 7×7 mode.",
+    "skinTitle": "Skin tab location",
+    "skinDesc": "Use your 100-point reward from the Skin button in the menu.",
     "modeGuideTitle": "Quick Mode Guide",
     "modeGuideBeginner": "Beginner 7×7: more room and easier recovery from mistakes.",
     "modeGuideNormal": "Normal 5×5: balanced default mode.",
     "modeGuideExpert": "Expert 4×4: tight space and high-pressure difficulty.",
     "tapToDismissMode": "Tap this bubble to dismiss.",
+    "rulesTitle": "Game Rules",
+    "rule1Label": "Only matching numbers merge.",
+    "rule1Sub": "Merge equal tiles to grow bigger numbers.",
+    "rule2Label": "Successful merge gives 1 extra swipe!",
+    "rule2Sub": "Keep chaining merges for combos.",
+    "rule3Label": "No merge means back to placement.",
+    "rule3Sub": "If a swipe doesn't merge, place a block next.",
+    "undoTitle": "Tool tips",
+    "undoDesc": "Use Undo/Refresh to recover mistakes, and refill with ads when needed.",
+    "gotIt": "Got it",
     "close": "Close"
   },
   "dailyChallenge": {

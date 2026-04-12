@@ -11,7 +11,7 @@
 
 import type { ShapeType } from '../types';
 import { gameEventBus } from './gameEventBus';
-import { addFragments } from './skinService';
+import { addFragmentsPersisted, deductFragmentsPersisted } from './skinService';
 import { mulberry32 } from './prng';
 import { resolvePieceTypeFromCells } from './gameLogic';
 import { getKstDateString } from './streakService';
@@ -21,6 +21,7 @@ import { KST_OFFSET_MS } from '../config/constants';
 // ====== 상수 ======
 
 const STORAGE_KEY = 'slidemino.missions.v1';
+const STORAGE_BACKUP_KEY = `${STORAGE_KEY}.backup`;
 
 // 미션 보상 조각 수
 const DAILY_REWARD_EASY = 1;
@@ -31,6 +32,13 @@ const WEEKLY_REWARD_EASY = 3;
 const WEEKLY_REWARD_MEDIUM = 5;
 const WEEKLY_REWARD_HARD = 8;
 const MISSION_SLOT_COUNT = 3;
+
+export type MissionStateChangeReason = 'claim' | 'daily_bonus' | 'reroll' | 'reset';
+
+export interface MissionStateChangedInfo {
+  reason: MissionStateChangeReason;
+  isDaily?: boolean;
+}
 
 // ====== 미션 추적 타입 ======
 
@@ -380,12 +388,11 @@ function ensureStateLoaded(): void {
   stateLoaded = true;
 }
 
-function loadState(): MissionState {
+function parseStoredState(raw: string | null): MissionState | null {
+  if (!raw) return null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_STATE };
     const parsed = JSON.parse(raw);
-    if (parsed?.version !== 1) return { ...DEFAULT_STATE };
+    if (parsed?.version !== 1) return null;
     return {
       ...DEFAULT_STATE,
       ...parsed,
@@ -400,16 +407,59 @@ function loadState(): MissionState {
       slideDirectionsUsed: Array.isArray(parsed.slideDirectionsUsed) ? parsed.slideDirectionsUsed : [],
     } as MissionState;
   } catch {
-    return { ...DEFAULT_STATE };
+    return null;
   }
 }
 
-function saveState(): void {
+function safeGetStorageItem(key: string): string | null {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    return localStorage.getItem(key);
   } catch {
-    // 저장 실패 무시 (private mode 등)
+    return null;
   }
+}
+
+function loadState(): MissionState {
+  const primaryState = parseStoredState(safeGetStorageItem(STORAGE_KEY));
+  if (primaryState) return primaryState;
+
+  const backupState = parseStoredState(safeGetStorageItem(STORAGE_BACKUP_KEY));
+  if (backupState) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(backupState));
+    } catch {
+      // primary 복구 저장 실패는 무시하고 backup 값으로 계속 진행
+    }
+    return backupState;
+  }
+
+  return { ...DEFAULT_STATE };
+}
+
+function saveStatePersisted(): boolean {
+  const serialized = JSON.stringify(state);
+  try {
+    localStorage.setItem(STORAGE_KEY, serialized);
+  } catch {
+    // primary 저장 실패는 치명적
+    return false;
+  }
+
+  try {
+    localStorage.setItem(STORAGE_BACKUP_KEY, serialized);
+  } catch {
+    // backup 저장 실패는 무시 (primary 성공 시 동작 지속)
+  }
+
+  return true;
+}
+
+function saveState(): void {
+  saveStatePersisted();
+}
+
+function emitMissionStateChanged(payload: MissionStateChangedInfo): void {
+  gameEventBus.emit('MISSION_STATE_CHANGED', payload);
 }
 
 // ====== 날짜 전환 감지 & 미션 생성 ======
@@ -420,6 +470,8 @@ function ensureMissionsUpToDate(): void {
   const today = getKstDateString();
   const monday = getKstMondayString();
   let changed = false;
+  let dailyChanged = false;
+  let weeklyChanged = false;
 
   // 일일 미션 갱신
   if (state.dailyDate !== today) {
@@ -436,6 +488,7 @@ function ensureMissionsUpToDate(): void {
     state.dailyRerollUsedSlots = Array(MISSION_SLOT_COUNT).fill(false);
     state.dailyBonusClaimed = false;
     changed = true;
+    dailyChanged = true;
   }
 
   // 주간 미션 갱신
@@ -452,6 +505,7 @@ function ensureMissionsUpToDate(): void {
     }));
     state.weeklyRerollUsedSlots = Array(MISSION_SLOT_COUNT).fill(false);
     changed = true;
+    weeklyChanged = true;
   }
 
   // 과거 버전 저장값에 남아있는 삭제된 미션 ID를 현재 풀 기준으로 교체
@@ -459,16 +513,22 @@ function ensureMissionsUpToDate(): void {
   if (repairedDaily.changed) {
     state.dailyMissions = repairedDaily.missions;
     changed = true;
+    dailyChanged = true;
   }
 
   const repairedWeekly = repairInvalidMissions(state.weeklyMissions, dateToSeed(monday) + 7777);
   if (repairedWeekly.changed) {
     state.weeklyMissions = repairedWeekly.missions;
     changed = true;
+    weeklyChanged = true;
   }
 
   if (changed) {
     saveState();
+    emitMissionStateChanged({
+      reason: 'reset',
+      isDaily: dailyChanged && !weeklyChanged ? true : weeklyChanged && !dailyChanged ? false : undefined,
+    });
   }
 }
 
@@ -598,6 +658,11 @@ export function getReward(difficulty: MissionDifficulty, isDaily: boolean): numb
     case 'medium': return WEEKLY_REWARD_MEDIUM;
     case 'hard': return WEEKLY_REWARD_HARD;
   }
+}
+
+/** 일일 전체 완료 보너스 조각 수 */
+export function getDailyBonusAllCompleteReward(): number {
+  return DAILY_BONUS_ALL_COMPLETE;
 }
 
 // ====== 이벤트 버스 구독 (자동 추적) ======
@@ -904,6 +969,7 @@ function rerollMission(index: number, isDaily: boolean): ActiveMission | null {
   };
   rerollUsedSlots[index] = true;
   saveState();
+  emitMissionStateChanged({ reason: 'reroll', isDaily });
   return missions[index];
 }
 
@@ -917,7 +983,7 @@ export function rerollWeeklyMission(index: number): ActiveMission | null {
   return rerollMission(index, false);
 }
 
-/** 미션 보상 수령 — 조각 지급 후 claimed true로 변경 */
+/** 미션 보상 수령 — claimed 영속화 + 조각 영속화 성공 시에만 확정 */
 export function claimMissionReward(definitionId: string, isDaily: boolean): number {
   ensureMissionsUpToDate();
   const missions = isDaily ? state.dailyMissions : state.weeklyMissions;
@@ -928,18 +994,46 @@ export function claimMissionReward(definitionId: string, isDaily: boolean): numb
   if (!def) return 0;
 
   const reward = getReward(def.difficulty, isDaily);
+  if (!addFragmentsPersisted(reward, isDaily ? 'mission_reward_daily' : 'mission_reward_weekly')) {
+    return 0;
+  }
   mission.claimed = true;
-  addFragments(reward);
-  saveState();
+  if (!saveStatePersisted()) {
+    mission.claimed = false;
+    const reverted = deductFragmentsPersisted(
+      reward,
+      isDaily ? 'mission_reward_daily_rollback' : 'mission_reward_weekly_rollback'
+    );
+    if (!reverted) {
+      // 보상 롤백 불가 시 현재 세션에서는 수령 상태를 유지해 중복 수령을 방지한다.
+      mission.claimed = true;
+      emitMissionStateChanged({ reason: 'claim', isDaily });
+      return reward;
+    }
+    return 0;
+  }
+  emitMissionStateChanged({ reason: 'claim', isDaily });
   return reward;
 }
 
 /** 일일 전체 완료 보너스 수령 */
 export function claimDailyBonus(): number {
   if (!canClaimDailyBonus()) return 0;
+  if (!addFragmentsPersisted(DAILY_BONUS_ALL_COMPLETE, 'mission_daily_bonus')) {
+    return 0;
+  }
   state.dailyBonusClaimed = true;
-  addFragments(DAILY_BONUS_ALL_COMPLETE);
-  saveState();
+  if (!saveStatePersisted()) {
+    state.dailyBonusClaimed = false;
+    const reverted = deductFragmentsPersisted(DAILY_BONUS_ALL_COMPLETE, 'mission_daily_bonus_rollback');
+    if (!reverted) {
+      state.dailyBonusClaimed = true;
+      emitMissionStateChanged({ reason: 'daily_bonus', isDaily: true });
+      return DAILY_BONUS_ALL_COMPLETE;
+    }
+    return 0;
+  }
+  emitMissionStateChanged({ reason: 'daily_bonus', isDaily: true });
   return DAILY_BONUS_ALL_COMPLETE;
 }
 
@@ -947,23 +1041,42 @@ export function claimDailyBonus(): number {
 export function claimAllDailyRewards(): number {
   ensureMissionsUpToDate();
   let total = 0;
+  const claimableMissions: ActiveMission[] = [];
   for (const m of state.dailyMissions) {
     if (m.completed && !m.claimed) {
       const def = getMissionDefinition(m.definitionId);
       if (!def) continue;
       const reward = getReward(def.difficulty, true);
-      m.claimed = true;
+      claimableMissions.push(m);
       total += reward;
     }
   }
   // 보너스도 함께
-  if (canClaimDailyBonus()) {
-    state.dailyBonusClaimed = true;
+  const bonusWillBeClaimed = canClaimDailyBonus();
+  if (bonusWillBeClaimed) {
     total += DAILY_BONUS_ALL_COMPLETE;
   }
   if (total > 0) {
-    addFragments(total);
-    saveState();
+    if (!addFragmentsPersisted(total, 'mission_reward_daily_all')) {
+      return 0;
+    }
+
+    for (const mission of claimableMissions) mission.claimed = true;
+    if (bonusWillBeClaimed) state.dailyBonusClaimed = true;
+
+    if (!saveStatePersisted()) {
+      for (const mission of claimableMissions) mission.claimed = false;
+      if (bonusWillBeClaimed) state.dailyBonusClaimed = false;
+      const reverted = deductFragmentsPersisted(total, 'mission_reward_daily_all_rollback');
+      if (!reverted) {
+        for (const mission of claimableMissions) mission.claimed = true;
+        if (bonusWillBeClaimed) state.dailyBonusClaimed = true;
+        emitMissionStateChanged({ reason: 'claim', isDaily: true });
+        return total;
+      }
+      return 0;
+    }
+    emitMissionStateChanged({ reason: 'claim', isDaily: true });
   }
   return total;
 }
@@ -972,18 +1085,33 @@ export function claimAllDailyRewards(): number {
 export function claimAllWeeklyRewards(): number {
   ensureMissionsUpToDate();
   let total = 0;
+  const claimableMissions: ActiveMission[] = [];
   for (const m of state.weeklyMissions) {
     if (m.completed && !m.claimed) {
       const def = getMissionDefinition(m.definitionId);
       if (!def) continue;
       const reward = getReward(def.difficulty, false);
-      m.claimed = true;
+      claimableMissions.push(m);
       total += reward;
     }
   }
   if (total > 0) {
-    addFragments(total);
-    saveState();
+    if (!addFragmentsPersisted(total, 'mission_reward_weekly_all')) {
+      return 0;
+    }
+
+    for (const mission of claimableMissions) mission.claimed = true;
+    if (!saveStatePersisted()) {
+      for (const mission of claimableMissions) mission.claimed = false;
+      const reverted = deductFragmentsPersisted(total, 'mission_reward_weekly_all_rollback');
+      if (!reverted) {
+        for (const mission of claimableMissions) mission.claimed = true;
+        emitMissionStateChanged({ reason: 'claim', isDaily: false });
+        return total;
+      }
+      return 0;
+    }
+    emitMissionStateChanged({ reason: 'claim', isDaily: false });
   }
   return total;
 }

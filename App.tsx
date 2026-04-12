@@ -209,6 +209,12 @@ const HOME_NAV_FLUSH_TIMEOUT_MS = 320;
 const SKIN_GIFT_CLAIM_RETRY_DELAYS_MS = [0, 2000, 10000, 30000] as const;
 const SKIN_GIFT_CLAIM_POLL_INTERVAL_MS = 3 * 60 * 1000;
 
+type ComboMessageItem = {
+  id: number;
+  message: string;
+  durationMs: number;
+};
+
 // Undo 시스템: 직전 상태를 저장하기 위한 스냅샷 인터페이스
 interface GameSnapshot {
   grid: Grid;
@@ -740,9 +746,22 @@ const App: React.FC = () => {
   // ===== 미션 시스템 초기화 =====
   useEffect(() => {
     initMissionTracking();
+    const syncDailyMissionCompleted = () => {
+      setDailyMissionCompleted(getDailyCompletedCount());
+    };
+    const scheduleMissionNotificationResync = () => {
+      if (missionRescheduleDebounceRef.current != null) {
+        window.clearTimeout(missionRescheduleDebounceRef.current);
+      }
+      missionRescheduleDebounceRef.current = window.setTimeout(() => {
+        missionRescheduleDebounceRef.current = null;
+        void rescheduleNotifications({ allowPermissionPrompt: isEarlyOnboardingCompleted() });
+      }, 500);
+    };
 
     const unsubComplete = gameEventBus.on('MISSION_COMPLETED', (info: MissionCompleteInfo) => {
-      setDailyMissionCompleted(getDailyCompletedCount());
+      syncDailyMissionCompleted();
+      scheduleMissionNotificationResync();
       showComboMessage(`🎯 ${t(info.nameKey as any)} ${t('game:missions.completed' as any)}`, 3000);
     });
 
@@ -753,8 +772,41 @@ const App: React.FC = () => {
       showComboMessage(`📋 ${t(info.nameKey as any)} ${info.milestonePercent}% (${info.current}/${info.target})`, 2000);
     });
 
-    return () => { unsubComplete(); unsubProgress(); };
+    const unsubMissionStateChanged = gameEventBus.on('MISSION_STATE_CHANGED', () => {
+      syncDailyMissionCompleted();
+      scheduleMissionNotificationResync();
+    });
+
+    return () => {
+      unsubComplete();
+      unsubProgress();
+      unsubMissionStateChanged();
+      if (missionRescheduleDebounceRef.current != null) {
+        window.clearTimeout(missionRescheduleDebounceRef.current);
+        missionRescheduleDebounceRef.current = null;
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const syncDailyMissionCompleted = () => {
+      setDailyMissionCompleted(getDailyCompletedCount());
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      syncDailyMissionCompleted();
+    };
+
+    const intervalId = window.setInterval(syncDailyMissionCompleted, 60_000);
+    window.addEventListener(APP_RESUME_EVENT, syncDailyMissionCompleted);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener(APP_RESUME_EVENT, syncDailyMissionCompleted);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   // ===== 로컬 푸시 알림 스케줄링 (앱 시작 시) =====
@@ -876,7 +928,7 @@ const App: React.FC = () => {
   const [boardSize, setBoardSize] = useState<BoardSize>(8);
   const [viewportSize, setViewportSize] = useState<ViewportSize>(getViewportSize);
   const [layoutChromeHeights, setLayoutChromeHeights] = useState<LayoutChromeHeights>(DEFAULT_LAYOUT_CHROME_HEIGHTS);
-  const [comboMessage, setComboMessage] = useState<string | null>(null);
+  const [comboMessageQueue, setComboMessageQueue] = useState<ComboMessageItem[]>([]);
   const isLandscapeViewport = useMemo(() => {
     if (typeof window === 'undefined') return false;
     // screen.orientation.type is the most reliable way to detect device orientation
@@ -959,6 +1011,7 @@ const App: React.FC = () => {
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false);
   const [dailyMissionCompleted, setDailyMissionCompleted] = useState(() => getDailyCompletedCount());
   const missionProgressThrottleRef = useRef(0);
+  const missionRescheduleDebounceRef = useRef<number | null>(null);
 
   // ===== XP/레벨 + 캘린더 상태 =====
   const [isXpModalOpen, setIsXpModalOpen] = useState(false);
@@ -1253,6 +1306,7 @@ const App: React.FC = () => {
   const mergedNumberBurstClearTimeoutRef = useRef<number | null>(null);
   const unlockTimeoutRef = useRef<number | null>(null);
   const comboMessageTimeoutRef = useRef<number | null>(null);
+  const comboMessageIdRef = useRef(0);
   const blockRefreshNoticeTimeoutRef = useRef<number | null>(null);
   const reviveDestroyEffectTimeoutsRef = useRef<number[]>([]);
   const dragPointerIdRef = useRef<number | null>(null);
@@ -2139,7 +2193,7 @@ const App: React.FC = () => {
     setIsAnimating(false);
     setPhase(Phase.PLACE);
     setGameState(GameState.PLAYING);
-    setComboMessage(null);
+    clearComboMessageQueue();
     setCanSkipSlide(false);
     // Undo 초기화
     setLastSnapshot(null);
@@ -2250,7 +2304,7 @@ const App: React.FC = () => {
       setIsAnimating(false);
       setPhase(Phase.PLACE);
       setGameState(GameState.PLAYING);
-      setComboMessage(null);
+      clearComboMessageQueue();
       setCanSkipSlide(false);
       setLastSnapshot(null);
       // 챌린지 모드: undo/blockRefresh/revive 비활성화
@@ -2348,7 +2402,7 @@ const App: React.FC = () => {
     setIsAnimating(false);
     setPhase(Phase.PLACE);
     setGameState(GameState.PLAYING);
-    setComboMessage(null);
+    clearComboMessageQueue();
     setCanSkipSlide(false);
     setLastSnapshot(null);
     // 이벤트 모드: undo/blockRefresh/revive 비활성화
@@ -2438,7 +2492,7 @@ const App: React.FC = () => {
     setIsAnimating(false);
     setPhase(saved.phase as Phase);
     setGameState(GameState.PLAYING);
-    setComboMessage(null);
+    clearComboMessageQueue();
     setCanSkipSlide(false);
     setLastSnapshot(null);
     setUndoRemaining(rule.disableUndo ? 0 : INITIAL_UNDO_AMOUNT);
@@ -2498,17 +2552,49 @@ const App: React.FC = () => {
     });
   }, [grid, slots, score, phase, canSkipSlide]);
 
-  const showComboMessage = useCallback((message: string, durationMs = 1600) => {
-    setComboMessage(message);
+  const clearComboMessageQueue = useCallback(() => {
     if (comboMessageTimeoutRef.current) {
       window.clearTimeout(comboMessageTimeoutRef.current);
       comboMessageTimeoutRef.current = null;
     }
-    comboMessageTimeoutRef.current = window.setTimeout(() => {
-      setComboMessage(null);
-      comboMessageTimeoutRef.current = null;
-    }, durationMs);
+    setComboMessageQueue([]);
   }, []);
+
+  const showComboMessage = useCallback((message: string, durationMs = 1600) => {
+    const id = comboMessageIdRef.current + 1;
+    comboMessageIdRef.current = id;
+    setComboMessageQueue((prev) => [...prev, { id, message, durationMs }]);
+  }, []);
+
+  const comboMessage = comboMessageQueue[0]?.message ?? null;
+
+  useEffect(() => {
+    const activeMessage = comboMessageQueue[0];
+    if (!activeMessage) {
+      if (comboMessageTimeoutRef.current) {
+        window.clearTimeout(comboMessageTimeoutRef.current);
+        comboMessageTimeoutRef.current = null;
+      }
+      return;
+    }
+
+    if (comboMessageTimeoutRef.current) {
+      window.clearTimeout(comboMessageTimeoutRef.current);
+      comboMessageTimeoutRef.current = null;
+    }
+
+    comboMessageTimeoutRef.current = window.setTimeout(() => {
+      setComboMessageQueue((prev) => prev.slice(1));
+      comboMessageTimeoutRef.current = null;
+    }, activeMessage.durationMs);
+
+    return () => {
+      if (comboMessageTimeoutRef.current) {
+        window.clearTimeout(comboMessageTimeoutRef.current);
+        comboMessageTimeoutRef.current = null;
+      }
+    };
+  }, [comboMessageQueue[0]?.id, comboMessageQueue[0]?.durationMs]);
 
   // 게임 중 최고 점수 추적 (저장 및 복원용)
   useEffect(() => {
@@ -2829,7 +2915,7 @@ const App: React.FC = () => {
       window.clearTimeout(comboMessageTimeoutRef.current);
       comboMessageTimeoutRef.current = null;
     }
-    setComboMessage(null);
+    clearComboMessageQueue();
 
     // 애니메이션 관련 상태 정리
     setMergingTiles(EMPTY_MERGING_TILES);
@@ -3258,7 +3344,7 @@ const App: React.FC = () => {
   // finishSlideTurn is used by executeSlide when a swipe does not merge.
   const finishSlideTurn = useCallback(() => {
     setPhase(Phase.PLACE);
-    setComboMessage(null);
+    clearComboMessageQueue();
     setCanSkipSlide(false);
   }, []);
 
@@ -3465,7 +3551,7 @@ const App: React.FC = () => {
             value: draggingPiece.value,
           });
           setCanSkipSlide(false);
-          setComboMessage(null);
+          clearComboMessageQueue();
 
           if (tutorialStep === 1) {
             setTutorialStep(2); // Proceed to Swipe Tutorial

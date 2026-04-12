@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Hand } from 'lucide-react';
+import { measureRectInOverlaySpace } from '../services/tutorialTargetGeometry';
 
 interface TutorialOverlayProps {
   step: number; // 0: off, 1: drag, 2: swipe
@@ -8,6 +9,7 @@ interface TutorialOverlayProps {
 
 export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ step }) => {
   const { t } = useTranslation();
+  const overlayRef = useRef<HTMLDivElement | null>(null);
   const [positions, setPositions] = useState<{
     startX: number;
     startY: number;
@@ -37,7 +39,12 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ step }) => {
         return;
       }
 
-      const boardRect = boardEl.getBoundingClientRect();
+      const boardRect = measureRectInOverlaySpace(boardEl, overlayRef.current, 'self');
+      if (!boardRect) {
+        setPositions(null);
+        setHighlightRects(null);
+        return;
+      }
 
       if (step === 1) {
         if (!slotEl) {
@@ -45,7 +52,12 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ step }) => {
           setHighlightRects(null);
           return;
         }
-        const slotRect = slotEl.getBoundingClientRect();
+        const slotRect = measureRectInOverlaySpace(slotEl, overlayRef.current, 'self');
+        if (!slotRect) {
+          setPositions(null);
+          setHighlightRects(null);
+          return;
+        }
         const next = {
           startX: slotRect.left + slotRect.width / 2,
           startY: slotRect.top + slotRect.height / 2,
@@ -140,7 +152,7 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ step }) => {
   if (step === 0 || !positions) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] pointer-events-none overflow-hidden">
+    <div ref={overlayRef} className="fixed inset-0 z-[9999] pointer-events-none overflow-hidden">
       {/* Ghost Hand Animation */}
       {highlightRects && (
         <>

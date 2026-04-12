@@ -491,3 +491,47 @@ export const addFragments = (amount: number, source: string = 'unknown'): void =
   if (safeAmount <= 0) return;
   gameEventBus.emit('FRAGMENTS_ADDED', { amount: safeAmount, source });
 };
+
+/**
+ * 스킨 조각 영속 추가
+ * - load → 가산 → save 성공 시에만 FRAGMENTS_ADDED 이벤트 발행
+ */
+export const addFragmentsPersisted = (amount: number, source: string = 'unknown'): boolean => {
+  const safeAmount = Math.max(0, Math.floor(amount));
+  if (safeAmount <= 0) return false;
+
+  const current = loadSkinSettings();
+  const next: SkinSettings = {
+    ...current,
+    fragments: Math.max(0, Math.floor(current.fragments + safeAmount)),
+  };
+
+  const saved = saveSkinSettings(next);
+  if (!saved) return false;
+
+  gameEventBus.emit('FRAGMENTS_ADDED', { amount: safeAmount, source });
+  return true;
+};
+
+/**
+ * 스킨 조각 영속 차감
+ * - load → 차감 → save 성공 시에만 FRAGMENTS_ADDED(음수) 이벤트 발행
+ */
+export const deductFragmentsPersisted = (amount: number, source: string = 'unknown'): boolean => {
+  const safeAmount = Math.max(0, Math.floor(amount));
+  if (safeAmount <= 0) return false;
+
+  const current = loadSkinSettings();
+  if (current.fragments < safeAmount) return false;
+
+  const next: SkinSettings = {
+    ...current,
+    fragments: Math.max(0, Math.floor(current.fragments - safeAmount)),
+  };
+
+  const saved = saveSkinSettings(next);
+  if (!saved) return false;
+
+  gameEventBus.emit('FRAGMENTS_ADDED', { amount: -safeAmount, source });
+  return true;
+};

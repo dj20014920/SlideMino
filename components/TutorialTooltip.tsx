@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Hand, Sparkles, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { createTargetRectTracker } from '../services/tutorialTargetGeometry';
 
 const EDGE_PADDING_PX = 12;
 const TARGET_GAP_PX = 12;
@@ -12,30 +13,6 @@ const MAX_BUBBLE_WIDTH_PX = 360;
 const clamp = (value: number, min: number, max: number): number => {
   if (min > max) return min;
   return Math.min(Math.max(value, min), max);
-};
-
-const readAnchorNumber = (style: CSSStyleDeclaration, name: string, fallback: number): number => {
-  const raw = style.getPropertyValue(name).trim();
-  if (!raw) return fallback;
-  const parsed = Number(raw.replace('px', '').trim());
-  return Number.isFinite(parsed) ? parsed : fallback;
-};
-
-const resolveAnchoredRect = (target: HTMLElement): DOMRect => {
-  const anchorTarget = target.dataset.tutorialAnchor === 'skin-swatch'
-    ? (target.querySelector<HTMLElement>('[data-skin-swatch="true"]') ?? target)
-    : target;
-  const baseRect = anchorTarget.getBoundingClientRect();
-  const style = window.getComputedStyle(anchorTarget);
-  const inset = readAnchorNumber(style, '--tutorial-anchor-inset', 0);
-  const offsetX = readAnchorNumber(style, '--tutorial-anchor-offset-x', 0);
-  const offsetY = readAnchorNumber(style, '--tutorial-anchor-offset-y', 0);
-
-  const left = baseRect.left + inset + offsetX;
-  const top = baseRect.top + inset + offsetY;
-  const width = Math.max(2, baseRect.width - inset * 2);
-  const height = Math.max(2, baseRect.height - inset * 2);
-  return new DOMRect(left, top, width, height);
 };
 
 interface TutorialTooltipProps {
@@ -73,13 +50,7 @@ export const TutorialTooltip: React.FC<TutorialTooltipProps> = ({
       return;
     }
 
-    const updateTarget = () => {
-      if (!targetId) {
-        setTargetRect(null);
-        return;
-      }
-
-      const el = document.getElementById(targetId);
+    const updateViewport = () => {
       const nextViewport = {
         width: window.innerWidth,
         height: window.innerHeight,
@@ -89,20 +60,35 @@ export const TutorialTooltip: React.FC<TutorialTooltipProps> = ({
           ? prev
           : nextViewport
       );
-
-      if (el) {
-        setTargetRect(resolveAnchoredRect(el));
-      } else {
-        setTargetRect(null);
-      }
     };
-    
-    // Initial check and regular updates
-    updateTarget();
-    const interval = setInterval(updateTarget, 100);
+
+    updateViewport();
+    const tracker = createTargetRectTracker({
+      getTarget: () => (targetId ? document.getElementById(targetId) : null),
+      anchorMode: 'auto',
+      onRect: (rect) => {
+        updateViewport();
+        setTargetRect((prev) => {
+          if (
+            prev &&
+            prev.left === rect.left &&
+            prev.top === rect.top &&
+            prev.width === rect.width &&
+            prev.height === rect.height
+          ) {
+            return prev;
+          }
+          return rect;
+        });
+      },
+      onMissing: () => {
+        updateViewport();
+        setTargetRect(null);
+      },
+    });
 
     return () => {
-      clearInterval(interval);
+      tracker.cleanup();
     };
   }, [isVisible, targetId]);
 
@@ -125,9 +111,7 @@ export const TutorialTooltip: React.FC<TutorialTooltipProps> = ({
 
     const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : viewport.width;
     const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : viewport.height;
-    
-    const usableHeight = viewportHeight; // Simplified for overlay context
-    const overlayOffset = { top: 0, left: 0 }; // Assume fixed overlay at 0,0
+    const usableHeight = viewportHeight;
 
     const targetLeft = targetRect.left;
     const targetTop = targetRect.top;

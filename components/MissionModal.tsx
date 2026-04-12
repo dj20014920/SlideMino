@@ -2,7 +2,7 @@
  * 미션 모달 — 일일/주간 미션 목록 + 보상 수령 + 다시굴리기
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, RefreshCw, Check, Gift, Clock, Star } from 'lucide-react';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
@@ -23,6 +23,7 @@ import {
   getDailyTimeRemainingMs,
   getWeeklyTimeRemainingMs,
   getReward,
+  getDailyBonusAllCompleteReward,
   type ActiveMission,
   type MissionDifficulty,
 } from '../services/missionService';
@@ -231,6 +232,8 @@ export const MissionModal: React.FC<MissionModalProps> = ({ open, onClose, onRew
   const [dailyTimeLeft, setDailyTimeLeft] = useState('');
   const [weeklyTimeLeft, setWeeklyTimeLeft] = useState('');
   const [tab, setTab] = useState<'daily' | 'weekly'>('daily');
+  const prevDailyRemainingMsRef = useRef<number | null>(null);
+  const prevWeeklyRemainingMsRef = useRef<number | null>(null);
 
   // 데이터 새로고침
   const refresh = useCallback(() => {
@@ -244,8 +247,12 @@ export const MissionModal: React.FC<MissionModalProps> = ({ open, onClose, onRew
     setWeeklyRerollAvailableSlots(
       nextWeeklyMissions.map((_, index) => canRerollWeeklyMission(index))
     );
-    setDailyTimeLeft(formatTimeRemaining(getDailyTimeRemainingMs()));
-    setWeeklyTimeLeft(formatTimeRemaining(getWeeklyTimeRemainingMs()));
+    const nextDailyRemainingMs = getDailyTimeRemainingMs();
+    const nextWeeklyRemainingMs = getWeeklyTimeRemainingMs();
+    prevDailyRemainingMsRef.current = nextDailyRemainingMs;
+    prevWeeklyRemainingMsRef.current = nextWeeklyRemainingMs;
+    setDailyTimeLeft(formatTimeRemaining(nextDailyRemainingMs));
+    setWeeklyTimeLeft(formatTimeRemaining(nextWeeklyRemainingMs));
   }, []);
 
   // 모달 열릴 때 데이터 신선하게
@@ -257,11 +264,25 @@ export const MissionModal: React.FC<MissionModalProps> = ({ open, onClose, onRew
   useEffect(() => {
     if (!open) return;
     const id = setInterval(() => {
-      setDailyTimeLeft(formatTimeRemaining(getDailyTimeRemainingMs()));
-      setWeeklyTimeLeft(formatTimeRemaining(getWeeklyTimeRemainingMs()));
+      const nextDailyRemainingMs = getDailyTimeRemainingMs();
+      const nextWeeklyRemainingMs = getWeeklyTimeRemainingMs();
+      const prevDailyRemainingMs = prevDailyRemainingMsRef.current;
+      const prevWeeklyRemainingMs = prevWeeklyRemainingMsRef.current;
+
+      const crossedDailyBoundary = prevDailyRemainingMs != null && nextDailyRemainingMs > prevDailyRemainingMs + 1000;
+      const crossedWeeklyBoundary = prevWeeklyRemainingMs != null && nextWeeklyRemainingMs > prevWeeklyRemainingMs + 1000;
+
+      prevDailyRemainingMsRef.current = nextDailyRemainingMs;
+      prevWeeklyRemainingMsRef.current = nextWeeklyRemainingMs;
+      setDailyTimeLeft(formatTimeRemaining(nextDailyRemainingMs));
+      setWeeklyTimeLeft(formatTimeRemaining(nextWeeklyRemainingMs));
+
+      if (crossedDailyBoundary || crossedWeeklyBoundary) {
+        refresh();
+      }
     }, 1000);
     return () => clearInterval(id);
-  }, [open]);
+  }, [open, refresh]);
 
   const handleClaim = useCallback((definitionId: string) => {
     const isDaily = tab === 'daily';
@@ -295,6 +316,8 @@ export const MissionModal: React.FC<MissionModalProps> = ({ open, onClose, onRew
   const dailyCompleted = dailyMissions.filter(m => m.completed).length;
   const weeklyCompleted = weeklyMissions.filter(m => m.completed).length;
   const bonusAvailable = canClaimDailyBonus();
+  const dailyBonusReward = getDailyBonusAllCompleteReward();
+  const closeLabel = t('game:close');
   const dailyRerollAvailable = dailyRerollAvailableSlots.some(Boolean);
   const weeklyRerollAvailable = weeklyRerollAvailableSlots.some(Boolean);
 
@@ -310,7 +333,7 @@ export const MissionModal: React.FC<MissionModalProps> = ({ open, onClose, onRew
           <div className={premiumUiTitleBarClassName}>
             <div className={premiumUiTitleBarTextClassName}><span className="font-bold">★</span>{' '}{t('game:missions.title')}</div>
             <div className={premiumUiTitleBarControlsClassName}>
-              <button aria-label="Close" onClick={onClose} />
+              <button aria-label={closeLabel} title={closeLabel} onClick={onClose} />
             </div>
           </div>
         ) : (
@@ -319,7 +342,7 @@ export const MissionModal: React.FC<MissionModalProps> = ({ open, onClose, onRew
               <Star className="text-violet-500" size={22} />
               {t('game:missions.title')}
             </h2>
-            <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-200/50 text-gray-500">
+            <button aria-label={closeLabel} title={closeLabel} onClick={onClose} className="p-2 rounded-full hover:bg-gray-200/50 text-gray-500">
               <X size={18} />
             </button>
           </div>
@@ -401,7 +424,7 @@ export const MissionModal: React.FC<MissionModalProps> = ({ open, onClose, onRew
                         : 'px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-sm font-bold shadow-md hover:shadow-lg active:scale-95 transition-all'
                       }
                     >
-                      +3{isPremiumUi ? <span className="font-bold">♦</span> : '💎'} {t('game:missions.claimBonus')}
+                      +{dailyBonusReward}{isPremiumUi ? <span className="font-bold">♦</span> : '💎'} {t('game:missions.claimBonus')}
                     </button>
                   ) : (
                     <span className="text-xs text-amber-600">{t('game:missions.bonusClaimed')}</span>

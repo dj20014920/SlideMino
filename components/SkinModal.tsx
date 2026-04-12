@@ -13,6 +13,7 @@ import { skinRewardAdService } from '../services/skinRewardAdService';
 import { isSkinRewardAdSupported } from '../services/adConfig';
 import { trackAnalyticsEvent } from '../services/analyticsService';
 import { getSkinFallbackDisplayName } from '../services/skinDisplayName';
+import { measureRectInOverlaySpace, waitForStableRect } from '../services/tutorialTargetGeometry';
 import { SkinAcquisitionOverlay } from './SkinAcquisitionOverlay';
 import { TutorialTooltip } from './TutorialTooltip';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
@@ -123,7 +124,7 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
   const [showApplyTooltip, setShowApplyTooltip] = useState(false);
   const freeDrawInFlightRef = useRef(false);
   const freeDrawAutoAttemptedRef = useRef(false);
-  const tooltipTimerRef = useRef<number | null>(null);
+  const tooltipMeasureRequestRef = useRef(0);
 
   const ownedIds = useMemo(
     () => new Set(skinSettings.ownedSkins.map(s => s.id)),
@@ -233,18 +234,19 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
     return null;
   }, [selectedSkinId, skinSections]);
 
-  const clearTooltipTimer = useCallback(() => {
-    if (tooltipTimerRef.current === null) return;
-    window.clearTimeout(tooltipTimerRef.current);
-    tooltipTimerRef.current = null;
+  const cancelPendingTooltipMeasurement = useCallback(() => {
+    tooltipMeasureRequestRef.current += 1;
   }, []);
 
   const ensureSkinTargetVisibleAndShowTooltip = useCallback((skinId: string) => {
+    cancelPendingTooltipMeasurement();
+    const requestId = tooltipMeasureRequestRef.current;
     const targetId = getSkinItemTargetId(skinId);
     let attempts = 0;
     const maxAttempts = 6;
 
     const run = () => {
+      if (tooltipMeasureRequestRef.current !== requestId) return;
       const target = document.getElementById(targetId);
       if (!target) {
         attempts += 1;
@@ -262,20 +264,25 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
         inline: 'nearest',
       });
 
-      clearTooltipTimer();
-      tooltipTimerRef.current = window.setTimeout(() => {
-        if (document.getElementById(targetId)) {
-          setShowApplyTooltip(true);
-        } else {
-          setShowApplyTooltip(false);
+      void waitForStableRect(
+        () => {
+          const liveTarget = document.getElementById(targetId);
+          if (!liveTarget) return null;
+          return measureRectInOverlaySpace(liveTarget, null, 'auto');
+        },
+        {
+          minStableFrames: 2,
+          timeoutMs: 900,
         }
-        tooltipTimerRef.current = null;
-      }, 120);
+      ).then((stableRect) => {
+        if (tooltipMeasureRequestRef.current !== requestId) return;
+        setShowApplyTooltip(Boolean(stableRect));
+      });
     };
 
     setShowApplyTooltip(false);
     window.requestAnimationFrame(run);
-  }, [clearTooltipTimer]);
+  }, [cancelPendingTooltipMeasurement]);
 
   // 모달 열릴 때 광고 미리 로드
   useEffect(() => {
@@ -347,19 +354,19 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
     if (!open) {
       freeDrawAutoAttemptedRef.current = false;
       freeDrawInFlightRef.current = false;
-      clearTooltipTimer();
+      cancelPendingTooltipMeasurement();
       setShowApplyTooltip(false);
       setFreeDrawResultSkinId(null);
       setFreeDrawError(null);
       setIsProcessingFreeDraw(false);
     }
-  }, [open, clearTooltipTimer]);
+  }, [open, cancelPendingTooltipMeasurement]);
 
   useEffect(() => {
     return () => {
-      clearTooltipTimer();
+      cancelPendingTooltipMeasurement();
     };
-  }, [clearTooltipTimer]);
+  }, [cancelPendingTooltipMeasurement]);
 
   // 스킨 카탈로그 항목 탭 처리
   const handleSkinTap = useCallback((id: string, hex: string) => {

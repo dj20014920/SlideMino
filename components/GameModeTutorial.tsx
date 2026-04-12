@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Hand, Sparkles, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { createTargetRectTracker } from '../services/tutorialTargetGeometry';
 
 const STORAGE_KEY = 'tutorial_game_mode_seen_v1';
 const EDGE_PADDING_PX = 12;
@@ -34,7 +35,6 @@ export const GameModeTutorial: React.FC<GameModeTutorialProps> = ({
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [bubbleHeight, setBubbleHeight] = useState(0);
-  const [overlayOffset, setOverlayOffset] = useState({ top: 0, left: 0 });
   const [viewport, setViewport] = useState(() => ({
     width: typeof window !== 'undefined' ? window.innerWidth : 390,
     height: typeof window !== 'undefined' ? window.innerHeight : 844,
@@ -43,15 +43,6 @@ export const GameModeTutorial: React.FC<GameModeTutorialProps> = ({
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const dismissedRef = useRef(false);
   const completionNotifiedRef = useRef(false);
-
-  const isTargetDisplayable = (el: HTMLElement): boolean => {
-    const style = window.getComputedStyle(el);
-    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
-      return false;
-    }
-    const rect = el.getBoundingClientRect();
-    return rect.width > 0 && rect.height > 0;
-  };
 
   const hasSeenTutorial = (): boolean => {
     if (dismissedRef.current) return true;
@@ -69,10 +60,12 @@ export const GameModeTutorial: React.FC<GameModeTutorialProps> = ({
     setTargetRect(null);
     setIsVisible(false);
 
-    try {
-      localStorage.setItem(STORAGE_KEY, 'true');
-    } catch {
-      // Ignore storage failure in-session.
+    if (reason === 'complete') {
+      try {
+        localStorage.setItem(STORAGE_KEY, 'true');
+      } catch {
+        // Ignore storage failure in-session.
+      }
     }
 
     if (reason === 'skip') {
@@ -91,18 +84,12 @@ export const GameModeTutorial: React.FC<GameModeTutorialProps> = ({
       return;
     }
 
-    let rafId: number | null = null;
-    let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let attempts = 0;
+    let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let tracker: ReturnType<typeof createTargetRectTracker> | null = null;
 
-    const checkTarget = () => {
-      if (hasSeenTutorial()) {
-        setTargetRect(null);
-        setIsVisible(false);
-        return;
-      }
-
-      const el = document.getElementById('mode-btn-beginner');
+    const updateViewport = () => {
       const nextViewport = {
         width: window.innerWidth,
         height: window.innerHeight,
@@ -112,40 +99,67 @@ export const GameModeTutorial: React.FC<GameModeTutorialProps> = ({
           ? prev
           : nextViewport
       );
+    };
 
-      if (el && isTargetDisplayable(el)) {
-        setTargetRect(el.getBoundingClientRect());
-        setIsVisible(true);
-        attempts = 0;
-      } else {
-        setTargetRect(null);
-        setIsVisible(false);
+    const clearRetryTimer = () => {
+      if (!retryTimer) return;
+      clearTimeout(retryTimer);
+      retryTimer = null;
+    };
+
+    const scheduleRetry = () => {
+      if (cancelled || retryTimer) return;
+      retryTimer = setTimeout(() => {
+        retryTimer = null;
+        if (cancelled || hasSeenTutorial()) return;
         attempts += 1;
         if (attempts >= MAX_TARGET_CHECK_ATTEMPTS) {
           completeTutorial('skip');
           return;
         }
-        if (retryTimer) clearTimeout(retryTimer);
-        retryTimer = setTimeout(scheduleCheck, TARGET_RETRY_INTERVAL_MS);
-      }
+        tracker?.refresh();
+        scheduleRetry();
+      }, TARGET_RETRY_INTERVAL_MS);
     };
 
-    const scheduleCheck = () => {
-      if (rafId !== null) cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(checkTarget);
-    };
-
-    scheduleCheck();
-    window.addEventListener('resize', scheduleCheck);
-    window.addEventListener('orientationchange', scheduleCheck);
-    window.addEventListener('scroll', scheduleCheck, true);
+    updateViewport();
+    tracker = createTargetRectTracker({
+      getTarget: () => document.getElementById('mode-btn-beginner'),
+      getOverlay: () => overlayRef.current,
+      anchorMode: 'self',
+      onRect: (rect) => {
+        if (cancelled || hasSeenTutorial()) return;
+        updateViewport();
+        attempts = 0;
+        clearRetryTimer();
+        setTargetRect((prev) => {
+          if (
+            prev &&
+            prev.left === rect.left &&
+            prev.top === rect.top &&
+            prev.width === rect.width &&
+            prev.height === rect.height
+          ) {
+            return prev;
+          }
+          return rect;
+        });
+        setIsVisible(true);
+      },
+      onMissing: () => {
+        if (cancelled || hasSeenTutorial()) return;
+        updateViewport();
+        setTargetRect(null);
+        setIsVisible(false);
+        scheduleRetry();
+      },
+    });
 
     return () => {
-      if (retryTimer) clearTimeout(retryTimer);
-      if (rafId !== null) cancelAnimationFrame(rafId);
-      window.removeEventListener('resize', scheduleCheck);
-      window.removeEventListener('orientationchange', scheduleCheck);
-      window.removeEventListener('scroll', scheduleCheck, true);
+      cancelled = true;
+      clearRetryTimer();
+      tracker?.cleanup();
+      tracker = null;
     };
   }, [enabled, suppressed, onComplete, onSkip]);
 
@@ -171,29 +185,6 @@ export const GameModeTutorial: React.FC<GameModeTutorialProps> = ({
     };
   }, [isVisible, t]);
 
-  useEffect(() => {
-    if (!isVisible) return;
-
-    const measureOverlayOffset = () => {
-      const rect = overlayRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      setOverlayOffset((prev) =>
-        prev.top === rect.top && prev.left === rect.left
-          ? prev
-          : { top: rect.top, left: rect.left }
-      );
-    };
-
-    measureOverlayOffset();
-    window.addEventListener('resize', measureOverlayOffset);
-    window.addEventListener('orientationchange', measureOverlayOffset);
-
-    return () => {
-      window.removeEventListener('resize', measureOverlayOffset);
-      window.removeEventListener('orientationchange', measureOverlayOffset);
-    };
-  }, [isVisible]);
-
   const handleDismiss = () => {
     completeTutorial('complete');
   };
@@ -205,10 +196,10 @@ export const GameModeTutorial: React.FC<GameModeTutorialProps> = ({
       typeof window !== 'undefined' ? window.innerWidth : viewport.width;
     const viewportHeight =
       typeof window !== 'undefined' ? window.innerHeight : viewport.height;
-    const usableHeight = Math.max(viewportHeight - overlayOffset.top, 0);
-    const targetLeft = targetRect.left - overlayOffset.left;
-    const targetTop = targetRect.top - overlayOffset.top;
-    const targetBottom = targetRect.bottom - overlayOffset.top;
+    const usableHeight = viewportHeight;
+    const targetLeft = targetRect.left;
+    const targetTop = targetRect.top;
+    const targetBottom = targetRect.bottom;
     const targetCenterX = targetLeft + targetRect.width / 2;
 
     const bubbleWidth = clamp(
@@ -255,6 +246,8 @@ export const GameModeTutorial: React.FC<GameModeTutorialProps> = ({
       viewportWidth,
       targetLeft,
       targetTop,
+      targetWidth: targetRect.width,
+      targetHeight: targetRect.height,
       bubbleWidth,
       bubbleLeft,
       bubbleTop,
@@ -263,7 +256,7 @@ export const GameModeTutorial: React.FC<GameModeTutorialProps> = ({
       handTop,
       placement,
     };
-  }, [bubbleHeight, overlayOffset.left, overlayOffset.top, targetRect, viewport.height, viewport.width]);
+  }, [bubbleHeight, targetRect, viewport.height, viewport.width]);
 
   if (!enabled || suppressed || !isVisible || !targetRect || !layout) return null;
 
@@ -275,8 +268,8 @@ export const GameModeTutorial: React.FC<GameModeTutorialProps> = ({
           style={{
             left: clamp(layout.targetLeft - 4, EDGE_PADDING_PX, layout.viewportWidth - 16),
             top: clamp(layout.targetTop - 4, EDGE_PADDING_PX, viewport.height - 16),
-            width: targetRect.width + 8,
-            height: targetRect.height + 8,
+            width: layout.targetWidth + 8,
+            height: layout.targetHeight + 8,
           }}
         />
 

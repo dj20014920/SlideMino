@@ -10,7 +10,7 @@
  */
 
 import type { ShapeType, BoardSize, GameMode, Coordinate } from '../types';
-import type { MissionCompleteInfo, MissionProgressInfo } from './missionService';
+import type { MissionCompleteInfo, MissionProgressInfo, MissionStateChangedInfo } from './missionService';
 import type { LevelBadge } from './xpLevelService';
 
 // ====== 이벤트 타입 정의 ======
@@ -100,6 +100,9 @@ export interface GameEventMap {
 
   /** 미션 진행도 알림 (점수 미션 등의 비침습적 표시) */
   MISSION_PROGRESS: MissionProgressInfo;
+
+  /** 미션 상태 변경(클레임/보너스/리롤/리셋) */
+  MISSION_STATE_CHANGED: MissionStateChangedInfo;
 
   // ─── XP/레벨 시스템 이벤트 ───
 

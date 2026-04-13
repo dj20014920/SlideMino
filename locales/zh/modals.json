@@ -72,7 +72,7 @@
     "scoreLabel": "当前分数",
     "registerButton": "登记后结束本局",
     "registerButtonNewGame": "登记后开始新一局",
-    "homeProceed": "自动保存后返回菜单",
+    "homeProceed": "返回菜单",
     "homeProceedHint": "你可以随时继续这局游戏",
     "midSaveButton": "中途保存",
     "midSaveButtonHint": "分数记入排行榜，还能继续游戏",

@@ -72,7 +72,7 @@
     "scoreLabel": "現在のスコア",
     "registerButton": "ランキング登録後にゲーム終了",
     "registerButtonNewGame": "ランキング登録後に新しいゲーム開始",
-    "homeProceed": "自動保存してメニューへ移動",
+    "homeProceed": "メニューへ移動",
     "homeProceedHint": "いつでも続きから再開できます",
     "midSaveButton": "途中保存",
     "midSaveButtonHint": "ランキングに登録して、続きをプレイできます",

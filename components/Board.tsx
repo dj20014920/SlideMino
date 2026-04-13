@@ -468,6 +468,8 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
   const mergeRippleFingerprintRef = useRef<string>('');
   const pendingMergeRippleQueueRef = useRef<PendingMergeRipple[]>([]);
   const pendingMergeReplayRafRef = useRef<number | null>(null);
+  const mergeRippleDelayTimeoutRef = useRef<number | null>(null);
+  const scheduledMergeRippleFingerprintRef = useRef<string>('');
   const [shouldRenderPixelBlastFallback, setShouldRenderPixelBlastFallback] = useState(false);
 
   useImperativeHandle(ref, () => ({
@@ -729,6 +731,10 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
 
   useEffect(() => {
     return () => {
+      if (mergeRippleDelayTimeoutRef.current !== null) {
+        window.clearTimeout(mergeRippleDelayTimeoutRef.current);
+        mergeRippleDelayTimeoutRef.current = null;
+      }
       if (pendingMergeReplayRafRef.current !== null) {
         cancelAnimationFrame(pendingMergeReplayRafRef.current);
         pendingMergeReplayRafRef.current = null;
@@ -738,7 +744,9 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
 
   useEffect(() => {
     if (mergingTiles.length === 0) {
-      mergeRippleFingerprintRef.current = '';
+      if (mergeRippleDelayTimeoutRef.current === null) {
+        mergeRippleFingerprintRef.current = '';
+      }
       const queue = prunePendingMergeQueue(getPendingMergeNow());
       if (queue.length > 0 && isPixelBlastMergeRippleEnabled) {
         schedulePendingMergeReplay();
@@ -749,7 +757,12 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
       return;
     }
     if (!isPixelBlastMergeRippleEnabled) {
+      if (mergeRippleDelayTimeoutRef.current !== null) {
+        window.clearTimeout(mergeRippleDelayTimeoutRef.current);
+        mergeRippleDelayTimeoutRef.current = null;
+      }
       mergeRippleFingerprintRef.current = '';
+      scheduledMergeRippleFingerprintRef.current = '';
       pendingMergeRippleQueueRef.current = [];
       if (pendingMergeReplayRafRef.current !== null) {
         cancelAnimationFrame(pendingMergeReplayRafRef.current);
@@ -766,16 +779,39 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
       .map((tile) => `${tile.id}@${tile.toX},${tile.toY}`)
       .sort();
     const fingerprint = mergeEventUnits.join('|');
-    if (mergeRippleFingerprintRef.current === fingerprint) return;
+    if (
+      mergeRippleFingerprintRef.current === fingerprint ||
+      scheduledMergeRippleFingerprintRef.current === fingerprint
+    ) {
+      return;
+    }
 
-    if (triggerMergeRipple(uniqueTargets, fingerprint)) return;
+    const rippleDelayMs = Math.max(
+      0,
+      ...mergingTiles.map((tile) => getSlideAnimationDurationMs(
+        Math.abs(tile.toX - tile.fromX) + Math.abs(tile.toY - tile.fromY)
+      ))
+    );
 
-    enqueuePendingMergeRipple({
-      fingerprint,
-      targets: uniqueTargets,
-      expiresAt: getPendingMergeNow() + PENDING_MERGE_RIPPLE_TTL_MS,
-    });
-    schedulePendingMergeReplay();
+    if (mergeRippleDelayTimeoutRef.current !== null) {
+      window.clearTimeout(mergeRippleDelayTimeoutRef.current);
+      mergeRippleDelayTimeoutRef.current = null;
+    }
+
+    scheduledMergeRippleFingerprintRef.current = fingerprint;
+    mergeRippleDelayTimeoutRef.current = window.setTimeout(() => {
+      mergeRippleDelayTimeoutRef.current = null;
+      scheduledMergeRippleFingerprintRef.current = '';
+
+      if (triggerMergeRipple(uniqueTargets, fingerprint)) return;
+
+      enqueuePendingMergeRipple({
+        fingerprint,
+        targets: uniqueTargets,
+        expiresAt: getPendingMergeNow() + PENDING_MERGE_RIPPLE_TTL_MS,
+      });
+      schedulePendingMergeReplay();
+    }, rippleDelayMs);
   }, [enqueuePendingMergeRipple, getPendingMergeNow, isPixelBlastMergeRippleEnabled, mergingTiles, prunePendingMergeQueue, schedulePendingMergeReplay, triggerMergeRipple]);
 
   // 드래그가 끝나면(= activePiece가 없어지면) hover를 즉시 정리해서 불필요한 렌더를 줄임

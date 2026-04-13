@@ -72,7 +72,7 @@
     "scoreLabel": "Current Score",
     "registerButton": "Register and End Run",
     "registerButtonNewGame": "Register and Start New Run",
-    "homeProceed": "Go To Menu (Auto-saved)",
+    "homeProceed": "Go To Menu",
     "homeProceedHint": "You can resume this run anytime",
     "midSaveButton": "Mid-save",
     "midSaveButtonHint": "Score is saved to rankings, and you can keep playing",

@@ -4689,7 +4689,7 @@ const App: React.FC = () => {
           }}
         >
           {isPremiumUiThemeActive && (
-            <div className={`${premiumWindowClassName} w-full max-w-md ${premiumTopWindowClassName}`}>
+            <div className={`${premiumWindowClassName} premium-home-window-surface w-full max-w-md ${premiumTopWindowClassName}`}>
               <div className={premiumTitleBarClassName}>
                 <div className={premiumTitleBarTextClassName}>
                   {premiumTopWindowTitleLines.map((line, index) => (
@@ -4708,8 +4708,8 @@ const App: React.FC = () => {
 
           {/* 로고 영역 */}
           {isPremiumUiThemeActive ? (
-            <div className={`${premiumWindowClassName} w-full max-w-md animate-fade-in`}>
-              <div className={`${premiumWindowBodyClassName} text-center px-4 py-5`}>
+            <div className={`${premiumWindowClassName} premium-home-window-surface w-full max-w-md animate-fade-in`}>
+              <div className={`${premiumWindowBodyClassName} premium-home-window-body-surface text-center px-4 py-5`}>
                 <h1 className="text-5xl font-bold tracking-tight leading-tight">
                   {(() => {
                     const titleText = String(t('game:title'));
@@ -4751,14 +4751,14 @@ const App: React.FC = () => {
           )}
 
           {isPremiumUiThemeActive ? (
-            <div className={`${premiumWindowClassName} w-full max-w-md animate-slide-up ${premiumMenuWindowClassName}`}>
+            <div className={`${premiumWindowClassName} premium-home-window-surface w-full max-w-md animate-slide-up ${premiumMenuWindowClassName}`}>
               <div className={premiumTitleBarClassName}>
                 <div className={premiumTitleBarTextClassName}>{premiumUi?.menuWindowTitle ?? '난이도 선택'}</div>
                 <div className={premiumTitleBarControlsClassName}>
                   <button aria-label="Close" onClick={() => setIsLeaderboardOpen(false)} />
                 </div>
               </div>
-              <div className={premiumWindowBodyClassName}>
+              <div className={`${premiumWindowBodyClassName} premium-home-window-body-surface`}>
                 <div className={`${premiumRadioGroupClassName} p-1`}>
                   {premiumWeeklyEventButton}
                   <fieldset className={premiumFieldsetClassName}>

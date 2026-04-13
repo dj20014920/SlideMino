@@ -251,6 +251,7 @@ void main(){
   float thickness = uRippleThickness;
   const float dampT     = 1.0;
   const float dampR     = 10.0;
+  float rippleEdgeGlow = 0.0;
 
   if (uEnableRipples == 1) {
     for (int i = 0; i < MAX_CLICKS; ++i){
@@ -263,7 +264,9 @@ void main(){
       float waveR = speed * t;
       float ring  = exp(-pow((r - waveR) / thickness, 2.0));
       float atten = exp(-dampT * t) * exp(-dampR * r);
-      feed = max(feed, ring * atten * uRippleIntensity);
+      float ripple = ring * atten;
+      rippleEdgeGlow = max(rippleEdgeGlow, ripple);
+      feed = max(feed, ripple * uRippleIntensity);
     }
   }
 
@@ -287,12 +290,14 @@ void main(){
   }
 
   vec3 color = uColor;
+  float rippleHighlight = clamp(pow(rippleEdgeGlow, 0.65) * 1.9, 0.0, 1.0) * M;
+  vec3 litColor = mix(color, vec3(1.0), rippleHighlight * 0.78);
 
   // sRGB gamma correction - convert linear to sRGB for accurate color output
   vec3 srgbColor = mix(
-    color * 12.92,
-    1.055 * pow(color, vec3(1.0 / 2.4)) - 0.055,
-    step(0.0031308, color)
+    litColor * 12.92,
+    1.055 * pow(litColor, vec3(1.0 / 2.4)) - 0.055,
+    step(0.0031308, litColor)
   );
 
   fragColor = vec4(srgbColor, M);

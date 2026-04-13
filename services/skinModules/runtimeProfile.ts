@@ -137,14 +137,14 @@ const RUNTIME_OVERRIDES: Record<RuntimeFamilyId, DeepPartial<PremiumSkinRuntimeP
     },
     slot: {
       preview: {
-        useResolvedAppearanceClass: false,
-        cellStyle: DEFAULT_PIXELBLAST_PREVIEW_STYLE,
+        useResolvedAppearanceClass: true,
+        cellStyle: {},
         disabledClassName: 'opacity-70 saturate-90',
       },
     },
     dragPreview: {
-      useResolvedAppearanceClass: false,
-      cellStyle: DEFAULT_PIXELBLAST_PREVIEW_STYLE,
+      useResolvedAppearanceClass: true,
+      cellStyle: {},
     },
     board: {
       features: {},

@@ -13,14 +13,15 @@ body.theme-pixelblast {
   --pixelblast-button-bg: linear-gradient(180deg, rgba(32, 23, 54, 0.26) 0%, rgba(18, 13, 35, 0.18) 100%);
   --pixelblast-button-bg-hover: linear-gradient(180deg, rgba(45, 34, 80, 0.32) 0%, rgba(23, 16, 45, 0.24) 100%);
   --pixelblast-button-bg-active: linear-gradient(180deg, rgba(33, 24, 60, 0.18) 0%, rgba(17, 12, 34, 0.14) 100%);
-  --pixelblast-pixel-dots: radial-gradient(circle at 1px 1px, rgba(184, 163, 255, 0.14) 0 1px, transparent 1.2px);
+  --pixelblast-pixel-dots: radial-gradient(circle at 1px 1px, rgba(184, 163, 255, 0.22) 0 1px, transparent 1.2px);
   --pixelblast-game-window-bg: rgba(8, 8, 18, 0.12);
   --pixelblast-game-window-body-bg: rgba(10, 9, 22, 0.06);
   --pixelblast-game-titlebar-bg: linear-gradient(90deg, rgba(32, 20, 56, 0.24) 0%, rgba(58, 44, 98, 0.18) 100%);
-  --pixelblast-board-shell-bg: rgba(9, 8, 20, 0.24);
-  --pixelblast-board-body-bg: rgba(7, 7, 18, 0.1);
-  --pixelblast-board-slot-bg: linear-gradient(180deg, rgba(26, 19, 47, 0.16) 0%, rgba(14, 10, 27, 0.12) 100%);
-  --pixelblast-board-slot-border: rgba(118, 94, 186, 0.34);
+  --pixelblast-board-shell-bg: linear-gradient(180deg, rgba(12, 10, 24, 0.2) 0%, rgba(6, 5, 14, 0.12) 100%);
+  --pixelblast-board-body-bg: linear-gradient(180deg, rgba(10, 9, 22, 0.08) 0%, rgba(6, 6, 15, 0.04) 100%);
+  --pixelblast-board-slot-bg: linear-gradient(180deg, rgba(26, 19, 47, 0.2) 0%, rgba(14, 10, 27, 0.14) 100%);
+  --pixelblast-board-slot-border: rgba(138, 116, 214, 0.42);
+  --pixelblast-board-dot: rgba(184, 163, 255, 0.14);
 }
 
 body.theme-pixelblast .pixelblast-app-shell {
@@ -58,12 +59,20 @@ body.theme-pixelblast .pixelblast-app-shell :is(
 }
 
 body.theme-pixelblast :is(.pixelblast-board-shell, .galaxy-board-shell) {
-  background: var(--pixelblast-board-shell-bg) !important;
-  border: 1px solid rgba(136, 107, 220, 0.34) !important;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 14%, rgba(255,255,255,0) 86%, rgba(255,255,255,0.04) 100%),
+    linear-gradient(90deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0) 16%, rgba(255,255,255,0) 84%, rgba(255,255,255,0.02) 100%),
+    radial-gradient(circle at 1px 1px, var(--pixelblast-board-dot) 0 1px, transparent 1.2px),
+    var(--pixelblast-board-shell-bg) !important;
+  background-size: auto, auto, 10px 10px, auto !important;
+  border: 1px solid rgba(156, 132, 232, 0.34) !important;
+  border-radius: 0 !important;
   box-shadow:
-    0 0 0 1px rgba(41, 29, 73, 0.4),
-    0 0 0 2px rgba(117, 86, 202, 0.16),
-    inset 0 0 0 1px rgba(170, 141, 244, 0.08) !important;
+    0 0 0 1px rgba(41, 29, 73, 0.38),
+    0 0 0 2px rgba(117, 86, 202, 0.14),
+    0 10px 24px rgba(0, 0, 0, 0.12),
+    inset 0 0 0 1px rgba(170, 141, 244, 0.08),
+    inset 0 0 0 8px rgba(7, 5, 15, 0.14) !important;
 }
 
 body.theme-pixelblast :is(:is(.pixelblast-board-cell, .galaxy-board-cell), [data-board-bg-slot='true'], :is(.pixelblast-tile-face, .galaxy-tile-face)) {
@@ -71,13 +80,18 @@ body.theme-pixelblast :is(:is(.pixelblast-board-cell, .galaxy-board-cell), [data
 }
 
 body.theme-pixelblast :is(:is(.pixelblast-board-cell, .galaxy-board-cell), [data-board-bg-slot='true']) {
-  background: var(--pixelblast-board-slot-bg) !important;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0) 24%, rgba(255,255,255,0) 76%, rgba(255,255,255,0.04) 100%),
+    radial-gradient(circle at 1px 1px, rgba(184, 163, 255, 0.055) 0 1px, transparent 1.2px),
+    var(--pixelblast-board-slot-bg) !important;
+  background-size: auto, 8px 8px, auto !important;
   border: 1px solid var(--pixelblast-board-slot-border) !important;
-  border-radius: 1px !important;
+  border-radius: 0 !important;
   box-shadow:
-    inset 0 0 0 1px rgba(9, 7, 18, 0.2),
-    inset 1px 1px 0 rgba(215, 198, 255, 0.04),
-    inset -1px -1px 0 rgba(26, 17, 47, 0.2) !important;
+    inset 0 0 0 1px rgba(9, 7, 18, 0.26),
+    inset 1px 1px 0 rgba(215, 198, 255, 0.05),
+    inset -1px -1px 0 rgba(26, 17, 47, 0.24),
+    0 0 0 1px rgba(184, 163, 255, 0.035) !important;
 }
 
 body.theme-pixelblast :is(.pixelblast-tile-face, .galaxy-tile-face) {
@@ -146,11 +160,16 @@ body.theme-pixelblast :is(.pixelblast-board-body, .galaxy-board-body) {
 }
 
 body.theme-pixelblast .galaxy-window.galaxy-game-board-window {
-  background: var(--pixelblast-game-window-bg) !important;
-  border-color: rgba(125, 95, 255, 0.3) !important;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0) 18%, rgba(255,255,255,0) 82%, rgba(255,255,255,0.03) 100%),
+    radial-gradient(circle at 1px 1px, rgba(184, 163, 255, 0.06) 0 1px, transparent 1.2px),
+    var(--pixelblast-game-window-bg) !important;
+  background-size: auto, 12px 12px, auto !important;
+  border-color: rgba(145, 120, 224, 0.28) !important;
   box-shadow:
-    0 0 0 1px rgba(167, 139, 250, 0.08) inset,
-    0 8px 28px rgba(0, 0, 0, 0.16) !important;
+    0 0 0 1px rgba(167, 139, 250, 0.06) inset,
+    0 0 0 2px rgba(86, 63, 150, 0.08),
+    0 10px 28px rgba(0, 0, 0, 0.14) !important;
 }
 
 body.theme-pixelblast .premium-home-window-surface {
@@ -162,8 +181,11 @@ body.theme-pixelblast .premium-home-window-surface {
 }
 
 body.theme-pixelblast .galaxy-game-board-window .galaxy-window-body {
-  background: var(--pixelblast-game-window-body-bg) !important;
-  padding: 10px !important;
+  background:
+    radial-gradient(circle at 1px 1px, rgba(184, 163, 255, 0.035) 0 1px, transparent 1.2px),
+    var(--pixelblast-game-window-body-bg) !important;
+  background-size: 12px 12px, auto !important;
+  padding: 12px !important;
 }
 
 body.theme-pixelblast .premium-home-window-body-surface,

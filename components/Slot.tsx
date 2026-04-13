@@ -32,6 +32,7 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
   const premiumUiSlotRotateButtonClassName = premiumUiObjects.board.slotRotateButtonClassName;
   const premiumUiGameButtonClassName = premiumUiObjects.buttons.gameClassName;
   const slotPreviewRuntime = premiumSkinRuntime.slot.preview;
+  const isPixelBlastPreview = premiumSkinRuntime.family === 'pixelblast_void';
 
   // 빈 슬롯 렌더링
   if (!piece) {
@@ -159,8 +160,13 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
             {normalizedCells.map((c, i) => (
               <div
                 key={i}
+                data-skin-preview-tile="true"
                 className={`
-                  ${isPremiumUiThemeActive ? premiumUiSlotMiniCellClassName : 'rounded-lg border border-white/30'}
+                  ${isPremiumUiThemeActive
+                    ? (isPixelBlastPreview && slotPreviewRuntime.useResolvedAppearanceClass
+                      ? ''
+                      : premiumUiSlotMiniCellClassName)
+                    : 'rounded-lg border border-white/30'}
                   ${slotPreviewRuntime.useResolvedAppearanceClass ? previewAppearanceClassName : ''}
                 `}
                 style={{

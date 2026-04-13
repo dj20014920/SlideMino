@@ -137,10 +137,9 @@ const MergingTilesLayer = React.memo<{
   layout: GridLayout;
   getResolvedAppearance: (value: number) => ResolvedTileAppearance;
   isPremiumUiThemeActive: boolean;
-  isPixelBlastSkin: boolean;
   premiumUiTileFaceClassName: string;
   premiumUiTileNumberClassName: string;
-}>(({ animatingMerges, layout, getResolvedAppearance, isPremiumUiThemeActive, isPixelBlastSkin, premiumUiTileFaceClassName, premiumUiTileNumberClassName }) => {
+}>(({ animatingMerges, layout, getResolvedAppearance, isPremiumUiThemeActive, premiumUiTileFaceClassName, premiumUiTileNumberClassName }) => {
   return (
     <div className="absolute inset-0 z-5 pointer-events-none">
       {animatingMerges.map((mt) => {
@@ -150,9 +149,6 @@ const MergingTilesLayer = React.memo<{
         const appearance = getResolvedAppearance(mt.value);
         const preserveAppearanceInWin98 = Boolean(appearance.style?.backgroundColor || appearance.style?.backgroundImage || appearance.style?.boxShadow);
         const isNeonBlock = appearance.className === 'skin-neon-block';
-        const mergeAppearanceStyle = isPixelBlastSkin
-          ? buildPixelBlastMergeEdgeGlowStyle(appearance.style)
-          : (appearance.style ?? {});
         return (
           <div
             key={`merge-${mt.id}`}
@@ -175,7 +171,7 @@ const MergingTilesLayer = React.memo<{
               fontSize: `${fontPx}px`,
               lineHeight: 1,
               whiteSpace: 'pre-line',
-              ...mergeAppearanceStyle,
+              ...(appearance.style ?? {}),
               // 아래 속성들은 appearance.style보다 항상 우선
               transform,
               opacity: 0.7,
@@ -202,6 +198,7 @@ const TilesLayer = React.memo<{
   revivePendingTileId?: string | null;
   onReviveTileTap?: (tileId: string) => void;
   isEvervaultSkin?: boolean;
+  isPixelBlastSkin?: boolean;
   mergeFlashTileIds?: ReadonlySet<string>;
   onMergeFlashEnd?: (tileId: string) => void;
   mergedNumberBurstTileIds?: ReadonlySet<string>;
@@ -218,6 +215,7 @@ const TilesLayer = React.memo<{
   revivePendingTileId = null,
   onReviveTileTap,
   isEvervaultSkin = false,
+  isPixelBlastSkin = false,
   mergeFlashTileIds,
   onMergeFlashEnd,
   mergedNumberBurstTileIds,
@@ -260,7 +258,10 @@ const TilesLayer = React.memo<{
         const evervaultIntensity = isEvervaultSkin
           ? clamp(Math.log2(Math.max(1, displayValue)) / 15, 0, 1)
           : 0;
-        const isMergeFlashing = isEvervaultSkin && mergeFlashTileIds?.has(tile.id);
+        const isMergeFlashing = !!mergeFlashTileIds?.has(tile.id);
+        const tileAppearanceStyle = isPixelBlastSkin && isMergeFlashing
+          ? buildPixelBlastMergeEdgeGlowStyle(appearance.style)
+          : (appearance.style ?? {});
 
         return (
           <div
@@ -306,7 +307,7 @@ const TilesLayer = React.memo<{
               fontSize: `${fontPx}px`,
               lineHeight: 1,
               whiteSpace: 'pre-line',
-              ...(appearance.style ?? {}),
+              ...tileAppearanceStyle,
               // 아래 속성들은 appearance.style보다 항상 우선
               transform,
               transition: duration
@@ -330,7 +331,7 @@ const TilesLayer = React.memo<{
               <EvervaultTileOverlay
                 intensity={evervaultIntensity}
                 sizePx={layout.cellPx}
-                mergeFlash={!!isMergeFlashing}
+                mergeFlash={isMergeFlashing}
                 onFlashEnd={onMergeFlashEnd ? () => onMergeFlashEnd(tile.id) : undefined}
               />
             )}
@@ -499,6 +500,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
   const pendingMergeReplayRafRef = useRef<number | null>(null);
   const mergeRippleDelayTimeoutRef = useRef<number | null>(null);
   const scheduledMergeRippleFingerprintRef = useRef<string>('');
+  const pixelBlastMergeFlashTimeoutRef = useRef<number | null>(null);
   const [shouldRenderPixelBlastFallback, setShouldRenderPixelBlastFallback] = useState(false);
 
   useImperativeHandle(ref, () => ({
@@ -614,7 +616,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
 
   // When mergingTiles arrive, find the RECEIVING tiles at the destination
   useEffect(() => {
-    if (!isEvervaultSkin || mergingTiles.length === 0) return;
+    if ((!isEvervaultSkin && !isPixelBlastSkin) || mergingTiles.length === 0) return;
 
     // Collect merge destination coordinates
     const destCoords = new Set(mergingTiles.map(mt => `${mt.toX},${mt.toY}`));
@@ -632,7 +634,24 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
     if (flashIds.size > 0) {
       setMergeFlashTileIds(flashIds);
     }
-  }, [isEvervaultSkin, mergingTiles, grid]);
+  }, [isEvervaultSkin, isPixelBlastSkin, mergingTiles, grid]);
+
+  useEffect(() => {
+    if (!isPixelBlastSkin || mergeFlashTileIds.size === 0) return;
+    if (pixelBlastMergeFlashTimeoutRef.current !== null) {
+      window.clearTimeout(pixelBlastMergeFlashTimeoutRef.current);
+    }
+    pixelBlastMergeFlashTimeoutRef.current = window.setTimeout(() => {
+      setMergeFlashTileIds(new Set());
+      pixelBlastMergeFlashTimeoutRef.current = null;
+    }, 180);
+    return () => {
+      if (pixelBlastMergeFlashTimeoutRef.current !== null) {
+        window.clearTimeout(pixelBlastMergeFlashTimeoutRef.current);
+        pixelBlastMergeFlashTimeoutRef.current = null;
+      }
+    };
+  }, [isPixelBlastSkin, mergeFlashTileIds]);
 
   const handleMergeFlashEnd = useCallback((tileId: string) => {
     setMergeFlashTileIds(prev => {
@@ -763,6 +782,10 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
       if (mergeRippleDelayTimeoutRef.current !== null) {
         window.clearTimeout(mergeRippleDelayTimeoutRef.current);
         mergeRippleDelayTimeoutRef.current = null;
+      }
+      if (pixelBlastMergeFlashTimeoutRef.current !== null) {
+        window.clearTimeout(pixelBlastMergeFlashTimeoutRef.current);
+        pixelBlastMergeFlashTimeoutRef.current = null;
       }
       if (pendingMergeReplayRafRef.current !== null) {
         cancelAnimationFrame(pendingMergeReplayRafRef.current);
@@ -1020,7 +1043,6 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
             layout={layout}
             getResolvedAppearance={getResolvedAppearance}
             isPremiumUiThemeActive={isPremiumUiThemeActive}
-            isPixelBlastSkin={isPixelBlastSkin}
             premiumUiTileFaceClassName={premiumUiTileFaceClassName}
             premiumUiTileNumberClassName={premiumUiTileNumberClassName}
           />
@@ -1035,6 +1057,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
             revivePendingTileId={revivePendingTileId}
             onReviveTileTap={onReviveTileTap}
             isEvervaultSkin={isEvervaultSkin}
+            isPixelBlastSkin={isPixelBlastSkin}
             mergeFlashTileIds={mergeFlashTileIds}
             onMergeFlashEnd={handleMergeFlashEnd}
             mergedNumberBurstTileIds={mergedNumberBurstTileIds}

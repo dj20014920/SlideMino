@@ -219,6 +219,7 @@ export interface PremiumUiObjectMap {
       weeklyEvent: PremiumUiTabObject;
     };
     navigation: {
+      taskbarWrapperClassName: string;
       taskbarClassName: string;
       taskbarButtonClassName: string;
       taskbarBadgeClassName: string;

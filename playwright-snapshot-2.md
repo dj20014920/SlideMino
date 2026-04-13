@@ -1,0 +1,25 @@
+- generic [ref=e2]:
+  - generic [ref=e60]:
+    - generic [ref=e61]: Cookie & Ads Notice
+    - paragraph [ref=e62]:
+      - text: 블록 슬라이드 (Block Slide) uses essential cookies for gameplay. Accept to allow personalized ads, or decline to receive non-personalized ads.
+      - link "Learn more" [ref=e63] [cursor=pointer]:
+        - /url: "#/privacy"
+      - text: .
+    - generic [ref=e64]:
+      - button "Decline" [ref=e65] [cursor=pointer]
+      - button "Accept" [ref=e66] [cursor=pointer]
+  - generic [ref=e3]:
+    - banner [ref=e5]:
+      - generic [ref=e6]
+      - generic [ref=e14]
+    - main [ref=e26]:
+      - generic [ref=e28]
+      - button "Rotate block" [ref=e37] [cursor=pointer]
+      - generic [ref=e43]
+    - generic:
+      - generic
+      - generic: Drag block to board!
+    - generic [ref=e48]:
+      - insertion
+      - generic: AdBanner (Awaiting Consent)

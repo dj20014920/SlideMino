@@ -1,8 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import Galaxy from '../components/Galaxy';
 import type {
   BlockCustomizationSettingsV1,
+  PremiumUiThemeId,
   PremiumUiMicroOverrides,
   PremiumUiObjectMap,
   PremiumUiThemeConfig,
@@ -34,6 +34,14 @@ import {
   getPremiumUiThemeById,
   PREMIUM_UI_THEMES,
 } from '../config/premiumUiThemes';
+import {
+  resolveActiveSkinModule,
+} from '../services/skinModules/registry';
+import type { GalaxyMouseControl } from '../services/skinModules/contracts';
+import {
+  resolvePremiumSkinRuntime,
+  type PremiumSkinRuntimeProfile,
+} from '../services/skinModules/runtimeProfile';
 
 type BlockCustomizationContextValue = {
   gate: FeatureGateDecision;
@@ -48,6 +56,7 @@ type BlockCustomizationContextValue = {
   premiumUiTheme: PremiumUiThemeConfig | null;
   premiumUiObjects: PremiumUiObjectMap;
   premiumUiOverrides: PremiumUiMicroOverrides | null;
+  premiumSkinRuntime: PremiumSkinRuntimeProfile;
   addSkin: (skin: SkinItem) => void;
   setActiveSkin: (id: string | null) => void;
   addFragments: (amount: number) => void;
@@ -58,6 +67,80 @@ type BlockCustomizationContextValue = {
 };
 
 const BlockCustomizationContext = createContext<BlockCustomizationContextValue | null>(null);
+
+const appendUiFallbackClass = (className: string, fallbackClassName: string): string => {
+  const next = `${className} ${fallbackClassName}`.trim();
+  return next.replace(/\s+/g, ' ');
+};
+
+const withPremiumUiSafetyContracts = (objects: PremiumUiObjectMap): PremiumUiObjectMap => ({
+  ...objects,
+  modalOverlayClassName: appendUiFallbackClass(objects.modalOverlayClassName, 'premium-ui-overlay-fallback'),
+  windowClassName: appendUiFallbackClass(objects.windowClassName, 'premium-ui-window-fallback'),
+  tabs: {
+    ...objects.tabs,
+    level: {
+      ...objects.tabs.level,
+      containerClassName: appendUiFallbackClass(objects.tabs.level.containerClassName, 'premium-ui-tabstrip-fallback'),
+      buttonClassName: appendUiFallbackClass(objects.tabs.level.buttonClassName, 'premium-ui-tab-fallback'),
+    },
+    skin: {
+      ...objects.tabs.skin,
+      containerClassName: appendUiFallbackClass(objects.tabs.skin.containerClassName, 'premium-ui-tabstrip-fallback'),
+      buttonClassName: appendUiFallbackClass(objects.tabs.skin.buttonClassName, 'premium-ui-tab-fallback'),
+    },
+    mission: {
+      ...objects.tabs.mission,
+      containerClassName: appendUiFallbackClass(objects.tabs.mission.containerClassName, 'premium-ui-tabstrip-fallback'),
+      buttonClassName: appendUiFallbackClass(objects.tabs.mission.buttonClassName, 'premium-ui-tab-fallback'),
+    },
+  },
+  panels: {
+    ...objects.panels,
+    sunkenClassName: appendUiFallbackClass(objects.panels.sunkenClassName, 'premium-ui-panel-fallback'),
+    sunkenWhiteClassName: appendUiFallbackClass(objects.panels.sunkenWhiteClassName, 'premium-ui-panel-fallback'),
+    listItemClassName: appendUiFallbackClass(objects.panels.listItemClassName, 'premium-ui-panel-fallback'),
+    listItemHighlightClassName: appendUiFallbackClass(objects.panels.listItemHighlightClassName, 'premium-ui-panel-fallback'),
+    fieldsetClassName: appendUiFallbackClass(objects.panels.fieldsetClassName, 'premium-ui-panel-fallback'),
+  },
+  extended: {
+    ...objects.extended,
+    windows: {
+      ...objects.extended.windows,
+      topWindowClassName: appendUiFallbackClass(objects.extended.windows.topWindowClassName, 'premium-ui-window-fallback'),
+      menuWindowClassName: appendUiFallbackClass(objects.extended.windows.menuWindowClassName, 'premium-ui-window-fallback'),
+      modalWindowClassName: appendUiFallbackClass(objects.extended.windows.modalWindowClassName, 'premium-ui-window-fallback'),
+    },
+    tabs: {
+      ...objects.extended.tabs,
+      leaderboardMode: {
+        ...objects.extended.tabs.leaderboardMode,
+        containerClassName: appendUiFallbackClass(objects.extended.tabs.leaderboardMode.containerClassName, 'premium-ui-tabstrip-fallback'),
+        buttonClassName: appendUiFallbackClass(objects.extended.tabs.leaderboardMode.buttonClassName, 'premium-ui-tab-fallback'),
+      },
+      leaderboardFilter: {
+        ...objects.extended.tabs.leaderboardFilter,
+        containerClassName: appendUiFallbackClass(objects.extended.tabs.leaderboardFilter.containerClassName, 'premium-ui-tabstrip-fallback'),
+        buttonClassName: appendUiFallbackClass(objects.extended.tabs.leaderboardFilter.buttonClassName, 'premium-ui-tab-fallback'),
+      },
+      leaderboardEventPeriod: {
+        ...objects.extended.tabs.leaderboardEventPeriod,
+        containerClassName: appendUiFallbackClass(objects.extended.tabs.leaderboardEventPeriod.containerClassName, 'premium-ui-tabstrip-fallback'),
+        buttonClassName: appendUiFallbackClass(objects.extended.tabs.leaderboardEventPeriod.buttonClassName, 'premium-ui-tab-fallback'),
+      },
+      weeklyEvent: {
+        ...objects.extended.tabs.weeklyEvent,
+        containerClassName: appendUiFallbackClass(objects.extended.tabs.weeklyEvent.containerClassName, 'premium-ui-tabstrip-fallback'),
+        buttonClassName: appendUiFallbackClass(objects.extended.tabs.weeklyEvent.buttonClassName, 'premium-ui-tab-fallback'),
+      },
+    },
+    navigation: {
+      ...objects.extended.navigation,
+      taskbarWrapperClassName: appendUiFallbackClass(objects.extended.navigation.taskbarWrapperClassName, 'premium-nav-wrapper-fallback'),
+      taskbarClassName: appendUiFallbackClass(objects.extended.navigation.taskbarClassName, 'premium-bottom-nav-fallback'),
+    },
+  },
+});
 
 export function BlockCustomizationProvider({ children }: { children: React.ReactNode }) {
   const gate = useMemo(() => getFeatureGateDecision('blockCustomization'), []);
@@ -213,19 +296,23 @@ export function BlockCustomizationProvider({ children }: { children: React.React
    * 2) legacy 데이터 호환: premiumUiOverrides만 있는 과거 스킨은 Win98으로 매핑한다.
    * 3) 둘 다 없으면 기본 UI(null theme)로 동작한다.
    */
-  const premiumUiTheme = useMemo<PremiumUiThemeConfig | null>(() => {
-    const themeById = getPremiumUiThemeById(activeSkinCatalogEntry?.premiumUiThemeId);
-    if (themeById) return themeById;
-    if (activeSkinCatalogEntry?.premiumUiOverrides) {
-      return getPremiumUiThemeById('retro_windows_98');
-    }
+  const premiumUiThemeId = useMemo<PremiumUiThemeId | null>(() => {
+    if (activeSkinCatalogEntry?.premiumUiThemeId) return activeSkinCatalogEntry.premiumUiThemeId;
+    if (activeSkinCatalogEntry?.premiumUiOverrides) return 'retro_windows_98';
     return null;
   }, [activeSkinCatalogEntry]);
 
+  const premiumUiTheme = useMemo<PremiumUiThemeConfig | null>(() => {
+    const themeById = getPremiumUiThemeById(premiumUiThemeId);
+    if (themeById) return themeById;
+    return null;
+  }, [premiumUiThemeId]);
+
   const isPremiumUiThemeActive = Boolean(premiumUiTheme);
   const premiumUiObjects = useMemo<PremiumUiObjectMap>(() => {
-    return premiumUiTheme?.objects ?? DEFAULT_PREMIUM_UI_OBJECTS;
-  }, [premiumUiTheme]);
+    if (!isPremiumUiThemeActive) return DEFAULT_PREMIUM_UI_OBJECTS;
+    return withPremiumUiSafetyContracts(premiumUiTheme!.objects);
+  }, [isPremiumUiThemeActive, premiumUiTheme]);
   const premiumUiOverrides = useMemo<PremiumUiMicroOverrides | null>(() => {
     if (!isPremiumUiThemeActive) return null;
     return {
@@ -234,6 +321,9 @@ export function BlockCustomizationProvider({ children }: { children: React.React
       ...(activeSkinCatalogEntry?.premiumUiOverrides ?? {}),
     };
   }, [isPremiumUiThemeActive, premiumUiTheme, activeSkinCatalogEntry]);
+  const premiumSkinRuntime = useMemo<PremiumSkinRuntimeProfile>(() => (
+    resolvePremiumSkinRuntime(premiumUiThemeId, activeSkin?.id)
+  ), [activeSkin?.id, premiumUiThemeId]);
 
 
 
@@ -386,8 +476,9 @@ export function BlockCustomizationProvider({ children }: { children: React.React
         value,
         gate.allowed ? settings : DEFAULT_BLOCK_CUSTOMIZATION_SETTINGS,
         skinSettings,
+        { premiumUiThemeId },
       ),
-    [gate.allowed, settings, skinSettings]
+    [gate.allowed, premiumUiThemeId, settings, skinSettings]
   );
 
   const value = useMemo<BlockCustomizationContextValue>(
@@ -403,6 +494,7 @@ export function BlockCustomizationProvider({ children }: { children: React.React
       premiumUiTheme,
       premiumUiObjects,
       premiumUiOverrides,
+      premiumSkinRuntime,
       addSkin,
       setActiveSkin,
       addFragments,
@@ -411,13 +503,17 @@ export function BlockCustomizationProvider({ children }: { children: React.React
       commitSkinDrawResultPersisted,
       purchaseSkin,
     }),
-    [gate, settings, resetAll, resolver, skinSettings, activeSkin, isPremiumUiThemeActive, premiumUiTheme, premiumUiObjects, premiumUiOverrides, addSkin, setActiveSkin, addFragments, addScoreMilestoneFragments, commitSkinDrawResult, commitSkinDrawResultPersisted, purchaseSkin]
+    [gate, settings, resetAll, resolver, skinSettings, activeSkin, isPremiumUiThemeActive, premiumUiTheme, premiumUiObjects, premiumUiOverrides, premiumSkinRuntime, addSkin, setActiveSkin, addFragments, addScoreMilestoneFragments, commitSkinDrawResult, commitSkinDrawResultPersisted, purchaseSkin]
   );
 
-  const isGalaxyTheme = premiumUiTheme?.id === 'explore_galaxy';
+  const activeSkinModule = useMemo(() => resolveActiveSkinModule({
+    skinId: activeSkin?.id,
+    premiumUiThemeId,
+  }), [activeSkin?.id, premiumUiThemeId]);
+  const isGalaxyTheme = premiumSkinRuntime.context.enableGalaxyDragRepulsion;
 
-  const galaxyMouseControllerRef = useRef<{ setPos: (x: number, y: number) => void; clearPos: () => void } | null>(null);
-  const handleGetMouseControlRef = useCallback((ctrl: { setPos: (x: number, y: number) => void; clearPos: () => void }) => {
+  const galaxyMouseControllerRef = useRef<GalaxyMouseControl | null>(null);
+  const handleGetMouseControlRef = useCallback((ctrl: GalaxyMouseControl) => {
     galaxyMouseControllerRef.current = ctrl;
   }, []);
 
@@ -434,29 +530,12 @@ export function BlockCustomizationProvider({ children }: { children: React.React
   }, [isGalaxyTheme]);
 
   return (
-    <BlockCustomizationContext.Provider value={value}>
-      {children}
-      {isGalaxyTheme && createPortal(
-        <div className="galaxy-global-background">
-          {/* 원본 reactbits.dev Galaxy: 블랙 배경 + 흰색 별 + 중앙 스타버스트 광선 효과 */}
-          {/* reactbits.dev 기본값 그대로 — mouseInteraction만 false(외부 제어), transparent=false(블랙 배경 유지) */}
-          <Galaxy
-            mouseInteraction={false}
-            mouseRepulsion={true}
-            repulsionStrength={2}
-            autoCenterRepulsion={0}
-            density={1}
-            glowIntensity={0.3}
-            saturation={0}
-            hueShift={140}
-            rotationSpeed={0.1}
-            twinkleIntensity={0.3}
-            starSpeed={0.5}
-            speed={1}
-            transparent={false}
-            getMouseControlRef={handleGetMouseControlRef}
-          />
-        </div>,
+      <BlockCustomizationContext.Provider value={value}>
+        {children}
+      {activeSkinModule?.globalBackground && createPortal(
+        activeSkinModule.globalBackground.render({
+          onGalaxyMouseControlReady: handleGetMouseControlRef,
+        }),
         document.body
       )}
     </BlockCustomizationContext.Provider>

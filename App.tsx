@@ -307,10 +307,14 @@ const getSavedGameActiveDurationMs = (saved: SavedGameState): number => {
 interface BoardMetrics {
   rectLeft: number;
   rectTop: number;
+  borderLeft: number;
+  borderTop: number;
   paddingLeft: number;
   paddingTop: number;
   innerWidth: number;
   innerHeight: number;
+  offsetX: number;
+  offsetY: number;
   cell: number;
   pitch: number;
   size: number;
@@ -663,8 +667,10 @@ const App: React.FC = () => {
     addFragments,
     addScoreMilestoneFragments,
     isPremiumUiThemeActive,
+    premiumUiTheme,
     premiumUiObjects,
     premiumUiOverrides,
+    premiumSkinRuntime,
   } = useBlockCustomization();
   const premiumWindowClassName = premiumUiObjects.windowClassName;
   const premiumWindowBodyClassName = premiumUiObjects.windowBodyClassName;
@@ -3292,21 +3298,32 @@ const App: React.FC = () => {
     const paddingTop = parseFloat(styles.paddingTop) || 0;
     const paddingRight = parseFloat(styles.paddingRight) || 0;
     const paddingBottom = parseFloat(styles.paddingBottom) || 0;
+    const borderLeft = parseFloat(styles.borderLeftWidth) || 0;
+    const borderTop = parseFloat(styles.borderTopWidth) || 0;
+    const borderRight = parseFloat(styles.borderRightWidth) || 0;
+    const borderBottom = parseFloat(styles.borderBottomWidth) || 0;
     // Board 컴포넌트와 동일하게 grid.length 기반으로 계산하여 일관성 보장
     const size = grid.length;
-    const innerWidth = rect.width - paddingLeft - paddingRight;
-    const innerHeight = rect.height - paddingTop - paddingBottom;
+    const innerWidth = rect.width - borderLeft - borderRight - paddingLeft - paddingRight;
+    const innerHeight = rect.height - borderTop - borderBottom - paddingTop - paddingBottom;
+    const inner = Math.min(innerWidth, innerHeight);
+    const offsetX = Math.max(0, (innerWidth - inner) / 2);
+    const offsetY = Math.max(0, (innerHeight - inner) / 2);
     const totalGap = (size - 1) * BOARD_CELL_GAP_PX;
-    const cell = (innerWidth - totalGap) / size;
+    const cell = (inner - totalGap) / size;
     const pitch = cell + BOARD_CELL_GAP_PX;
 
     return {
       rectLeft: rect.left,
       rectTop: rect.top,
+      borderLeft,
+      borderTop,
       paddingLeft,
       paddingTop,
       innerWidth,
       innerHeight,
+      offsetX,
+      offsetY,
       cell,
       pitch,
       size,
@@ -3413,15 +3430,23 @@ const App: React.FC = () => {
     const metrics = boardMetricsRef.current;
     if (!metrics) return null;
 
-    const relativeX = clientX - metrics.rectLeft - metrics.paddingLeft;
-    const relativeY = clientY - metrics.rectTop - metrics.paddingTop;
+    const relativeX = clientX - metrics.rectLeft - metrics.borderLeft - metrics.paddingLeft - metrics.offsetX;
+    const relativeY = clientY - metrics.rectTop - metrics.borderTop - metrics.paddingTop - metrics.offsetY;
+    const playableSpan = metrics.pitch * (metrics.size - 1) + metrics.cell;
+    const EDGE_EPSILON_PX = 0.5;
     const isOutside =
-      relativeX < 0 || relativeY < 0 || relativeX > metrics.innerWidth || relativeY > metrics.innerHeight;
+      relativeX < -EDGE_EPSILON_PX ||
+      relativeY < -EDGE_EPSILON_PX ||
+      relativeX > playableSpan + EDGE_EPSILON_PX ||
+      relativeY > playableSpan + EDGE_EPSILON_PX;
     if (isOutside) return null;
 
+    const rawX = Math.round((relativeX - metrics.cell / 2) / metrics.pitch);
+    const rawY = Math.round((relativeY - metrics.cell / 2) / metrics.pitch);
+
     return {
-      x: Math.round((relativeX - metrics.cell / 2) / metrics.pitch),
-      y: Math.round((relativeY - metrics.cell / 2) / metrics.pitch),
+      x: clamp(rawX, 0, metrics.size - 1),
+      y: clamp(rawY, 0, metrics.size - 1),
     };
   }, []);
 
@@ -4092,6 +4117,7 @@ const App: React.FC = () => {
     const baseCellSize = boardMetricsRef.current?.cell ?? 32;
     const cellSize = baseCellSize * DRAG_OVERLAY_SCALE;
     const cellAppearance = resolveTileAppearance(draggingPiece.value);
+    const dragPreviewRuntime = premiumSkinRuntime.dragPreview;
     const { minX, maxX, minY, maxY } = getPieceBounds(cells);
     const centerOffsetX = ((minX + maxX) / 2 + 0.5) * cellSize;
     const centerOffsetY = ((minY + maxY) / 2 + 0.5) * cellSize;
@@ -4119,7 +4145,7 @@ const App: React.FC = () => {
               data-tile-kind="drag-overlay"
               className={`
                 absolute rounded-lg
-                ${cellAppearance.className}
+                ${dragPreviewRuntime.useResolvedAppearanceClass ? cellAppearance.className : ''}
               `}
               style={{
                 left: c.x * cellSize,
@@ -4127,6 +4153,7 @@ const App: React.FC = () => {
                 width: `${cellSize}px`,
                 height: `${cellSize}px`,
                 ...(cellAppearance.style ?? {}),
+                ...dragPreviewRuntime.cellStyle,
               }}
             />
           ))}
@@ -5041,9 +5068,12 @@ const App: React.FC = () => {
   const slotFocusSurfaceClass = isPlaceFocusMode
     ? focusSurfaceClass
     : 'scale-100';
+  const slotVisibilityRuntime = premiumSkinRuntime.app.slotVisibility;
   const slotVisibilityClass = isAnimating
-    ? 'opacity-40 grayscale'
-    : (isSwipeFocusMode ? 'opacity-45 grayscale-[0.4] saturate-75 blur-[1.5px]' : 'opacity-100');
+    ? slotVisibilityRuntime.animatingClassName
+    : (isSwipeFocusMode
+      ? slotVisibilityRuntime.swipeClassName
+      : slotVisibilityRuntime.idleClassName);
   const phaseIndicatorInteractivityClass = isPlacePhase && !isReviveSelectionMode
     ? 'pointer-events-auto'
     : 'pointer-events-none opacity-35 grayscale select-none';

@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import { TILE_COLORS, getTileColor, SKIN_CATALOG } from '../constants';
-import type { BlockCustomizationSettingsV1, GlobalTilePaletteSettings, SkinSettings, TileSkinOverride, SkinCatalogEntry } from '../types';
+import type { BlockCustomizationSettingsV1, GlobalTilePaletteSettings, PremiumUiThemeId, SkinSettings, TileSkinOverride, SkinCatalogEntry } from '../types';
 import {
   SKIN_PROGRESSIONS,
   SKIN_EXPLICIT_PALETTES,
@@ -10,6 +10,7 @@ import {
   getAutoBorderColor,
   type SkinRenderMode,
 } from '../config/skinPalettes';
+import { resolveSkinModuleAppearance } from './skinModules/registry';
 
 export const BLOCK_CUSTOMIZATION_STORAGE_KEY = 'slidemino.blockCustomization.v1';
 
@@ -577,7 +578,6 @@ const buildMeshSkinStyle = (value: number, seedHex: string, options?: { circular
 const LIQUID_GLASS_SKIN_PREFIX = 'skin_digital_liquid_glass_';
 const LEGACY_LIQUID_GLASS_SKIN_ID = 'skin_digital_liquid_glass';
 const NEON_BLOCK_PARALLEL_SKIN_PREFIX = 'skin_digital_neon_block_parallel_';
-const EXPLORE_GALAXY_SKIN_ID = 'skin_digital_explore_galaxy';
 
 const isLiquidGlassSkinId = (skinId: string): boolean => (
   skinId === LEGACY_LIQUID_GLASS_SKIN_ID || skinId.startsWith(LIQUID_GLASS_SKIN_PREFIX)
@@ -665,7 +665,11 @@ const buildLiquidGlassTileStyle = (value: number, tintHex: string): CSSPropertie
 };
 
 // --- New Helper for Previews ---
-export const resolveSkinAppearance = (value: number, skin: { id?: string; hex: string; style?: any }): ResolvedTileAppearance => {
+export const resolveSkinAppearance = (
+  value: number,
+  skin: { id?: string; hex: string; style?: any },
+  options?: { premiumUiThemeId?: PremiumUiThemeId | null }
+): ResolvedTileAppearance => {
   const skinId = skin.id || '';
 
   // Look up style from catalog if not provided (backward compatibility)
@@ -674,6 +678,21 @@ export const resolveSkinAppearance = (value: number, skin: { id?: string; hex: s
     const entry = SKIN_CATALOG.find((e) => e.id === skinId);
     if (entry) styleData = entry.style;
   }
+
+  const moduleAppearance = resolveSkinModuleAppearance({
+    value,
+    skinId,
+    premiumUiThemeId: options?.premiumUiThemeId,
+    skinHex: skin.hex,
+    styleData,
+    helpers: {
+      getTileColor,
+      sanitizeTileAppearanceStyle,
+      applyStructuralCss,
+      applySkinStyleOverrides,
+    },
+  });
+  if (moduleAppearance) return moduleAppearance;
 
   if (isLiquidGlassSkinId(skinId)) {
     const style = buildLiquidGlassTileStyle(value, skin.hex);
@@ -735,26 +754,6 @@ export const resolveSkinAppearance = (value: number, skin: { id?: string; hex: s
     };
   }
 
-  if (skinId === EXPLORE_GALAXY_SKIN_ID) {
-    const style: CSSProperties = {
-      backgroundColor: 'transparent',
-      backgroundImage: 'none',
-      border: 'none',
-      boxShadow: 'none',
-      color: '#e5e7eb',
-      textShadow: '0 1px 2px rgba(0,0,0,0.65), 0 0 10px rgba(194, 184, 255, 0.32)',
-    };
-    if (styleData?.customCss) {
-      applyStructuralCss(style, styleData.customCss as string);
-    }
-    if (typeof styleData?.textColor === 'string' && styleData.textColor) {
-      style.color = styleData.textColor;
-    }
-    return {
-      className: 'skin-explore-galaxy-tile',
-      style: sanitizeTileAppearanceStyle(style),
-    };
-  }
   // ── 1. Explicit palette skins (Neon, Pop Art, Stained Glass) ──
   const explicitPalette = SKIN_EXPLICIT_PALETTES[skinId];
   if (explicitPalette) {
@@ -917,22 +916,6 @@ function resolveExplicitPaletteSkin(
   }
   applySkinStyleOverrides(style, styleData);
 
-  if (skinId === 'skin_digital_win98') {
-    // Win98 스킨은 customCss에서 border:none이 들어와 기본 테두리가 사라지므로,
-    // 값 전 구간에서 보더 대비를 다시 강하게 맞춘다.
-    const lum = relativeLuminance(paletteRgb);
-    const outerBorder = lum >= 0.62 ? '#3f3f3f' : lum >= 0.4 ? '#2f2f2f' : '#bfbfbf';
-    const bevelDark = lum >= 0.62 ? '#5c5c5c' : '#3d3d3d';
-    const bevelLight = lum >= 0.62 ? '#ffffff' : '#d5d5d5';
-    style.border = `1px solid ${outerBorder}`;
-    style.boxShadow = [
-      `inset -1px -1px ${bevelDark}`,
-      `inset 1px 1px ${bevelLight}`,
-      'inset -2px -2px rgba(0,0,0,0.32)',
-      'inset 2px 2px rgba(255,255,255,0.24)',
-    ].join(', ');
-  }
-
   // Apply animation
   const anim = SKIN_ANIMATIONS[skinId];
   if (anim) {
@@ -1060,7 +1043,8 @@ function applySkinStyleOverrides(
 export const resolveTileAppearance = (
   value: number,
   settings: BlockCustomizationSettingsV1,
-  skinSettings?: SkinSettings
+  skinSettings?: SkinSettings,
+  options?: { premiumUiThemeId?: PremiumUiThemeId | null }
 ): ResolvedTileAppearance => {
   if (!Number.isFinite(value) || value <= 0) {
     return { className: getTileColor(0) };
@@ -1072,13 +1056,13 @@ export const resolveTileAppearance = (
     // 카탈로그 정의를 우선 소스로 사용한다.
     const catalogSkin = SKIN_CATALOG.find((entry) => entry.id === skinSettings.activeSkinId);
     if (catalogSkin) {
-      return resolveSkinAppearance(value, catalogSkin);
+      return resolveSkinAppearance(value, catalogSkin, options);
     }
 
     // 구버전/예외 데이터 호환용 fallback
     const ownedSkin = skinSettings.ownedSkins.find((skin) => skin.id === skinSettings.activeSkinId);
     if (ownedSkin) {
-      return resolveSkinAppearance(value, ownedSkin);
+      return resolveSkinAppearance(value, ownedSkin, options);
     }
   }
 

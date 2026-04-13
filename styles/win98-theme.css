@@ -356,6 +356,10 @@ body.theme-win98 .win98-lock-toast {
   font-weight: 600;
 }
 
+body.theme-win98 .win98-nav-wrapper {
+  background: #c0c0c0;
+}
+
 body.theme-win98 .win98-bottom-nav {
   display: flex;
   align-items: center;

@@ -126,6 +126,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
 }) => {
   const { t } = useTranslation();
   const { premiumUiObjects } = useBlockCustomization();
+  const premiumUiTaskbarWrapperClassName = premiumUiObjects.extended.navigation.taskbarWrapperClassName;
   const premiumUiTaskbarClassName = premiumUiObjects.extended.navigation.taskbarClassName;
   const premiumUiTaskbarButtonClassName = premiumUiObjects.extended.navigation.taskbarButtonClassName;
   const premiumUiTaskbarBadgeClassName = premiumUiObjects.extended.navigation.taskbarBadgeClassName;
@@ -224,8 +225,12 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
   if (isPremiumUiThemeActive) {
     return (
       <div
-        className="fixed left-0 right-0 z-[100] galaxy-nav-wrapper"
-        style={{ bottom: 0, paddingBottom: 'var(--app-safe-bottom)' }}
+        className={`fixed left-0 right-0 z-[100] premium-nav-wrapper-fallback ${premiumUiTaskbarWrapperClassName}`}
+        style={{
+          bottom: 0,
+          paddingBottom: 'max(var(--app-safe-bottom, 0px), env(safe-area-inset-bottom))',
+          backgroundClip: 'padding-box',
+        }}
       >
         {/* 잠금 안내 토스트 */}
         {lockToast && (
@@ -239,7 +244,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
           ref={(node) => {
             navMeasureRef.current = node;
           }}
-          className={premiumUiTaskbarClassName}
+          className={`premium-bottom-nav-fallback ${premiumUiTaskbarClassName}`}
         >
           {navItems.map((item) => (
             <button

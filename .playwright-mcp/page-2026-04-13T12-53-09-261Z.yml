@@ -1,0 +1,48 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - banner [ref=e5]:
+      - generic [ref=e6]:
+        - button "Home" [ref=e7] [cursor=pointer]:
+          - img [ref=e8]
+        - generic [ref=e11]:
+          - heading "Score" [level=2] [ref=e12]
+          - paragraph [ref=e13]: "42"
+      - generic [ref=e14]:
+        - generic [ref=e15]: PLACE BLOCK
+        - generic [ref=e16]:
+          - button "Help" [ref=e17] [cursor=pointer]:
+            - img [ref=e18]
+          - button "Undo" [disabled] [ref=e21]:
+            - img [ref=e22]
+            - generic [ref=e25]: "3"
+    - main [ref=e26]:
+      - generic [ref=e30]:
+        - generic:
+          - generic:
+            - generic: "2"
+          - generic:
+            - generic: "4"
+          - generic:
+            - generic: "8"
+      - button "Rotate block" [ref=e33] [cursor=pointer]:
+        - img [ref=e34]
+      - generic [ref=e39]:
+        - button "Refresh Blocks" [ref=e40] [cursor=pointer]:
+          - generic [ref=e41]: Refresh Blocks
+        - button:
+          - img
+    - generic:
+      - generic:
+        - img
+      - generic: Drag block to board!
+    - generic [ref=e44]:
+      - insertion
+      - generic: AdBanner (Awaiting Consent)
+  - generic [ref=e45]:
+    - generic [ref=e46]:
+      - generic [ref=e48]:
+        - generic [ref=e49]: "4"
+        - generic [ref=e50]: "4"
+      - heading "Block Slide" [level=1] [ref=e51]
+      - generic [ref=e52]: Loading
+    - generic [ref=e53]: Original Puzzle Logic

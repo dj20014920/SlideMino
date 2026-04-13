@@ -89,12 +89,13 @@ type GridLayout = {
   cellPx: number;
   pitchPx: number;
   posPx: number[];
+  offsetX: number;
+  offsetY: number;
 };
 
-const EXPLORE_GALAXY_SKIN_ID = 'skin_digital_explore_galaxy';
-const PIXELBLAST_VOID_SKIN_ID = 'skin_digital_pixelblast_void';
 const PENDING_MERGE_RIPPLE_TTL_MS = 4500;
 const MAX_PENDING_MERGE_RIPPLES = 4;
+const LAYOUT_CHANGE_EPS = 0.25;
 
 type PendingMergeRipple = {
   fingerprint: string;
@@ -375,7 +376,9 @@ const GhostOverlay = React.memo<{
   isPremiumUiThemeActive: boolean;
   premiumUiGhostValidClassName: string;
   premiumUiGhostInvalidClassName: string;
-  isExploreGalaxySkin: boolean;
+  useGalaxyGhostStyle: boolean;
+  galaxyGhostValidStyle?: React.CSSProperties;
+  galaxyGhostInvalidStyle?: React.CSSProperties;
 }>(({
   size,
   layout,
@@ -383,7 +386,9 @@ const GhostOverlay = React.memo<{
   isPremiumUiThemeActive,
   premiumUiGhostValidClassName,
   premiumUiGhostInvalidClassName,
-  isExploreGalaxySkin,
+  useGalaxyGhostStyle,
+  galaxyGhostValidStyle,
+  galaxyGhostInvalidStyle,
 }) => {
   if (ghostCells.cells.length === 0) return null;
 
@@ -392,7 +397,7 @@ const GhostOverlay = React.memo<{
       {ghostCells.cells.map((cell, idx) => {
         if (cell.x < 0 || cell.x >= size || cell.y < 0 || cell.y >= size) return null;
         const transform = `translate3d(${layout.posPx[cell.x]}px, ${layout.posPx[cell.y]}px, 0)`;
-        const ghostClassName = isExploreGalaxySkin
+        const ghostClassName = useGalaxyGhostStyle
           ? 'absolute rounded-xl opacity-100 border-2 box-border transition-colors duration-150'
           : `
               absolute ${isPremiumUiThemeActive ? '' : 'rounded-xl'} ${isPremiumUiThemeActive ? 'opacity-100' : 'opacity-70'} border-2 box-border
@@ -405,10 +410,9 @@ const GhostOverlay = React.memo<{
                   ? 'bg-gray-800/50 border-gray-600'
                   : 'bg-red-400/50 border-red-300'}
             `;
-        const ghostStyle = isExploreGalaxySkin
+        const ghostStyle = useGalaxyGhostStyle
           ? ({
-              backgroundColor: ghostCells.isValid ? '#e7ebf5' : '#f1d8df',
-              borderColor: ghostCells.isValid ? '#b6bfd4' : '#cf95a5',
+              ...(ghostCells.isValid ? galaxyGhostValidStyle : galaxyGhostInvalidStyle),
             } as React.CSSProperties)
           : undefined;
 
@@ -455,6 +459,8 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
     cellPx: 0,
     pitchPx: 0,
     posPx: Array.from({ length: size }, () => 0),
+    offsetX: 0,
+    offsetY: 0,
   }));
   const [hoverLocation, setHoverLocation] = useState<{ x: number; y: number } | null>(null);
   const hoverLocationRef = useRef<{ x: number; y: number } | null>(null);
@@ -462,8 +468,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
   const mergeRippleFingerprintRef = useRef<string>('');
   const pendingMergeRippleQueueRef = useRef<PendingMergeRipple[]>([]);
   const pendingMergeReplayRafRef = useRef<number | null>(null);
-  const [pixelBlastRenderPhase, setPixelBlastRenderPhase] = useState<'unmounted' | 'active' | 'teardown'>('unmounted');
-  const pixelBlastTeardownRafRef = useRef<number | null>(null);
+  const [shouldRenderPixelBlastFallback, setShouldRenderPixelBlastFallback] = useState(false);
 
   useImperativeHandle(ref, () => ({
     setHoverLocation: (pos) => {
@@ -522,7 +527,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
   }, [mergingTiles]);
 
   // ── Evervault skin: detect active skin & track merge flash ──
-  const { activeSkin, isPremiumUiThemeActive, premiumUiObjects, resolveTileAppearance } = useBlockCustomization();
+  const { activeSkin, isPremiumUiThemeActive, premiumUiObjects, resolveTileAppearance, premiumSkinRuntime } = useBlockCustomization();
   const premiumUiBoardCellClassName = premiumUiObjects.extended.board.boardCellClassName;
   const premiumUiBoardShellClassName = premiumUiObjects.extended.board.boardShellClassName || premiumUiObjects.blockClassName;
   const premiumUiGhostValidClassName = premiumUiObjects.extended.board.ghostValidClassName;
@@ -530,34 +535,35 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
   const premiumUiTileFaceClassName = premiumUiObjects.extended.text.tileFaceClassName;
   const premiumUiTileNumberClassName = premiumUiObjects.extended.text.tileNumberClassName;
   const isEvervaultSkin = activeSkin?.id === EVERVAULT_SKIN_ID;
-  const isExploreGalaxySkin = activeSkin?.id === EXPLORE_GALAXY_SKIN_ID;
-  const isPixelBlastSkin = activeSkin?.id === PIXELBLAST_VOID_SKIN_ID;
+  const isPixelBlastSkin = premiumSkinRuntime.board.features.enablePixelBlastFallback;
+  const isPixelBlastMergeRippleEnabled = premiumSkinRuntime.board.features.enablePixelBlastMergeRipple;
+  const useGalaxyGhostStyle = premiumSkinRuntime.board.features.useGalaxyGhostStyle;
+  const useGalaxyPhaseSyncClass = premiumSkinRuntime.board.features.enableGalaxyPhaseSyncClass;
+  const galaxyGhostValidStyle = premiumSkinRuntime.board.ghost.validStyle;
+  const galaxyGhostInvalidStyle = premiumSkinRuntime.board.ghost.invalidStyle;
 
   const [mergeFlashTileIds, setMergeFlashTileIds] = useState<ReadonlySet<string>>(new Set());
 
   useEffect(() => {
-    if (pixelBlastTeardownRafRef.current !== null) {
-      cancelAnimationFrame(pixelBlastTeardownRafRef.current);
-      pixelBlastTeardownRafRef.current = null;
-    }
-
-    if (isPixelBlastSkin) {
-      setPixelBlastRenderPhase('active');
+    if (!isPixelBlastSkin || typeof document === 'undefined') {
+      setShouldRenderPixelBlastFallback(false);
       return;
     }
 
-    setPixelBlastRenderPhase((prev) => (prev === 'unmounted' ? prev : 'teardown'));
-    pixelBlastTeardownRafRef.current = requestAnimationFrame(() => {
-      pixelBlastTeardownRafRef.current = null;
-      setPixelBlastRenderPhase((prev) => (prev === 'teardown' ? 'unmounted' : prev));
-    });
-
-    return () => {
-      if (pixelBlastTeardownRafRef.current !== null) {
-        cancelAnimationFrame(pixelBlastTeardownRafRef.current);
-        pixelBlastTeardownRafRef.current = null;
-      }
+    const hasGlobalPixelBlastCanvas = () => Boolean(document.querySelector('.pixelblast-global-background canvas'));
+    const syncFallbackVisibility = () => {
+      setShouldRenderPixelBlastFallback(!hasGlobalPixelBlastCanvas());
     };
+
+    syncFallbackVisibility();
+    if (hasGlobalPixelBlastCanvas()) return;
+
+    const observer = new MutationObserver(() => {
+      syncFallbackVisibility();
+      if (hasGlobalPixelBlastCanvas()) observer.disconnect();
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
   }, [isPixelBlastSkin]);
 
   const appearanceCacheRef = useRef(new Map<number, ResolvedTileAppearance>());
@@ -631,8 +637,8 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
       const x = Number(xStr);
       const y = Number(yStr);
       if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-      const clientX = innerLeft + x * layout.pitchPx + layout.cellPx * 0.5;
-      const clientY = innerTop + y * layout.pitchPx + layout.cellPx * 0.5;
+      const clientX = innerLeft + layout.offsetX + x * layout.pitchPx + layout.cellPx * 0.5;
+      const clientY = innerTop + layout.offsetY + y * layout.pitchPx + layout.cellPx * 0.5;
       if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return;
 
       if (typeof window.PointerEvent === 'function') {
@@ -659,7 +665,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
 
     mergeRippleFingerprintRef.current = fingerprint;
     return true;
-  }, [boardRef, layout.cellPx, layout.pitchPx]);
+  }, [boardRef, layout.cellPx, layout.offsetX, layout.offsetY, layout.pitchPx]);
 
   const getPendingMergeNow = useCallback(() => (
     typeof performance !== 'undefined' ? performance.now() : Date.now()
@@ -695,7 +701,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
     const replay = () => {
       pendingMergeReplayRafRef.current = null;
 
-      if (!isPixelBlastSkin) return;
+      if (!isPixelBlastMergeRippleEnabled) return;
 
       const now = getPendingMergeNow();
       const queue = prunePendingMergeQueue(now);
@@ -714,12 +720,12 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
     };
 
     pendingMergeReplayRafRef.current = requestAnimationFrame(replay);
-  }, [getPendingMergeNow, isPixelBlastSkin, prunePendingMergeQueue, triggerMergeRipple]);
+  }, [getPendingMergeNow, isPixelBlastMergeRippleEnabled, prunePendingMergeQueue, triggerMergeRipple]);
 
   useEffect(() => {
-    if (!isPixelBlastSkin || pendingMergeRippleQueueRef.current.length === 0) return;
+    if (!isPixelBlastMergeRippleEnabled || pendingMergeRippleQueueRef.current.length === 0) return;
     schedulePendingMergeReplay();
-  }, [isPixelBlastSkin, layout.cellPx, layout.pitchPx, schedulePendingMergeReplay]);
+  }, [isPixelBlastMergeRippleEnabled, layout.cellPx, layout.pitchPx, schedulePendingMergeReplay]);
 
   useEffect(() => {
     return () => {
@@ -734,7 +740,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
     if (mergingTiles.length === 0) {
       mergeRippleFingerprintRef.current = '';
       const queue = prunePendingMergeQueue(getPendingMergeNow());
-      if (queue.length > 0 && isPixelBlastSkin) {
+      if (queue.length > 0 && isPixelBlastMergeRippleEnabled) {
         schedulePendingMergeReplay();
       } else if (pendingMergeReplayRafRef.current !== null) {
         cancelAnimationFrame(pendingMergeReplayRafRef.current);
@@ -742,7 +748,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
       }
       return;
     }
-    if (!isPixelBlastSkin) {
+    if (!isPixelBlastMergeRippleEnabled) {
       mergeRippleFingerprintRef.current = '';
       pendingMergeRippleQueueRef.current = [];
       if (pendingMergeReplayRafRef.current !== null) {
@@ -770,7 +776,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
       expiresAt: getPendingMergeNow() + PENDING_MERGE_RIPPLE_TTL_MS,
     });
     schedulePendingMergeReplay();
-  }, [enqueuePendingMergeRipple, getPendingMergeNow, isPixelBlastSkin, mergingTiles, prunePendingMergeQueue, schedulePendingMergeReplay, triggerMergeRipple]);
+  }, [enqueuePendingMergeRipple, getPendingMergeNow, isPixelBlastMergeRippleEnabled, mergingTiles, prunePendingMergeQueue, schedulePendingMergeReplay, triggerMergeRipple]);
 
   // 드래그가 끝나면(= activePiece가 없어지면) hover를 즉시 정리해서 불필요한 렌더를 줄임
   useEffect(() => {
@@ -804,17 +810,20 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
       const cellPx = (inner - totalGap) / size;
       const pitchPx = cellPx + BOARD_CELL_GAP_PX;
       const posPx = Array.from({ length: size }, (_, idx) => idx * pitchPx);
+      const offsetX = Math.max(0, (innerWidth - inner) / 2);
+      const offsetY = Math.max(0, (innerHeight - inner) / 2);
 
-      const EPS = 0.01;
       setLayout((prev) => {
         if (
           prev.posPx.length === size &&
-          Math.abs(prev.cellPx - cellPx) < EPS &&
-          Math.abs(prev.pitchPx - pitchPx) < EPS
+          Math.abs(prev.cellPx - cellPx) < LAYOUT_CHANGE_EPS &&
+          Math.abs(prev.pitchPx - pitchPx) < LAYOUT_CHANGE_EPS &&
+          Math.abs(prev.offsetX - offsetX) < LAYOUT_CHANGE_EPS &&
+          Math.abs(prev.offsetY - offsetY) < LAYOUT_CHANGE_EPS
         ) {
           return prev;
         }
-        return { cellPx, pitchPx, posPx };
+        return { cellPx, pitchPx, posPx, offsetX, offsetY };
       });
     };
 
@@ -880,7 +889,8 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
       ? 'p-2'
       : 'p-4'
     : 'p-3';
-  const glowOpacityClass = isPremiumUiThemeActive || isExploreGalaxySkin ? 'opacity-0' : phase === Phase.SLIDE ? 'opacity-100' : 'opacity-0';
+  const glowOpacityClass = isPremiumUiThemeActive || useGalaxyGhostStyle ? 'opacity-0' : phase === Phase.SLIDE ? 'opacity-100' : 'opacity-0';
+  const boardLayersTransform = `translate3d(${layout.offsetX}px, ${layout.offsetY}px, 0)`;
 
   return (
     <div
@@ -913,7 +923,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
       />
       {/* Container for content aiming to match padding-box area */}
       <div
-        className={`relative w-full h-full ${isExploreGalaxySkin ? 'explore-galaxy-phase-sync' : ''}`}
+        className={`relative w-full h-full ${useGalaxyPhaseSyncClass ? 'explore-galaxy-phase-sync' : ''}`}
       >
         <style>{`
           @keyframes reviveBreakFade {
@@ -927,85 +937,92 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
           }
         `}</style>
 
-        {/* 1. Background Grid (Empty Slots) */}
-        <BackgroundGrid
-          size={size}
-          layout={layout}
-          isPremiumUiThemeActive={isPremiumUiThemeActive}
-          premiumUiBoardCellClassName={premiumUiBoardCellClassName}
-        />
+        <div
+          className="absolute inset-0"
+          style={{ transform: boardLayersTransform }}
+        >
+          {/* 1. Background Grid (Empty Slots) */}
+          <BackgroundGrid
+            size={size}
+            layout={layout}
+            isPremiumUiThemeActive={isPremiumUiThemeActive}
+            premiumUiBoardCellClassName={premiumUiBoardCellClassName}
+          />
 
-        {pixelBlastRenderPhase !== 'unmounted' && (
+          {/* 2. Merging Tiles Layer (Absorbed tiles animating to merge destination) */}
+          <MergingTilesLayer
+            animatingMerges={animatingMerges}
+            layout={layout}
+            getResolvedAppearance={getResolvedAppearance}
+            isPremiumUiThemeActive={isPremiumUiThemeActive}
+            premiumUiTileFaceClassName={premiumUiTileFaceClassName}
+            premiumUiTileNumberClassName={premiumUiTileNumberClassName}
+          />
+
+          {/* 3. Tiles Layer (Animated with uniform speed) */}
+          <TilesLayer
+            tiles={renderTiles}
+            layout={layout}
+            getResolvedAppearance={getResolvedAppearance}
+            valueOverrides={valueOverrides}
+            reviveSelectionEnabled={reviveSelectionEnabled}
+            revivePendingTileId={revivePendingTileId}
+            onReviveTileTap={onReviveTileTap}
+            isEvervaultSkin={isEvervaultSkin}
+            mergeFlashTileIds={mergeFlashTileIds}
+            onMergeFlashEnd={handleMergeFlashEnd}
+            mergedNumberBurstTileIds={mergedNumberBurstTileIds}
+            mergedNumberBurstByTileId={mergedNumberBurstByTileId}
+            isPremiumUiThemeActive={isPremiumUiThemeActive}
+            premiumUiTileFaceClassName={premiumUiTileFaceClassName}
+            premiumUiTileNumberClassName={premiumUiTileNumberClassName}
+          />
+
+          {/* 4. Revive Destroy FX */}
+          <ReviveDestroyLayer
+            effects={reviveDestroyEffects}
+            layout={layout}
+            getResolvedAppearance={getResolvedAppearance}
+            isPremiumUiThemeActive={isPremiumUiThemeActive}
+            premiumUiTileFaceClassName={premiumUiTileFaceClassName}
+            premiumUiTileNumberClassName={premiumUiTileNumberClassName}
+          />
+
+          {/* 5. Ghost Overlay */}
+          {ghostCells && (
+            <GhostOverlay
+              size={size}
+              layout={layout}
+              ghostCells={ghostCells}
+              isPremiumUiThemeActive={isPremiumUiThemeActive}
+              premiumUiGhostValidClassName={premiumUiGhostValidClassName}
+              premiumUiGhostInvalidClassName={premiumUiGhostInvalidClassName}
+              useGalaxyGhostStyle={useGalaxyGhostStyle}
+              galaxyGhostValidStyle={galaxyGhostValidStyle}
+              galaxyGhostInvalidStyle={galaxyGhostInvalidStyle}
+            />
+          )}
+        </div>
+
+        {shouldRenderPixelBlastFallback && (
           <div
             ref={pixelBlastLayerRef}
-            className={`absolute inset-0 z-[1] pointer-events-none transition-opacity duration-150 ${isPixelBlastSkin ? 'opacity-100' : 'opacity-0'}`}
-            aria-hidden={!isPixelBlastSkin}
+            className="absolute inset-0 z-[1] pointer-events-none"
+            aria-hidden="true"
           >
             <Suspense fallback={null}>
               <PixelBlast
                 variant="square"
                 pixelSize={4}
-                patternScale={4}
-                patternDensity={0}
-                pixelSizeJitter={0}
+                patternScale={6}
+                patternDensity={1}
+                pixelSizeJitter={1}
                 speed={0.5}
                 edgeFade={0.25}
                 transparent
               />
             </Suspense>
           </div>
-        )}
-
-        {/* 2. Merging Tiles Layer (Absorbed tiles animating to merge destination) */}
-        <MergingTilesLayer
-          animatingMerges={animatingMerges}
-          layout={layout}
-          getResolvedAppearance={getResolvedAppearance}
-          isPremiumUiThemeActive={isPremiumUiThemeActive}
-          premiumUiTileFaceClassName={premiumUiTileFaceClassName}
-          premiumUiTileNumberClassName={premiumUiTileNumberClassName}
-        />
-
-        {/* 3. Tiles Layer (Animated with uniform speed) */}
-        <TilesLayer
-          tiles={renderTiles}
-          layout={layout}
-          getResolvedAppearance={getResolvedAppearance}
-          valueOverrides={valueOverrides}
-          reviveSelectionEnabled={reviveSelectionEnabled}
-          revivePendingTileId={revivePendingTileId}
-          onReviveTileTap={onReviveTileTap}
-          isEvervaultSkin={isEvervaultSkin}
-          mergeFlashTileIds={mergeFlashTileIds}
-          onMergeFlashEnd={handleMergeFlashEnd}
-          mergedNumberBurstTileIds={mergedNumberBurstTileIds}
-          mergedNumberBurstByTileId={mergedNumberBurstByTileId}
-          isPremiumUiThemeActive={isPremiumUiThemeActive}
-          premiumUiTileFaceClassName={premiumUiTileFaceClassName}
-          premiumUiTileNumberClassName={premiumUiTileNumberClassName}
-        />
-
-        {/* 4. Revive Destroy FX */}
-        <ReviveDestroyLayer
-          effects={reviveDestroyEffects}
-          layout={layout}
-          getResolvedAppearance={getResolvedAppearance}
-          isPremiumUiThemeActive={isPremiumUiThemeActive}
-          premiumUiTileFaceClassName={premiumUiTileFaceClassName}
-          premiumUiTileNumberClassName={premiumUiTileNumberClassName}
-        />
-
-        {/* 5. Ghost Overlay */}
-        {ghostCells && (
-          <GhostOverlay
-            size={size}
-            layout={layout}
-            ghostCells={ghostCells}
-            isPremiumUiThemeActive={isPremiumUiThemeActive}
-            premiumUiGhostValidClassName={premiumUiGhostValidClassName}
-            premiumUiGhostInvalidClassName={premiumUiGhostInvalidClassName}
-            isExploreGalaxySkin={isExploreGalaxySkin}
-          />
         )}
       </div>
     </div>

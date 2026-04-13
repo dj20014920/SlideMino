@@ -87,6 +87,7 @@ export const DEFAULT_PREMIUM_UI_OBJECTS: PremiumUiObjectMap = {
       weeklyEvent: { containerClassName: '', buttonClassName: '' },
     },
     navigation: {
+      taskbarWrapperClassName: '',
       taskbarClassName: '',
       taskbarButtonClassName: '',
       taskbarBadgeClassName: '',
@@ -260,6 +261,7 @@ export const RETRO_WINDOWS_98_PREMIUM_UI_THEME: PremiumUiThemeConfig = {
         weeklyEvent: { containerClassName: 'win98-tabstrip', buttonClassName: 'win98-tabstrip-tab' },
       },
       navigation: {
+        taskbarWrapperClassName: 'win98-nav-wrapper',
         taskbarClassName: 'win98-bottom-nav',
         taskbarButtonClassName: 'win98-bottom-nav-button',
         taskbarBadgeClassName: 'win98-bottom-nav-badge',
@@ -367,6 +369,7 @@ export const EXPLORE_GALAXY_PREMIUM_UI_THEME: PremiumUiThemeConfig = {
         weeklyEvent: { containerClassName: 'galaxy-tabstrip', buttonClassName: 'galaxy-tabstrip-tab' },
       },
       navigation: {
+        taskbarWrapperClassName: 'galaxy-nav-wrapper',
         taskbarClassName: 'galaxy-bottom-nav',
         taskbarButtonClassName: 'galaxy-bottom-nav-button',
         taskbarBadgeClassName: 'galaxy-bottom-nav-badge',
@@ -411,6 +414,17 @@ export const PIXELBLAST_VOID_PREMIUM_UI_THEME: PremiumUiThemeConfig = {
   objects: {
     ...EXPLORE_GALAXY_PREMIUM_UI_THEME.objects,
     appShellClassName: 'pixelblast-app-shell',
+    extended: {
+      ...EXPLORE_GALAXY_PREMIUM_UI_THEME.objects.extended,
+      navigation: {
+        ...EXPLORE_GALAXY_PREMIUM_UI_THEME.objects.extended.navigation,
+        taskbarWrapperClassName: 'pixelblast-nav-wrapper',
+        taskbarClassName: 'pixelblast-bottom-nav',
+        taskbarButtonClassName: 'pixelblast-bottom-nav-button',
+        taskbarBadgeClassName: 'pixelblast-bottom-nav-badge',
+        lockToastClassName: 'pixelblast-lock-toast',
+      },
+    },
   },
 };
 

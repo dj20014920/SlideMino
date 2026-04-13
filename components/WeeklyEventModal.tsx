@@ -345,6 +345,14 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
           <p className="text-sm text-gray-600 leading-relaxed">
             {t(`game:weeklyEvent.events.${event.eventType}.desc`)}
           </p>
+          <div className={isPremiumUi ? `mt-3 ${premiumUiSunkenClassName} px-3 py-2` : 'mt-3 rounded-xl border border-sky-100 bg-sky-50/85 px-3 py-2'}>
+            <p className="text-[11px] font-semibold text-gray-800">
+              {t('game:weeklyEvent.separateSessionTitle')}
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-gray-600">
+              {t('game:weeklyEvent.separateSessionBody')}
+            </p>
+          </div>
 
           {/* 규칙 태그 */}
           <div className="flex flex-wrap gap-1.5 mt-3">

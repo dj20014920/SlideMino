@@ -136,6 +136,8 @@
     "adUnlockDailyLimit": "오늘은 더 이상 도전 해금 광고를 볼 수 없습니다.",
     "adUnlockUnsupported": "현재 환경에서는 주간 이벤트 광고가 지원되지 않습니다.",
     "remainingInline": "남은 {{remaining}}회",
+    "separateSessionTitle": "일반 게임과 따로 진행돼요",
+    "separateSessionBody": "주간 이벤트를 시작해도 일반 게임은 그대로 남아 있어요. 일반 게임과 이벤트 게임이 따로 저장돼서, 두 모드를 각각 이어서 플레이할 수 있어요.",
     "time": {
       "ended": "종료",
       "dayShort": "일",

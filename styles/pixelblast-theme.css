@@ -725,6 +725,22 @@ body.theme-pixelblast :is(.pixelblast-slot-shell, .galaxy-slot-shell) {
   box-shadow: inset 0 1px 0 rgba(212, 193, 255, 0.25), 0 0 0 1px rgba(23, 16, 41, 0.9), 0 8px 22px rgba(0, 0, 0, 0.35) !important;
 }
 
+body.theme-pixelblast .skin-pixelblast-slot-stage {
+  width: 100%;
+  height: 100%;
+  padding: 6px;
+  border: 1px solid rgba(138, 116, 214, 0.34);
+  border-radius: 0;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.025) 0%, rgba(255,255,255,0) 20%, rgba(255,255,255,0) 80%, rgba(255,255,255,0.03) 100%),
+    radial-gradient(circle at 1px 1px, rgba(184, 163, 255, 0.05) 0 1px, transparent 1.2px),
+    linear-gradient(180deg, rgba(10, 9, 22, 0.18) 0%, rgba(6, 6, 15, 0.1) 100%);
+  background-size: auto, 8px 8px, auto;
+  box-shadow:
+    inset 0 0 0 1px rgba(7, 5, 15, 0.3),
+    inset 0 0 0 6px rgba(7, 5, 15, 0.12);
+}
+
 body.theme-pixelblast :is(.pixelblast-slot-mini-cell, .galaxy-slot-mini-cell) {
   background: linear-gradient(180deg, rgba(72, 48, 128, 0.72) 0%, rgba(52, 34, 96, 0.72) 100%) !important;
   border: 1px solid rgba(152, 126, 232, 0.55) !important;

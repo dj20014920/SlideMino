@@ -136,6 +136,8 @@
     "adUnlockDailyLimit": "You've reached today's unlock-ad limit.",
     "adUnlockUnsupported": "Weekly event ad is not supported on this platform.",
     "remainingInline": "{{remaining}} left",
+    "separateSessionTitle": "Weekly event progress is separate",
+    "separateSessionBody": "Starting the weekly event will not overwrite your normal game. Normal games and weekly event games are saved separately, so you can come back to each one later.",
     "time": {
       "ended": "Ended",
       "dayShort": "d",

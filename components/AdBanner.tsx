@@ -144,7 +144,7 @@ const AdBanner: React.FC<AdBannerProps> = ({
     }
 
     return (
-        <div className="relative w-full flex justify-center items-center bg-gray-50/50 min-h-[50px] transition-all duration-300">
+        <div className="relative w-full flex justify-center items-center min-h-[50px] transition-all duration-300">
             {/* 
             Google AdSense Display Unit 
             Replace YOUR_AD_SLOT_ID with your actual Ad Slot ID from Google AdSense dashboard 

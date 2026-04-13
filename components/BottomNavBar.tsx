@@ -229,6 +229,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
         style={{
           bottom: 0,
           paddingBottom: 'max(var(--app-safe-bottom, 0px), env(safe-area-inset-bottom))',
+          background: 'transparent',
           backgroundClip: 'padding-box',
         }}
       >
@@ -287,11 +288,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
       style={{
         bottom: 0,
         paddingBottom: 'var(--app-safe-bottom)',
-        background: 'rgba(255, 255, 255, 0.88)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        borderTop: '1px solid rgba(255, 255, 255, 0.6)',
-        boxShadow: '0 -1px 12px rgba(0,0,0,0.08)',
+        background: 'transparent',
       }}
     >
       {/* 잠금 안내 토스트 */}
@@ -307,6 +304,13 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
           navMeasureRef.current = node;
         }}
         className="flex items-stretch justify-around px-1 py-1"
+        style={{
+          background: 'rgba(255, 255, 255, 0.88)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          borderTop: '1px solid rgba(255, 255, 255, 0.6)',
+          boxShadow: '0 -1px 12px rgba(0,0,0,0.08)',
+        }}
       >
         {navItems.map((item) => (
           <button

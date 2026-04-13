@@ -145,7 +145,10 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
 
       {/* 블록 미리보기 (커스터마이징 색상 반영) */}
       <div className="w-full h-full pointer-events-none p-3">
-        <div className="w-full h-full flex items-center justify-center">
+        <div
+          className={`w-full h-full flex items-center justify-center ${isPixelBlastPreview ? 'skin-pixelblast-slot-stage' : ''}`}
+          data-pixelblast-preview-stage={isPixelBlastPreview ? 'true' : undefined}
+        >
           <div
             className="grid gap-1"
             style={{

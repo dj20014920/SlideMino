@@ -136,6 +136,8 @@
     "adUnlockDailyLimit": "本日の解放広告視聴上限に達しました。",
     "adUnlockUnsupported": "この環境ではウィークリーイベント広告は利用できません。",
     "remainingInline": "残り{{remaining}}回",
+    "separateSessionTitle": "通常ゲームとは別で進行します",
+    "separateSessionBody": "ウィークリーイベントを始めても通常ゲームの進行はそのまま残ります。通常ゲームとイベントゲームは別々に保存されるので、あとからそれぞれ続きから遊べます。",
     "time": {
       "ended": "終了",
       "dayShort": "日",

@@ -136,6 +136,8 @@
     "adUnlockDailyLimit": "今日广告解锁次数已达上限。",
     "adUnlockUnsupported": "此平台不支持周活动广告功能。",
     "remainingInline": "剩余{{remaining}}次",
+    "separateSessionTitle": "周活动会单独保存进度",
+    "separateSessionBody": "开始周活动后，普通游戏进度不会被覆盖。普通游戏和周活动会分别保存，所以之后可以分别继续游玩。",
     "time": {
       "ended": "结束",
       "dayShort": "天",

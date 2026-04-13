@@ -452,8 +452,8 @@ const getGameLayoutProfile = (
   const slotHeightPx = shouldHeightLimitColumn
     ? Math.min(rawSlotHeightPx, safeHeight * 0.17)
     : rawSlotHeightPx;
-  // 상단 버튼 영역과 보드 간격을 더 붙이고, 하단 여백을 늘려 광고 영역과의 간섭을 완화
-  const mainTopPaddingPx = Math.round(whitespacePx * 0.3);
+  // 상단 조작줄과 보드 사이는 모든 스킨에서 같은 밀도로 보이도록 별도 기준값으로 고정한다.
+  const mainTopPaddingPx = Math.round(clamp(lerp(9, 13, tallProgress) * (isLandscape ? 0.75 : 1), 8, 13));
   const mainBottomPaddingPx = Math.max(0, whitespacePx - mainTopPaddingPx);
   const measuredHeaderHeightPx = clamp(chromeHeights.header, 56, 180);
   const measuredFooterHeightPx = clamp(chromeHeights.footer, STABLE_BANNER_RESERVE_PX, 260);
@@ -5046,7 +5046,6 @@ const App: React.FC = () => {
   const isSwipePhase = phase === Phase.SLIDE;
   const isPlaceFocusMode = isPlacePhase;
   const isSwipeFocusMode = isSwipePhase;
-  const hiddenGameTitlebarSpacerPx = isPremiumUiThemeActive ? 32 : 0;
   const focusSurfaceClass = 'scale-[1.01] drop-shadow-[0_22px_40px_rgba(15,23,42,0.18)]';
   const boardFocusSurfaceClass = (isPlaceFocusMode || isSwipeFocusMode)
     ? focusSurfaceClass
@@ -5145,11 +5144,13 @@ const App: React.FC = () => {
 
           {/* Header */}
           <header
-            className={`w-full flex justify-between items-center p-4 ${isPremiumUiThemeActive ? premiumGameHeaderClassName : ''}`}
+            className={`w-full flex justify-between items-center px-4 pb-2 ${isPremiumUiThemeActive ? premiumGameHeaderClassName : ''}`}
             style={{
               maxWidth: `${gameLayoutProfile.columnWidthPx}px`,
               // safe-top은 상단 래퍼가 일괄 담당하므로 헤더는 내부 여백만 설정
               paddingTop: isPremiumUiThemeActive ? '8px' : '16px',
+              // 보드와의 간격을 줄이기 위해 헤더 하단 여백을 공통값으로 고정
+              paddingBottom: '10px',
               // 앱인토스: 우측 상단 공통 내비게이션 영역 확보
               paddingRight: 'calc(16px + var(--appintos-nav-safe-right))'
             }}
@@ -5315,9 +5316,7 @@ const App: React.FC = () => {
           <div className={`
             transition-all duration-200 w-full flex items-center justify-center
             ${boardFocusSurfaceClass}
-          `}
-            style={hiddenGameTitlebarSpacerPx > 0 ? { marginTop: `${hiddenGameTitlebarSpacerPx}px` } : undefined}
-          >
+          `}>
             {isPremiumUiThemeActive ? (
               <div className={`${premiumWindowClassName} ${premiumGameBoardWindowClassName} w-full max-w-[520px]`}>
                 <div className={`${premiumWindowBodyClassName} ${premiumGameBoardBodyClassName}`}>
@@ -5478,8 +5477,7 @@ const App: React.FC = () => {
         {/* Ad Banner for Game Screen: flex flow 기반으로 하단에 배치 (fixed 제거 → 레이아웃 shift 방지) */}
         <div ref={footerRef} className="w-full shrink-0">
           <div className={`
-          w-full bg-white/50 backdrop-blur-sm border-t border-white/20
-          transition-opacity duration-200
+          w-full transition-opacity duration-200
           ${isSwipeFocusMode ? 'opacity-20 pointer-events-none' : 'opacity-100'}
         `}>
             <AdBanner includeSafeBottomInReservedSpace={true} />

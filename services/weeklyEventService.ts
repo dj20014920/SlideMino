@@ -392,6 +392,7 @@ export const WEEKLY_EVENT_MAX_ATTEMPTS = WEEKLY_EVENT_BASE_ATTEMPTS + WEEKLY_EVE
 
 const EVENT_ATTEMPTS_KEY = 'slidemino.event_attempts.v1';
 const EVENT_ATTEMPT_AD_BONUS_KEY = 'slidemino.event_attempt_ad_bonus.v1';
+const EVENT_PENDING_SCORE_QUEUE_KEY = 'slidemino.event_pending_scores.v1';
 
 interface LocalEventAttempts {
   eventId: string;
@@ -417,6 +418,128 @@ function saveLocalAttempts(data: LocalEventAttempts): void {
   try {
     localStorage.setItem(EVENT_ATTEMPTS_KEY, JSON.stringify(data));
   } catch { /* ignore */ }
+}
+
+interface PendingEventScore {
+  queueKey: string;
+  sessionId: string;
+  eventId: string;
+  eventType: WeeklyEventType;
+  name: string;
+  score: number;
+  moves: number;
+  duration: number;
+  attemptNumber: number;
+  levelBadge?: string;
+  isIntermediate?: boolean;
+  isProgress?: boolean;
+  updatedAt: number;
+}
+
+interface PendingEventScoreQueueEnvelope {
+  version: 1;
+  entries: Record<string, PendingEventScore>;
+}
+
+function isOnline(): boolean {
+  if (typeof navigator === 'undefined') return true;
+  return navigator.onLine;
+}
+
+function buildPendingEventQueueKey(payload: Omit<PendingEventScore, 'queueKey' | 'updatedAt'>): string {
+  return `${payload.eventId}:${payload.sessionId}:${payload.isIntermediate ? (payload.isProgress ? 'progress' : 'mid-save') : 'final'}`;
+}
+
+function loadPendingEventScoreQueue(): Record<string, PendingEventScore> {
+  try {
+    const raw = localStorage.getItem(EVENT_PENDING_SCORE_QUEUE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Partial<PendingEventScoreQueueEnvelope> | Record<string, PendingEventScore>;
+    const entries = 'version' in parsed && parsed.version === 1 && parsed.entries
+      ? parsed.entries
+      : parsed;
+    if (!entries || typeof entries !== 'object') return {};
+    return Object.fromEntries(
+      Object.entries(entries).filter(([, value]) => (
+        Boolean(value && typeof value === 'object' && typeof (value as PendingEventScore).eventId === 'string')
+      ))
+    ) as Record<string, PendingEventScore>;
+  } catch {
+    return {};
+  }
+}
+
+function savePendingEventScoreQueue(queue: Record<string, PendingEventScore>): void {
+  try {
+    const payload: PendingEventScoreQueueEnvelope = { version: 1, entries: queue };
+    localStorage.setItem(EVENT_PENDING_SCORE_QUEUE_KEY, JSON.stringify(payload));
+  } catch { /* ignore */ }
+}
+
+function mergePendingEventScore(
+  existing: PendingEventScore,
+  incoming: Omit<PendingEventScore, 'queueKey' | 'updatedAt'>,
+): PendingEventScore {
+  const existingFinal = !existing.isIntermediate;
+  const incomingFinal = !incoming.isIntermediate;
+  const prefersExisting =
+    existingFinal && !incomingFinal
+      ? true
+      : !existingFinal && incomingFinal
+        ? false
+        : existing.score > incoming.score
+          ? true
+          : existing.score < incoming.score
+            ? false
+            : existing.moves < incoming.moves
+              ? true
+              : existing.moves > incoming.moves
+                ? false
+                : existing.duration <= incoming.duration;
+
+  const best = prefersExisting ? existing : incoming;
+  return {
+    queueKey: existing.queueKey,
+    sessionId: incoming.sessionId,
+    eventId: incoming.eventId,
+    eventType: incoming.eventType,
+    name: incoming.name,
+    score: best.score,
+    moves: best.moves,
+    duration: best.duration,
+    attemptNumber: incoming.attemptNumber,
+    levelBadge: incoming.levelBadge ?? existing.levelBadge,
+    isIntermediate: existing.isIntermediate && incoming.isIntermediate,
+    isProgress: (existing.isProgress === true && existing.isIntermediate === true)
+      && (incoming.isProgress === true && incoming.isIntermediate === true),
+    updatedAt: Date.now(),
+  };
+}
+
+function enqueuePendingEventScore(payload: Omit<PendingEventScore, 'queueKey' | 'updatedAt'>): void {
+  const queueKey = buildPendingEventQueueKey(payload);
+  const queue = loadPendingEventScoreQueue();
+  const existing = queue[queueKey];
+  queue[queueKey] = existing
+    ? mergePendingEventScore(existing, payload)
+    : {
+      ...payload,
+      queueKey,
+      updatedAt: Date.now(),
+    };
+  savePendingEventScoreQueue(queue);
+}
+
+function removePendingEventScore(queueKey: string): void {
+  const queue = loadPendingEventScoreQueue();
+  if (!(queueKey in queue)) return;
+  delete queue[queueKey];
+  savePendingEventScoreQueue(queue);
+}
+
+function countQueuedFinalAttemptsForEvent(eventId: string): number {
+  const queue = loadPendingEventScoreQueue();
+  return Object.values(queue).filter((entry) => entry.eventId === eventId && !entry.isIntermediate).length;
 }
 
 interface LocalEventAttemptAdBonus {
@@ -480,8 +603,11 @@ export function getRemainingWeeklyEventAttempts(attemptCount: number, isAdBonusU
 export function getLocalAttemptCount(): number {
   const current = getCurrentEvent();
   const local = loadLocalAttempts();
-  if (!local || local.eventId !== current.eventId) return 0;
-  return Math.max(0, Math.min(WEEKLY_EVENT_MAX_ATTEMPTS, local.count));
+  const localCount = (!local || local.eventId !== current.eventId)
+    ? 0
+    : Math.max(0, Math.min(WEEKLY_EVENT_MAX_ATTEMPTS, local.count));
+  const queuedFinalCount = countQueuedFinalAttemptsForEvent(current.eventId);
+  return Math.max(localCount, Math.min(WEEKLY_EVENT_MAX_ATTEMPTS, queuedFinalCount));
 }
 
 /** 로컬 도전 횟수 증가 + 참여 히스토리 기록 */
@@ -502,6 +628,106 @@ export function incrementLocalAttemptCount(score: number): void {
 // ============================================
 
 const API_BASE = '/api/weekly-event';
+
+export interface EventSubmitResult {
+  success: boolean;
+  rank?: number;
+  total?: number;
+  bestScore?: number;
+  attemptNumber?: number;
+  queued?: boolean;
+  offline?: boolean;
+  status?: number;
+  error?: string;
+}
+
+async function postEventScore(params: {
+  eventId: string;
+  eventType: WeeklyEventType;
+  name: string;
+  score: number;
+  moves: number;
+  duration: number;
+  attemptNumber: number;
+  levelBadge?: string;
+  isIntermediate?: boolean;
+  isProgress?: boolean;
+}): Promise<EventSubmitResult> {
+  try {
+    const installId = getAnalyticsInstallId();
+    const { isIntermediate, isProgress, ...scoreParams } = params;
+    const res = await fetch(getApiUrl(`${API_BASE}/submit`), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        eventId: params.eventId,
+        eventType: params.eventType,
+        installId,
+        ...scoreParams,
+        ...(isIntermediate ? { isIntermediate: true } : {}),
+        ...(isProgress ? { isProgress: true } : {}),
+      }),
+    });
+    const data = await res.json() as EventSubmitResult;
+    return {
+      ...data,
+      status: res.status,
+    };
+  } catch {
+    return { success: false, error: 'network_error', status: 0 };
+  }
+}
+
+function shouldQueueEventSubmit(status?: number): boolean {
+  if (status === 0 || status === undefined) return true;
+  return status === 429 || status >= 500;
+}
+
+export async function flushPendingEventScores(): Promise<void> {
+  if (!isOnline()) return;
+  const queue = loadPendingEventScoreQueue();
+  const pendingItems = Object.values(queue).sort((a, b) => a.updatedAt - b.updatedAt);
+  if (pendingItems.length === 0) return;
+
+  for (const item of pendingItems) {
+    const result = await postEventScore({
+      eventId: item.eventId,
+      eventType: item.eventType,
+      name: item.name,
+      score: item.score,
+      moves: item.moves,
+      duration: item.duration,
+      attemptNumber: item.attemptNumber,
+      levelBadge: item.levelBadge,
+      isIntermediate: item.isIntermediate,
+      isProgress: item.isProgress,
+    });
+
+    if (result.success) {
+      removePendingEventScore(item.queueKey);
+      continue;
+    }
+
+    if (result.status && result.status < 500 && result.status !== 429) {
+      removePendingEventScore(item.queueKey);
+      continue;
+    }
+
+    break;
+  }
+}
+
+let eventScoreSyncInitialized = false;
+
+export function initEventScoreSync(): void {
+  if (eventScoreSyncInitialized) return;
+  if (typeof window === 'undefined') return;
+  eventScoreSyncInitialized = true;
+  window.addEventListener('online', () => {
+    void flushPendingEventScores();
+  });
+  void flushPendingEventScores();
+}
 /**
  * 서버에서 실제 도전 횟수를 조회해 로컬 캐시와 동기화한다.
  * 서버 값을 권위 원장으로 신뢰하여 로컬 조작값을 무시한다.
@@ -516,15 +742,18 @@ export async function syncAttemptCountFromServer(): Promise<number> {
     );
     if (!res.ok) return getLocalAttemptCount();
     const data = await res.json() as { count: number };
-    const serverCount = Math.min(WEEKLY_EVENT_MAX_ATTEMPTS, Math.max(0, data.count ?? 0));
-    // 서버 값을 권위 원장으로 신뢰 — 로컬 조작값 무시
+    const serverCount = Math.max(0, data.count ?? 0);
+    const effectiveCount = Math.min(
+      WEEKLY_EVENT_MAX_ATTEMPTS,
+      serverCount + countQueuedFinalAttemptsForEvent(current.eventId)
+    );
     const local = loadLocalAttempts();
     saveLocalAttempts({
       eventId: current.eventId,
-      count: serverCount,
+      count: effectiveCount,
       bestScore: local?.bestScore ?? 0,
     });
-    return serverCount;
+    return effectiveCount;
   } catch {
     return getLocalAttemptCount();
   }
@@ -689,21 +918,9 @@ export async function claimEventRewardFromServer(): Promise<EventClaimResult> {
   }
 }
 
-// ============================================
-// 서버 API 호출
-// ============================================
-
-export interface EventSubmitResult {
-  success: boolean;
-  rank?: number;
-  total?: number;
-  bestScore?: number;
-  attemptNumber?: number;
-  error?: string;
-}
-
 /** 이벤트 점수 제출 (isIntermediate=true면 도전 횟수 소모 없이 랭킹만 업데이트) */
 export async function submitEventScore(params: {
+  sessionId?: string;
   name: string;
   score: number;
   moves: number;
@@ -713,31 +930,60 @@ export async function submitEventScore(params: {
   isIntermediate?: boolean;
   isProgress?: boolean;
 }): Promise<EventSubmitResult> {
-  try {
-    const current = getCurrentEvent();
-    const installId = getAnalyticsInstallId();
-    const { isIntermediate, isProgress, ...scoreParams } = params;
-    const res = await fetch(getApiUrl(`${API_BASE}/submit`), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        eventId: current.eventId,
-        eventType: current.eventType,
-        installId,
-        ...scoreParams,
-        ...(isIntermediate ? { isIntermediate: true } : {}),
-        ...(isProgress ? { isProgress: true } : {}),
-      }),
-    });
-    const data = await res.json() as EventSubmitResult;
-    if (data.success && !isIntermediate) {
-      // 중간 저장 시에는 도전 횟수를 증가시키지 않음
+  const current = getCurrentEvent();
+  const isIntermediate = params.isIntermediate === true;
+  const sessionId = params.sessionId?.trim() || `${current.eventId}:${params.attemptNumber}`;
+  const requestPayload = {
+    eventId: current.eventId,
+    eventType: current.eventType,
+    sessionId,
+    name: params.name,
+    score: params.score,
+    moves: params.moves,
+    duration: params.duration,
+    attemptNumber: params.attemptNumber,
+    levelBadge: params.levelBadge,
+    isIntermediate,
+    isProgress: params.isProgress === true,
+  };
+
+  if (!isOnline()) {
+    enqueuePendingEventScore(requestPayload);
+    if (!isIntermediate) {
       incrementLocalAttemptCount(params.score);
     }
-    return data;
-  } catch (e) {
-    return { success: false, error: 'network_error' };
+    return {
+      success: false,
+      queued: true,
+      offline: true,
+      error: 'offline',
+    };
   }
+
+  const result = await postEventScore(requestPayload);
+  if (result.success) {
+    if (!isIntermediate) {
+      incrementLocalAttemptCount(params.score);
+    }
+    return result;
+  }
+
+  if (shouldQueueEventSubmit(result.status)) {
+    enqueuePendingEventScore(requestPayload);
+    if (!isIntermediate) {
+      incrementLocalAttemptCount(params.score);
+    }
+    return {
+      ...result,
+      queued: true,
+      offline: result.status === 0 || !isOnline(),
+    };
+  }
+
+  return {
+    ...result,
+    offline: result.status === 0 || !isOnline(),
+  };
 }
 
 export interface EventRankingEntry {

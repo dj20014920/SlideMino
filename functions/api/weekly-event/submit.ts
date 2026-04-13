@@ -18,6 +18,7 @@ import { hashInstallId } from '../../utils/hash';
 import { checkRateLimit, getClientIp } from '../../utils/rateLimit';
 import { buildCorsHeaders } from '../../utils/cors';
 import { getCurrentEventId } from '../../utils/eventSchedule';
+import { ensureWeeklyEventSchema } from '../../utils/weeklyEventSchema';
 
 interface Env {
   DB: D1Database;
@@ -66,6 +67,47 @@ function errorResponse(message: string, status: number, headers: Record<string, 
   });
 }
 
+type EventBestRow = {
+  score: number;
+  moves: number;
+  duration: number;
+};
+
+const fetchStoredBestForEvent = async (
+  env: Env,
+  eventId: string,
+  installIdHash: string,
+): Promise<EventBestRow | null> => {
+  return env.DB.prepare(
+    `SELECT score, moves, duration
+     FROM event_rankings
+     WHERE event_id = ? AND install_id_hash = ?`
+  ).bind(eventId, installIdHash).first<EventBestRow>();
+};
+
+const fetchRankAndTotalForEvent = async (
+  env: Env,
+  eventId: string,
+  best: EventBestRow,
+): Promise<{ rank: number; total: number }> => {
+  const [rankResult, totalResult] = await Promise.all([
+    env.DB.prepare(
+      `SELECT COUNT(*) + 1 as rank
+       FROM event_rankings
+       WHERE event_id = ?
+         AND (score > ? OR (score = ? AND moves < ?) OR (score = ? AND moves = ? AND duration < ?))`
+    ).bind(eventId, best.score, best.score, best.moves, best.score, best.moves, best.duration).first<{ rank: number }>(),
+    env.DB.prepare(
+      `SELECT COUNT(*) as total FROM event_rankings WHERE event_id = ?`
+    ).bind(eventId).first<{ total: number }>(),
+  ]);
+
+  return {
+    rank: rankResult?.rank ?? 1,
+    total: totalResult?.total ?? 1,
+  };
+};
+
 export const onRequestOptions: PagesFunction<Env> = async (context) => {
   return new Response(null, {
     status: 204,
@@ -84,6 +126,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     if (!allowed) {
       return errorResponse('Too many requests', 429, corsHeaders);
     }
+
+    await ensureWeeklyEventSchema(env);
 
     // 요청 파싱
     let data: Record<string, unknown>;
@@ -167,6 +211,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     const currentCount = (attemptCountResult as { count: number } | null)?.count ?? 0;
     const now = Date.now();
+    const shouldPromoteMetadata = !isProgress;
 
     if (isIntermediate) {
       // ── 중간 저장: 도전 횟수 소모 없이 랭킹만 UPSERT ──
@@ -195,6 +240,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             eventId, installIdHash,
             score, score, moves, score, moves, duration
           ),
+          ...(shouldPromoteMetadata
+            ? [
+              env.DB.prepare(
+                `UPDATE event_rankings
+                 SET name = ?, updated_at = ?
+                 WHERE event_id = ? AND install_id_hash = ?`
+              ).bind(name, now, eventId, installIdHash),
+            ]
+            : []),
         ]);
 
         // 중간 저장에서도 배지 저장 (앱 크래시 대비)
@@ -218,24 +272,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           });
         }
 
-        const rankResult = await env.DB.prepare(
-          `SELECT COUNT(*) + 1 as rank
-           FROM event_rankings
-           WHERE event_id = ?
-             AND (score > ? OR (score = ? AND moves < ?) OR (score = ? AND moves = ? AND duration < ?))`
-        ).bind(eventId, score, score, moves, score, moves, duration).first();
-
-        const totalResult = await env.DB.prepare(
-          `SELECT COUNT(*) as total FROM event_rankings WHERE event_id = ?`
-        ).bind(eventId).first();
-
-        const rank = (rankResult as { rank: number } | null)?.rank ?? 1;
-        const total = (totalResult as { total: number } | null)?.total ?? 1;
+        const best = await fetchStoredBestForEvent(env, eventId, installIdHash);
+        const effectiveBest = best ?? { score, moves, duration };
+        const { rank, total } = await fetchRankAndTotalForEvent(env, eventId, effectiveBest);
 
         return new Response(JSON.stringify({
           success: true,
           rank,
           total,
+          bestScore: effectiveBest.score,
           isIntermediate: true,
         }), {
           status: 200,
@@ -264,7 +309,21 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
       // INSERT OR IGNORE로 인해 실제 삽입이 안 된 경우 (동시 요청 충돌)
       if (!insertResult.meta?.changes) {
-        return errorResponse('Concurrent submission detected, please retry', 409, corsHeaders);
+        const best = await fetchStoredBestForEvent(env, eventId, installIdHash);
+        if (!best) {
+          return errorResponse('Concurrent submission detected, please retry', 409, corsHeaders);
+        }
+        const { rank, total } = await fetchRankAndTotalForEvent(env, eventId, best);
+        return new Response(JSON.stringify({
+          success: true,
+          rank,
+          total,
+          bestScore: best.score,
+          attemptNumber: currentCount + 1,
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
 
       // 랭킹 UPSERT: 최고점만 반영
@@ -290,6 +349,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           eventId, installIdHash,
           score, score, moves, score, moves, duration
         ),
+        ...(shouldPromoteMetadata
+          ? [
+            env.DB.prepare(
+              `UPDATE event_rankings
+               SET name = ?, updated_at = ?
+               WHERE event_id = ? AND install_id_hash = ?`
+            ).bind(name, now, eventId, installIdHash),
+          ]
+          : []),
       ]);
 
       if (levelBadge) {
@@ -303,24 +371,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }
 
       // 순위 조회
-      const rankResult = await env.DB.prepare(
-        `SELECT COUNT(*) + 1 as rank
-         FROM event_rankings
-         WHERE event_id = ?
-           AND (score > ? OR (score = ? AND moves < ?) OR (score = ? AND moves = ? AND duration < ?))`
-      ).bind(eventId, score, score, moves, score, moves, duration).first();
-
-      const totalResult = await env.DB.prepare(
-        `SELECT COUNT(*) as total FROM event_rankings WHERE event_id = ?`
-      ).bind(eventId).first();
-
-      const bestResult = await env.DB.prepare(
-        `SELECT score FROM event_rankings WHERE event_id = ? AND install_id_hash = ?`
-      ).bind(eventId, installIdHash).first();
-
-      const rank = (rankResult as { rank: number } | null)?.rank ?? 1;
-      const total = (totalResult as { total: number } | null)?.total ?? 1;
-      const bestScore = (bestResult as { score: number } | null)?.score ?? score;
+      const best = await fetchStoredBestForEvent(env, eventId, installIdHash);
+      const effectiveBest = best ?? { score, moves, duration };
+      const { rank, total } = await fetchRankAndTotalForEvent(env, eventId, effectiveBest);
+      const bestScore = effectiveBest.score;
 
       return new Response(JSON.stringify({
         success: true,

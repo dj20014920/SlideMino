@@ -13,6 +13,7 @@ import { hashInstallId } from '../../utils/hash';
 import { checkRateLimit, getClientIp } from '../../utils/rateLimit';
 import { buildCorsHeaders } from '../../utils/cors';
 import { getPreviousEventId, REWARD_FRAGMENTS } from '../../utils/eventSchedule';
+import { ensureWeeklyEventSchema } from '../../utils/weeklyEventSchema';
 
 interface Env {
   DB: D1Database;
@@ -73,6 +74,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     if (!installId) {
       return jsonResponse({ success: false, error: 'Invalid installId' }, 400, corsHeaders);
     }
+
+    await ensureWeeklyEventSchema(env);
 
     const installIdHash = await hashInstallId(installId, env.ANALYTICS_HASH_SALT);
     if (!installIdHash) {

@@ -130,6 +130,7 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
         if (gameMode === 'weekly_event') {
             const levelBadgeId = getHighestLevelBadgeForLevel(loadXpData().level)?.id;
             const eventResult = await submitEventScore({
+                sessionId,
                 name: trimmedName,
                 score,
                 moves,
@@ -146,6 +147,10 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                 gameEventBus.emit('SCORE_SUBMITTED', {
                     score, boardSize, mode: gameMode,
                 });
+            } else if (eventResult.queued) {
+                onSessionNameLocked?.(trimmedName);
+                setSubmittedMessageOverride(t('modals:rankingRegister.queuedMessage'));
+                setStep('SUBMITTED');
             } else {
                 setSubmitError(t('modals:rankingRegister.failureMessage'));
             }
@@ -189,6 +194,13 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
             gameEventBus.emit('SCORE_SUBMITTED', {
                 score, boardSize, mode: gameMode,
             });
+            return;
+        }
+
+        if (result.queued) {
+            onSessionNameLocked?.(trimmedName);
+            setSubmittedMessageOverride(t('modals:rankingRegister.queuedMessage'));
+            setStep('SUBMITTED');
             return;
         }
 

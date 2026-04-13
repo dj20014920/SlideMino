@@ -5,6 +5,7 @@
 import { hashInstallId } from '../../utils/hash';
 import { buildCorsHeaders } from '../../utils/cors';
 import { checkRateLimit, getClientIp } from '../../utils/rateLimit';
+import { ensureWeeklyEventSchema } from '../../utils/weeklyEventSchema';
 
 interface Env {
   DB: D1Database;
@@ -35,6 +36,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const url = new URL(request.url);
     const eventId = url.searchParams.get('eventId');
     const installId = url.searchParams.get('installId');
+
+    await ensureWeeklyEventSchema(env);
 
     if (!eventId) {
       return new Response(JSON.stringify({ rankings: [], total: 0 }), {

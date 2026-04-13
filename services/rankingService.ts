@@ -57,8 +57,14 @@ interface PendingScore {
     mode?: 'final' | 'progress';
 }
 
+interface PendingScoreQueueEnvelopeV2 {
+    version: 2;
+    entries: Record<string, PendingScore>;
+}
+
 const STORAGE_KEY_NAME = 'slidemino_player_name';
 const STORAGE_KEY_QUEUE = 'slidemino_pending_scores_v1';
+const PENDING_SCORE_QUEUE_VERSION = 2;
 const LEADERBOARD_ERROR_LOG_COOLDOWN_MS = 60_000;
 // 기본값은 false(오프라인 큐 활성화). 필요 시 빌드 플래그로만 실시간 전용 모드 활성화.
 const REALTIME_RANKING_ONLY = import.meta.env.VITE_REALTIME_RANKING_ONLY === 'true';
@@ -113,20 +119,92 @@ const logLeaderboardFetchFailure = (error: unknown): void => {
     console.error('Failed to fetch leaderboard:', error);
 };
 
+const isPlainRecord = (value: unknown): value is Record<string, unknown> => {
+    return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+};
+
+const sanitizePendingScore = (sessionId: string, raw: unknown): PendingScore | null => {
+    if (!isPlainRecord(raw)) return null;
+
+    const resolvedSessionId = typeof raw.sessionId === 'string' && raw.sessionId.trim().length > 0
+        ? raw.sessionId.trim()
+        : sessionId.trim();
+    if (!resolvedSessionId) return null;
+
+    const name = typeof raw.name === 'string' && raw.name.trim().length > 0
+        ? raw.name.trim()
+        : '익명';
+    const difficulty = typeof raw.difficulty === 'string'
+        ? normalizeDifficultyForApi(raw.difficulty)
+        : '';
+    if (!difficulty) return null;
+
+    const score = typeof raw.score === 'number' && Number.isFinite(raw.score)
+        ? Math.max(0, Math.floor(raw.score))
+        : 0;
+    const moves = typeof raw.moves === 'number' && Number.isFinite(raw.moves)
+        ? Math.max(0, Math.floor(raw.moves))
+        : 0;
+    const duration = normalizeDurationForSubmit(
+        typeof raw.duration === 'number' && Number.isFinite(raw.duration) ? raw.duration : 1
+    );
+
+    const timestamp = typeof raw.timestamp === 'number' && Number.isFinite(raw.timestamp)
+        ? Math.max(0, Math.floor(raw.timestamp))
+        : Date.now();
+    const updatedAt = typeof raw.updatedAt === 'number' && Number.isFinite(raw.updatedAt)
+        ? Math.max(0, Math.floor(raw.updatedAt))
+        : timestamp;
+
+    return {
+        sessionId: resolvedSessionId,
+        name,
+        score,
+        difficulty,
+        duration,
+        moves,
+        timestamp,
+        updatedAt,
+        installId: typeof raw.installId === 'string' && raw.installId.length > 0 ? raw.installId : undefined,
+        platform: typeof raw.platform === 'string' && raw.platform.length > 0 ? raw.platform : undefined,
+        levelBadge: typeof raw.levelBadge === 'string' && raw.levelBadge.length > 0 ? raw.levelBadge : undefined,
+        mode: raw.mode === 'progress' ? 'progress' : 'final',
+    };
+};
+
+const normalizeQueueEntries = (rawEntries: unknown): Record<string, PendingScore> => {
+    if (!isPlainRecord(rawEntries)) return {};
+
+    const normalized: Record<string, PendingScore> = {};
+    for (const [sessionId, entry] of Object.entries(rawEntries)) {
+        const sanitized = sanitizePendingScore(sessionId, entry);
+        if (sanitized) {
+            normalized[sanitized.sessionId] = sanitized;
+        }
+    }
+    return normalized;
+};
+
 const loadQueue = (): Record<string, PendingScore> => {
     try {
         const raw = safeReadLocalStorage(STORAGE_KEY_QUEUE);
         if (!raw) return {};
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === 'object') return parsed;
-        return {};
+        const parsed = JSON.parse(raw) as unknown;
+        if (isPlainRecord(parsed) && parsed.version === PENDING_SCORE_QUEUE_VERSION) {
+            return normalizeQueueEntries(parsed.entries);
+        }
+        return normalizeQueueEntries(parsed);
     } catch {
         return {};
     }
 };
 
 const saveQueue = (queue: Record<string, PendingScore>): void => {
-    safeWriteLocalStorage(STORAGE_KEY_QUEUE, JSON.stringify(queue));
+    const payload: PendingScoreQueueEnvelopeV2 = {
+        version: PENDING_SCORE_QUEUE_VERSION,
+        entries: queue,
+    };
+    safeWriteLocalStorage(STORAGE_KEY_QUEUE, JSON.stringify(payload));
 };
 
 const getPendingScoreMode = (item: Pick<PendingScore, 'mode'>): 'final' | 'progress' => {

@@ -39,6 +39,7 @@
   "liveRank": {
     "estimatedRank": "Est. #{{rank}}",
     "autoSaveNotice": "Scores are auto-saved!",
+    "autoSaveWhenOnlineNotice": "Your score will sync when you're back online!",
     "pointsToNext": "{{points}} pts to next rank",
     "topRank": "Top rank reached"
   },

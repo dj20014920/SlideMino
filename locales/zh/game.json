@@ -39,6 +39,7 @@
   "liveRank": {
     "estimatedRank": "预计 #{{rank}}",
     "autoSaveNotice": "分数会自动保存！",
+    "autoSaveWhenOnlineNotice": "恢复网络连接后会自动同步分数！",
     "pointsToNext": "距离下一名还差 {{points}} 分",
     "topRank": "当前已是第一名"
   },

@@ -39,6 +39,7 @@
   "liveRank": {
     "estimatedRank": "予想 #{{rank}}",
     "autoSaveNotice": "スコアは自動保存されます！",
+    "autoSaveWhenOnlineNotice": "インターネット再接続時にスコアが反映されます！",
     "pointsToNext": "次の順位まで {{points}} 点",
     "topRank": "現在トップ順位です"
   },

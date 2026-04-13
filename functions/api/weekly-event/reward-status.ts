@@ -10,6 +10,7 @@ import { hashInstallId } from '../../utils/hash';
 import { checkRateLimit, getClientIp } from '../../utils/rateLimit';
 import { buildCorsHeaders } from '../../utils/cors';
 import { getPreviousEventId, REWARD_FRAGMENTS } from '../../utils/eventSchedule';
+import { ensureWeeklyEventSchema } from '../../utils/weeklyEventSchema';
 
 interface Env {
   DB: D1Database;
@@ -47,6 +48,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     if (!installId || installId.length < 8 || installId.length > 128) {
       return jsonResponse({ error: 'Missing installId' }, 400, corsHeaders);
     }
+
+    await ensureWeeklyEventSchema(env);
 
     const installIdHash = await hashInstallId(installId, env.ANALYTICS_HASH_SALT);
     if (!installIdHash) {

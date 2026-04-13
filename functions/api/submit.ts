@@ -73,6 +73,10 @@ function errorResponse(
   );
 }
 
+type RankingMemberBestRow = {
+  best_score: number;
+};
+
 /**
  * OPTIONS 요청 처리 (CORS Preflight)
  */
@@ -230,6 +234,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
            SET score = ?, name = ?, moves = ?, duration = ?, updated_at = ?, install_id_hash = COALESCE(?, install_id_hash), platform = COALESCE(?, platform)
            WHERE session_id = ? AND ? > score`
         ).bind(score, sanitizedName, moves, duration, now, installIdHash, platform, sessionId, score),
+        ...(submitMode === 'final'
+          ? [
+            env.DB.prepare(
+              `UPDATE rankings
+               SET name = ?, updated_at = ?, install_id_hash = COALESCE(?, install_id_hash), platform = COALESCE(?, platform)
+               WHERE session_id = ?`
+            ).bind(sanitizedName, now, installIdHash, platform, sessionId),
+          ]
+          : []),
         env.DB.prepare(
           `INSERT INTO ranking_member_best (
              season_id, board_size, member_key, name, best_score, session_id, install_id_hash, platform, updated_at
@@ -243,6 +256,30 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
              updated_at = excluded.updated_at
            WHERE excluded.best_score > ranking_member_best.best_score`
         ).bind(seasonId, difficulty, memberKey, sanitizedName, score, sessionId, installIdHash, platform, now),
+        ...(submitMode === 'final'
+          ? [
+            env.DB.prepare(
+              `UPDATE ranking_member_best
+               SET name = ?,
+                   install_id_hash = COALESCE(?, install_id_hash),
+                   platform = COALESCE(?, platform),
+                   session_id = CASE WHEN best_score = ? THEN ? ELSE session_id END,
+                   updated_at = CASE WHEN best_score = ? THEN ? ELSE updated_at END
+               WHERE season_id = ? AND board_size = ? AND member_key = ?`
+            ).bind(
+              sanitizedName,
+              installIdHash,
+              platform,
+              score,
+              sessionId,
+              score,
+              now,
+              seasonId,
+              difficulty,
+              memberKey
+            ),
+          ]
+          : []),
       ]);
 
       if (levelBadge) {
@@ -275,12 +312,20 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }
 
       // ========== 순위 조회 ==========
-      // 같은 난이도 내에서 현재 점수보다 높은 점수의 개수 + 1
+      // 자동 저장(progress)이 먼저 들어간 뒤 최종 제출(final)이 같은 점수로 들어와도,
+      // 실제 저장된 최고 기록 기준 순위를 반환해야 클라이언트 표기와 공개 랭킹이 어긋나지 않는다.
+      const storedBest = await env.DB.prepare(
+        `SELECT best_score
+         FROM ranking_member_best
+         WHERE season_id = ? AND board_size = ? AND member_key = ?`
+      ).bind(seasonId, difficulty, memberKey).first<RankingMemberBestRow>();
+      const effectiveBestScore = storedBest?.best_score ?? score;
+
       const rankResult = await env.DB.prepare(
         `SELECT COUNT(*) + 1 as rank
          FROM ranking_member_best
          WHERE season_id = ? AND board_size = ? AND best_score > ?`
-      ).bind(seasonId, difficulty, score).first();
+      ).bind(seasonId, difficulty, effectiveBestScore).first();
 
       const currentRank = (rankResult as { rank: number } | null)?.rank ?? 1;
 

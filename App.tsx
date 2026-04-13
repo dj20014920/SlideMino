@@ -157,6 +157,7 @@ import {
   saveEventGameState,
   loadEventGameState,
   hasActiveEventGame,
+  initEventScoreSync,
   submitEventScore,
   type WeeklyEventRule,
   EVENT_RULES,
@@ -659,6 +660,9 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [nativeUpdateRequirement, setNativeUpdateRequirement] = useState<NativeUpdateRequirement | null>(null);
   const [isOpeningUpdateStore, setIsOpeningUpdateStore] = useState(false);
+  const [isNetworkOnline, setIsNetworkOnline] = useState<boolean>(() => (
+    typeof navigator === 'undefined' ? true : navigator.onLine
+  ));
   const {
     gate: customizationGate,
     resolveTileAppearance,
@@ -715,6 +719,18 @@ const App: React.FC = () => {
   // 랭킹 오프라인 큐 자동 동기화
   useEffect(() => {
     rankingService.initSync();
+    initEventScoreSync();
+  }, []);
+
+  useEffect(() => {
+    const handleOnline = () => setIsNetworkOnline(true);
+    const handleOffline = () => setIsNetworkOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   // 스트릭 상태 확인 + 시즌 보상 체크 (앱 시작 시 1회)
@@ -3894,6 +3910,10 @@ const App: React.FC = () => {
 
   const refreshLiveRankEstimate = useCallback(async (force = false) => {
     if (gameStateRef.current !== GameState.PLAYING) return;
+    if (gameModeRef.current !== 'normal') {
+      setLiveRankEstimate(null);
+      return;
+    }
 
     const now = Date.now();
     if (!force && now < liveRankRetryAfterRef.current) return;
@@ -3951,7 +3971,7 @@ const App: React.FC = () => {
 
   // --- 게임 중 예상 랭킹 업데이트 ---
   useEffect(() => {
-    if (gameState !== GameState.PLAYING) {
+    if (gameState !== GameState.PLAYING || gameMode !== 'normal') {
       liveRankFailureCountRef.current = 0;
       liveRankRetryAfterRef.current = 0;
       liveRankLastRequestAtRef.current = 0;
@@ -3974,11 +3994,11 @@ const App: React.FC = () => {
       window.clearInterval(intervalId);
       window.removeEventListener('online', handleOnline);
     };
-  }, [gameState, refreshLiveRankEstimate]);
+  }, [gameMode, gameState, refreshLiveRankEstimate]);
 
   // 점수/난이도 변경 시 실제 랭킹 기준으로 빠르게 동기화
   useEffect(() => {
-    if (gameState !== GameState.PLAYING) return;
+    if (gameState !== GameState.PLAYING || gameMode !== 'normal') return;
 
     const timeoutId = window.setTimeout(() => {
       void refreshLiveRankEstimate();
@@ -3987,7 +4007,7 @@ const App: React.FC = () => {
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [gameState, score, boardSize, refreshLiveRankEstimate]);
+  }, [boardSize, gameMode, gameState, score, refreshLiveRankEstimate]);
 
   const submitAutoRankProgress = useCallback(async (force = false) => {
     if (!force && gameStateRef.current !== GameState.PLAYING) return;
@@ -4021,6 +4041,8 @@ const App: React.FC = () => {
     }
 
     autoRankSubmitInFlightRef.current = true;
+    const requestSessionId = sessionId;
+    const requestMode = gameModeRef.current;
     const safePlayerName =
       getReusablePlayerName(sessionLockedPlayerName) ??
       getReusablePlayerName(playerName) ??
@@ -4031,6 +4053,7 @@ const App: React.FC = () => {
       let succeeded = false;
       if (gameModeRef.current === 'weekly_event') {
         const eventResult = await submitEventScore({
+          sessionId,
           name: safePlayerName,
           score: scoreNow,
           moves: moveCountRef.current,
@@ -4053,11 +4076,18 @@ const App: React.FC = () => {
         succeeded = Boolean(submitResult.success);
       }
 
+      if (requestSessionId !== sessionIdRef.current || requestMode !== gameModeRef.current) {
+        return;
+      }
+
       if (succeeded) {
         autoRankLastSubmittedScoreRef.current = scoreNow;
       }
       autoRankLastSubmittedAtRef.current = Date.now();
     } catch (error) {
+      if (requestSessionId !== sessionIdRef.current || requestMode !== gameModeRef.current) {
+        return;
+      }
       autoRankLastSubmittedAtRef.current = Date.now();
       console.error('[AutoRank] progress submit failed', error);
     } finally {
@@ -5065,6 +5095,18 @@ const App: React.FC = () => {
   const phaseIndicatorInteractivityClass = isPlacePhase && !isReviveSelectionMode
     ? 'pointer-events-auto'
     : 'pointer-events-none opacity-35 grayscale select-none';
+  const shouldShowRankingSyncNotice =
+    gameState === GameState.PLAYING &&
+    score > 0 &&
+    (gameMode === 'normal' || gameMode === 'weekly_event');
+  const rankingSyncNotice = String(t(
+    isNetworkOnline ? 'game:liveRank.autoSaveNotice' : 'game:liveRank.autoSaveWhenOnlineNotice',
+    {
+      defaultValue: isNetworkOnline
+        ? '[!점수는 자동저장됩니다!]'
+        : '[!점수는 인터넷 연결 시에 반영됩니다!]',
+    } as any,
+  ));
 
   // 모드 알리미(phase) 상태 기반 포커스:
   // - PLACE: 보드 + 슬롯 강조
@@ -5176,7 +5218,7 @@ const App: React.FC = () => {
               <div className="space-y-0.5">
                 <h2 className="text-sm font-medium text-gray-400 uppercase tracking-wider flex items-center gap-1.5 flex-wrap">
                   {t('common:labels.score')}
-                  {liveRankEstimate !== null && gameState === GameState.PLAYING
+                  {gameMode === 'normal' && liveRankEstimate !== null && gameState === GameState.PLAYING
                     && score > 0 && liveRankEstimate.totalEntries >= 2 && (
                       <span className="text-xs font-semibold text-blue-600">
                         {String(t('game:liveRank.estimatedRank', { rank: liveRankEstimate.rank } as any))}
@@ -5189,7 +5231,7 @@ const App: React.FC = () => {
                     {currentLevelBadge.emoji} Lv.{currentLevelBadge.level}
                   </p>
                 )}
-                {liveRankEstimate !== null && gameState === GameState.PLAYING
+                {gameMode === 'normal' && liveRankEstimate !== null && gameState === GameState.PLAYING
                   && score > 0 && liveRankEstimate.totalEntries >= 2 && (
                     <>
                       <p className="text-xs font-semibold text-blue-500">
@@ -5197,11 +5239,13 @@ const App: React.FC = () => {
                           ? String(t('game:liveRank.pointsToNext', { points: liveRankEstimate.pointsToNext } as any))
                           : t('game:liveRank.topRank')}
                       </p>
-                      <p className="text-[10px] font-semibold text-emerald-600">
-                        {String(t('game:liveRank.autoSaveNotice', { defaultValue: '[!점수는 자동저장됩니다!]' } as any))}
-                      </p>
                     </>
                   )}
+                {shouldShowRankingSyncNotice && (
+                  <p className="text-[10px] font-semibold text-emerald-600">
+                    {rankingSyncNotice}
+                  </p>
+                )}
               </div>
             </div>
             <div className="flex flex-col items-end gap-2 transition-all duration-200">

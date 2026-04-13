@@ -39,6 +39,7 @@
   "liveRank": {
     "estimatedRank": "예상 #{{rank}}",
     "autoSaveNotice": "[!점수는 자동저장됩니다!]",
+    "autoSaveWhenOnlineNotice": "[!점수는 인터넷 연결 시에 반영됩니다!]",
     "pointsToNext": "다음 순위까지 {{points}}점",
     "topRank": "현재 1위권"
   },

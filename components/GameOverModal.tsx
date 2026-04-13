@@ -188,6 +188,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         if (gameMode === 'weekly_event') {
             // 주간 이벤트 전용 제출
             const eventResult = await submitEventScore({
+                sessionId,
                 name: trimmedName,
                 score,
                 moves,
@@ -214,6 +215,10 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                     score, boardSize, mode: gameMode ?? 'normal',
                     rank: eventResult.rank, total: eventResult.total,
                 });
+            } else if (eventResult.queued) {
+                onSessionNameLocked?.(trimmedName);
+                setSubmittedMessageOverride(t('modals:rankingRegister.queuedMessage'));
+                setStep('SUBMITTED');
             } else {
                 setSubmitError(t('modals:rankingRegister.failureMessage'));
             }
@@ -249,6 +254,10 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
             gameEventBus.emit('SCORE_SUBMITTED', {
                 score, boardSize, mode: gameMode ?? 'normal',
             });
+        } else if (result.queued) {
+            onSessionNameLocked?.(trimmedName);
+            setSubmittedMessageOverride(t('modals:rankingRegister.queuedMessage'));
+            setStep('SUBMITTED');
         } else if (result.offline) {
             setSubmitError(t('modals:leaderboard.offline'));
         } else if (result.status === 403) {

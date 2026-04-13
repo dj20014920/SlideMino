@@ -150,7 +150,7 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
           data-pixelblast-preview-stage={isPixelBlastPreview ? 'true' : undefined}
         >
           <div
-            className="grid gap-1"
+            className={`grid gap-1 ${isPixelBlastPreview ? 'skin-pixelblast-preview-grid' : ''}`}
             style={{
               aspectRatio: `${width} / ${height}`,
               width: fitByWidth ? '100%' : 'auto',
@@ -165,6 +165,7 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
                 key={i}
                 data-skin-preview-tile="true"
                 className={`
+                  ${isPixelBlastPreview ? 'skin-pixelblast-preview-cell' : ''}
                   ${isPremiumUiThemeActive
                     ? (isPixelBlastPreview && slotPreviewRuntime.useResolvedAppearanceClass
                       ? ''

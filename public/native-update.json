@@ -1,7 +1,11 @@
 {
   "schemaVersion": 1,
+  "ios": {
+    "minimumVersion": "1.47",
+    "latestVersion": "1.47"
+  },
   "android": {
-    "minimumVersion": "1.45",
-    "latestVersion": "1.45"
+    "minimumVersion": "1.47",
+    "latestVersion": "1.47"
   }
 }

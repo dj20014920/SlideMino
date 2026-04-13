@@ -28,6 +28,7 @@ type SkinModalProps = {
 
 type SkinSectionKey = 'premium' | 'neon' | 'liquid' | 'mesh' | 'normal';
 const EXPLORE_GALAXY_SKIN_ID = 'skin_digital_explore_galaxy';
+const PIXELBLAST_SKIN_ID = 'skin_digital_pixelblast_void';
 const SKIN_SWATCH_GRID_CLASS_NAME = 'grid grid-cols-6 gap-2.5';
 const SKIN_TUTORIAL_ANCHOR_INSET_PX = 1;
 const getSkinItemTargetId = (skinId: string): string => `skin-item-${skinId}`;
@@ -38,12 +39,42 @@ const SkinPreviewTile = React.memo<{ value: number; skin: { id?: string; hex: st
     const { isPremiumUiThemeActive, premiumUiObjects } = useBlockCustomization();
     const premiumUiTileFaceClassName = premiumUiObjects.extended.text.tileFaceClassName;
     const premiumUiTileNumberClassName = premiumUiObjects.extended.text.tileNumberClassName;
-    const { className, style } = resolveSkinAppearance(value, skin);
+    const { className, style } = resolveSkinAppearance(
+      value,
+      skin,
+      skin.id === PIXELBLAST_SKIN_ID ? { premiumUiThemeId: 'pixelblast_void' } : undefined,
+    );
     const isNeonBlock = className === 'skin-neon-block';
     const isExploreGalaxy = skin.id === EXPLORE_GALAXY_SKIN_ID;
+    const isPixelBlast = skin.id === PIXELBLAST_SKIN_ID;
     const { text, fontPx } = getTileNumberLayout(value, tilePx);
 
-    return (
+    if (isPixelBlast) {
+      return (
+        <div
+          className="skin-pixelblast-preview-chip shrink-0 relative overflow-hidden"
+          style={{ width: `${tilePx}px`, height: `${tilePx}px` }}
+        >
+          <div className="skin-pixelblast-preview-chip__slot" aria-hidden="true" />
+          <div
+            className={`skin-pixelblast-preview-chip__tile ${isPremiumUiThemeActive ? premiumUiTileFaceClassName : ''} ${className} flex items-center justify-center font-semibold text-center select-none`}
+            data-skin-preview-tile="true"
+            data-premium-ui-allow-gradient="true"
+            data-premium-ui-allow-shadow="true"
+            style={{
+              fontSize: `${fontPx}px`,
+              lineHeight: 1,
+              whiteSpace: 'pre-line',
+              ...style,
+            }}
+          >
+            <span className={`${isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''}`}>{text}</span>
+          </div>
+        </div>
+      );
+    }
+
+    const tileNode = (
       <div
         className={`${isNeonBlock ? '' : 'rounded-2xl'} ${isPremiumUiThemeActive ? premiumUiTileFaceClassName : ''} ${isExploreGalaxy ? 'explore-galaxy-phase-sync' : ''} flex items-center justify-center font-semibold ${isNeonBlock ? '' : 'overflow-hidden'} text-center select-none shrink-0 ${className}`}
         data-skin-preview-tile="true"
@@ -70,6 +101,8 @@ const SkinPreviewTile = React.memo<{ value: number; skin: { id?: string; hex: st
         <span className={`${isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''} ${isNeonBlock ? 'skin-neon-block-number' : ''}`}>{text}</span>
       </div>
     );
+
+    return tileNode;
   }
 );
 
@@ -544,7 +577,11 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
                               const isActive = skinSettings.activeSkinId === entry.id;
                               const isSelected = selectedSkinId === entry.id;
                               const swatchPreviewValue = isLiquidGlassSkin(entry.id) ? 64 : 16;
-                              const { className, style } = resolveSkinAppearance(swatchPreviewValue, entry);
+                              const { className, style } = resolveSkinAppearance(
+                                swatchPreviewValue,
+                                entry,
+                                entry.id === PIXELBLAST_SKIN_ID ? { premiumUiThemeId: 'pixelblast_void' } : undefined,
+                              );
                               const isNeonSwatch = isNeonSkin(entry.id);
                               const isExploreGalaxySwatch = entry.id === EXPLORE_GALAXY_SKIN_ID;
 
@@ -560,30 +597,40 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
                                     ['--tutorial-anchor-inset' as any]: `${SKIN_TUTORIAL_ANCHOR_INSET_PX}px`,
                                   }}
                                 >
-                                  <div className={`w-full h-full relative ${className} ${isExploreGalaxySwatch ? 'explore-galaxy-phase-sync' : ''}`} style={{ ...style, borderRadius: 0 }} data-premium-ui-allow-gradient="true" data-premium-ui-allow-shadow="true" data-skin-swatch="true">
-                                    {isExploreGalaxySwatch && (
-                                      <ExploreGalaxyOverlay
-                                        size={4}
-                                        cellPx={10}
-                                        active
-                                        mode="swatch"
-                                        zIndex={1}
-                                      />
-                                    )}
-                                    {!isOwned && <div className="absolute inset-0 z-[5] bg-black/30" />}
-                                    {entry.premium && (
-                                      <div className="absolute top-0 right-0 z-20" style={{ fontSize: '8px', lineHeight: 1 }}>💎</div>
-                                    )}
-                                    {isActive && (
-                                      <div className="absolute inset-0 flex items-center justify-center z-10">
-                                        <span className="font-bold">v</span>
-                                      </div>
-                                    )}
-                                    {!isOwned && !isActive && (
-                                      <div className="absolute inset-0 flex items-center justify-center z-10">
-                                        <span className="text-lg">🔒</span>
-                                      </div>
-                                    )}
+                                  <div
+                                    className="w-full h-full relative"
+                                    data-skin-swatch="true"
+                                  >
+                                    <div
+                                      className={`w-full h-full relative ${className} ${isExploreGalaxySwatch ? 'explore-galaxy-phase-sync' : ''}`}
+                                      style={{ ...style, borderRadius: 0 }}
+                                      data-premium-ui-allow-gradient="true"
+                                      data-premium-ui-allow-shadow="true"
+                                    >
+                                      {isExploreGalaxySwatch && (
+                                        <ExploreGalaxyOverlay
+                                          size={4}
+                                          cellPx={10}
+                                          active
+                                          mode="swatch"
+                                          zIndex={1}
+                                        />
+                                      )}
+                                      {!isOwned && <div className="absolute inset-0 z-[5] bg-black/30" />}
+                                      {entry.premium && (
+                                        <div className="absolute top-0 right-0 z-20" style={{ fontSize: '8px', lineHeight: 1 }}>💎</div>
+                                      )}
+                                      {isActive && (
+                                        <div className="absolute inset-0 flex items-center justify-center z-10">
+                                          <span className="font-bold">v</span>
+                                        </div>
+                                      )}
+                                      {!isOwned && !isActive && (
+                                        <div className="absolute inset-0 flex items-center justify-center z-10">
+                                          <span className="text-lg">🔒</span>
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
                               );
@@ -760,7 +807,11 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
                             const isActive = skinSettings.activeSkinId === entry.id;
                             const isSelected = selectedSkinId === entry.id;
                             const swatchPreviewValue = isLiquidGlassSkin(entry.id) ? 64 : 16;
-                            const { className, style } = resolveSkinAppearance(swatchPreviewValue, entry);
+                            const { className, style } = resolveSkinAppearance(
+                              swatchPreviewValue,
+                              entry,
+                              entry.id === PIXELBLAST_SKIN_ID ? { premiumUiThemeId: 'pixelblast_void' } : undefined,
+                            );
                             const isNeonSwatch = isNeonSkin(entry.id);
                             const isExploreGalaxySwatch = entry.id === EXPLORE_GALAXY_SKIN_ID;
 
@@ -781,19 +832,23 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
                                 }}
                               >
                                 <div
-                                  className={`relative w-full h-full ${isNeonSwatch ? '' : 'overflow-hidden'} ${isExploreGalaxySwatch ? 'explore-galaxy-phase-sync' : ''} ${className}`}
-                                  style={style}
+                                  className={`relative w-full h-full ${isNeonSwatch ? '' : 'overflow-hidden'}`}
                                   data-skin-swatch="true"
                                 >
-                                  {isExploreGalaxySwatch && (
-                                    <ExploreGalaxyOverlay
-                                      size={4}
-                                      cellPx={10}
-                                      active
-                                      mode="swatch"
-                                      zIndex={1}
-                                    />
-                                  )}
+                                  <div
+                                    className={`relative w-full h-full ${isNeonSwatch ? '' : 'overflow-hidden'} ${isExploreGalaxySwatch ? 'explore-galaxy-phase-sync' : ''} ${className}`}
+                                    style={style}
+                                  >
+                                    {isExploreGalaxySwatch && (
+                                      <ExploreGalaxyOverlay
+                                        size={4}
+                                        cellPx={10}
+                                        active
+                                        mode="swatch"
+                                        zIndex={1}
+                                      />
+                                    )}
+                                  </div>
                                 </div>
                                 {!isOwned && (
                                   <div className="absolute inset-0 bg-black/40 z-[5]" />

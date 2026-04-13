@@ -382,6 +382,110 @@
   background: rgba(15, 23, 42, 0.94);
 }
 
+:root {
+  --game-mode-focus-accent: 96, 165, 250;
+  --game-mode-focus-accent-strong: 129, 140, 248;
+  --game-mode-focus-contrast: 255, 255, 255;
+}
+
+@keyframes gameModeFocusPulse {
+  0%, 100% {
+    opacity: 0.78;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.005);
+  }
+}
+
+.game-mode-focus-shell {
+  position: relative;
+  isolation: isolate;
+}
+
+.game-mode-focus-shell::before {
+  content: "";
+  position: absolute;
+  inset: calc(var(--game-mode-focus-inset, 6px) * -1);
+  border-radius: var(--game-mode-focus-radius, 28px);
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.995);
+  transition: opacity 180ms ease, transform 180ms ease, box-shadow 220ms ease;
+  will-change: opacity, transform, box-shadow;
+}
+
+.skin-pixelblast-preview-chip {
+  position: relative;
+  box-sizing: border-box;
+  border-radius: 0;
+}
+
+.skin-pixelblast-preview-chip__slot {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0) 24%, rgba(255,255,255,0) 76%, rgba(255,255,255,0.04) 100%),
+    radial-gradient(circle at 1px 1px, rgba(184, 163, 255, 0.055) 0 1px, transparent 1.2px),
+    linear-gradient(180deg, rgba(26, 19, 47, 0.2) 0%, rgba(14, 10, 27, 0.14) 100%);
+  background-size: auto, 8px 8px, auto;
+  border: 1px solid rgba(138, 116, 214, 0.42);
+  border-radius: 0;
+  box-shadow:
+    inset 0 0 0 1px rgba(9, 7, 18, 0.26),
+    inset 1px 1px 0 rgba(215, 198, 255, 0.05),
+    inset -1px -1px 0 rgba(26, 17, 47, 0.24),
+    0 0 0 1px rgba(184, 163, 255, 0.035);
+}
+
+.skin-pixelblast-preview-chip__tile {
+  position: absolute;
+  inset: 3px;
+  z-index: 1;
+  box-sizing: border-box;
+  border-radius: 1px !important;
+  overflow: hidden;
+}
+
+.game-mode-focus-board {
+  --game-mode-focus-radius: var(--game-mode-focus-board-radius, 30px);
+  --game-mode-focus-inset: var(--game-mode-focus-board-inset, 6px);
+}
+
+.game-mode-focus-slots {
+  --game-mode-focus-radius: var(--game-mode-focus-slots-radius, 26px);
+  --game-mode-focus-inset: var(--game-mode-focus-slots-inset, 4px);
+}
+
+.game-mode-focus-board[data-game-phase='SLIDE']::before {
+  opacity: 1;
+  animation: gameModeFocusPulse 1.7s ease-in-out infinite;
+  box-shadow:
+    0 0 0 1px rgba(var(--game-mode-focus-contrast), 0.18),
+    0 0 0 3px rgba(var(--game-mode-focus-accent), 0.12),
+    0 0 24px rgba(var(--game-mode-focus-accent), 0.22),
+    0 0 42px rgba(var(--game-mode-focus-accent-strong), 0.16);
+}
+
+.game-mode-focus-slots[data-game-phase='PLACE']::before {
+  opacity: 0.94;
+  animation: gameModeFocusPulse 1.9s ease-in-out infinite;
+  box-shadow:
+    0 0 0 1px rgba(var(--game-mode-focus-contrast), 0.14),
+    0 0 0 2px rgba(var(--game-mode-focus-accent), 0.1),
+    0 0 18px rgba(var(--game-mode-focus-accent), 0.16),
+    0 10px 26px rgba(var(--game-mode-focus-accent-strong), 0.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-mode-focus-board[data-game-phase='SLIDE']::before,
+  .game-mode-focus-slots[data-game-phase='PLACE']::before {
+    animation: none;
+  }
+}
+
 /* Modal safe area for bottom-fixed chrome (native ad + bottom nav) */
 .modal-safe-overlay {
 

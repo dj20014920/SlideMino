@@ -1,7 +1,7 @@
 {
   "name": "block-slide-2048",
   "private": true,
-  "version": "1.45.0",
+  "version": "1.47.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host",

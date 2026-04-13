@@ -228,9 +228,8 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
         className={`fixed left-0 right-0 z-[100] premium-nav-wrapper-fallback ${premiumUiTaskbarWrapperClassName}`}
         style={{
           bottom: 0,
-          paddingBottom: 'max(var(--app-safe-bottom, 0px), env(safe-area-inset-bottom))',
-          background: 'transparent',
-          backgroundClip: 'padding-box',
+          paddingBottom: 0,
+          backgroundClip: 'border-box',
         }}
       >
         {/* 잠금 안내 토스트 */}
@@ -246,6 +245,9 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
             navMeasureRef.current = node;
           }}
           className={`premium-bottom-nav-fallback ${premiumUiTaskbarClassName}`}
+          style={{
+            paddingBottom: 'max(var(--app-safe-bottom, 0px), env(safe-area-inset-bottom))',
+          }}
         >
           {navItems.map((item) => (
             <button
@@ -287,8 +289,12 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
       className="fixed left-0 right-0 z-[100]"
       style={{
         bottom: 0,
-        paddingBottom: 'var(--app-safe-bottom)',
-        background: 'transparent',
+        paddingBottom: 0,
+        background: 'rgba(255, 255, 255, 0.88)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        borderTop: '1px solid rgba(255, 255, 255, 0.6)',
+        boxShadow: '0 -1px 12px rgba(0,0,0,0.08)',
       }}
     >
       {/* 잠금 안내 토스트 */}
@@ -305,11 +311,12 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
         }}
         className="flex items-stretch justify-around px-1 py-1"
         style={{
-          background: 'rgba(255, 255, 255, 0.88)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          borderTop: '1px solid rgba(255, 255, 255, 0.6)',
-          boxShadow: '0 -1px 12px rgba(0,0,0,0.08)',
+          background: 'transparent',
+          backdropFilter: 'none',
+          WebkitBackdropFilter: 'none',
+          borderTop: 'none',
+          boxShadow: 'none',
+          paddingBottom: 'var(--app-safe-bottom, 0px)',
         }}
       >
         {navItems.map((item) => (

@@ -4,7 +4,15 @@
  * https://github.com/jdan/98.css
  */
 
-:root {
+html.theme-win98,
+body.theme-win98 {
+  --game-mode-focus-accent: 10, 132, 255;
+  --game-mode-focus-accent-strong: 0, 0, 128;
+  --game-mode-focus-contrast: 255, 255, 255;
+  --game-mode-focus-board-radius: 0px;
+  --game-mode-focus-board-inset: 4px;
+  --game-mode-focus-slots-radius: 0px;
+  --game-mode-focus-slots-inset: 3px;
   --win98-text-color: #222222;
   --win98-surface: #c0c0c0;
   --win98-button-highlight: #ffffff;
@@ -192,6 +200,13 @@ body.theme-win98 .window [class*="bg-gradient"]:not([data-premium-ui-allow-gradi
 body.theme-win98 .win98-window [class*="bg-gradient"]:not([data-premium-ui-allow-gradient="true"]):not([data-skin-preview-tile="true"]),
 body.theme-win98 .win98-panel [class*="bg-gradient"]:not([data-premium-ui-allow-gradient="true"]):not([data-skin-preview-tile="true"]) {
   background: var(--win98-surface) !important;
+}
+
+body.theme-win98 .window [class*="bg-black"]:not([data-premium-ui-allow-gradient="true"]):not([data-skin-preview-tile="true"]),
+body.theme-win98 .win98-window [class*="bg-black"]:not([data-premium-ui-allow-gradient="true"]):not([data-skin-preview-tile="true"]),
+body.theme-win98 .win98-panel [class*="bg-black"]:not([data-premium-ui-allow-gradient="true"]):not([data-skin-preview-tile="true"]) {
+  background: var(--win98-surface) !important;
+  background-color: var(--win98-surface) !important;
 }
 
 body.theme-win98 .window [class*="shadow"]:not([data-premium-ui-allow-shadow="true"]):not([data-skin-preview-tile="true"]),

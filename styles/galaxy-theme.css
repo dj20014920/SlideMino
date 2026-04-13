@@ -38,6 +38,13 @@
 html.theme-explore-galaxy,
 body.theme-explore-galaxy {
   color: var(--galaxy-text);
+  --game-mode-focus-accent: 168, 200, 255;
+  --game-mode-focus-accent-strong: 196, 168, 255;
+  --game-mode-focus-contrast: 220, 232, 255;
+  --game-mode-focus-board-radius: 18px;
+  --game-mode-focus-board-inset: 6px;
+  --game-mode-focus-slots-radius: 16px;
+  --game-mode-focus-slots-inset: 4px;
   /* WebGL Galaxy canvas가 배경 역할이므로 body 배경은 투명하게 */
   background: transparent !important;
 }

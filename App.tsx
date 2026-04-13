@@ -702,6 +702,16 @@ const App: React.FC = () => {
   const [menuBottomNavHeight, setMenuBottomNavHeight] = useState<number>(() =>
     isNative ? getEstimatedBottomNavHeight(isPremiumUiThemeActive, premiumNavHeightPx) : 0
   );
+  const [menuSafeBottomInsetPx, setMenuSafeBottomInsetPx] = useState<number>(() =>
+    isNative ? Math.max(0, Math.round(getSafeAreaInsetPx('bottom'))) : 0
+  );
+  const menuNativeBannerBottomMarginPx = useMemo(() => {
+    if (!isNative) return 0;
+    const navHeight = Math.max(0, Math.round(menuBottomNavHeight));
+    const safeBottom = Math.max(0, Math.round(menuSafeBottomInsetPx));
+    // AdMob/App-into-S SDK는 하단 safe-area를 자체 반영하므로 nav 높이에서 safe-bottom을 제외해 중복 오프셋을 방지한다.
+    return Math.max(0, navHeight - safeBottom);
+  }, [isNative, menuBottomNavHeight, menuSafeBottomInsetPx]);
 
   // Hide Capacitor Splash Screen immediately
   useEffect(() => {
@@ -715,6 +725,27 @@ const App: React.FC = () => {
       setMenuBottomNavHeight(getEstimatedBottomNavHeight(isPremiumUiThemeActive, premiumNavHeightPx));
     }
   }, [isPremiumUiThemeActive, isNative, premiumNavHeightPx]);
+
+  useEffect(() => {
+    if (!isNative || typeof window === 'undefined') return;
+
+    const syncSafeBottomInset = () => {
+      setMenuSafeBottomInsetPx(Math.max(0, Math.round(getSafeAreaInsetPx('bottom'))));
+    };
+
+    syncSafeBottomInset();
+    const timerIds = VIEWPORT_RECOVERY_DELAYS_MS.map((delayMs) => window.setTimeout(syncSafeBottomInset, delayMs));
+
+    window.addEventListener('resize', syncSafeBottomInset);
+    window.addEventListener(APP_RESUME_EVENT, syncSafeBottomInset);
+    window.visualViewport?.addEventListener('resize', syncSafeBottomInset);
+    return () => {
+      timerIds.forEach((id) => window.clearTimeout(id));
+      window.removeEventListener('resize', syncSafeBottomInset);
+      window.removeEventListener(APP_RESUME_EVENT, syncSafeBottomInset);
+      window.visualViewport?.removeEventListener('resize', syncSafeBottomInset);
+    };
+  }, [isNative]);
 
   // 랭킹 오프라인 큐 자동 동기화
   useEffect(() => {
@@ -4604,8 +4635,8 @@ const App: React.FC = () => {
           { size: 5 as BoardSize, label: t('game:difficulties.normal'), sizeLabel: t('game:boardSizes.5x5'), gradient: 'from-blue-600 to-blue-700', border: 'border-blue-400/30', shadow: 'shadow-blue-900/20', hoverShadow: 'hover:shadow-blue-600/30', mutedColor: 'text-blue-200/70' },
           { size: 7 as BoardSize, label: t('game:difficulties.beginner'), sizeLabel: t('game:boardSizes.7x7'), gradient: 'from-indigo-600 to-indigo-800', border: 'border-indigo-400/30', shadow: 'shadow-indigo-900/20', hoverShadow: 'hover:shadow-indigo-600/30', mutedColor: 'text-indigo-200/70', id: 'mode-btn-beginner' },
           { size: 8 as BoardSize, label: t('game:difficulties.easy'), sizeLabel: t('game:boardSizes.8x8'), gradient: 'from-gray-800 to-gray-900', border: 'border-white/10', shadow: 'shadow-lg', hoverShadow: '', mutedColor: 'text-gray-400' },
-          { size: 10 as BoardSize, label: t('game:difficulties.infinite'), sizeLabel: t('game:boardSizes.10x10'), gradient: 'bg-black', border: 'border-white/10', shadow: 'shadow-lg', hoverShadow: '', mutedColor: 'text-gray-500', isBlack: true },
-        ] as Array<{ size: BoardSize; label: string; sizeLabel: string; gradient: string; border: string; shadow: string; hoverShadow: string; mutedColor: string; id?: string; isBlack?: boolean }>).map((mode) => {
+          { size: 10 as BoardSize, label: t('game:difficulties.infinite'), sizeLabel: t('game:boardSizes.10x10'), gradient: 'from-neutral-900 to-black', border: 'border-white/10', shadow: 'shadow-lg', hoverShadow: '', mutedColor: 'text-gray-500' },
+        ] as Array<{ size: BoardSize; label: string; sizeLabel: string; gradient: string; border: string; shadow: string; hoverShadow: string; mutedColor: string; id?: string }>).map((mode) => {
           const hasResume = getActiveNormalGameBoardSize() === mode.size;
           return (
             <div key={mode.size} className="relative w-full">
@@ -4617,7 +4648,7 @@ const App: React.FC = () => {
                 }}
                 className={`
                   relative group w-full py-4 px-6 rounded-2xl ${premiumMenuButtonClassName}
-                  ${mode.isBlack ? 'bg-black' : `bg-gradient-to-br ${mode.gradient}`}
+                  bg-gradient-to-br ${mode.gradient}
                   border ${mode.border}
                   shadow-lg ${mode.shadow}
                   hover:shadow-xl ${mode.hoverShadow} hover:-translate-y-0.5
@@ -4837,9 +4868,10 @@ const App: React.FC = () => {
           )}
 
           <AdBanner
-            nativeBottomMarginPx={menuBottomNavHeight}
-            reserveNativeSpace={false}
+            nativeBottomMarginPx={menuNativeBannerBottomMarginPx}
+            reserveNativeSpace={!isNative}
             includeSafeBottomInReservedSpace={false}
+            fixedPosition={isNative ? 'above-bottom-nav-no-safe' : undefined}
           />
 
           {isNative && (
@@ -5362,7 +5394,11 @@ const App: React.FC = () => {
             ${boardFocusSurfaceClass}
           `}>
             {isPremiumUiThemeActive ? (
-              <div className={`${premiumWindowClassName} ${premiumGameBoardWindowClassName} w-full max-w-[520px]`}>
+              <div
+                className={`game-mode-focus-shell game-mode-focus-board ${premiumWindowClassName} ${premiumGameBoardWindowClassName} w-full max-w-[520px]`}
+                data-game-phase={phase}
+                data-focus-family={premiumSkinRuntime.family}
+              >
                 <div className={`${premiumWindowBodyClassName} ${premiumGameBoardBodyClassName}`}>
                   <Board
                     ref={boardHandleRef}
@@ -5384,35 +5420,44 @@ const App: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <Board
-                ref={boardHandleRef}
-                htmlId="game-board"
-                grid={grid}
-                phase={phase}
-                activePiece={draggingPiece}
-                boardRef={boardRef}
-                mergingTiles={mergingTiles}
-                valueOverrides={tileValueOverrides}
-                boardScale={boardScale}
-                reviveSelectionEnabled={isReviveSelectionMode}
-                revivePendingTileId={revivePendingTileId}
-                onReviveTileTap={handleReviveTileTap}
-                reviveDestroyEffects={reviveDestroyEffects}
-                mergedNumberBurstTileIds={mergedNumberBurstTileIds}
-                mergedNumberBurstByTileId={mergedNumberBurstByTileId}
-              />
+              <div
+                className="game-mode-focus-shell game-mode-focus-board"
+                data-game-phase={phase}
+                data-focus-family="default"
+              >
+                <Board
+                  ref={boardHandleRef}
+                  htmlId="game-board"
+                  grid={grid}
+                  phase={phase}
+                  activePiece={draggingPiece}
+                  boardRef={boardRef}
+                  mergingTiles={mergingTiles}
+                  valueOverrides={tileValueOverrides}
+                  boardScale={boardScale}
+                  reviveSelectionEnabled={isReviveSelectionMode}
+                  revivePendingTileId={revivePendingTileId}
+                  onReviveTileTap={handleReviveTileTap}
+                  reviveDestroyEffects={reviveDestroyEffects}
+                  mergedNumberBurstTileIds={mergedNumberBurstTileIds}
+                  mergedNumberBurstByTileId={mergedNumberBurstByTileId}
+                />
+              </div>
             )}
           </div>
 
 
           {/* Inventory Slots */}
           <div className={`
-          w-full grid grid-cols-3 gap-4 
+          game-mode-focus-shell game-mode-focus-slots w-full grid grid-cols-3 gap-4
           transition-all duration-200
           ${slotFocusSurfaceClass}
           ${isSlotPointerLocked ? 'pointer-events-none' : ''}
           ${slotVisibilityClass}
-        `}>
+        `}
+            data-game-phase={phase}
+            data-focus-family={premiumSkinRuntime.family}
+          >
             {slots.map((p, i) => (
               <Slot
                 key={p ? p.id : i}

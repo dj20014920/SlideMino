@@ -13,12 +13,15 @@ interface AdBannerProps {
     reserveNativeSpace?: boolean;
     /** 인라인 예약 공간에 safe-bottom을 포함할지 여부 */
     includeSafeBottomInReservedSpace?: boolean;
+    /** 배너를 fixed로 배치하여 특정 요소 바로 위에 붙일지 여부 */
+    fixedPosition?: 'above-bottom-nav' | 'above-bottom-nav-no-safe';
 }
 
 const AdBanner: React.FC<AdBannerProps> = ({
     nativeBottomMarginPx = 0,
     reserveNativeSpace = true,
     includeSafeBottomInReservedSpace = true,
+    fixedPosition,
 }) => {
     if (isScreenshotMode()) return null;
     const [consent, setConsent] = useState<'accepted' | 'declined' | null>(null);
@@ -130,7 +133,28 @@ const AdBanner: React.FC<AdBannerProps> = ({
 
     // 네이티브(앱인토스 포함): 네이티브 SDK가 직접 배너를 그리므로 공간만 확보
     if (native || appIntoS) {
-        if (!reserveNativeSpace) return null;
+        if (!reserveNativeSpace && !fixedPosition) return null;
+        
+        // fixed 모드: BottomNavBar 바로 위에 딱 붙임
+        if (fixedPosition) {
+            const bottomValue = fixedPosition === 'above-bottom-nav-no-safe'
+                ? 'var(--bottom-nav-height, 64px)'
+                : 'calc(var(--bottom-nav-height, 64px) + var(--app-safe-bottom, 0px))';
+            return (
+                <div
+                    className="w-full"
+                    style={{
+                        position: 'fixed',
+                        left: 0,
+                        right: 0,
+                        bottom: bottomValue,
+                        height: `${nativeBannerHeightPx}px`,
+                        zIndex: 99,
+                    }}
+                />
+            );
+        }
+        
         return (
             <div
                 className="w-full"
@@ -143,11 +167,12 @@ const AdBanner: React.FC<AdBannerProps> = ({
         );
     }
 
-    return (
+    // 웹용 AdSense 렌더링
+    const adContent = (
         <div className="relative w-full flex justify-center items-center min-h-[50px] transition-all duration-300">
-            {/* 
-            Google AdSense Display Unit 
-            Replace YOUR_AD_SLOT_ID with your actual Ad Slot ID from Google AdSense dashboard 
+            {/*
+            Google AdSense Display Unit
+            Replace YOUR_AD_SLOT_ID with your actual Ad Slot ID from Google AdSense dashboard
         */}
             <ins
                 ref={(node) => {
@@ -168,6 +193,29 @@ const AdBanner: React.FC<AdBannerProps> = ({
             )}
         </div>
     );
+
+    // fixed 모드: BottomNavBar 바로 위에 딱 붙임
+    if (fixedPosition) {
+        const bottomValue = fixedPosition === 'above-bottom-nav-no-safe'
+            ? 'var(--bottom-nav-height, 64px)'
+            : 'calc(var(--bottom-nav-height, 64px) + var(--app-safe-bottom, 0px))';
+        return (
+            <div
+                className="w-full"
+                style={{
+                    position: 'fixed',
+                    left: 0,
+                    right: 0,
+                    bottom: bottomValue,
+                    zIndex: 99,
+                }}
+            >
+                {adContent}
+            </div>
+        );
+    }
+
+    return adContent;
 };
 
 export default AdBanner;

@@ -690,7 +690,6 @@ const App: React.FC = () => {
   const premiumGameBoardBodyClassName = premiumUiObjects.board.gameBodyClassName;
   const premiumFieldsetClassName = premiumUiObjects.panels.fieldsetClassName;
   const premiumMutedTextClassName = premiumUiObjects.extended.text.mutedClassName;
-  const premiumTopWindowClassName = premiumUiObjects.extended.windows.topWindowClassName;
   const premiumMenuWindowClassName = premiumUiObjects.extended.windows.menuWindowClassName;
   const premiumModalWindowClassName = premiumUiObjects.extended.windows.modalWindowClassName;
   const premiumRadioGroupClassName = premiumUiObjects.extended.windows.radioGroupClassName;
@@ -4246,9 +4245,6 @@ const App: React.FC = () => {
   }
 
   const premiumUi = premiumUiOverrides;
-  const premiumTopWindowTitle = premiumUi?.topWindowTitle ?? '블록 슬라이드\n(Block Slide)';
-  const premiumTopWindowTitleLines = premiumTopWindowTitle.split('\n');
-  const premiumTopWindowTitleSingleLine = premiumTopWindowTitleLines.join(' ');
   const premiumMenuRowContainerClassName =
     premiumUiObjects.panels.sunkenWhiteClassName
     || premiumUiObjects.panels.sunkenClassName
@@ -4395,6 +4391,16 @@ const App: React.FC = () => {
       <fieldset className={premiumFieldsetClassName} style={{ marginTop: '16px' }}>
         <legend className="font-bold">{premiumUi?.utilityLegend ?? '메뉴'}</legend>
         <div className="flex flex-col gap-2 mt-2">
+          <div className={`relative w-full h-[52px] ${premiumMenuRowContainerClassName}`}>
+            <button
+              className={`w-full h-full text-left font-bold px-4 flex items-center gap-2 ${premiumMenuRowPrimaryButtonClassName}`}
+              onClick={openLeaderboardModal}
+            >
+              <Trophy size={16} />
+              {t('modals:leaderboard.title')}
+            </button>
+          </div>
+
           {isFeatureUnlocked('streak') && (
             <div className={`relative w-full h-[52px] ${premiumMenuRowContainerClassName}`}>
               <button
@@ -4688,24 +4694,6 @@ const App: React.FC = () => {
               : '24px',
           }}
         >
-          {isPremiumUiThemeActive && (
-            <div className={`${premiumWindowClassName} premium-home-window-surface w-full max-w-md ${premiumTopWindowClassName}`}>
-              <div className={premiumTitleBarClassName}>
-                <div className={premiumTitleBarTextClassName}>
-                  {premiumTopWindowTitleLines.map((line, index) => (
-                    <React.Fragment key={`${line}-${index}`}>
-                      {line}
-                      {index < premiumTopWindowTitleLines.length - 1 && <br />}
-                    </React.Fragment>
-                  ))}
-                </div>
-                <div className={premiumTitleBarControlsClassName}>
-                  <button aria-label="Help" onClick={openLeaderboardModal} />
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* 로고 영역 */}
           {isPremiumUiThemeActive ? (
             <div className={`${premiumWindowClassName} premium-home-window-surface w-full max-w-md animate-fade-in`}>
@@ -5058,6 +5046,7 @@ const App: React.FC = () => {
   const isSwipePhase = phase === Phase.SLIDE;
   const isPlaceFocusMode = isPlacePhase;
   const isSwipeFocusMode = isSwipePhase;
+  const hiddenGameTitlebarSpacerPx = isPremiumUiThemeActive ? 32 : 0;
   const focusSurfaceClass = 'scale-[1.01] drop-shadow-[0_22px_40px_rgba(15,23,42,0.18)]';
   const boardFocusSurfaceClass = (isPlaceFocusMode || isSwipeFocusMode)
     ? focusSurfaceClass
@@ -5326,12 +5315,11 @@ const App: React.FC = () => {
           <div className={`
             transition-all duration-200 w-full flex items-center justify-center
             ${boardFocusSurfaceClass}
-          `}>
+          `}
+            style={hiddenGameTitlebarSpacerPx > 0 ? { marginTop: `${hiddenGameTitlebarSpacerPx}px` } : undefined}
+          >
             {isPremiumUiThemeActive ? (
               <div className={`${premiumWindowClassName} ${premiumGameBoardWindowClassName} w-full max-w-[520px]`}>
-                <div className={premiumTitleBarClassName}>
-                  <div className={premiumTitleBarTextClassName}>{premiumUi?.gameWindowTitle ?? 'Game...'}</div>
-                </div>
                 <div className={`${premiumWindowBodyClassName} ${premiumGameBoardBodyClassName}`}>
                   <Board
                     ref={boardHandleRef}

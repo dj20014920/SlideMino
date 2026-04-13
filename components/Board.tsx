@@ -107,14 +107,40 @@ const tileTransitionEase = 'cubic-bezier(0.25,0.1,0.25,1.0)';
 const reviveDestroyAnimation = 'reviveBreakFade 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards';
 const EMPTY_REVIVE_DESTROY_EFFECTS: ReviveDestroyEffect[] = [];
 
+const buildPixelBlastMergeEdgeGlowStyle = (
+  baseStyle?: React.CSSProperties
+): React.CSSProperties => {
+  const backgroundLayers = [
+    'linear-gradient(180deg, rgba(255,255,255,0.44) 0%, rgba(255,255,255,0.2) 8%, rgba(255,255,255,0.05) 20%, rgba(255,255,255,0.01) 30%, rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.015) 72%, rgba(255,255,255,0.08) 84%, rgba(255,255,255,0.2) 94%, rgba(255,255,255,0.36) 100%)',
+    'linear-gradient(90deg, rgba(255,255,255,0.44) 0%, rgba(255,255,255,0.2) 8%, rgba(255,255,255,0.05) 20%, rgba(255,255,255,0.01) 30%, rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.015) 72%, rgba(255,255,255,0.08) 84%, rgba(255,255,255,0.2) 94%, rgba(255,255,255,0.36) 100%)',
+  ];
+  if (typeof baseStyle?.backgroundImage === 'string' && baseStyle.backgroundImage !== 'none') {
+    backgroundLayers.push(baseStyle.backgroundImage);
+  }
+
+  const boxShadowLayers = [
+    typeof baseStyle?.boxShadow === 'string' ? baseStyle.boxShadow : '',
+    'inset 0 0 0 1px rgba(248,245,255,0.28)',
+    '0 0 10px rgba(184,163,255,0.12)',
+  ].filter(Boolean);
+
+  return {
+    ...baseStyle,
+    backgroundImage: backgroundLayers.join(', '),
+    boxShadow: boxShadowLayers.join(', '),
+    filter: 'brightness(1.16)',
+  };
+};
+
 const MergingTilesLayer = React.memo<{
   animatingMerges: (MergingTile & { currentX: number; currentY: number; distance: number })[];
   layout: GridLayout;
   getResolvedAppearance: (value: number) => ResolvedTileAppearance;
   isPremiumUiThemeActive: boolean;
+  isPixelBlastSkin: boolean;
   premiumUiTileFaceClassName: string;
   premiumUiTileNumberClassName: string;
-}>(({ animatingMerges, layout, getResolvedAppearance, isPremiumUiThemeActive, premiumUiTileFaceClassName, premiumUiTileNumberClassName }) => {
+}>(({ animatingMerges, layout, getResolvedAppearance, isPremiumUiThemeActive, isPixelBlastSkin, premiumUiTileFaceClassName, premiumUiTileNumberClassName }) => {
   return (
     <div className="absolute inset-0 z-5 pointer-events-none">
       {animatingMerges.map((mt) => {
@@ -124,6 +150,9 @@ const MergingTilesLayer = React.memo<{
         const appearance = getResolvedAppearance(mt.value);
         const preserveAppearanceInWin98 = Boolean(appearance.style?.backgroundColor || appearance.style?.backgroundImage || appearance.style?.boxShadow);
         const isNeonBlock = appearance.className === 'skin-neon-block';
+        const mergeAppearanceStyle = isPixelBlastSkin
+          ? buildPixelBlastMergeEdgeGlowStyle(appearance.style)
+          : (appearance.style ?? {});
         return (
           <div
             key={`merge-${mt.id}`}
@@ -146,7 +175,7 @@ const MergingTilesLayer = React.memo<{
               fontSize: `${fontPx}px`,
               lineHeight: 1,
               whiteSpace: 'pre-line',
-              ...(appearance.style ?? {}),
+              ...mergeAppearanceStyle,
               // 아래 속성들은 appearance.style보다 항상 우선
               transform,
               opacity: 0.7,
@@ -991,6 +1020,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
             layout={layout}
             getResolvedAppearance={getResolvedAppearance}
             isPremiumUiThemeActive={isPremiumUiThemeActive}
+            isPixelBlastSkin={isPixelBlastSkin}
             premiumUiTileFaceClassName={premiumUiTileFaceClassName}
             premiumUiTileNumberClassName={premiumUiTileNumberClassName}
           />

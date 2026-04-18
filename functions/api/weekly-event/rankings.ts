@@ -48,13 +48,26 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     // TOP 100 랭킹 조회
     const rankings = await env.DB.prepare(
-      `SELECT er.name, er.score, er.moves, er.duration, erb.level_badge as levelBadge
-       FROM event_rankings er
-       LEFT JOIN event_ranking_badges erb
-         ON erb.event_id = er.event_id AND erb.install_id_hash = er.install_id_hash
-       WHERE er.event_id = ?
-       ORDER BY er.score DESC, er.moves ASC, er.duration ASC
-       LIMIT 100`
+       `WITH ranked AS (
+          SELECT
+            er.name,
+            er.score,
+            er.moves,
+            er.duration,
+            er.install_id_hash,
+            erb.level_badge as levelBadge,
+            -- 동점(score/moves/duration)은 같은 rank를 유지한다.
+            RANK() OVER (ORDER BY er.score DESC, er.moves ASC, er.duration ASC) AS rank
+          FROM event_rankings er
+          LEFT JOIN event_ranking_badges erb
+            ON erb.event_id = er.event_id AND erb.install_id_hash = er.install_id_hash
+          WHERE er.event_id = ?
+        )
+        SELECT name, score, moves, duration, levelBadge, rank
+        FROM ranked
+        -- 같은 rank 내부 순서는 install_id_hash로 완전 결정한다.
+        ORDER BY score DESC, moves ASC, duration ASC, install_id_hash ASC
+        LIMIT 100`
     ).bind(eventId).all();
 
     const total = await env.DB.prepare(
@@ -63,8 +76,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     const totalCount = (total as { total: number } | null)?.total ?? 0;
 
-    const rankingList = (rankings.results ?? []).map((row: any, idx: number) => ({
-      rank: idx + 1,
+    const rankingList = (rankings.results ?? []).map((row: any) => ({
+      rank: Number(row.rank),
       name: row.name,
       score: row.score,
       moves: row.moves,

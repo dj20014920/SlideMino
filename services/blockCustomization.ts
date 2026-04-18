@@ -12,6 +12,10 @@ import {
 } from '../config/skinPalettes';
 import { resolveSkinModuleAppearance } from './skinModules/registry';
 
+const SKIN_CATALOG_BY_ID = new Map(
+  SKIN_CATALOG.map((entry) => [entry.id, entry] as const)
+);
+
 export const BLOCK_CUSTOMIZATION_STORAGE_KEY = 'slidemino.blockCustomization.v1';
 
 export const DEFAULT_BLOCK_CUSTOMIZATION_SETTINGS: BlockCustomizationSettingsV1 = {
@@ -258,6 +262,24 @@ export const saveBlockCustomizationSettings = (settings: BlockCustomizationSetti
 export type ResolvedTileAppearance = {
   className: string;
   style?: CSSProperties;
+};
+
+const SKIN_APPEARANCE_CACHE_LIMIT = 1024;
+const skinAppearanceCache = new Map<string, ResolvedTileAppearance>();
+
+const cacheResolvedSkinAppearance = (
+  cacheKey: string | null,
+  appearance: ResolvedTileAppearance,
+): ResolvedTileAppearance => {
+  if (!cacheKey) return appearance;
+  skinAppearanceCache.set(cacheKey, appearance);
+  if (skinAppearanceCache.size > SKIN_APPEARANCE_CACHE_LIMIT) {
+    const oldestKey = skinAppearanceCache.keys().next().value;
+    if (oldestKey) {
+      skinAppearanceCache.delete(oldestKey);
+    }
+  }
+  return appearance;
 };
 
 const DISALLOWED_TILE_STYLE_KEYS = [
@@ -671,11 +693,18 @@ export const resolveSkinAppearance = (
   options?: { premiumUiThemeId?: PremiumUiThemeId | null }
 ): ResolvedTileAppearance => {
   const skinId = skin.id || '';
+  const cacheKey = skinId
+    ? `${skinId}|${options?.premiumUiThemeId ?? ''}|${value}`
+    : null;
+  if (cacheKey) {
+    const cached = skinAppearanceCache.get(cacheKey);
+    if (cached) return cached;
+  }
 
   // Look up style from catalog if not provided (backward compatibility)
   let styleData = skin.style;
   if (!styleData && skinId) {
-    const entry = SKIN_CATALOG.find((e) => e.id === skinId);
+    const entry = SKIN_CATALOG_BY_ID.get(skinId);
     if (entry) styleData = entry.style;
   }
 
@@ -692,7 +721,9 @@ export const resolveSkinAppearance = (
       applySkinStyleOverrides,
     },
   });
-  if (moduleAppearance) return moduleAppearance;
+  if (moduleAppearance) {
+    return cacheResolvedSkinAppearance(cacheKey, moduleAppearance);
+  }
 
   if (isLiquidGlassSkinId(skinId)) {
     const style = buildLiquidGlassTileStyle(value, skin.hex);
@@ -704,10 +735,10 @@ export const resolveSkinAppearance = (
     if (typeof styleData?.textColor === 'string' && styleData.textColor) {
       style.color = styleData.textColor;
     }
-    return {
+    return cacheResolvedSkinAppearance(cacheKey, {
       className: getTileColor(value),
       style: sanitizeTileAppearanceStyle(style),
-    };
+    });
   }
 
   // ── Neon Block: 원본 버튼 UI를 정사각형 블록으로 변환 (CSS 클래스 기반) ──
@@ -734,10 +765,10 @@ export const resolveSkinAppearance = (
       '--neon-bottom-line-alpha': '0.4',
     };
 
-    return {
+    return cacheResolvedSkinAppearance(cacheKey, {
       className: 'skin-neon-block',
       style: sanitizeTileAppearanceStyle(style as CSSProperties),
-    };
+    });
   }
 
   if (skinId === NEON_BLOCK_SKIN_ID) {
@@ -748,43 +779,49 @@ export const resolveSkinAppearance = (
       '--neon-active-gain': '1.2',
       '--neon-bottom-line-alpha': '0.38',
     };
-    return {
+    return cacheResolvedSkinAppearance(cacheKey, {
       className: 'skin-neon-block',
       style: sanitizeTileAppearanceStyle(style as CSSProperties),
-    };
+    });
   }
 
   // ── 1. Explicit palette skins (Neon, Pop Art, Stained Glass) ──
   const explicitPalette = SKIN_EXPLICIT_PALETTES[skinId];
   if (explicitPalette) {
-    return resolveExplicitPaletteSkin(value, skinId, explicitPalette, styleData);
+    return cacheResolvedSkinAppearance(
+      cacheKey,
+      resolveExplicitPaletteSkin(value, skinId, explicitPalette, styleData)
+    );
   }
 
   // ── 2. HSL progression skins (all complex skins) ──
   const progression = SKIN_PROGRESSIONS[skinId];
   if (progression) {
-    return resolveProgressionSkin(value, skinId, progression, styleData);
+    return cacheResolvedSkinAppearance(
+      cacheKey,
+      resolveProgressionSkin(value, skinId, progression, styleData)
+    );
   }
 
   // ── 3. Legacy fallback (basic color skins: skin_0 through skin_23) ──
   if (skinId.startsWith(MESH_SWATCH_SKIN_PREFIX)) {
-    return {
+    return cacheResolvedSkinAppearance(cacheKey, {
       className: getTileColor(value),
       style: sanitizeTileAppearanceStyle(buildMeshSkinStyle(value, skin.hex)),
-    };
+    });
   }
 
   const baseHex = getSkinColorForValue(value, skin.hex);
 
   const { backgroundImage, baseRgb } = buildGradient(baseHex);
-  return {
+  return cacheResolvedSkinAppearance(cacheKey, {
     className: getTileColor(value),
     style: sanitizeTileAppearanceStyle({
       backgroundImage,
       backgroundColor: baseHex,
       ...getWhiteTextStyleForBackground(baseRgb),
     }),
-  };
+  });
 };
 
 // ==============================================
@@ -1054,7 +1091,7 @@ export const resolveTileAppearance = (
   if (skinSettings?.activeSkinId) {
     // 컬렉션 미리보기와 실제 게임 타일이 동일한 색/스타일 경로를 사용하도록
     // 카탈로그 정의를 우선 소스로 사용한다.
-    const catalogSkin = SKIN_CATALOG.find((entry) => entry.id === skinSettings.activeSkinId);
+    const catalogSkin = SKIN_CATALOG_BY_ID.get(skinSettings.activeSkinId);
     if (catalogSkin) {
       return resolveSkinAppearance(value, catalogSkin, options);
     }

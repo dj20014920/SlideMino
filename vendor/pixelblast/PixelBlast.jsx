@@ -306,6 +306,11 @@ void main(){
 
 const MAX_CLICKS = 10;
 
+const detectCoarsePointerDevice = () => {
+  if (typeof window === 'undefined') return false;
+  return Boolean(window.matchMedia?.('(pointer: coarse)').matches || navigator.maxTouchPoints > 0);
+};
+
 const PixelBlast = ({
   variant = 'square',
   pixelSize = 3,
@@ -333,6 +338,7 @@ const PixelBlast = ({
   const containerRef = useRef(null);
   const visibilityRef = useRef({ visible: true });
   const speedRef = useRef(speed);
+  const coarsePointerRef = useRef(false);
 
   const threeRef = useRef(null);
   const prevConfigRef = useRef(null);
@@ -360,6 +366,7 @@ const PixelBlast = ({
     const container = containerRef.current;
     if (!container) return;
     speedRef.current = speed;
+    coarsePointerRef.current = detectCoarsePointerDevice();
     const needsReinitKeys = ['antialias', 'liquid', 'noiseAmount'];
     const cfg = { antialias, liquid, noiseAmount };
     let mustReinit = false;
@@ -384,7 +391,7 @@ const PixelBlast = ({
       });
       renderer.domElement.style.width = '100%';
       renderer.domElement.style.height = '100%';
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, coarsePointerRef.current ? 1 : 1.5));
       container.appendChild(renderer.domElement);
       if (transparent) renderer.setClearAlpha(0);
       else renderer.setClearColor(0x000000, 1);
@@ -513,12 +520,20 @@ const PixelBlast = ({
         passive: true
       });
       let raf = 0;
-      const animate = () => {
+      let lastRenderAt = 0;
+      const animate = (now = performance.now()) => {
         if (autoPauseOffscreen && !visibilityRef.current.visible) {
           raf = requestAnimationFrame(animate);
           if (threeRef.current) threeRef.current.raf = raf;
           return;
         }
+        const targetFrameMs = coarsePointerRef.current ? (1000 / 30) : (1000 / 60);
+        if (lastRenderAt !== 0 && now - lastRenderAt < targetFrameMs) {
+          raf = requestAnimationFrame(animate);
+          if (threeRef.current) threeRef.current.raf = raf;
+          return;
+        }
+        lastRenderAt = now;
         uniforms.uTime.value = timeOffset + clock.getElapsedTime() * speedRef.current;
         if (liquidEffect) liquidEffect.uniforms.get('uTime').value = uniforms.uTime.value;
         if (composer) {

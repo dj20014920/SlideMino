@@ -209,6 +209,7 @@ const AUTO_RANK_SUBMIT_DEBOUNCE_MS = 900;
 const HOME_NAV_FLUSH_TIMEOUT_MS = 320;
 const SKIN_GIFT_CLAIM_RETRY_DELAYS_MS = [0, 2000, 10000, 30000] as const;
 const SKIN_GIFT_CLAIM_POLL_INTERVAL_MS = 3 * 60 * 1000;
+const SWIPE_TRIGGER_DISTANCE_PX = 24;
 
 type ComboMessageItem = {
   id: number;
@@ -1350,6 +1351,8 @@ const App: React.FC = () => {
   const submitAutoRankProgressRef = useRef<(force?: boolean) => Promise<void>>(async () => undefined);
   const hoverGridPosRef = useRef<{ x: number; y: number } | null>(null);
   const swipeStartRef = useRef<{ x: number, y: number } | null>(null); // 스와이프 시작 좌표
+  const swipePointerIdRef = useRef<number | null>(null);
+  const swipeCommittedRef = useRef(false);
   const slideLockRef = useRef(false); // state 반영 전에도 즉시 입력 차단
   const executeSlideRef = useRef<((dir: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT') => void) | null>(null);
   const isReviveSelectionModeRef = useRef(false); // 부활 선택 모드 동기 가드 (state보다 먼저 반영)
@@ -3513,7 +3516,42 @@ const App: React.FC = () => {
     boardHandleRef.current?.setHoverLocation(null);
   }, []);
 
+  const clearSwipeTracking = useCallback(() => {
+    swipeStartRef.current = null;
+    swipePointerIdRef.current = null;
+    swipeCommittedRef.current = false;
+  }, []);
+
+  const tryCommitSwipeGesture = useCallback((clientX: number, clientY: number): boolean => {
+    if (phase !== Phase.SLIDE) return false;
+    if (slideLockRef.current || swipeCommittedRef.current) return false;
+
+    const swipeStart = swipeStartRef.current;
+    if (!swipeStart) return false;
+
+    const dx = clientX - swipeStart.x;
+    const dy = clientY - swipeStart.y;
+    const absX = Math.abs(dx);
+    const absY = Math.abs(dy);
+
+    if (Math.max(absX, absY) <= SWIPE_TRIGGER_DISTANCE_PX) return false;
+
+    swipeCommittedRef.current = true;
+    swipeStartRef.current = null;
+    executeSlideRef.current?.(
+      absX > absY
+        ? (dx > 0 ? 'RIGHT' : 'LEFT')
+        : (dy > 0 ? 'DOWN' : 'UP')
+    );
+    return true;
+  }, [phase]);
+
   const handlePointerMove = (e: React.PointerEvent) => {
+    if (!draggingPiece && swipePointerIdRef.current !== null) {
+      if (e.pointerId !== swipePointerIdRef.current) return;
+      if (tryCommitSwipeGesture(e.clientX, e.clientY)) return;
+    }
+
     if (dragPointerIdRef.current !== null && e.pointerId !== dragPointerIdRef.current) return;
     if (!draggingPiece || !boardMetricsRef.current) return;
     latestPointerRef.current = { x: e.clientX, y: e.clientY };
@@ -3570,6 +3608,9 @@ const App: React.FC = () => {
     if (target.closest('button, input, select, textarea, [role="button"]')) return;
 
     swipeStartRef.current = { x: e.clientX, y: e.clientY };
+    swipePointerIdRef.current = e.pointerId;
+    swipeCommittedRef.current = false;
+    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
   };
 
   const handleScreenPointerDown = (e: React.PointerEvent) => {
@@ -3596,7 +3637,7 @@ const App: React.FC = () => {
       // Galaxy 인터랙션: 드래그 종료
       gameEventBus.emit('DRAG_END', {});
       // 드래그 종료 시 스와이프 시작 좌표가 남아있으면 다음 입력에서 오동작 가능
-      swipeStartRef.current = null;
+      clearSwipeTracking();
       // 빠른 탭(이동 없음) 시 fallback: handlePointerMove와 동일한 (0,0) 앵커 사용
       const fallbackCellSize = (boardMetricsRef.current?.cell ?? 32) * DRAG_OVERLAY_SCALE;
       const { minX: fbMinX, maxX: fbMaxX, minY: fbMinY, maxY: fbMaxY } = getPieceBounds(draggingPiece.cells);
@@ -3657,42 +3698,40 @@ const App: React.FC = () => {
 
     // 2. 드래그 중이 아니고, 슬라이드 단계라면 -> 스와이프 처리
     if (isReviveSelectionMode) {
-      swipeStartRef.current = null;
+      clearSwipeTracking();
       return;
     }
 
-    if (phase === Phase.SLIDE && swipeStartRef.current) {
-      const dx = e.clientX - swipeStartRef.current.x;
-      const dy = e.clientY - swipeStartRef.current.y;
-      const absX = Math.abs(dx);
-      const absY = Math.abs(dy);
-
-      // 30px 이상 움직였을 때만 스와이프로 인정
-      if (Math.max(absX, absY) > 30) {
-        if (absX > absY) {
-          executeSlide(dx > 0 ? 'RIGHT' : 'LEFT');
-        } else {
-          executeSlide(dy > 0 ? 'DOWN' : 'UP');
-        }
-      }
+    if (swipePointerIdRef.current !== null && e.pointerId !== swipePointerIdRef.current) return;
+    if (!swipeCommittedRef.current) {
+      tryCommitSwipeGesture(e.clientX, e.clientY);
     }
-    swipeStartRef.current = null;
+    clearSwipeTracking();
   };
 
   const handlePointerCancel = (e: React.PointerEvent) => {
     if (!draggingPiece) {
       if (dragPointerIdRef.current !== null && e.pointerId === dragPointerIdRef.current) {
-        swipeStartRef.current = null;
+        clearSwipeTracking();
         resetDraggingState();
+        return;
+      }
+      if (swipePointerIdRef.current !== null && e.pointerId === swipePointerIdRef.current) {
+        clearSwipeTracking();
       }
       return;
     }
     if (dragPointerIdRef.current !== null && e.pointerId !== dragPointerIdRef.current) return;
     // Galaxy 인터랙션: 터치 인터럽트(전화, 알림 등) 시에도 반발력 해제
     gameEventBus.emit('DRAG_END', {});
-    swipeStartRef.current = null;
+    clearSwipeTracking();
     resetDraggingState();
   };
+
+  useEffect(() => {
+    if (phase === Phase.SLIDE && !isAnimating) return;
+    clearSwipeTracking();
+  }, [clearSwipeTracking, isAnimating, phase]);
 
   // --- Event Handlers: Swipe / Slide ---
 

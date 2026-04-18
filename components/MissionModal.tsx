@@ -317,7 +317,7 @@ export const MissionModal: React.FC<MissionModalProps> = ({ open, onClose, onRew
   const weeklyCompleted = weeklyMissions.filter(m => m.completed).length;
   const bonusAvailable = canClaimDailyBonus();
   const dailyBonusReward = getDailyBonusAllCompleteReward();
-  const closeLabel = t('game:close');
+  const closeLabel = t('common:buttons.close');
   const dailyRerollAvailable = dailyRerollAvailableSlots.some(Boolean);
   const weeklyRerollAvailable = weeklyRerollAvailableSlots.some(Boolean);
 

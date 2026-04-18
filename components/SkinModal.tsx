@@ -249,6 +249,22 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
     ];
   }, []);
 
+  const swatchAppearanceBySkinId = useMemo(() => {
+    const next = new Map<string, ReturnType<typeof resolveSkinAppearance>>();
+    for (const entry of SKIN_CATALOG) {
+      const swatchPreviewValue = isLiquidGlassSkin(entry.id) ? 64 : 16;
+      next.set(
+        entry.id,
+        resolveSkinAppearance(
+          swatchPreviewValue,
+          entry,
+          entry.id === PIXELBLAST_SKIN_ID ? { premiumUiThemeId: 'pixelblast_void' } : undefined,
+        ),
+      );
+    }
+    return next;
+  }, []);
+
   const toggleSection = useCallback((sectionKey: SkinSectionKey) => {
     setOpenSections((prev) => ({
       ...prev,
@@ -576,12 +592,9 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
                               const isOwned = ownedIds.has(entry.id);
                               const isActive = skinSettings.activeSkinId === entry.id;
                               const isSelected = selectedSkinId === entry.id;
-                              const swatchPreviewValue = isLiquidGlassSkin(entry.id) ? 64 : 16;
-                              const { className, style } = resolveSkinAppearance(
-                                swatchPreviewValue,
-                                entry,
-                                entry.id === PIXELBLAST_SKIN_ID ? { premiumUiThemeId: 'pixelblast_void' } : undefined,
-                              );
+                              const swatchAppearance = swatchAppearanceBySkinId.get(entry.id);
+                              const className = swatchAppearance?.className ?? '';
+                              const style = swatchAppearance?.style;
                               const isNeonSwatch = isNeonSkin(entry.id);
                               const isExploreGalaxySwatch = entry.id === EXPLORE_GALAXY_SKIN_ID;
 
@@ -806,12 +819,9 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
                             const isOwned = ownedIds.has(entry.id);
                             const isActive = skinSettings.activeSkinId === entry.id;
                             const isSelected = selectedSkinId === entry.id;
-                            const swatchPreviewValue = isLiquidGlassSkin(entry.id) ? 64 : 16;
-                            const { className, style } = resolveSkinAppearance(
-                              swatchPreviewValue,
-                              entry,
-                              entry.id === PIXELBLAST_SKIN_ID ? { premiumUiThemeId: 'pixelblast_void' } : undefined,
-                            );
+                            const swatchAppearance = swatchAppearanceBySkinId.get(entry.id);
+                            const className = swatchAppearance?.className ?? '';
+                            const style = swatchAppearance?.style;
                             const isNeonSwatch = isNeonSkin(entry.id);
                             const isExploreGalaxySwatch = entry.id === EXPLORE_GALAXY_SKIN_ID;
 

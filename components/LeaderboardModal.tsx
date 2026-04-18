@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CalendarClock, Trophy, X } from 'lucide-react';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
@@ -34,8 +34,29 @@ interface EventLeaderboardState {
   loaded: boolean;
 }
 
+interface NormalLeaderboardState {
+  rankings: RankEntry[];
+  loading: boolean;
+  hasError: boolean;
+  isOffline: boolean;
+  fromCache: boolean;
+}
+
 const LEADERBOARD_REFRESH_INTERVAL_MS = 5000;
 const NORMAL_TABS: readonly NormalLeaderboardTab[] = ['ALL', '4x4', '5x5', '7x7', '8x8', '10x10'];
+const createEmptyNormalLeaderboardState = (): NormalLeaderboardState => ({
+  rankings: [],
+  loading: false,
+  hasError: false,
+  isOffline: false,
+  fromCache: false,
+});
+const buildNormalLeaderboardInitialState = (): Record<NormalLeaderboardTab, NormalLeaderboardState> => (
+  NORMAL_TABS.reduce((acc, tab) => {
+    acc[tab] = createEmptyNormalLeaderboardState();
+    return acc;
+  }, {} as Record<NormalLeaderboardTab, NormalLeaderboardState>)
+);
 const EMPTY_EVENT_STATE: EventLeaderboardState = {
   rankings: [],
   total: 0,
@@ -83,11 +104,9 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
   const [activeTab, setActiveTab] = useState<NormalLeaderboardTab>('ALL');
   const [eventPeriodTab, setEventPeriodTab] = useState<EventPeriodTab>('CURRENT');
 
-  const [rankings, setRankings] = useState<RankEntry[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [hasError, setHasError] = useState(false);
-  const [isOffline, setIsOffline] = useState(false);
-  const [fromCache, setFromCache] = useState(false);
+  const [normalStates, setNormalStates] = useState<Record<NormalLeaderboardTab, NormalLeaderboardState>>(
+    buildNormalLeaderboardInitialState,
+  );
 
   const [countdown, setCountdown] = useState(() => getSeasonCountdown());
 
@@ -96,6 +115,20 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
   const [currentEventState, setCurrentEventState] = useState<EventLeaderboardState>(EMPTY_EVENT_STATE);
   const [previousEventState, setPreviousEventState] = useState<EventLeaderboardState>(EMPTY_EVENT_STATE);
   const [currentEventRemainingText, setCurrentEventRemainingText] = useState('');
+  const normalRequestIdRef = useRef<Record<NormalLeaderboardTab, number>>({
+    ALL: 0,
+    '4x4': 0,
+    '5x5': 0,
+    '7x7': 0,
+    '8x8': 0,
+    '10x10': 0,
+  });
+  const normalInFlightTabsRef = useRef<Set<NormalLeaderboardTab>>(new Set());
+  const eventRequestIdRef = useRef<Record<EventPeriodTab, number>>({
+    CURRENT: 0,
+    PREVIOUS: 0,
+  });
+  const eventInFlightKeysRef = useRef<Set<string>>(new Set());
 
   const formatCurrentEventRemaining = useCallback((endsAt: number): string => {
     return formatEventRemaining(Math.max(0, endsAt - Date.now()), {
@@ -106,50 +139,94 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
     });
   }, [t]);
 
-  const fetchNormalLeaderboard = useCallback(async (showLoading: boolean) => {
-    if (showLoading) setLoading(true);
-    setHasError(false);
+  const fetchNormalLeaderboard = useCallback(async (tab: NormalLeaderboardTab, showLoading: boolean) => {
+    if (normalInFlightTabsRef.current.has(tab)) return;
+    normalInFlightTabsRef.current.add(tab);
+    const requestId = ++normalRequestIdRef.current[tab];
+
+    if (showLoading) {
+      setNormalStates((prev) => ({
+        ...prev,
+        [tab]: { ...prev[tab], loading: true },
+      }));
+    }
+    setNormalStates((prev) => ({
+      ...prev,
+      [tab]: { ...prev[tab], hasError: false },
+    }));
 
     try {
-      const result = await rankingService.getLeaderboard(activeTab);
-      setRankings(result.data);
-      setIsOffline(result.offline);
-      setFromCache(result.fromCache);
+      const result = await rankingService.getLeaderboard(tab);
+      if (requestId !== normalRequestIdRef.current[tab]) return;
+      setNormalStates((prev) => ({
+        ...prev,
+        [tab]: {
+          ...prev[tab],
+          rankings: result.data,
+          loading: false,
+          hasError: false,
+          isOffline: result.offline,
+          fromCache: result.fromCache,
+        },
+      }));
     } catch (err) {
+      if (requestId !== normalRequestIdRef.current[tab]) return;
       console.error(err);
-      setHasError(true);
-      setIsOffline(typeof navigator !== 'undefined' ? !navigator.onLine : false);
-      setFromCache(false);
+      setNormalStates((prev) => ({
+        ...prev,
+        [tab]: {
+          ...prev[tab],
+          loading: false,
+          hasError: true,
+          isOffline: typeof navigator !== 'undefined' ? !navigator.onLine : false,
+          fromCache: false,
+        },
+      }));
     } finally {
-      setLoading(false);
+      normalInFlightTabsRef.current.delete(tab);
+      if (requestId === normalRequestIdRef.current[tab]) {
+        setNormalStates((prev) => ({
+          ...prev,
+          [tab]: { ...prev[tab], loading: false },
+        }));
+      }
     }
-  }, [activeTab]);
+  }, []);
 
   const fetchWeeklyEventLeaderboard = useCallback(async (period: EventPeriodTab, showLoading: boolean) => {
     const isCurrent = period === 'CURRENT';
     const eventId = isCurrent ? currentEventInfo.eventId : previousEventInfo.eventId;
     const setEventState = isCurrent ? setCurrentEventState : setPreviousEventState;
+    const requestKey = `${period}:${eventId}`;
+    if (eventInFlightKeysRef.current.has(requestKey)) return;
+    eventInFlightKeysRef.current.add(requestKey);
+    const requestId = ++eventRequestIdRef.current[period];
 
     if (showLoading) {
       setEventState((prev) => ({ ...prev, loading: true }));
     }
     setEventState((prev) => ({ ...prev, hasError: false, errorType: 'none' }));
 
-    const result = await fetchEventRankings(eventId);
-    const isOfflineNow = typeof navigator !== 'undefined' ? !navigator.onLine : false;
-    setEventState((prev) => {
-      const errorType: EventLeaderboardState['errorType'] = result.error ?? 'none';
-      const keepPreviousData = errorType === 'network' && prev.loaded;
-      return {
-        rankings: keepPreviousData ? prev.rankings : result.rankings,
-        myRank: keepPreviousData ? prev.myRank : result.myRank,
-        total: keepPreviousData ? prev.total : result.total,
-        loading: false,
-        hasError: errorType === 'http' || (errorType === 'network' && !isOfflineNow),
-        errorType,
-        loaded: true,
-      };
-    });
+    try {
+      const result = await fetchEventRankings(eventId);
+      if (requestId !== eventRequestIdRef.current[period]) return;
+      const isOfflineNow = typeof navigator !== 'undefined' ? !navigator.onLine : false;
+      setEventState((prev) => {
+        const errorType: EventLeaderboardState['errorType'] = result.error ?? 'none';
+        const keepPreviousData = errorType === 'network' && prev.loaded;
+        return {
+          rankings: keepPreviousData ? prev.rankings : result.rankings,
+          myRank: keepPreviousData ? prev.myRank : result.myRank,
+          total: keepPreviousData ? prev.total : result.total,
+          loading: false,
+          hasError: errorType === 'http' || (errorType === 'network' && !isOfflineNow),
+          errorType,
+          loaded: true,
+        };
+      });
+    } finally {
+      eventInFlightKeysRef.current.delete(requestKey);
+    }
   }, [currentEventInfo.eventId, previousEventInfo.eventId]);
 
   // 모달 닫힘 시 기본 탭 초기화
@@ -196,23 +273,24 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
     setPreviousEventState(EMPTY_EVENT_STATE);
   }, [previousEventInfo.eventId]);
 
-  // 모달 오픈 시: 기본 탭(일반 모드)만 프리로드
+  // 선택된 뷰 즉시 로드/재요청
   useEffect(() => {
     if (!open) return;
-    void fetchNormalLeaderboard(true);
-  }, [open, fetchNormalLeaderboard]);
+    if (modeTab === 'NORMAL') {
+      void fetchNormalLeaderboard(activeTab, true);
+      return;
+    }
+    void fetchWeeklyEventLeaderboard(eventPeriodTab, true);
+  }, [open, modeTab, activeTab, eventPeriodTab, fetchNormalLeaderboard, fetchWeeklyEventLeaderboard]);
 
   // 선택된 뷰 자동 새로고침
   const refreshActiveView = useCallback(() => {
     if (modeTab === 'NORMAL') {
-      void fetchNormalLeaderboard(false);
-      return;
+      void fetchNormalLeaderboard(activeTab, false);
+    } else {
+      void fetchWeeklyEventLeaderboard(eventPeriodTab, false);
     }
-
-    if (eventPeriodTab === 'CURRENT') {
-      void fetchWeeklyEventLeaderboard('CURRENT', false);
-    }
-  }, [modeTab, eventPeriodTab, fetchNormalLeaderboard, fetchWeeklyEventLeaderboard]);
+  }, [modeTab, activeTab, eventPeriodTab, fetchNormalLeaderboard, fetchWeeklyEventLeaderboard]);
 
   useEffect(() => {
     if (!open) return;
@@ -240,34 +318,6 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
     fetchWeeklyEventLeaderboard,
   ]);
 
-  // 현재 주 탭은 필요할 때만 로드
-  useEffect(() => {
-    if (!open || modeTab !== 'WEEKLY_EVENT' || eventPeriodTab !== 'CURRENT') return;
-    if (currentEventState.loaded || currentEventState.loading) return;
-    void fetchWeeklyEventLeaderboard('CURRENT', true);
-  }, [
-    open,
-    modeTab,
-    eventPeriodTab,
-    currentEventState.loaded,
-    currentEventState.loading,
-    fetchWeeklyEventLeaderboard,
-  ]);
-
-  // 지난 주 탭은 필요할 때만 로드
-  useEffect(() => {
-    if (!open || modeTab !== 'WEEKLY_EVENT' || eventPeriodTab !== 'PREVIOUS') return;
-    if (previousEventState.loaded || previousEventState.loading) return;
-    void fetchWeeklyEventLeaderboard('PREVIOUS', true);
-  }, [
-    open,
-    modeTab,
-    eventPeriodTab,
-    previousEventState.loaded,
-    previousEventState.loading,
-    fetchWeeklyEventLeaderboard,
-  ]);
-
   if (!open) return null;
 
   const countdownText = countdown.totalMs <= 0
@@ -278,6 +328,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
 
   const selectedEventInfo = eventPeriodTab === 'CURRENT' ? currentEventInfo : previousEventInfo;
   const selectedEventState = eventPeriodTab === 'CURRENT' ? currentEventState : previousEventState;
+  const selectedNormalState = normalStates[activeTab];
   const selectedEventTotal = selectedEventState.total > 0
     ? selectedEventState.total
     : selectedEventState.rankings.length;
@@ -326,7 +377,10 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
         {/* 랭킹 모드 분리 탭: 일반 / 주간 이벤트 */}
         <div className={isPremiumUi ? premiumUiModeTabStripClassName : 'flex items-center gap-2 border-b border-gray-100 bg-white px-4 py-3'}>
           <button
-            onClick={() => setModeTab('NORMAL')}
+            onClick={() => {
+              setModeTab('NORMAL');
+              void fetchNormalLeaderboard(activeTab, true);
+            }}
             data-active={modeTab === 'NORMAL'}
             className={isPremiumUi
               ? premiumUiModeTabButtonClassName
@@ -339,7 +393,10 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
             {t('modals:leaderboard.modeTabs.normal')}
           </button>
           <button
-            onClick={() => setModeTab('WEEKLY_EVENT')}
+            onClick={() => {
+              setModeTab('WEEKLY_EVENT');
+              void fetchWeeklyEventLeaderboard(eventPeriodTab, true);
+            }}
             data-active={modeTab === 'WEEKLY_EVENT'}
             className={isPremiumUi
               ? premiumUiModeTabButtonClassName
@@ -372,7 +429,9 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
               {NORMAL_TABS.map((tab) => (
                 <button
                   key={tab}
-                  onClick={() => setActiveTab(tab)}
+                  onClick={() => {
+                    setActiveTab(tab);
+                  }}
                   data-active={activeTab === tab}
                   className={isPremiumUi
                     ? premiumUiFilterTabButtonClassName
@@ -390,21 +449,21 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
 
             {/* 일반 모드 랭킹 리스트 */}
             <div className={isPremiumUi ? `${premiumUiWindowBodyClassName} flex-1 overflow-y-auto p-2 space-y-1 modal-scroll-panel` : 'flex-1 overflow-y-auto p-4 space-y-2 bg-gray-50/50 modal-scroll-panel'}>
-              {(isOffline || fromCache) && (
+              {(selectedNormalState.isOffline || selectedNormalState.fromCache) && (
                 <div className="px-4 py-2 rounded-xl text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200">
-                  {isOffline ? t('modals:leaderboard.offline') : t('modals:leaderboard.cached')}
+                  {selectedNormalState.isOffline ? t('modals:leaderboard.offline') : t('modals:leaderboard.cached')}
                 </div>
               )}
-              {loading ? (
+              {selectedNormalState.loading ? (
                 <div className="text-center py-10 text-gray-400">{t('common:labels.loading')}</div>
-              ) : hasError ? (
+              ) : selectedNormalState.hasError ? (
                 <div className="text-center py-10 text-red-400">{t('modals:leaderboard.error')}</div>
-              ) : rankings.length === 0 ? (
+              ) : selectedNormalState.rankings.length === 0 ? (
                 <div className="text-center py-10 text-gray-400" style={{ whiteSpace: 'pre-line' }}>
                   {t('modals:leaderboard.empty')}
                 </div>
               ) : (
-                rankings.map((entry, index) => {
+                selectedNormalState.rankings.map((entry, index) => {
                   const levelBadge = getLevelBadgeById(entry.levelBadge ?? null);
                   return (
                     <div
@@ -479,7 +538,10 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
             {/* 이벤트 기간 탭 */}
             <div className={isPremiumUi ? `${premiumUiEventPeriodTabStripClassName} mt-2` : 'flex items-center gap-2 overflow-x-auto overflow-y-visible border-b border-gray-100 bg-white px-4 py-3 mt-3'}>
               <button
-                onClick={() => setEventPeriodTab('CURRENT')}
+                onClick={() => {
+                  setEventPeriodTab('CURRENT');
+                  void fetchWeeklyEventLeaderboard('CURRENT', true);
+                }}
                 data-active={eventPeriodTab === 'CURRENT'}
                 className={isPremiumUi
                   ? premiumUiEventPeriodTabButtonClassName
@@ -493,7 +555,10 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
                 {t('game:weeklyEvent.thisWeek')}
               </button>
               <button
-                onClick={() => setEventPeriodTab('PREVIOUS')}
+                onClick={() => {
+                  setEventPeriodTab('PREVIOUS');
+                  void fetchWeeklyEventLeaderboard('PREVIOUS', true);
+                }}
                 data-active={eventPeriodTab === 'PREVIOUS'}
                 className={isPremiumUi
                   ? premiumUiEventPeriodTabButtonClassName

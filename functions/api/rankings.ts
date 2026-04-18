@@ -66,7 +66,7 @@ function buildMergedScoresCte(
          rmb.updated_at AS timestamp,
          rmb.session_id,
          rmb.member_key,
-         0 AS source_priority
+          0 AS source_priority -- 동일 기록 동률 시 집계 테이블(ranking_member_best) 우선
        FROM ranking_member_best rmb
        WHERE ${memberBestConditions.join(' AND ')}
        UNION ALL
@@ -77,7 +77,7 @@ function buildMergedScoresCte(
          r.updated_at AS timestamp,
          r.session_id,
          COALESCE(NULLIF(r.install_id_hash, ''), 'legacy:' || r.session_id) AS member_key,
-         1 AS source_priority
+          1 AS source_priority -- legacy(rankings)는 fallback 소스로 사용
        FROM rankings r
        WHERE ${legacyConditions.join(' AND ')}
      )`,
@@ -102,19 +102,32 @@ async function fetchMergedLeaderboard(
          ms.score,
          ms.difficulty,
          ms.timestamp,
-         ms.session_id,
-         ROW_NUMBER() OVER (
-           PARTITION BY ${partitionBy}
-           ORDER BY ms.score DESC, ms.timestamp ASC, ms.source_priority ASC
-         ) AS row_num
-       FROM merged_scores ms
-     )
-     SELECT d.name, d.score, d.difficulty, d.timestamp, rb.level_badge AS levelBadge
-     FROM deduped d
-     LEFT JOIN ranking_badges rb ON rb.session_id = d.session_id
-     WHERE d.row_num = 1
-     ORDER BY d.score DESC, d.timestamp ASC
-     LIMIT 100`
+          ms.session_id,
+          ms.source_priority,
+          ROW_NUMBER() OVER (
+            PARTITION BY ${partitionBy}
+            ORDER BY
+              ms.score DESC,
+              ms.timestamp ASC,
+              ms.source_priority ASC,
+              ms.difficulty ASC,
+              ms.name ASC,
+              ms.session_id ASC
+          ) AS row_num
+        FROM merged_scores ms
+      )
+      SELECT d.name, d.score, d.difficulty, d.timestamp, rb.level_badge AS levelBadge
+      FROM deduped d
+      LEFT JOIN ranking_badges rb ON rb.session_id = d.session_id
+      WHERE d.row_num = 1
+      ORDER BY
+        d.score DESC,
+        d.timestamp ASC,
+        d.source_priority ASC,
+        d.difficulty ASC,
+        d.name ASC,
+        d.session_id ASC
+      LIMIT 100`
   ).bind(...bindings).all<LeaderboardRow>();
   return query.results ?? [];
 }
@@ -138,13 +151,19 @@ async function fetchLiveRankMetrics(
     `${cteSql},
      deduped AS (
        SELECT
-         ms.score,
-         ROW_NUMBER() OVER (
-           PARTITION BY ms.difficulty, ms.member_key
-           ORDER BY ms.score DESC, ms.timestamp ASC, ms.source_priority ASC
-         ) AS row_num
-       FROM merged_scores ms
-     )
+          ms.score,
+           ROW_NUMBER() OVER (
+             PARTITION BY ms.difficulty, ms.member_key
+             ORDER BY
+               ms.score DESC,
+               ms.timestamp ASC,
+               ms.source_priority ASC,
+               ms.difficulty ASC,
+               ms.name ASC,
+               ms.session_id ASC
+           ) AS row_num
+         FROM merged_scores ms
+       )
      SELECT
        SUM(CASE WHEN row_num = 1 AND score > ? THEN 1 ELSE 0 END) AS higher_count,
        MIN(CASE WHEN row_num = 1 AND score > ? THEN score ELSE NULL END) AS next_higher_score,

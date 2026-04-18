@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, startTransition, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type {
   BlockCustomizationSettingsV1,
@@ -467,7 +467,12 @@ export function BlockCustomizationProvider({ children }: { children: React.React
   }, []);
 
   const setActiveSkin = useCallback((id: string | null) => {
-    setSkinSettings(prev => ({ ...prev, activeSkinId: id }));
+    startTransition(() => {
+      setSkinSettings((prev) => {
+        if (prev.activeSkinId === id) return prev;
+        return { ...prev, activeSkinId: id };
+      });
+    });
   }, []);
 
   const resolver = useCallback(

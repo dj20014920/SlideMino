@@ -140,13 +140,23 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         ),
       ]);
 
-      // 순위 조회: 같은 날짜 내에서 현재 점수보다 높은 기록 수 + 1
+      // 유저의 현재 최고 기록 조회
+      const bestResult = await env.DB.prepare(
+        `SELECT score, moves, duration FROM daily_challenges
+         WHERE challenge_date = ? AND install_id_hash = ?`
+      ).bind(challengeDate, installIdHash).first();
+
+      const bestScore = (bestResult as any)?.score ?? score;
+      const bestMoves = (bestResult as any)?.moves ?? moves;
+      const bestDuration = (bestResult as any)?.duration ?? duration;
+
+      // 순위 조회: 실제 저장된 최고 기록 기준으로 계산
       const rankResult = await env.DB.prepare(
         `SELECT COUNT(*) + 1 as rank
          FROM daily_challenges
          WHERE challenge_date = ?
            AND (score > ? OR (score = ? AND moves < ?) OR (score = ? AND moves = ? AND duration < ?))`
-      ).bind(challengeDate, score, score, moves, score, moves, duration).first();
+      ).bind(challengeDate, bestScore, bestScore, bestMoves, bestScore, bestMoves, bestDuration).first();
 
       const totalResult = await env.DB.prepare(
         `SELECT COUNT(*) as total FROM daily_challenges WHERE challenge_date = ?`
@@ -155,20 +165,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       const rank = (rankResult as { rank: number } | null)?.rank ?? 1;
       const total = (totalResult as { total: number } | null)?.total ?? 1;
 
-      // 유저의 현재 최고 기록 조회
-      const bestResult = await env.DB.prepare(
-        `SELECT score, moves, duration FROM daily_challenges
-         WHERE challenge_date = ? AND install_id_hash = ?`
-      ).bind(challengeDate, installIdHash).first();
-
       return new Response(
         JSON.stringify({
           success: true,
           rank,
           total,
-          bestScore: (bestResult as any)?.score ?? score,
-          bestMoves: (bestResult as any)?.moves ?? moves,
-          bestDuration: (bestResult as any)?.duration ?? duration,
+          bestScore,
+          bestMoves,
+          bestDuration,
         }),
         {
           status: 200,

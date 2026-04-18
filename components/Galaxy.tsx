@@ -2,6 +2,11 @@ import { Renderer, Program, Mesh, Color, Triangle } from 'ogl';
 import { useEffect, useRef } from 'react';
 import '../styles/Galaxy.css';
 
+const isCoarsePointerDevice = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  return Boolean(window.matchMedia?.('(pointer: coarse)').matches || navigator.maxTouchPoints > 0);
+};
+
 const vertexShader = `
 attribute vec2 uv;
 attribute vec2 position;
@@ -310,15 +315,19 @@ export default function Galaxy({
 
     const mesh = new Mesh(gl, { geometry, program });
     let animateId: number;
-    let frameCount = 0;
+    let lastRenderAt = 0;
+    const coarsePointerDevice = isCoarsePointerDevice();
 
     function update(t: number) {
       animateId = requestAnimationFrame(update);
-      frameCount++;
 
-      // 모바일 성능 최적화: 인터랙션 없을 때 30fps로 제한 (짝수 프레임만 렌더)
       const isInteracting = smoothMouseActive.current > 0.01;
-      if (!isInteracting && frameCount % 2 !== 0) return;
+      const targetFps = coarsePointerDevice
+        ? (isInteracting ? 30 : 24)
+        : (isInteracting ? 60 : 30);
+      const targetFrameMs = 1000 / targetFps;
+      if (lastRenderAt !== 0 && t - lastRenderAt < targetFrameMs) return;
+      lastRenderAt = t;
 
       if (!disableAnimation) {
         program.uniforms.uTime.value = t * 0.001;

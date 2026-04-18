@@ -22,6 +22,7 @@ import { KST_OFFSET_MS } from '../config/constants';
 
 const STORAGE_KEY = 'slidemino.missions.v1';
 const STORAGE_BACKUP_KEY = `${STORAGE_KEY}.backup`;
+const MISSION_SAVE_DEBOUNCE_MS = 180;
 
 // 미션 보상 조각 수
 const DAILY_REWARD_EASY = 1;
@@ -381,6 +382,41 @@ export function getMissionDefinition(id: string): MissionDefinition | undefined 
 
 let state: MissionState = { ...DEFAULT_STATE };
 let stateLoaded = false;
+let saveTimeoutId: number | null = null;
+let saveLifecycleListenersRegistered = false;
+
+function flushScheduledStateSave(): void {
+  if (saveTimeoutId !== null && typeof window !== 'undefined') {
+    window.clearTimeout(saveTimeoutId);
+    saveTimeoutId = null;
+  }
+  saveStatePersisted();
+}
+
+function handleMissionDocumentVisibilityChange(): void {
+  if (typeof document === 'undefined' || document.visibilityState !== 'hidden') return;
+  flushScheduledStateSave();
+}
+
+function registerMissionSaveLifecycleListeners(): void {
+  if (saveLifecycleListenersRegistered || typeof window === 'undefined') return;
+  saveLifecycleListenersRegistered = true;
+  window.addEventListener('pagehide', flushScheduledStateSave);
+  window.addEventListener('beforeunload', flushScheduledStateSave);
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', handleMissionDocumentVisibilityChange);
+  }
+}
+
+function unregisterMissionSaveLifecycleListeners(): void {
+  if (!saveLifecycleListenersRegistered || typeof window === 'undefined') return;
+  saveLifecycleListenersRegistered = false;
+  window.removeEventListener('pagehide', flushScheduledStateSave);
+  window.removeEventListener('beforeunload', flushScheduledStateSave);
+  if (typeof document !== 'undefined') {
+    document.removeEventListener('visibilitychange', handleMissionDocumentVisibilityChange);
+  }
+}
 
 function ensureStateLoaded(): void {
   if (stateLoaded) return;
@@ -455,7 +491,21 @@ function saveStatePersisted(): boolean {
 }
 
 function saveState(): void {
-  saveStatePersisted();
+  if (typeof window === 'undefined') {
+    saveStatePersisted();
+    return;
+  }
+
+  registerMissionSaveLifecycleListeners();
+
+  if (saveTimeoutId !== null) {
+    window.clearTimeout(saveTimeoutId);
+  }
+
+  saveTimeoutId = window.setTimeout(() => {
+    saveTimeoutId = null;
+    saveStatePersisted();
+  }, MISSION_SAVE_DEBOUNCE_MS);
 }
 
 function emitMissionStateChanged(payload: MissionStateChangedInfo): void {
@@ -677,6 +727,7 @@ export function initMissionTracking(): void {
 
   ensureStateLoaded();
   ensureMissionsUpToDate();
+  registerMissionSaveLifecycleListeners();
 
   // 게임 시작: per-game 상태 리셋
   unsubscribers.push(
@@ -822,6 +873,8 @@ export function initMissionTracking(): void {
 
 /** 이벤트 버스 구독 해제 */
 export function destroyMissionTracking(): void {
+  flushScheduledStateSave();
+  unregisterMissionSaveLifecycleListeners();
   for (const unsub of unsubscribers) unsub();
   unsubscribers.length = 0;
   subscribed = false;

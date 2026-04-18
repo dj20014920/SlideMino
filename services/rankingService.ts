@@ -300,8 +300,9 @@ const postScore = async (
             return { success: false, status: response.status, code, errorMessage };
         }
 
-        const data = await response.json();
-        return { success: true, rank: data.rank };
+        const data = await response.json() as { rank?: unknown };
+        const rank = typeof data.rank === 'number' ? data.rank : undefined;
+        return { success: true, rank };
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         console.error('[RankingService] submit network error', {
@@ -316,7 +317,9 @@ const postScore = async (
     }
 };
 
-const flushPendingScores = async (): Promise<void> => {
+let flushPendingScoresLock: Promise<void> | null = null;
+
+const runFlushPendingScores = async (): Promise<void> => {
     if (REALTIME_RANKING_ONLY) return;
     if (!isOnline()) return;
     const queue = loadQueue();
@@ -339,6 +342,20 @@ const flushPendingScores = async (): Promise<void> => {
         }
 
         break;
+    }
+};
+
+const flushPendingScores = async (): Promise<void> => {
+    if (flushPendingScoresLock) {
+        await flushPendingScoresLock;
+        return;
+    }
+
+    flushPendingScoresLock = runFlushPendingScores();
+    try {
+        await flushPendingScoresLock;
+    } finally {
+        flushPendingScoresLock = null;
     }
 };
 

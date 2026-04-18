@@ -239,6 +239,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         setIsSubmitting(false);
         if (result.success) {
             onSessionNameLocked?.(trimmedName);
+            setLocalRank(result.rank);
             setSubmittedMessageOverride(null);
             setStep('SUBMITTED');
             // 미션 추적: 랭킹 제출 이벤트 (normal)

@@ -68,7 +68,7 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
   onStartEvent,
   onContinueEvent,
 }) => {
-  const { t } = useTranslation(['game', 'common']);
+  const { t } = useTranslation(['game', 'common', 'modals']);
   useBodyScrollLock(isOpen);
   const { isPremiumUiThemeActive, premiumUiObjects } = useBlockCustomization();
   const premiumUiModalOverlayClassName = premiumUiObjects.modalOverlayClassName;
@@ -89,6 +89,7 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
   const isPremiumUi = Boolean(isPremiumUiThemeActive);
   const [event, setEvent] = useState<CurrentEventInfo | null>(null);
   const [rankings, setRankings] = useState<EventRankingEntry[]>([]);
+  const [currentRankingsError, setCurrentRankingsError] = useState<'none' | 'network' | 'http'>('none');
   const [myRank, setMyRank] = useState<number | undefined>();
   const [myScore, setMyScore] = useState<number | undefined>();
   const [totalParticipants, setTotalParticipants] = useState(0);
@@ -118,6 +119,7 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
   // 이전 주 랭킹 탭
   const [showPrevWeek, setShowPrevWeek] = useState(false);
   const [prevRankings, setPrevRankings] = useState<EventRankingEntry[]>([]);
+  const [prevRankingsError, setPrevRankingsError] = useState<'none' | 'network' | 'http'>('none');
   const [prevMyRank, setPrevMyRank] = useState<number | undefined>();
   const [prevLoading, setPrevLoading] = useState(false);
   const [prevEventInfo, setPrevEventInfo] = useState<CurrentEventInfo | null>(null);
@@ -125,6 +127,7 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
   // 초기 데이터 로딩
   useEffect(() => {
     if (!isOpen) return;
+    let rankingsCancelled = false;
     const current = getCurrentEvent();
     setEvent(current);
     // 우선 로컬 캐시로 즉시 표시하고, 서버 동기화 후 갱신
@@ -144,11 +147,14 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
     }).catch(() => { /* 오프라인 등 실패 시 로컬 값 유지 */ });
 
     // 이번 주 랭킹 로딩
+    setCurrentRankingsError('none');
     fetchEventRankings().then(result => {
+      if (rankingsCancelled) return;
       setRankings(result.rankings);
       setMyRank(result.myRank);
       setMyScore(result.myScore);
       setTotalParticipants(result.total);
+      setCurrentRankingsError(result.error ?? 'none');
     });
 
     // 서버에서 이전 주 이벤트 보상 상태 조회 (참여 여부·순위·수령 여부 한 번에 확인)
@@ -162,7 +168,10 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
       setPrevEventRank(status.rank);
     }).catch(() => { /* 실패 시 로컬 폴백 유지 */ });
 
-    return () => { rewardStatusCancelled = true; };
+    return () => {
+      rankingsCancelled = true;
+      rewardStatusCancelled = true;
+    };
   }, [isOpen, formatRemainingText]);
 
   // 카운트다운 타이머
@@ -206,9 +215,11 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
     const prev = getPreviousEvent();
     setPrevEventInfo(prev);
     setPrevLoading(true);
+    setPrevRankingsError('none');
     fetchEventRankings(prev.eventId).then(result => {
       setPrevRankings(result.rankings);
       setPrevMyRank(result.myRank);
+      setPrevRankingsError(result.error ?? 'none');
     }).finally(() => setPrevLoading(false));
   }, [isOpen, showPrevWeek, prevRankings.length, prevLoading]);
 
@@ -591,7 +602,13 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
 
           {!showPrevWeek ? (
             /* 이번 주 랭킹 */
-            rankings.length > 0 ? (
+            currentRankingsError !== 'none' ? (
+              <p className="text-center text-xs text-red-500 py-3">
+                {currentRankingsError === 'network'
+                  ? t('modals:leaderboard.offline')
+                  : t('modals:leaderboard.error')}
+              </p>
+            ) : rankings.length > 0 ? (
               <>
                 <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1">
                   <Trophy size={14} className="text-amber-500" />
@@ -644,6 +661,12 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
                 <p className="text-center text-xs text-gray-400 py-3">
                   <span className="inline-block w-3 h-3 border-2 border-gray-300 border-t-gray-500 rounded-full animate-spin mr-1" />
                   {t('common:labels.loading')}
+                </p>
+              ) : prevRankingsError !== 'none' ? (
+                <p className="text-center text-xs text-red-500 py-3">
+                  {prevRankingsError === 'network'
+                    ? t('modals:leaderboard.offline')
+                    : t('modals:leaderboard.error')}
                 </p>
               ) : prevRankings.length > 0 ? (
                 <div className={isPremiumUi ? `${premiumUiSunkenClassName} space-y-0 max-h-60 overflow-y-auto modal-scroll-panel` : 'space-y-1 max-h-60 overflow-y-auto modal-scroll-panel'}>

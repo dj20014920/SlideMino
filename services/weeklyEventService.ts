@@ -683,7 +683,9 @@ function shouldQueueEventSubmit(status?: number): boolean {
   return status === 429 || status >= 500;
 }
 
-export async function flushPendingEventScores(): Promise<void> {
+let flushPendingEventScoresLock: Promise<void> | null = null;
+
+async function runFlushPendingEventScores(): Promise<void> {
   if (!isOnline()) return;
   const queue = loadPendingEventScoreQueue();
   const pendingItems = Object.values(queue).sort((a, b) => a.updatedAt - b.updatedAt);
@@ -714,6 +716,20 @@ export async function flushPendingEventScores(): Promise<void> {
     }
 
     break;
+  }
+}
+
+export async function flushPendingEventScores(): Promise<void> {
+  if (flushPendingEventScoresLock) {
+    await flushPendingEventScoresLock;
+    return;
+  }
+
+  flushPendingEventScoresLock = runFlushPendingEventScores();
+  try {
+    await flushPendingEventScoresLock;
+  } finally {
+    flushPendingEventScoresLock = null;
   }
 }
 

@@ -11,7 +11,8 @@
     ],
     "skipLibCheck": true,
     "types": [
-      "node"
+      "node",
+      "@cloudflare/workers-types"
     ],
     "moduleResolution": "bundler",
     "isolatedModules": true,
@@ -29,6 +30,9 @@
   "exclude": [
     "node_modules",
     "dist",
-    "functions"
+    "ios",
+    "android",
+    "mcp-server",
+    "oh-my-githubcopilot"
   ]
 }

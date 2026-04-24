@@ -13,6 +13,7 @@ releases/
 .omc
 .omx
 .qwen
+.opencode
 # Dependencies
 node_modules
 dist

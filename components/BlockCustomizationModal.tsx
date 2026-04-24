@@ -4,7 +4,11 @@ import { Image as ImageIcon, Lock, Palette as PaletteIcon, RotateCcw, X } from '
 import { getTileNumberLayout } from '../constants';
 import { useBlockCustomization } from '../context/BlockCustomizationContext';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
-import { getDefaultTileValuesForCustomization } from '../services/blockCustomization';
+import {
+  getDefaultTileValuesForCustomization,
+  TILE_NUMBER_INHERIT_STYLE,
+  TILE_PREMIUM_UI_PRESERVE_ATTRS,
+} from '../services/blockCustomization';
 import type { TileSkinOverride } from '../types';
 import { SquareImageCropperModal } from './SquareImageCropperModal';
 
@@ -52,6 +56,7 @@ const TileSwatch = React.memo<{
           ${appearance.className}
         `}
         data-skin-preview-tile="true"
+        {...TILE_PREMIUM_UI_PRESERVE_ATTRS}
         style={{
           width: `${tilePx}px`,
           height: `${tilePx}px`,
@@ -61,7 +66,12 @@ const TileSwatch = React.memo<{
           ...(appearance.style ?? {}),
         }}
       >
-        <span className={isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''}>{text}</span>
+        <span
+          className={isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''}
+          style={TILE_NUMBER_INHERIT_STYLE}
+        >
+          {text}
+        </span>
       </div>
 
       {overrideKind !== 'default' && (

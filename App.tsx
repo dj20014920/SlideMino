@@ -381,6 +381,13 @@ const APP_RESUME_EVENT = 'slidemino:app-resume';
 const VIEWPORT_RECOVERY_DELAYS_MS = [120, 320, 600] as const;
 const IOS_IN_APP_BROWSER_TOP_CHROME_FALLBACK_PX = 44;
 const IOS_IN_APP_BROWSER_TOP_CHROME_MAX_PX = 88;
+const DEFAULT_BOARD_SCALE_CEILING_MIN = 0.42;
+const WIN98_BOARD_SCALE_CEILING_MIN = 0.5;
+const VIEWPORT_HEIGHT_DROP_GUARD_PX = 120;
+const VIEWPORT_HEIGHT_DROP_GUARD_RATIO = 0.18;
+const VIEWPORT_HEIGHT_DROP_GUARD_MAX_WIDTH_SHIFT_PX = 24;
+const VIEWPORT_HEIGHT_DROP_GUARD_REAPPLY_DELAY_MS = 80;
+const CHROME_SPIKE_GUARD_STEP_PX = 36;
 
 const lerp = (from: number, to: number, t: number): number => from + (to - from) * t;
 
@@ -420,7 +427,8 @@ const getViewportSize = (): ViewportSize => {
 
 const getGameLayoutProfile = (
   { width, height }: ViewportSize,
-  chromeHeights: LayoutChromeHeights = DEFAULT_LAYOUT_CHROME_HEIGHTS
+  chromeHeights: LayoutChromeHeights = DEFAULT_LAYOUT_CHROME_HEIGHTS,
+  boardScaleCeilingMin: number = DEFAULT_BOARD_SCALE_CEILING_MIN
 ): GameLayoutProfile => {
   const safeWidth = Math.max(240, Math.round(width));
   const safeHeight = Math.max(320, Math.round(height));
@@ -466,7 +474,7 @@ const getGameLayoutProfile = (
     availableMainHeightPx - slotHeightPx - mainGapPx * 2 - REFRESH_ROW_HEIGHT_PX - mainTopPaddingPx - mainBottomPaddingPx;
   const boardScaleCeiling = clamp(
     Math.min(contentWidthPx, boardHeightBudgetPx) / 420,
-    0.42,
+    boardScaleCeilingMin,
     1.04
   );
 
@@ -594,10 +602,45 @@ const App: React.FC = () => {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const retryTimerIds: number[] = [];
+    let guardedHeightDropTarget: number | null = null;
+    let guardedHeightDropCommitTimerId: number | null = null;
 
-    const updateViewportSize = () => {
+    const clearGuardedHeightDropCommitTimer = () => {
+      if (guardedHeightDropCommitTimerId !== null) {
+        window.clearTimeout(guardedHeightDropCommitTimerId);
+        guardedHeightDropCommitTimerId = null;
+      }
+    };
+
+    const updateViewportSize = (forceGuardedHeightDropCommit = false) => {
       setViewportSize((prev) => {
         const next = getViewportSize();
+        const heightDropPx = prev.height - next.height;
+        const widthShiftPx = Math.abs(prev.width - next.width);
+        const isLargeHeightDrop =
+          heightDropPx > 0 &&
+          (heightDropPx >= VIEWPORT_HEIGHT_DROP_GUARD_PX ||
+            heightDropPx / Math.max(1, prev.height) >= VIEWPORT_HEIGHT_DROP_GUARD_RATIO);
+        const shouldGuardHeightDrop =
+          isLargeHeightDrop &&
+          widthShiftPx <= VIEWPORT_HEIGHT_DROP_GUARD_MAX_WIDTH_SHIFT_PX &&
+          !isEditableElementFocused() &&
+          typeof document !== 'undefined' &&
+          document.body.classList.contains('scroll-locked');
+        const isRepeatedGuardedHeight =
+          guardedHeightDropTarget !== null &&
+          Math.abs(guardedHeightDropTarget - next.height) <= 1;
+        if (shouldGuardHeightDrop && !isRepeatedGuardedHeight && !forceGuardedHeightDropCommit) {
+          guardedHeightDropTarget = next.height;
+          clearGuardedHeightDropCommitTimer();
+          guardedHeightDropCommitTimerId = window.setTimeout(() => {
+            guardedHeightDropCommitTimerId = null;
+            updateViewportSize(true);
+          }, VIEWPORT_HEIGHT_DROP_GUARD_REAPPLY_DELAY_MS);
+          return prev;
+        }
+        clearGuardedHeightDropCommitTimer();
+        guardedHeightDropTarget = null;
         const widthChanged = Math.abs(prev.width - next.width) > 0.5;
         const heightChanged = Math.abs(prev.height - next.height) > 0.5;
         if (!widthChanged && !heightChanged) return prev;
@@ -608,6 +651,8 @@ const App: React.FC = () => {
     const clearRetryTimers = () => {
       retryTimerIds.forEach((timerId) => window.clearTimeout(timerId));
       retryTimerIds.length = 0;
+      clearGuardedHeightDropCommitTimer();
+      guardedHeightDropTarget = null;
     };
 
     const resetScrollPosition = () => {
@@ -632,28 +677,31 @@ const App: React.FC = () => {
       if (document.visibilityState !== 'visible') return;
       scheduleViewportSync();
     };
+    const handleViewportChange = () => {
+      updateViewportSize();
+    };
 
     scheduleViewportSync();
 
-    window.addEventListener('resize', updateViewportSize);
+    window.addEventListener('resize', handleViewportChange);
     window.addEventListener('orientationchange', scheduleViewportSync);
     window.addEventListener('focus', scheduleViewportSync);
     window.addEventListener('pageshow', scheduleViewportSync);
     window.addEventListener(APP_RESUME_EVENT, scheduleViewportSync);
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.visualViewport?.addEventListener('resize', updateViewportSize);
-    window.visualViewport?.addEventListener('scroll', updateViewportSize);
+    window.visualViewport?.addEventListener('resize', handleViewportChange);
+    window.visualViewport?.addEventListener('scroll', handleViewportChange);
 
     return () => {
       clearRetryTimers();
-      window.removeEventListener('resize', updateViewportSize);
+      window.removeEventListener('resize', handleViewportChange);
       window.removeEventListener('orientationchange', scheduleViewportSync);
       window.removeEventListener('focus', scheduleViewportSync);
       window.removeEventListener('pageshow', scheduleViewportSync);
       window.removeEventListener(APP_RESUME_EVENT, scheduleViewportSync);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.visualViewport?.removeEventListener('resize', updateViewportSize);
-      window.visualViewport?.removeEventListener('scroll', updateViewportSize);
+      window.visualViewport?.removeEventListener('resize', handleViewportChange);
+      window.visualViewport?.removeEventListener('scroll', handleViewportChange);
     };
   }, []);
 
@@ -982,6 +1030,7 @@ const App: React.FC = () => {
   const [viewportSize, setViewportSize] = useState<ViewportSize>(getViewportSize);
   const [layoutChromeHeights, setLayoutChromeHeights] = useState<LayoutChromeHeights>(DEFAULT_LAYOUT_CHROME_HEIGHTS);
   const [comboMessageQueue, setComboMessageQueue] = useState<ComboMessageItem[]>([]);
+  const isWin98ThemeActive = isPremiumUiThemeActive && premiumUiTheme?.family === 'win98';
   const isLandscapeViewport = useMemo(() => {
     if (typeof window === 'undefined') return false;
     // screen.orientation.type is the most reliable way to detect device orientation
@@ -1020,8 +1069,12 @@ const App: React.FC = () => {
   }, [shouldBlockLandscapeOnWeb, viewportSize.width, viewportSize.height]);
 
   const gameLayoutProfile = useMemo(
-    () => getGameLayoutProfile(viewportSize, layoutChromeHeights),
-    [viewportSize, layoutChromeHeights]
+    () => getGameLayoutProfile(
+      viewportSize,
+      layoutChromeHeights,
+      isWin98ThemeActive ? WIN98_BOARD_SCALE_CEILING_MIN : DEFAULT_BOARD_SCALE_CEILING_MIN
+    ),
+    [viewportSize, layoutChromeHeights, isWin98ThemeActive]
   );
 
   const baseBoardScale = useMemo(() => {
@@ -1469,7 +1522,13 @@ const App: React.FC = () => {
       const root = document.documentElement;
 
       setLayoutChromeHeights((prev) => {
-        const nextHeader = measuredHeader ? Math.max(56, measuredHeader) : prev.header;
+        const rawHeader = measuredHeader ? Math.max(56, measuredHeader) : prev.header;
+        const nextHeaderWithSpikeGuard = rawHeader > prev.header + CHROME_SPIKE_GUARD_STEP_PX
+          ? prev.header + CHROME_SPIKE_GUARD_STEP_PX
+          : rawHeader;
+        const nextHeader = isWin98ThemeActive && nextHeaderWithSpikeGuard < prev.header - CHROME_SPIKE_GUARD_STEP_PX
+          ? prev.header - CHROME_SPIKE_GUARD_STEP_PX
+          : nextHeaderWithSpikeGuard;
         const nativeSafeBottomPx = isNative ? Math.max(0, Math.round(getSafeAreaInsetPx('bottom'))) : 0;
         const footerFallbackPx = STABLE_BANNER_RESERVE_PX + nativeSafeBottomPx;
         // 초기 측정 전에는 safe-bottom을 포함한 fallback을 사용하고,
@@ -1477,8 +1536,13 @@ const App: React.FC = () => {
         const baseFooter = measuredFooter
           ? Math.max(STABLE_BANNER_RESERVE_PX, measuredFooter)
           : footerFallbackPx;
-        const nextFooter = baseFooter;
-        root.style.setProperty('--bottom-ad-height', `${Math.max(0, Math.round(baseFooter))}px`);
+        const nextFooterWithSpikeGuard = baseFooter > prev.footer + CHROME_SPIKE_GUARD_STEP_PX
+          ? prev.footer + CHROME_SPIKE_GUARD_STEP_PX
+          : baseFooter;
+        const nextFooter = isWin98ThemeActive && nextFooterWithSpikeGuard < prev.footer - CHROME_SPIKE_GUARD_STEP_PX
+          ? prev.footer - CHROME_SPIKE_GUARD_STEP_PX
+          : nextFooterWithSpikeGuard;
+        root.style.setProperty('--bottom-ad-height', `${Math.max(0, Math.round(nextFooter))}px`);
         root.style.setProperty('--bottom-chrome-height', `${Math.max(0, Math.round(nextFooter))}px`);
         const isHeaderStable = Math.abs(prev.header - nextHeader) <= 0.5;
         const isFooterStable = Math.abs(prev.footer - nextFooter) <= 0.5;
@@ -1532,7 +1596,7 @@ const App: React.FC = () => {
       root.style.removeProperty('--bottom-ad-height');
       root.style.removeProperty('--bottom-chrome-height');
     };
-  }, [shouldTrackGameChrome, isNative]);
+  }, [shouldTrackGameChrome, isNative, isWin98ThemeActive]);
 
   // --- Initialization ---
 

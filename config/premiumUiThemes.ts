@@ -235,7 +235,7 @@ export const RETRO_WINDOWS_98_PREMIUM_UI_THEME: PremiumUiThemeConfig = {
       gameWindowClassName: 'win98-game-board-window',
       gameBodyClassName: 'win98-board-body',
       slotShellClassName: 'win98-slot-shell',
-      slotMiniCellClassName: 'win98-slot-mini-cell',
+      slotMiniCellClassName: 'win98-tile-face',
       slotRotateButtonClassName: 'win98-slot-rotate-btn',
     },
     extended: {

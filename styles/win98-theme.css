@@ -115,6 +115,31 @@ body.theme-win98 .win98-menu-window .window-body fieldset .field-row > button {
   width: 100%;
 }
 
+body.theme-win98 .win98-menu-window .win98-fieldset {
+  background: #ffffff !important;
+  box-shadow: inset -1px -1px var(--win98-button-highlight), inset 1px 1px var(--win98-button-shadow),
+    inset -2px -2px var(--win98-button-face), inset 2px 2px var(--win98-window-frame) !important;
+}
+
+body.theme-win98 .win98-menu-window .win98-fieldset > legend {
+  background: #ffffff !important;
+  color: var(--win98-text-color) !important;
+  padding: 0 4px !important;
+}
+
+body.theme-win98 .win98-menu-window .win98-sunken-white,
+body.theme-win98 .win98-menu-window .win98-sunken {
+  background: #ffffff !important;
+}
+
+body.theme-win98 .win98-menu-window .win98-sunken-white button,
+body.theme-win98 .win98-menu-window .win98-sunken button,
+body.theme-win98 .win98-menu-window .win98-sunken-white .win98-game-btn,
+body.theme-win98 .win98-menu-window .win98-sunken .win98-game-btn {
+  background: #ffffff !important;
+  color: var(--win98-text-color) !important;
+}
+
 body.theme-win98 .win98-radio-group input[type="radio"] {
   position: static !important;
   opacity: 1 !important;
@@ -640,6 +665,11 @@ body.theme-win98 .win98-tabstrip {
   padding: 0 4px;
 }
 
+body.theme-win98 .win98-tabstrip[data-win98-skin-section-tabstrip="true"] {
+  background: #ffffff !important;
+  border-bottom-color: #ffffff !important;
+}
+
 body.theme-win98 .win98-tabstrip-tab {
   padding: 4px 16px !important;
   border-radius: 0 !important;
@@ -741,22 +771,22 @@ body.theme-win98 .win98-window [class*="border-white"] {
 }
 
 /* 모던 텍스트 색상 → Win98 시스템 블랙 (강조 텍스트 유지) */
-body.theme-win98 .window [class*="text-orange"],
-body.theme-win98 .window [class*="text-amber"],
-body.theme-win98 .window [class*="text-blue"],
-body.theme-win98 .window [class*="text-sky"],
-body.theme-win98 .window [class*="text-indigo"],
-body.theme-win98 .window [class*="text-purple"],
-body.theme-win98 .window [class*="text-violet"],
-body.theme-win98 .window [class*="text-pink"],
-body.theme-win98 .win98-window [class*="text-orange"],
-body.theme-win98 .win98-window [class*="text-amber"],
-body.theme-win98 .win98-window [class*="text-blue"],
-body.theme-win98 .win98-window [class*="text-sky"],
-body.theme-win98 .win98-window [class*="text-indigo"],
-body.theme-win98 .win98-window [class*="text-purple"],
-body.theme-win98 .win98-window [class*="text-violet"],
-body.theme-win98 .win98-window [class*="text-pink"] {
+body.theme-win98 .window [class*="text-orange"]:not([data-tile-kind]):not([data-skin-preview-tile="true"]),
+body.theme-win98 .window [class*="text-amber"]:not([data-tile-kind]):not([data-skin-preview-tile="true"]),
+body.theme-win98 .window [class*="text-blue"]:not([data-tile-kind]):not([data-skin-preview-tile="true"]),
+body.theme-win98 .window [class*="text-sky"]:not([data-tile-kind]):not([data-skin-preview-tile="true"]),
+body.theme-win98 .window [class*="text-indigo"]:not([data-tile-kind]):not([data-skin-preview-tile="true"]),
+body.theme-win98 .window [class*="text-purple"]:not([data-tile-kind]):not([data-skin-preview-tile="true"]),
+body.theme-win98 .window [class*="text-violet"]:not([data-tile-kind]):not([data-skin-preview-tile="true"]),
+body.theme-win98 .window [class*="text-pink"]:not([data-tile-kind]):not([data-skin-preview-tile="true"]),
+body.theme-win98 .win98-window [class*="text-orange"]:not([data-tile-kind]):not([data-skin-preview-tile="true"]),
+body.theme-win98 .win98-window [class*="text-amber"]:not([data-tile-kind]):not([data-skin-preview-tile="true"]),
+body.theme-win98 .win98-window [class*="text-blue"]:not([data-tile-kind]):not([data-skin-preview-tile="true"]),
+body.theme-win98 .win98-window [class*="text-sky"]:not([data-tile-kind]):not([data-skin-preview-tile="true"]),
+body.theme-win98 .win98-window [class*="text-indigo"]:not([data-tile-kind]):not([data-skin-preview-tile="true"]),
+body.theme-win98 .win98-window [class*="text-purple"]:not([data-tile-kind]):not([data-skin-preview-tile="true"]),
+body.theme-win98 .win98-window [class*="text-violet"]:not([data-tile-kind]):not([data-skin-preview-tile="true"]),
+body.theme-win98 .win98-window [class*="text-pink"]:not([data-tile-kind]):not([data-skin-preview-tile="true"]) {
   color: var(--win98-text-color) !important;
 }
 

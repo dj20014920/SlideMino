@@ -6,7 +6,12 @@ import { SKIN_CATALOG, SKIN_PREVIEW_VALUES, MAX_DAILY_SKIN_AD_VIEWS, FRAGMENTS_P
 import { getTileNumberLayout } from '../constants';
 import { useBlockCustomization } from '../context/BlockCustomizationContext';
 import type { SkinItem, SkinDrawResult } from '../types';
-import { getSkinColorForValue, resolveSkinAppearance } from '../services/blockCustomization';
+import {
+  getSkinColorForValue,
+  resolveSkinAppearance,
+  TILE_NUMBER_INHERIT_STYLE,
+  TILE_PREMIUM_UI_PRESERVE_ATTRS,
+} from '../services/blockCustomization';
 import { buildGradient, getWhiteTextStyleForBackground, hexToRgb } from '../services/blockCustomization';
 import { drawSkin, isCollectionComplete, getFragmentCost } from '../services/skinService';
 import { skinRewardAdService } from '../services/skinRewardAdService';
@@ -59,8 +64,7 @@ const SkinPreviewTile = React.memo<{ value: number; skin: { id?: string; hex: st
           <div
             className={`skin-pixelblast-preview-chip__tile ${isPremiumUiThemeActive ? premiumUiTileFaceClassName : ''} ${className} flex items-center justify-center font-semibold text-center select-none`}
             data-skin-preview-tile="true"
-            data-premium-ui-allow-gradient="true"
-            data-premium-ui-allow-shadow="true"
+            {...TILE_PREMIUM_UI_PRESERVE_ATTRS}
             style={{
               fontSize: `${fontPx}px`,
               lineHeight: 1,
@@ -68,7 +72,12 @@ const SkinPreviewTile = React.memo<{ value: number; skin: { id?: string; hex: st
               ...style,
             }}
           >
-            <span className={`${isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''}`}>{text}</span>
+            <span
+              className={`${isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''}`}
+              style={TILE_NUMBER_INHERIT_STYLE}
+            >
+              {text}
+            </span>
           </div>
         </div>
       );
@@ -78,8 +87,7 @@ const SkinPreviewTile = React.memo<{ value: number; skin: { id?: string; hex: st
       <div
         className={`${isNeonBlock ? '' : 'rounded-2xl'} ${isPremiumUiThemeActive ? premiumUiTileFaceClassName : ''} ${isExploreGalaxy ? 'explore-galaxy-phase-sync' : ''} flex items-center justify-center font-semibold ${isNeonBlock ? '' : 'overflow-hidden'} text-center select-none shrink-0 ${className}`}
         data-skin-preview-tile="true"
-        data-premium-ui-allow-gradient="true"
-        data-premium-ui-allow-shadow="true"
+        {...TILE_PREMIUM_UI_PRESERVE_ATTRS}
         style={{
           width: `${tilePx}px`,
           height: `${tilePx}px`,
@@ -98,7 +106,12 @@ const SkinPreviewTile = React.memo<{ value: number; skin: { id?: string; hex: st
             zIndex={1}
           />
         )}
-        <span className={`${isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''} ${isNeonBlock ? 'skin-neon-block-number' : ''}`}>{text}</span>
+        <span
+          className={`${isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''} ${isNeonBlock ? 'skin-neon-block-number' : ''}`}
+          style={TILE_NUMBER_INHERIT_STYLE}
+        >
+          {text}
+        </span>
       </div>
     );
 
@@ -570,7 +583,11 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
                 <div className="space-y-4">
                   {skinSections.map((section, sectionIdx) => (
                     <div key={sectionIdx}>
-                      <div className={premiumUiSkinTabStripClassName} style={{ padding: 0, borderBottom: 'none', marginBottom: '6px' }}>
+                      <div
+                        className={premiumUiSkinTabStripClassName}
+                        data-win98-skin-section-tabstrip="true"
+                        style={{ padding: 0, borderBottom: 'none', marginBottom: '6px' }}
+                      >
                         <button
                           type="button"
                           aria-expanded={openSections[section.key]}

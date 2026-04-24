@@ -264,6 +264,17 @@ export type ResolvedTileAppearance = {
   style?: CSSProperties;
 };
 
+export const TILE_PREMIUM_UI_PRESERVE_ATTRS = {
+  'data-premium-ui-allow-gradient': 'true',
+  'data-premium-ui-allow-shadow': 'true',
+} as const;
+
+export const TILE_NUMBER_INHERIT_STYLE: CSSProperties = {
+  color: 'inherit',
+  textShadow: 'inherit',
+  WebkitTextStroke: 'inherit',
+};
+
 const SKIN_APPEARANCE_CACHE_LIMIT = 1024;
 const skinAppearanceCache = new Map<string, ResolvedTileAppearance>();
 
@@ -605,6 +616,18 @@ const isLiquidGlassSkinId = (skinId: string): boolean => (
   skinId === LEGACY_LIQUID_GLASS_SKIN_ID || skinId.startsWith(LIQUID_GLASS_SKIN_PREFIX)
 );
 
+let coarsePointerRenderTargetCache: boolean | null = null;
+const isCoarsePointerRenderTarget = (): boolean => {
+  if (coarsePointerRenderTargetCache !== null) return coarsePointerRenderTargetCache;
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return false;
+  }
+  coarsePointerRenderTargetCache = Boolean(
+    window.matchMedia?.('(pointer: coarse)').matches || navigator.maxTouchPoints > 0
+  );
+  return coarsePointerRenderTargetCache;
+};
+
 const buildLiquidGlassTileStyle = (value: number, tintHex: string): CSSProperties => {
   const exponent = getValueExponent(value);
   const tintRgb = hexToRgb(tintHex);
@@ -662,28 +685,48 @@ const buildLiquidGlassTileStyle = (value: number, tintHex: string): CSSPropertie
     '0 0 1px rgba(0,0,0,0.84)',
     '0 0 10px rgba(255,255,255,0.18)',
   ].join(', ');
+  const isMobileRenderTarget = isCoarsePointerRenderTarget();
+  const backgroundLayers = isMobileRenderTarget
+    ? [
+        `linear-gradient(145deg, rgba(255,255,255,${(0.16 * strength).toFixed(3)}) 0%, rgba(255,255,255,0) 44%, ${toRgba(tintRgb, 0.075 * strength)} 100%)`,
+        ...edgeGradients,
+      ]
+    : [...edgeGradients, ...cornerCaustic];
+  const boxShadow = isMobileRenderTarget
+    ? [
+        `inset 0 1px 0 rgba(255,255,255,${(0.58 * strength).toFixed(3)})`,
+        `inset 0 -1px 0 rgba(0,0,0,${(0.12 * strength).toFixed(3)})`,
+        `0 0 8px ${glowColor}`,
+        `0 4px 10px rgba(0,0,0,${(dropShadowAlpha * 0.72).toFixed(3)})`,
+      ].join(', ')
+    : [
+        // 볼록(raised) 질감: 상/좌는 밝게, 하/우는 어둡게
+        `inset 0 1px 0 rgba(255,255,255,${(0.74 * strength).toFixed(3)})`,
+        `inset 1px 0 0 rgba(255,255,255,${(0.22 * strength).toFixed(3)})`,
+        `inset 0 -1px 0 rgba(0,0,0,${(0.14 * strength).toFixed(3)})`,
+        `inset -1px 0 0 rgba(0,0,0,${(0.08 * strength).toFixed(3)})`,
+        `0 -1px 2px rgba(255,255,255,${(0.16 * strength).toFixed(3)})`,
+        `0 0 ${rimGlowBlurPx}px ${glowColor}`,
+        `0 8px 16px rgba(0,0,0,${dropShadowAlpha.toFixed(3)})`,
+      ].join(', ');
 
-  return {
+  const style: CSSProperties = {
     // 중앙은 완전 투명 유지
-    backgroundColor: 'rgba(255,255,255,0)',
-    backgroundImage: [...edgeGradients, ...cornerCaustic].join(', '),
+    backgroundColor: isMobileRenderTarget ? toRgba(tintRgb, 0.028 * strength) : 'rgba(255,255,255,0)',
+    backgroundImage: backgroundLayers.join(', '),
     border: `1.1px solid ${borderColor}`,
-    boxShadow: [
-      // 볼록(raised) 질감: 상/좌는 밝게, 하/우는 어둡게
-      `inset 0 1px 0 rgba(255,255,255,${(0.74 * strength).toFixed(3)})`,
-      `inset 1px 0 0 rgba(255,255,255,${(0.22 * strength).toFixed(3)})`,
-      `inset 0 -1px 0 rgba(0,0,0,${(0.14 * strength).toFixed(3)})`,
-      `inset -1px 0 0 rgba(0,0,0,${(0.08 * strength).toFixed(3)})`,
-      `0 -1px 2px rgba(255,255,255,${(0.16 * strength).toFixed(3)})`,
-      `0 0 ${rimGlowBlurPx}px ${glowColor}`,
-      `0 8px 16px rgba(0,0,0,${dropShadowAlpha.toFixed(3)})`,
-    ].join(', '),
-    backdropFilter: `blur(${blurPx.toFixed(2)}px) saturate(${saturation.toFixed(3)}) contrast(${contrast.toFixed(3)}) brightness(${brightness.toFixed(3)})`,
-    WebkitBackdropFilter: `blur(${blurPx.toFixed(2)}px) saturate(${saturation.toFixed(3)}) contrast(${contrast.toFixed(3)}) brightness(${brightness.toFixed(3)})`,
+    boxShadow,
     color: textColor,
     WebkitTextStroke: '0.45px rgba(0,0,0,0.42)',
     textShadow,
   };
+
+  if (!isMobileRenderTarget) {
+    style.backdropFilter = `blur(${blurPx.toFixed(2)}px) saturate(${saturation.toFixed(3)}) contrast(${contrast.toFixed(3)}) brightness(${brightness.toFixed(3)})`;
+    style.WebkitBackdropFilter = `blur(${blurPx.toFixed(2)}px) saturate(${saturation.toFixed(3)}) contrast(${contrast.toFixed(3)}) brightness(${brightness.toFixed(3)})`;
+  }
+
+  return style;
 };
 
 // --- New Helper for Previews ---

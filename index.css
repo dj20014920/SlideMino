@@ -316,6 +316,39 @@
   z-index: 2;
 }
 
+@media (pointer: coarse), (hover: none) {
+  [data-tile-kind].skin-neon-block {
+    --padding: 1px;
+    --neon-edge-alpha: 0.34;
+    --neon-edge-side-alpha: 0.28;
+    --neon-corner-alpha: 0.32;
+    --neon-after-edge-alpha: 0.3;
+    --neon-active-gain: 1.08;
+  }
+
+  [data-tile-kind].skin-neon-block::before {
+    transition: none;
+    box-shadow:
+      0 -4px 8px -4px hsla(var(--highlight-color-hue), 100%, 70%, calc(var(--neon-edge-alpha) * var(--neon-state-gain))) inset,
+      0 4px 8px -4px hsla(var(--highlight-color-hue), 100%, 70%, calc(var(--neon-edge-alpha) * var(--neon-state-gain))) inset,
+      -4px 0 8px -4px hsla(var(--highlight-color-hue), 100%, 70%, calc(var(--neon-edge-side-alpha) * var(--neon-state-gain))) inset,
+      4px 0 8px -4px hsla(var(--highlight-color-hue), 100%, 70%, calc(var(--neon-edge-side-alpha) * var(--neon-state-gain))) inset,
+      1px 1px 1px rgba(255, 255, 255, 0.1),
+      -1px -1px 1px rgba(0, 0, 0, 0.12) !important;
+  }
+
+  [data-tile-kind].skin-neon-block::after {
+    opacity: 0.78 !important;
+    filter: none !important;
+    transition: none;
+  }
+
+  [data-tile-kind].skin-neon-block .skin-neon-block-number {
+    animation: none;
+    text-shadow: 0 0 4px rgba(255, 255, 255, 0.7), 0 0 8px hsla(var(--highlight-color-hue), 100%, 70%, 0.28) !important;
+  }
+}
+
 /* Merge number burst — subtle, fast, auto-finish */
 @keyframes tileMergeNumberBurst {
   0% {

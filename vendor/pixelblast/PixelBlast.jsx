@@ -527,7 +527,7 @@ const PixelBlast = ({
           if (threeRef.current) threeRef.current.raf = raf;
           return;
         }
-        const targetFrameMs = coarsePointerRef.current ? (1000 / 30) : (1000 / 60);
+        const targetFrameMs = coarsePointerRef.current ? (1000 / 24) : (1000 / 60);
         if (lastRenderAt !== 0 && now - lastRenderAt < targetFrameMs) {
           raf = requestAnimationFrame(animate);
           if (threeRef.current) threeRef.current.raf = raf;
@@ -584,7 +584,7 @@ const PixelBlast = ({
       if (transparent) t.renderer.setClearAlpha(0);
       else t.renderer.setClearColor(0x000000, 1);
       if (t.liquidEffect) {
-        const uStrength = t.liquidEffect;
+        const uStrength = t.liquidEffect.uniforms.get('uStrength');
         if (uStrength) uStrength.value = liquidStrength;
         const uFreq = t.liquidEffect.uniforms.get('uFreq');
         if (uFreq) uFreq.value = liquidWobbleSpeed;

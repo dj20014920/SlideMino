@@ -395,30 +395,34 @@ export function BlockCustomizationProvider({ children }: { children: React.React
   const addFragments = useCallback((amount: number) => {
     const safeAmount = Number.isFinite(amount) ? Math.max(0, Math.floor(amount)) : 0;
     if (safeAmount <= 0) return;
-    setSkinSettings(prev => ({
-      ...prev,
-      fragments: prev.fragments + safeAmount,
-    }));
+    startTransition(() => {
+      setSkinSettings(prev => ({
+        ...prev,
+        fragments: prev.fragments + safeAmount,
+      }));
+    });
   }, []);
 
   const addScoreMilestoneFragments = useCallback((amount: number) => {
     const safeAmount = Number.isFinite(amount) ? Math.max(0, Math.floor(amount)) : 0;
     if (safeAmount <= 0) return;
     const today = getKstDateString(getServerAdjustedNow());
-    setSkinSettings(prev => {
-      // 날짜가 바뀌면 일일 카운터 리셋
-      const prevEarned = prev.daily1024Date === today ? prev.daily1024Earned : 0;
-      // 일일 캐 적용: 남은 허용치만큼만 지급
-      const allowed = Math.max(0, DAILY_1024_FRAGMENT_CAP - prevEarned);
-      const actual = Math.min(safeAmount, allowed);
-      if (actual <= 0) return prev;
-      return {
-        ...prev,
-        fragments: prev.fragments + actual,
-        scoreMilestoneCredits: prev.scoreMilestoneCredits + actual,
-        daily1024Date: today,
-        daily1024Earned: prevEarned + actual,
-      };
+    startTransition(() => {
+      setSkinSettings(prev => {
+        // 날짜가 바뀌면 일일 카운터 리셋
+        const prevEarned = prev.daily1024Date === today ? prev.daily1024Earned : 0;
+        // 일일 캐 적용: 남은 허용치만큼만 지급
+        const allowed = Math.max(0, DAILY_1024_FRAGMENT_CAP - prevEarned);
+        const actual = Math.min(safeAmount, allowed);
+        if (actual <= 0) return prev;
+        return {
+          ...prev,
+          fragments: prev.fragments + actual,
+          scoreMilestoneCredits: prev.scoreMilestoneCredits + actual,
+          daily1024Date: today,
+          daily1024Earned: prevEarned + actual,
+        };
+      });
     });
   }, []);
 
@@ -475,15 +479,20 @@ export function BlockCustomizationProvider({ children }: { children: React.React
     });
   }, []);
 
+  const appearanceSkinSettings = useMemo<SkinSettings>(
+    () => skinSettings,
+    [skinSettings.activeSkinId, skinSettings.ownedSkins]
+  );
+
   const resolver = useCallback(
     (value: number) =>
       resolveTileAppearance(
         value,
         gate.allowed ? settings : DEFAULT_BLOCK_CUSTOMIZATION_SETTINGS,
-        skinSettings,
+        appearanceSkinSettings,
         { premiumUiThemeId },
       ),
-    [gate.allowed, premiumUiThemeId, settings, skinSettings]
+    [appearanceSkinSettings, gate.allowed, premiumUiThemeId, settings]
   );
 
   const value = useMemo<BlockCustomizationContextValue>(

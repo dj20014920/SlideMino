@@ -15,7 +15,12 @@ import { canPlacePiece } from '../services/gameLogic';
 import { getTileColor, getTileNumberLayout, getSlideAnimationDurationMs, BOARD_CELL_GAP_PX } from '../constants';
 import { useBlockCustomization } from '../context/BlockCustomizationContext';
 import EvervaultTileOverlay from './EvervaultTileOverlay';
-import { clamp, type ResolvedTileAppearance } from '../services/blockCustomization';
+import {
+  clamp,
+  TILE_NUMBER_INHERIT_STYLE,
+  TILE_PREMIUM_UI_PRESERVE_ATTRS,
+  type ResolvedTileAppearance,
+} from '../services/blockCustomization';
 
 const EVERVAULT_SKIN_ID = 'skin_digital_evervault';
 const PixelBlast = lazy(() => import('../vendor/pixelblast/PixelBlast'));
@@ -96,6 +101,8 @@ type GridLayout = {
 const PENDING_MERGE_RIPPLE_TTL_MS = 4500;
 const MAX_PENDING_MERGE_RIPPLES = 4;
 const LAYOUT_CHANGE_EPS = 0.25;
+const MAX_PIXELBLAST_MOBILE_RIPPLE_TARGETS = 2;
+const MAX_PIXELBLAST_DESKTOP_RIPPLE_TARGETS = 6;
 
 type PendingMergeRipple = {
   fingerprint: string;
@@ -106,6 +113,32 @@ type PendingMergeRipple = {
 const tileTransitionEase = 'cubic-bezier(0.25,0.1,0.25,1.0)';
 const reviveDestroyAnimation = 'reviveBreakFade 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards';
 const EMPTY_REVIVE_DESTROY_EFFECTS: ReviveDestroyEffect[] = [];
+
+const isCoarsePointerDevice = (): boolean => {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+  return Boolean(window.matchMedia?.('(pointer: coarse)').matches || navigator.maxTouchPoints > 0);
+};
+
+const limitPixelBlastRippleTargets = (targets: string[], boardSize: number): string[] => {
+  const limit = isCoarsePointerDevice()
+    ? MAX_PIXELBLAST_MOBILE_RIPPLE_TARGETS
+    : MAX_PIXELBLAST_DESKTOP_RIPPLE_TARGETS;
+  if (targets.length <= limit) return targets;
+  const center = (boardSize - 1) / 2;
+  return targets
+    .map((target) => {
+      const [xStr, yStr] = target.split(',');
+      const x = Number(xStr);
+      const y = Number(yStr);
+      const distanceFromCenter = Number.isFinite(x) && Number.isFinite(y)
+        ? Math.abs(x - center) + Math.abs(y - center)
+        : Number.POSITIVE_INFINITY;
+      return { target, distanceFromCenter };
+    })
+    .sort((a, b) => a.distanceFromCenter - b.distanceFromCenter || a.target.localeCompare(b.target))
+    .slice(0, limit)
+    .map(({ target }) => target);
+};
 
 const buildPixelBlastMergeEdgeGlowStyle = (
   baseStyle?: React.CSSProperties
@@ -147,7 +180,6 @@ const MergingTilesLayer = React.memo<{
         const transform = `translate3d(${layout.posPx[mt.currentX]}px, ${layout.posPx[mt.currentY]}px, 0)`;
         const { text, fontPx } = getTileNumberLayout(mt.value, layout.cellPx);
         const appearance = getResolvedAppearance(mt.value);
-        const preserveAppearanceInWin98 = Boolean(appearance.style?.backgroundColor || appearance.style?.backgroundImage || appearance.style?.boxShadow);
         const isNeonBlock = appearance.className === 'skin-neon-block';
         return (
           <div
@@ -155,8 +187,7 @@ const MergingTilesLayer = React.memo<{
             data-tile-id={mt.id}
             data-tile-distance={mt.distance}
             data-tile-kind="merge"
-            data-premium-ui-allow-gradient={preserveAppearanceInWin98 ? 'true' : undefined}
-            data-premium-ui-allow-shadow={preserveAppearanceInWin98 ? 'true' : undefined}
+            {...TILE_PREMIUM_UI_PRESERVE_ATTRS}
             className={`
               absolute ${isPremiumUiThemeActive ? premiumUiTileFaceClassName : (isNeonBlock ? '' : 'rounded-xl')} flex items-center justify-center
               font-semibold ${isNeonBlock ? '' : 'overflow-hidden'} text-center
@@ -181,7 +212,12 @@ const MergingTilesLayer = React.memo<{
               willChange: duration ? 'transform' : undefined,
             }}
           >
-            <span className={`${isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''} ${isNeonBlock ? 'skin-neon-block-number' : ''}`}>{text}</span>
+            <span
+              className={`${isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''} ${isNeonBlock ? 'skin-neon-block-number' : ''}`}
+              style={TILE_NUMBER_INHERIT_STYLE}
+            >
+              {text}
+            </span>
           </div>
         );
       })}
@@ -239,7 +275,6 @@ const TilesLayer = React.memo<{
         const transform = `translate3d(${layout.posPx[tile.x]}px, ${layout.posPx[tile.y]}px, 0)`;
         const { text, fontPx } = getTileNumberLayout(displayValue, layout.cellPx);
         const appearance = getResolvedAppearance(displayValue);
-        const preserveAppearanceInWin98 = Boolean(appearance.style?.backgroundColor || appearance.style?.backgroundImage || appearance.style?.boxShadow);
         const isNeonBlock = appearance.className === 'skin-neon-block';
         const isPendingTarget = canSelectTiles && revivePendingTileId === tile.id;
         const isMergeNumberBursting = !!mergedNumberBurstTileIds?.has(tile.id);
@@ -271,8 +306,7 @@ const TilesLayer = React.memo<{
             data-revive-pending={isPendingTarget ? 'true' : 'false'}
             data-tile-distance={tile.distance}
             data-tile-kind="tile"
-            data-premium-ui-allow-gradient={preserveAppearanceInWin98 ? 'true' : undefined}
-            data-premium-ui-allow-shadow={preserveAppearanceInWin98 ? 'true' : undefined}
+            {...TILE_PREMIUM_UI_PRESERVE_ATTRS}
             className={`
               absolute ${isPremiumUiThemeActive ? '' : (isNeonBlock ? '' : 'rounded-xl')} ${isPremiumUiThemeActive ? premiumUiTileFaceClassName : ''} flex items-center justify-center
               font-semibold ${isNeonBlock ? '' : 'overflow-hidden'} text-center
@@ -316,7 +350,10 @@ const TilesLayer = React.memo<{
               willChange: duration ? 'transform' : undefined,
             }}
           >
-            <span className={`${isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''} ${isNeonBlock ? 'skin-neon-block-number' : ''}`} style={{ position: 'relative', zIndex: 2 }}>
+            <span
+              className={`${isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''} ${isNeonBlock ? 'skin-neon-block-number' : ''}`}
+              style={{ ...TILE_NUMBER_INHERIT_STYLE, position: 'relative', zIndex: 2 }}
+            >
               <span
                 className={isMergeNumberBursting ? 'tile-number-merge-burst' : ''}
                 style={isMergeNumberBursting ? ({
@@ -357,7 +394,6 @@ const ReviveDestroyLayer = React.memo<{
       {effects.map((effect) => {
         const transform = `translate3d(${layout.posPx[effect.x]}px, ${layout.posPx[effect.y]}px, 0)`;
         const appearance = getResolvedAppearance(effect.value);
-        const preserveAppearanceInWin98 = Boolean(appearance.style?.backgroundColor || appearance.style?.backgroundImage || appearance.style?.boxShadow);
         const isNeonBlock = appearance.className === 'skin-neon-block';
         const { text, fontPx } = getTileNumberLayout(effect.value, layout.cellPx);
         return (
@@ -380,8 +416,7 @@ const ReviveDestroyLayer = React.memo<{
                 ${isNeonBlock ? 'skin-neon-block--board' : ''}
               `}
               data-tile-kind="revive-effect"
-              data-premium-ui-allow-gradient={preserveAppearanceInWin98 ? 'true' : undefined}
-              data-premium-ui-allow-shadow={preserveAppearanceInWin98 ? 'true' : undefined}
+              {...TILE_PREMIUM_UI_PRESERVE_ATTRS}
               style={{
                 fontSize: `${fontPx}px`,
                 lineHeight: 1,
@@ -390,7 +425,12 @@ const ReviveDestroyLayer = React.memo<{
                 ...(appearance.style ?? {}),
               }}
             >
-              <span className={`${isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''} ${isNeonBlock ? 'skin-neon-block-number' : ''}`}>{text}</span>
+              <span
+                className={`${isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''} ${isNeonBlock ? 'skin-neon-block-number' : ''}`}
+                style={TILE_NUMBER_INHERIT_STYLE}
+              >
+                {text}
+              </span>
             </div>
           </div>
         );
@@ -583,17 +623,18 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
       return;
     }
 
+    const hasGlobalPixelBlastSurface = () => Boolean(document.querySelector('.pixelblast-global-background'));
     const hasGlobalPixelBlastCanvas = () => Boolean(document.querySelector('.pixelblast-global-background canvas'));
     const syncFallbackVisibility = () => {
-      setShouldRenderPixelBlastFallback(!hasGlobalPixelBlastCanvas());
+      setShouldRenderPixelBlastFallback(!hasGlobalPixelBlastSurface() && !hasGlobalPixelBlastCanvas());
     };
 
     syncFallbackVisibility();
-    if (hasGlobalPixelBlastCanvas()) return;
+    if (hasGlobalPixelBlastSurface() || hasGlobalPixelBlastCanvas()) return;
 
     const observer = new MutationObserver(() => {
       syncFallbackVisibility();
-      if (hasGlobalPixelBlastCanvas()) observer.disconnect();
+      if (hasGlobalPixelBlastSurface() || hasGlobalPixelBlastCanvas()) observer.disconnect();
     });
     observer.observe(document.body, { childList: true, subtree: true });
     return () => observer.disconnect();
@@ -822,9 +863,9 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
       }
       return;
     }
-    const uniqueTargets = Array.from(
+    const uniqueTargets = limitPixelBlastRippleTargets(Array.from(
       new Set(mergingTiles.map((tile) => `${tile.toX},${tile.toY}`))
-    ).sort();
+    ).sort(), size);
     if (uniqueTargets.length === 0) return;
 
     const mergeEventUnits = mergingTiles
@@ -864,7 +905,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
       });
       schedulePendingMergeReplay();
     }, rippleDelayMs);
-  }, [enqueuePendingMergeRipple, getPendingMergeNow, isPixelBlastMergeRippleEnabled, mergingTiles, prunePendingMergeQueue, schedulePendingMergeReplay, triggerMergeRipple]);
+  }, [enqueuePendingMergeRipple, getPendingMergeNow, isPixelBlastMergeRippleEnabled, mergingTiles, prunePendingMergeQueue, schedulePendingMergeReplay, size, triggerMergeRipple]);
 
   // 드래그가 끝나면(= activePiece가 없어지면) hover를 즉시 정리해서 불필요한 렌더를 줄임
   useEffect(() => {

@@ -84,6 +84,7 @@ export interface BottomNavBarProps {
   calendarUnlocked: boolean;
   dailyMissionCompleted: number;
   calendarPendingCount: number;
+  skinBadge?: boolean;
   isPremiumUiThemeActive: boolean;
   onSkinPress: () => void;
   onCustomizationPress: () => void;
@@ -116,6 +117,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
   customizationLockReason,
   dailyMissionCompleted,
   calendarPendingCount,
+  skinBadge,
   isPremiumUiThemeActive,
   onSkinPress,
   onCustomizationPress,
@@ -156,6 +158,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
       onPress: showSkin ? onSkinPress : onCustomizationPress,
       visible: showSkin || showCustomization,
       locked: false,
+      badge: skinBadge ? '●' : undefined,
     },
     {
       id: 'leaderboard',

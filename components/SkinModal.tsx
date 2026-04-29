@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, Lock, X } from 'lucide-react';
-import { SKIN_CATALOG, SKIN_PREVIEW_VALUES, MAX_DAILY_SKIN_AD_VIEWS, FRAGMENTS_PER_DUPLICATE } from '../constants';
+import { SKIN_CATALOG, SKIN_PREVIEW_VALUES, MAX_DAILY_SKIN_AD_VIEWS, FRAGMENTS_PER_DUPLICATE, SKIN_NEW_DURATION_MS } from '../constants';
 import { getTileNumberLayout } from '../constants';
 import { useBlockCustomization } from '../context/BlockCustomizationContext';
 import type { SkinItem, SkinDrawResult } from '../types';
@@ -37,6 +37,7 @@ const PIXELBLAST_SKIN_ID = 'skin_digital_pixelblast_void';
 const SKIN_SWATCH_GRID_CLASS_NAME = 'grid grid-cols-6 gap-2.5';
 const SKIN_TUTORIAL_ANCHOR_INSET_PX = 1;
 const getSkinItemTargetId = (skinId: string): string => `skin-item-${skinId}`;
+let drawButtonGuideShownInSession = false;
 
 // 스킨 미리보기 타일 렌더링
 const SkinPreviewTile = React.memo<{ value: number; skin: { id?: string; hex: string; style?: any }; tilePx: number }>(
@@ -168,6 +169,7 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
   const [freeDrawError, setFreeDrawError] = useState<string | null>(null);
   const [isProcessingFreeDraw, setIsProcessingFreeDraw] = useState(false);
   const [showApplyTooltip, setShowApplyTooltip] = useState(false);
+  const [showDrawButtonGuide, setShowDrawButtonGuide] = useState(false);
   const freeDrawInFlightRef = useRef(false);
   const freeDrawAutoAttemptedRef = useRef(false);
   const tooltipMeasureRequestRef = useRef(0);
@@ -180,6 +182,16 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
     () => SKIN_CATALOG.reduce((count, entry) => count + (ownedIds.has(entry.id) ? 1 : 0), 0),
     [ownedIds]
   );
+
+  const recentlyAcquiredSkinIds = useMemo(() => {
+    const now = Date.now();
+    const threshold = now - SKIN_NEW_DURATION_MS;
+    return new Set(
+      skinSettings.ownedSkins
+        .filter((skin) => skin.acquiredAt >= threshold)
+        .map((skin) => skin.id)
+    );
+  }, [skinSettings.ownedSkins]);
 
   const collectionComplete = useMemo(
     () => isCollectionComplete(skinSettings),
@@ -418,6 +430,7 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
       freeDrawInFlightRef.current = false;
       cancelPendingTooltipMeasurement();
       setShowApplyTooltip(false);
+      setShowDrawButtonGuide(false);
       setFreeDrawResultSkinId(null);
       setFreeDrawError(null);
       setIsProcessingFreeDraw(false);
@@ -537,6 +550,12 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
       ensureSkinTargetVisibleAndShowTooltip(drawnId);
       setFreeDrawResultSkinId(null);
     }
+
+    // 첫 무료 뽑기 직후, 광고 뽑기 버튼이 있으면 가이드 표시 (세션당 1회)
+    if (isSkinRewardAdSupported() && !drawButtonGuideShownInSession) {
+      drawButtonGuideShownInSession = true;
+      setShowDrawButtonGuide(true);
+    }
   }, [freeDrawResultSkinId, ensureSkinTargetVisibleAndShowTooltip]);
 
   // 미리보기 표시할 스킨: 선택된 스킨 > 활성 스킨 > 첫 번째 카탈로그
@@ -609,6 +628,7 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
                               const isOwned = ownedIds.has(entry.id);
                               const isActive = skinSettings.activeSkinId === entry.id;
                               const isSelected = selectedSkinId === entry.id;
+                              const isRecentlyAcquired = recentlyAcquiredSkinIds.has(entry.id);
                               const swatchAppearance = swatchAppearanceBySkinId.get(entry.id);
                               const className = swatchAppearance?.className ?? '';
                               const style = swatchAppearance?.style;
@@ -621,12 +641,15 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
                                   id={getSkinItemTargetId(entry.id)}
                                   data-tutorial-anchor="skin-swatch"
                                   onClick={() => handleSkinTap(entry.id, entry.hex)}
-                                  className={`relative aspect-square flex items-center justify-center cursor-pointer ${premiumUiCompartmentButtonClassName} ${isSelected ? premiumUiListItemHighlightClassName : ''} ${isNeonSwatch ? 'bg-slate-950/10 shadow-[inset_0_0_0_1px_rgba(2,6,23,0.12)]' : ''}`}
+                                  className={`relative aspect-square flex items-center justify-center cursor-pointer ${premiumUiCompartmentButtonClassName} ${isSelected ? premiumUiListItemHighlightClassName : ''} ${isRecentlyAcquired ? 'skin-swatch-new' : ''} ${isNeonSwatch ? 'bg-slate-950/10 shadow-[inset_0_0_0_1px_rgba(2,6,23,0.12)]' : ''}`}
                                   style={{
                                     boxSizing: 'border-box',
                                     ['--tutorial-anchor-inset' as any]: `${SKIN_TUTORIAL_ANCHOR_INSET_PX}px`,
                                   }}
                                 >
+                                  {isRecentlyAcquired && (
+                                    <div className="skin-new-badge">{t('modals:skin.newLabel')}</div>
+                                  )}
                                   <div
                                     className="w-full h-full relative"
                                     data-skin-swatch="true"
@@ -710,6 +733,26 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
 
               {isSkinRewardAdSupported() && (
                 <div style={{ marginTop: '12px', textAlign: 'center' }}>
+                  {showDrawButtonGuide && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`${premiumUiFieldRowStackedClassName} bg-violet-50 border border-violet-300 justify-center relative`}
+                      style={{ marginBottom: '4px' }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setShowDrawButtonGuide(false)}
+                        style={{ position: 'absolute', top: '2px', right: '6px', fontWeight: 'bold', cursor: 'pointer' }}
+                        aria-label="Close"
+                      >
+                        ×
+                      </button>
+                      <p style={{ fontSize: '11px', fontWeight: 'bold' }}>
+                        {t('modals:skin.drawGuideHint' as any, '광고를 보고 더 많은 스킨을 뽑을 수 있어요!')}
+                      </p>
+                    </motion.div>
+                  )}
                   {freeDrawError && (
                     <div className={`${premiumUiFieldRowStackedClassName} bg-danger justify-center`} style={{ marginBottom: '4px' }}>
                       <p>{freeDrawError}</p>
@@ -836,6 +879,7 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
                             const isOwned = ownedIds.has(entry.id);
                             const isActive = skinSettings.activeSkinId === entry.id;
                             const isSelected = selectedSkinId === entry.id;
+                            const isRecentlyAcquired = recentlyAcquiredSkinIds.has(entry.id);
                             const swatchAppearance = swatchAppearanceBySkinId.get(entry.id);
                             const className = swatchAppearance?.className ?? '';
                             const style = swatchAppearance?.style;
@@ -850,14 +894,18 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
                                 type="button"
                                 onClick={() => handleSkinTap(entry.id, entry.hex)}
                                 className={`
-                                  relative aspect-square rounded-2xl transition-all duration-150 overflow-hidden
+                                  relative aspect-square rounded-2xl transition-all duration-150
                                   ${isSelected ? 'ring-2 ring-gray-900 ring-offset-2' : 'ring-1 ring-black/5'}
+                                  ${isRecentlyAcquired ? 'skin-swatch-new overflow-visible' : 'overflow-hidden'}
                                   ${isNeonSwatch ? 'bg-slate-950/10 shadow-[inset_0_0_0_1px_rgba(2,6,23,0.12)]' : ''}
                                 `}
                                 style={{
                                   ['--tutorial-anchor-inset' as any]: `${SKIN_TUTORIAL_ANCHOR_INSET_PX}px`,
                                 }}
                               >
+                                {isRecentlyAcquired && (
+                                  <div className="skin-new-badge">{t('modals:skin.newLabel')}</div>
+                                )}
                                 <div
                                   className={`relative w-full h-full ${isNeonSwatch ? '' : 'overflow-hidden'}`}
                                   data-skin-swatch="true"
@@ -967,6 +1015,23 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
             {/* 뽑기 버튼 영역 */}
             {isSkinRewardAdSupported() && (
               <div className="space-y-2">
+                {showDrawButtonGuide && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-center py-2.5 px-3 rounded-2xl bg-gradient-to-r from-violet-50 to-fuchsia-50 border border-violet-200/60 text-gray-700 text-xs font-medium leading-relaxed relative"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setShowDrawButtonGuide(false)}
+                      className="absolute top-1 right-2 text-gray-400 hover:text-gray-600 text-sm leading-none"
+                      aria-label="Close"
+                    >
+                      ×
+                    </button>
+                    <p>{t('modals:skin.drawGuideHint' as any, '광고를 보고 더 많은 스킨을 뽑을 수 있어요!')}</p>
+                  </motion.div>
+                )}
                 {freeDrawError && (
                   <div className="text-center py-2 rounded-2xl bg-red-50 border border-red-200/60 text-red-600 font-semibold text-sm space-y-2">
                     <div>{freeDrawError}</div>

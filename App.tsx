@@ -1212,7 +1212,8 @@ const App: React.FC = () => {
   }, [openExclusiveModal]);
 
   const openSkinModal = useCallback(() => {
-    const shouldConsumePendingFreeDraw = isFirstScoreSkinRewardPending() && !isFirstScoreSkinRewardClaimed();
+    // pending 여부와 관계없이, 아직 첫 스킨 보상을 수령하지 않은 모든 유저에게 무료 뽑기 기회 제공
+    const shouldConsumePendingFreeDraw = !isFirstScoreSkinRewardClaimed();
     setSkinModalFreeDraw(shouldConsumePendingFreeDraw);
     openExclusiveModal('skin');
   }, [openExclusiveModal]);
@@ -2776,7 +2777,6 @@ const App: React.FC = () => {
   // ── 최초 50점 돌파 시 무료 스킨 뽑기권 지급 ──
   useEffect(() => {
     if (gameState !== GameState.PLAYING) return;
-    if (gameMode !== 'normal') return;
     if (score < 50) return;
     // 노출 1회 플래그 먼저 확인 (재노출 방지: localStorage/sessionStorage 기반)
     if (isFirstScoreSkinRewardShown()) return;
@@ -4987,6 +4987,7 @@ const App: React.FC = () => {
               calendarUnlocked={isFeatureUnlocked('calendar')}
               dailyMissionCompleted={dailyMissionCompleted}
               calendarPendingCount={getCalendarItems().filter(i => !i.isCompleted).length}
+              skinBadge={!isFirstScoreSkinRewardClaimed()}
               isPremiumUiThemeActive={isPremiumUiThemeActive}
               onSkinPress={openSkinModal}
               onCustomizationPress={openCustomizationModal}
@@ -5011,7 +5012,7 @@ const App: React.FC = () => {
             }}
             freeDraw={skinModalFreeDraw}
             onFreeDrawUsed={(consumed) => {
-              const shouldConsumeFirstReward = isFirstScoreSkinRewardPending() && !isFirstScoreSkinRewardClaimed();
+              const shouldConsumeFirstReward = !isFirstScoreSkinRewardClaimed();
               if (shouldConsumeFirstReward) {
                 trackAnalyticsEvent({
                   name: consumed ? 'first_skin_reward_consume_success' : 'first_skin_reward_consume_failure',

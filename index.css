@@ -771,3 +771,110 @@
       rgba(168, 159, 255, 0.1) 100%
     );
 }
+
+/* ── New! 스킨 배지 + 반짝 테두리 ── */
+
+@keyframes skinShimmerBorder {
+  0% {
+    box-shadow:
+      0 0 6px rgba(168, 85, 247, 0.45),
+      inset 0 0 3px rgba(168, 85, 247, 0.18);
+    border-color: rgba(168, 85, 247, 0.72);
+  }
+  50% {
+    box-shadow:
+      0 0 10px rgba(168, 85, 247, 0.62),
+      inset 0 0 6px rgba(168, 85, 247, 0.32);
+    border-color: rgba(192, 132, 252, 0.92);
+  }
+  100% {
+    box-shadow:
+      0 0 6px rgba(168, 85, 247, 0.45),
+      inset 0 0 3px rgba(168, 85, 247, 0.18);
+    border-color: rgba(168, 85, 247, 0.72);
+  }
+}
+
+.skin-swatch-new {
+  position: relative;
+  border: 2px solid rgba(168, 85, 247, 0.72) !important;
+  animation: skinShimmerBorder 2s ease-in-out infinite;
+}
+
+.skin-swatch-new::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    transparent 0%,
+    rgba(168, 85, 247, 0.14) 25%,
+    rgba(192, 132, 252, 0.22) 50%,
+    rgba(168, 85, 247, 0.14) 75%,
+    transparent 100%
+  );
+  background-size: 200% 200%;
+  animation: skinShimmerSheen 2.4s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 8;
+}
+
+@keyframes skinShimmerSheen {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.skin-new-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  z-index: 20;
+  padding: 1px 6px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+  color: #fff;
+  background: linear-gradient(135deg, #a855f7, #d946ef);
+  border-radius: 9999px;
+  box-shadow: 0 1px 4px rgba(168, 85, 247, 0.45);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* Win98 프리미엄 UI 전용: New! 배지에 약간 다른 그림자 */
+.theme-win98 .skin-new-badge {
+  box-shadow: inset 1px 1px 0 #fff, inset -1px -1px 0 #808080;
+  border: 1px solid #7c3aed;
+}
+
+/* 프리미엄 UI에서 skin-swatch-new 반짝임 약하게 조정 (대비 덜하도록) */
+.is-premium-ui-theme .skin-swatch-new {
+  animation: skinShimmerBorderSubtle 2s ease-in-out infinite;
+}
+
+@keyframes skinShimmerBorderSubtle {
+  0% {
+    box-shadow:
+      0 0 4px rgba(168, 85, 247, 0.3),
+      inset 0 0 2px rgba(168, 85, 247, 0.1);
+    border-color: rgba(168, 85, 247, 0.5);
+  }
+  50% {
+    box-shadow:
+      0 0 8px rgba(168, 85, 247, 0.45),
+      inset 0 0 4px rgba(168, 85, 247, 0.22);
+    border-color: rgba(192, 132, 252, 0.72);
+  }
+  100% {
+    box-shadow:
+      0 0 4px rgba(168, 85, 247, 0.3),
+      inset 0 0 2px rgba(168, 85, 247, 0.1);
+    border-color: rgba(168, 85, 247, 0.5);
+  }
+}

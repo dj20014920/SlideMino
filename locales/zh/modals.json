@@ -191,6 +191,8 @@
     "collectionComplete": "收藏完成！",
     "purchaseButton": "🧩 {{cost}}个碎片兑换",
     "insufficientFragments": "碎片不足 ({{current}}/{{cost}})",
+    "newLabel": "新品!",
+    "drawGuideHint": "观看广告抽取更多皮肤！",
     "applyHintTitle": "应用皮肤",
     "applyHintDesc": "再次点击已选皮肤即可立即应用。",
     "premium": "高级",

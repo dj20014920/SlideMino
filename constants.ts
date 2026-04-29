@@ -283,6 +283,7 @@ export const FRAGMENTS_PER_DUPLICATE = 1;  // 중복 뽑기 시 획득 조각 �
 export const FRAGMENT_COST_NORMAL = 15;    // 일반 스킨 교환 비용
 export const FRAGMENT_COST_PREMIUM = 50;   // 프리미엄 스킨 교환 비용
 export const DAILY_1024_FRAGMENT_CAP = 3;  // 하루 1024타일 보상 최대 조각 수 (파밍 방지)
+export const SKIN_NEW_DURATION_MS = 60_000;  // 신규 획득 스킨에 "New!" 배지가 표시되는 기간
 
 /**
  * 스킨 카탈로그 (확장 시 여기에 항목만 추가)

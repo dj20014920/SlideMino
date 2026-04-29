@@ -191,6 +191,8 @@
     "collectionComplete": "コレクション完成！",
     "purchaseButton": "🧩 {{cost}}個のかけらで交換",
     "insufficientFragments": "かけら不足 ({{current}}/{{cost}})",
+    "newLabel": "新着!",
+    "drawGuideHint": "広告を見てもっとスキンを引こう！",
     "applyHintTitle": "スキン適用",
     "applyHintDesc": "選択中のスキンをもう一度タップすると適用されます。",
     "premium": "プレミアム",

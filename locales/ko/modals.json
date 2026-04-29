@@ -191,6 +191,8 @@
     "collectionComplete": "칼렉션 완성!",
     "purchaseButton": "🧩 {{cost}}조각으로 교환",
     "insufficientFragments": "조각 부족 ({{current}}/{{cost}})",
+    "newLabel": "신규!",
+    "drawGuideHint": "광고를 보고 더 많은 스킨을 뽑을 수 있어요!",
     "applyHintTitle": "스킨 적용",
     "applyHintDesc": "선택한 스킨을 한 번 더 탭하면 즉시 적용됩니다.",
     "premium": "프리미엄",

@@ -142,6 +142,23 @@ const EXPLORE_GALAXY_PREMIUM_SKIN: SkinCatalogEntry = {
   },
 };
 
+const NEON_CORTEX_PREMIUM_SKIN: SkinCatalogEntry = {
+  id: 'skin_digital_neon_cortex',
+  hex: '#00e5ff',
+  category: 'digital',
+  nameKey: 'neonCortex',
+  premium: true,
+  premiumUiThemeId: 'neon_cortex',
+  style: {
+    type: 'css-pattern',
+    value: 'none',
+    textColor: '#e0f0ff',
+    customCss: [
+      'border-radius: 4px',
+    ].join('; ') + ';',
+  },
+};
+
 const PIXELBLAST_VOID_PREMIUM_SKIN: SkinCatalogEntry = {
   id: 'skin_digital_pixelblast_void',
   hex: '#7d5fff',
@@ -164,6 +181,7 @@ const PIXELBLAST_VOID_PREMIUM_SKIN: SkinCatalogEntry = {
 // ==========================================
 
 export const ADDITIONAL_SKIN_CATALOG: SkinCatalogEntry[] = [
+  NEON_CORTEX_PREMIUM_SKIN,
   PIXELBLAST_VOID_PREMIUM_SKIN,
   EXPLORE_GALAXY_PREMIUM_SKIN,
   ...NEON_ORDERED_SKINS,

@@ -1,0 +1,1044 @@
+/*
+ * SlideMino — Neon Cortex premium UI theme
+ * 사이버펑크 디지털 의식 인터페이스: 네온 글로우, 스캔라인, 글리치, 홀로그래픽 HUD
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;600;700;900&display=swap');
+
+/* ──────────────────────────────────────────
+   1. CSS 변수
+   ────────────────────────────────────────── */
+:root {
+  --cortex-bg: #0a0a14;
+  --cortex-bg-2: #0f0f1e;
+  --cortex-bg-3: #16162a;
+  --cortex-surface: rgba(10, 10, 20, 0.78);
+  --cortex-surface-2: rgba(15, 15, 30, 0.82);
+  --cortex-border: rgba(0, 229, 255, 0.18);
+  --cortex-border-bright: rgba(0, 229, 255, 0.35);
+  --cortex-cyan: #00e5ff;
+  --cortex-magenta: #ff0080;
+  --cortex-purple: #7000ff;
+  --cortex-amber: #ffb300;
+  --cortex-green: #00ff88;
+  --cortex-red: #ff0040;
+  --cortex-text: #e0f0ff;
+  --cortex-text-dim: rgba(0, 229, 255, 0.5);
+  --cortex-title-grad: linear-gradient(90deg, rgba(0, 229, 255, 0.06) 0%, rgba(112, 0, 255, 0.08) 50%, rgba(0, 229, 255, 0.06) 100%);
+  --cortex-btn-bg: rgba(0, 229, 255, 0.04);
+  --cortex-btn-border: rgba(0, 229, 255, 0.2);
+  --cortex-btn-hover: rgba(0, 229, 255, 0.08);
+  --cortex-btn-active: rgba(0, 229, 255, 0.12);
+  --cortex-glow-sm: 0 0 6px rgba(0, 229, 255, 0.15);
+  --cortex-glow-md: 0 0 14px rgba(0, 229, 255, 0.1), 0 0 28px rgba(112, 0, 255, 0.06);
+  --cortex-glow-title: 0 0 10px rgba(0, 229, 255, 0.2);
+  --cortex-radius: 8px;
+  --cortex-radius-sm: 4px;
+  --cortex-nav-height: 48px;
+  --cortex-scanline: repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(0, 229, 255, 0.012) 1px, rgba(0, 229, 255, 0.012) 2px);
+}
+
+/* ──────────────────────────────────────────
+   2. 기본 폰트/색상
+   ────────────────────────────────────────── */
+html.theme-neon-cortex,
+body.theme-neon-cortex {
+  color: var(--cortex-text);
+  font-family: 'Share Tech Mono', 'Courier New', monospace;
+  --game-mode-focus-accent: 0, 229, 255;
+  --game-mode-focus-accent-strong: 112, 0, 255;
+  --game-mode-focus-contrast: 224, 240, 255;
+  --game-mode-focus-board-radius: 6px;
+  --game-mode-focus-board-inset: 4px;
+  --game-mode-focus-slots-radius: 6px;
+  --game-mode-focus-slots-inset: 3px;
+  background: var(--cortex-bg) !important;
+}
+
+body.theme-neon-cortex,
+body.theme-neon-cortex * {
+  box-sizing: border-box;
+}
+
+body.theme-neon-cortex a {
+  color: var(--cortex-cyan);
+  text-decoration: underline;
+}
+
+/* ──────────────────────────────────────────
+   3. 앱 셸
+   ────────────────────────────────────────── */
+body.theme-neon-cortex .cortex-app-shell {
+  background: transparent !important;
+  color: var(--cortex-text) !important;
+  position: relative;
+  z-index: 1;
+}
+
+body.theme-neon-cortex .cortex-app-shell::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(0, 229, 255, 0.04) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 100%, rgba(112, 0, 255, 0.03) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* 스캔라인 오버레이 */
+body.theme-neon-cortex .cortex-app-shell::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: var(--cortex-scanline);
+  background-size: 100% 2px;
+  pointer-events: none;
+  z-index: 9998;
+  opacity: 0.6;
+  animation: cortex-scanline-scroll 6s linear infinite;
+}
+
+@keyframes cortex-scanline-scroll {
+  from { background-position-y: 0; }
+  to { background-position-y: 2px; }
+}
+
+/* Tailwind 클래스 중화 */
+body.theme-neon-cortex .cortex-app-shell [class*="bg-gradient"]:not([data-premium-ui-allow-gradient="true"]):not([data-skin-preview-tile="true"]) {
+  background: transparent !important;
+}
+
+body.theme-neon-cortex .cortex-app-shell [class*="bg-white"]:not([data-skin-preview-tile="true"]):not(.cortex-window):not(.cortex-window-body) {
+  background: var(--cortex-surface) !important;
+}
+
+body.theme-neon-cortex .cortex-app-shell [class*="bg-gray"]:not([data-skin-preview-tile="true"]) {
+  background: var(--cortex-surface) !important;
+}
+
+body.theme-neon-cortex .cortex-app-shell [class*="text-gray-900"]:not([data-skin-preview-tile="true"]) {
+  color: var(--cortex-text) !important;
+}
+
+body.theme-neon-cortex .cortex-app-shell [class*="text-gray-600"]:not([data-skin-preview-tile="true"]),
+body.theme-neon-cortex .cortex-app-shell [class*="text-gray-500"]:not([data-skin-preview-tile="true"]) {
+  color: var(--cortex-text-dim) !important;
+}
+
+body.theme-neon-cortex .cortex-app-shell [class*="text-gray-700"]:not([data-skin-preview-tile="true"]),
+body.theme-neon-cortex .cortex-app-shell [class*="text-gray-800"]:not([data-skin-preview-tile="true"]) {
+  color: var(--cortex-text) !important;
+}
+
+body.theme-neon-cortex .cortex-app-shell [class*="bg-emerald-"]:not([data-skin-preview-tile="true"]),
+body.theme-neon-cortex .cortex-app-shell [class*="bg-blue-50"]:not([data-skin-preview-tile="true"]),
+body.theme-neon-cortex .cortex-app-shell [class*="bg-gray-50"]:not([data-skin-preview-tile="true"]),
+body.theme-neon-cortex .cortex-app-shell [class*="bg-gray-100"]:not([data-skin-preview-tile="true"]) {
+  background: rgba(0, 0, 0, 0.72) !important;
+  color: var(--cortex-text) !important;
+  border-color: var(--cortex-border) !important;
+}
+
+body.theme-neon-cortex .cortex-app-shell button[class*="bg-white"]:not([data-skin-preview-tile="true"]) {
+  background: rgba(0, 0, 0, 0.68) !important;
+  color: var(--cortex-text) !important;
+  border-color: var(--cortex-btn-border) !important;
+}
+
+body.theme-neon-cortex .cortex-app-shell button:disabled {
+  opacity: 0.40 !important;
+}
+
+body.theme-neon-cortex .cortex-app-shell [class*="bg-white/20"]:not([data-skin-preview-tile="true"]),
+body.theme-neon-cortex .cortex-app-shell [class*="bg-white/40"]:not([data-skin-preview-tile="true"]) {
+  background: rgba(0, 0, 0, 0.60) !important;
+}
+
+body.theme-neon-cortex .cortex-app-shell [class*="bg-white"]:not(button):not([data-skin-preview-tile="true"]):not(.cortex-window):not(.cortex-window-body):not([class*="bg-white/"]):not([data-cortex-exempt]) {
+  background: rgba(0, 0, 0, 0.72) !important;
+  color: var(--cortex-text) !important;
+}
+
+body.theme-neon-cortex .cortex-app-shell [class*="border-emerald-"]:not([data-skin-preview-tile="true"]),
+body.theme-neon-cortex .cortex-app-shell [class*="border-blue-"]:not([data-skin-preview-tile="true"]) {
+  border-color: var(--cortex-border) !important;
+}
+
+body.theme-neon-cortex .cortex-app-shell [class*="bg-gray-200"]:not(button):not([data-skin-preview-tile="true"]) {
+  background: rgba(0, 0, 0, 0.55) !important;
+}
+
+body.theme-neon-cortex .cortex-app-shell [class*="text-white"]:not([data-skin-preview-tile="true"]) {
+  color: var(--cortex-text) !important;
+}
+
+body.theme-neon-cortex .cortex-app-shell .bg-white\/90,
+body.theme-neon-cortex .cortex-app-shell [style*="background: white"],
+body.theme-neon-cortex .cortex-app-shell [style*="background:#fff"],
+body.theme-neon-cortex .cortex-app-shell [style*="background: #fff"] {
+  background: rgba(0, 0, 0, 0.75) !important;
+  color: var(--cortex-text) !important;
+}
+
+body.theme-neon-cortex .cortex-app-shell [class*="text-gray-400"]:not([data-skin-preview-tile="true"]) {
+  color: rgba(0, 229, 255, 0.55) !important;
+}
+
+body.theme-neon-cortex .cortex-app-shell [class*="text-gray-300"]:not([data-skin-preview-tile="true"]) {
+  color: rgba(0, 229, 255, 0.40) !important;
+}
+
+body.theme-neon-cortex .cortex-app-shell [class*="bg-amber-50"]:not([data-skin-preview-tile="true"]) {
+  background: rgba(55, 30, 4, 0.60) !important;
+  color: rgba(255, 179, 0, 0.95) !important;
+  border-color: rgba(255, 179, 0, 0.30) !important;
+}
+
+body.theme-neon-cortex .cortex-app-shell [class*="bg-amber-"]:not([class*="bg-amber-50"]):not([data-skin-preview-tile="true"]):not(button) {
+  background: rgba(0, 0, 0, 0.72) !important;
+  color: var(--cortex-text) !important;
+  border-color: var(--cortex-border) !important;
+}
+
+body.theme-neon-cortex .cortex-app-shell [class*="from-violet-50"]:not([data-skin-preview-tile="true"]),
+body.theme-neon-cortex .cortex-app-shell [class*="from-amber-50"]:not([data-skin-preview-tile="true"]) {
+  background: rgba(0, 0, 0, 0.75) !important;
+  color: var(--cortex-text) !important;
+}
+
+body.theme-neon-cortex .cortex-app-shell [class*="text-violet-600"]:not([data-skin-preview-tile="true"]),
+body.theme-neon-cortex .cortex-app-shell [class*="text-blue-600"]:not([data-skin-preview-tile="true"]) {
+  color: var(--cortex-cyan) !important;
+}
+
+body.theme-neon-cortex .cortex-app-shell [class*="border-violet-"]:not([data-skin-preview-tile="true"]),
+body.theme-neon-cortex .cortex-app-shell [class*="border-blue-500"]:not([data-skin-preview-tile="true"]) {
+  border-color: var(--cortex-cyan) !important;
+}
+
+body.theme-neon-cortex .cortex-app-shell [class*="bg-violet-50"]:not([data-skin-preview-tile="true"]),
+body.theme-neon-cortex .cortex-app-shell [class*="bg-blue-50"]:not([data-skin-preview-tile="true"]) {
+  background: rgba(0, 0, 0, 0.65) !important;
+}
+
+body.theme-neon-cortex .cortex-app-shell [class*="border-gray"]:not([data-skin-preview-tile="true"]):not([data-premium-ui-surface="true"]) {
+  border-color: var(--cortex-border) !important;
+}
+
+body.theme-neon-cortex .cortex-app-shell [class*="border-white"]:not([data-skin-preview-tile="true"]) {
+  border-color: var(--cortex-border) !important;
+}
+
+/* ──────────────────────────────────────────
+   4. 윈도우 / 패널
+   ────────────────────────────────────────── */
+body.theme-neon-cortex .cortex-window,
+body.theme-neon-cortex [data-premium-ui-surface="true"] {
+  color: var(--cortex-text) !important;
+  background: rgba(10, 10, 20, 0.72) !important;
+  border: 1px solid rgba(0, 229, 255, 0.22) !important;
+  box-shadow:
+    0 3px 14px rgba(0, 0, 0, 0.34),
+    0 0 0 0.5px rgba(0, 229, 255, 0.12),
+    inset 0 0 20px rgba(0, 229, 255, 0.02) !important;
+  border-radius: var(--cortex-radius) !important;
+}
+
+body.theme-neon-cortex .cortex-window-body {
+  background: transparent !important;
+  color: var(--cortex-text) !important;
+  padding: 12px !important;
+}
+
+/* ──────────────────────────────────────────
+   5. 타이틀 바
+   ────────────────────────────────────────── */
+body.theme-neon-cortex .cortex-title-bar {
+  background: var(--cortex-title-grad) !important;
+  border-bottom: 1px solid rgba(0, 229, 255, 0.18) !important;
+  border-radius: var(--cortex-radius) var(--cortex-radius) 0 0 !important;
+  padding: 6px 10px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  box-shadow: var(--cortex-glow-title) !important;
+  min-height: 32px;
+}
+
+body.theme-neon-cortex .cortex-title-bar-text {
+  font-family: 'Orbitron', 'Share Tech Mono', monospace !important;
+  font-weight: 700 !important;
+  font-size: 11px !important;
+  letter-spacing: 0.12em !important;
+  color: var(--cortex-cyan) !important;
+  text-shadow:
+    0 0 6px rgba(0, 229, 255, 0.5),
+    0 0 12px rgba(0, 229, 255, 0.2) !important;
+  text-transform: uppercase;
+  white-space: pre-line;
+  line-height: 1.1;
+}
+
+body.theme-neon-cortex .cortex-title-bar-controls {
+  display: flex !important;
+  gap: 6px !important;
+  align-items: center !important;
+}
+
+body.theme-neon-cortex .cortex-title-bar-controls button {
+  width: 16px !important;
+  height: 16px !important;
+  border-radius: 0 !important;
+  border: 1px solid rgba(0, 229, 255, 0.3) !important;
+  background: rgba(0, 229, 255, 0.06) !important;
+  cursor: pointer !important;
+  transition: background 0.2s, box-shadow 0.2s !important;
+  box-shadow: 0 0 4px rgba(0, 229, 255, 0.1) !important;
+  position: relative;
+}
+
+body.theme-neon-cortex .cortex-title-bar-controls button::before {
+  content: '×';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--cortex-cyan);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  line-height: 1;
+}
+
+body.theme-neon-cortex .cortex-title-bar-controls button[aria-label='Help']::before {
+  content: '?';
+}
+
+body.theme-neon-cortex .cortex-title-bar-controls button:hover {
+  background: rgba(255, 0, 64, 0.3) !important;
+  border-color: var(--cortex-red) !important;
+  box-shadow: 0 0 8px rgba(255, 0, 64, 0.3) !important;
+}
+
+/* ──────────────────────────────────────────
+   6. 특수 윈도우
+   ────────────────────────────────────────── */
+body.theme-neon-cortex .cortex-top-window {
+  display: none !important;
+}
+
+body.theme-neon-cortex .cortex-menu-window {
+  max-height: calc(100dvh - 200px);
+  display: flex;
+  flex-direction: column;
+}
+
+body.theme-neon-cortex .cortex-menu-window .cortex-window-body {
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--cortex-cyan) transparent;
+}
+
+body.theme-neon-cortex .cortex-menu-window .cortex-window-body::-webkit-scrollbar {
+  width: 4px;
+}
+
+body.theme-neon-cortex .cortex-menu-window .cortex-window-body::-webkit-scrollbar-thumb {
+  background: var(--cortex-cyan);
+  border-radius: 2px;
+}
+
+/* ──────────────────────────────────────────
+   7. 모달 오버레이
+   ────────────────────────────────────────── */
+body.theme-neon-cortex .cortex-modal-overlay {
+  background: rgba(5, 5, 15, 0.70) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+}
+
+/* ──────────────────────────────────────────
+   8. 버튼 공통 기반
+   ────────────────────────────────────────── */
+body.theme-neon-cortex .cortex-menu-btn,
+body.theme-neon-cortex .cortex-game-btn,
+body.theme-neon-cortex .cortex-icon-btn,
+body.theme-neon-cortex .cortex-pill-btn,
+body.theme-neon-cortex .cortex-header-main-btn,
+body.theme-neon-cortex .cortex-header-icon-btn,
+body.theme-neon-cortex .cortex-header-action-btn,
+body.theme-neon-cortex .cortex-compartment,
+body.theme-neon-cortex .cortex-exit-home-btn,
+body.theme-neon-cortex .cortex-exit-cancel-btn {
+  background: var(--cortex-btn-bg) !important;
+  color: var(--cortex-text) !important;
+  border: 1px solid var(--cortex-btn-border) !important;
+  border-radius: var(--cortex-radius-sm) !important;
+  box-shadow: var(--cortex-glow-sm) !important;
+  transition: background 0.18s, box-shadow 0.18s, border-color 0.18s !important;
+  cursor: pointer !important;
+  font-family: 'Share Tech Mono', 'Courier New', monospace !important;
+  -webkit-tap-highlight-color: transparent;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 11px;
+}
+
+body.theme-neon-cortex .cortex-menu-btn:hover,
+body.theme-neon-cortex .cortex-game-btn:hover,
+body.theme-neon-cortex .cortex-icon-btn:hover,
+body.theme-neon-cortex .cortex-pill-btn:hover,
+body.theme-neon-cortex .cortex-header-main-btn:hover,
+body.theme-neon-cortex .cortex-header-icon-btn:hover,
+body.theme-neon-cortex .cortex-header-action-btn:hover,
+body.theme-neon-cortex .cortex-exit-home-btn:hover,
+body.theme-neon-cortex .cortex-exit-cancel-btn:hover {
+  background: var(--cortex-btn-hover) !important;
+  border-color: var(--cortex-cyan) !important;
+  box-shadow:
+    0 0 10px rgba(0, 229, 255, 0.3),
+    0 0 20px rgba(0, 229, 255, 0.1) !important;
+}
+
+body.theme-neon-cortex .cortex-menu-btn:active,
+body.theme-neon-cortex .cortex-game-btn:active,
+body.theme-neon-cortex .cortex-icon-btn:active,
+body.theme-neon-cortex .cortex-pill-btn:active,
+body.theme-neon-cortex .cortex-header-main-btn:active,
+body.theme-neon-cortex .cortex-header-icon-btn:active,
+body.theme-neon-cortex .cortex-header-action-btn:active,
+body.theme-neon-cortex .cortex-exit-home-btn:active,
+body.theme-neon-cortex .cortex-exit-cancel-btn:active {
+  background: var(--cortex-btn-active) !important;
+  box-shadow: 0 0 6px rgba(0, 229, 255, 0.4) !important;
+}
+
+body.theme-neon-cortex .cortex-header-main-btn {
+  min-width: 120px;
+  height: 36px;
+  padding: 0 12px !important;
+  font-size: 11px;
+}
+
+body.theme-neon-cortex .cortex-header-icon-btn {
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  min-height: 36px !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+body.theme-neon-cortex .cortex-header-action-btn {
+  min-width: 120px;
+  height: 36px;
+  padding: 0 12px !important;
+  font-size: 11px;
+}
+
+body.theme-neon-cortex .cortex-pill-btn {
+  border-radius: 999px !important;
+  padding: 6px 16px !important;
+}
+
+body.theme-neon-cortex .cortex-compartment {
+  background: rgba(0, 0, 0, 0.72) !important;
+  border: 1px solid var(--cortex-border) !important;
+  border-radius: var(--cortex-radius-sm) !important;
+}
+
+body.theme-neon-cortex .cortex-exit-home-btn {
+  border-color: rgba(255, 0, 64, 0.4) !important;
+  color: var(--cortex-red) !important;
+}
+
+body.theme-neon-cortex .cortex-exit-home-btn:hover {
+  background: rgba(127, 0, 20, 0.5) !important;
+  border-color: var(--cortex-red) !important;
+  box-shadow: 0 0 14px rgba(255, 0, 64, 0.3) !important;
+}
+
+body.theme-neon-cortex .cortex-exit-cancel-btn {
+  border-color: rgba(0, 229, 255, 0.3) !important;
+  color: var(--cortex-cyan) !important;
+}
+
+body.theme-neon-cortex .cortex-exit-cancel-btn:hover {
+  background: rgba(0, 60, 80, 0.4) !important;
+  border-color: var(--cortex-cyan) !important;
+  box-shadow: 0 0 14px rgba(0, 229, 255, 0.3) !important;
+}
+
+/* ──────────────────────────────────────────
+   9. 탭 스트립
+   ────────────────────────────────────────── */
+body.theme-neon-cortex .cortex-tabstrip {
+  display: flex !important;
+  gap: 4px !important;
+  padding: 4px !important;
+  background: rgba(10, 10, 20, 0.70) !important;
+  border: 1px solid var(--cortex-border) !important;
+  border-radius: var(--cortex-radius-sm) !important;
+}
+
+body.theme-neon-cortex .cortex-tabstrip-tab {
+  background: rgba(0, 229, 255, 0.03) !important;
+  color: var(--cortex-text-dim) !important;
+  border: 1px solid rgba(0, 229, 255, 0.12) !important;
+  border-radius: 2px !important;
+  padding: 5px 12px !important;
+  font-size: 11px !important;
+  cursor: pointer !important;
+  transition: background-color 0.18s, color 0.18s, border-color 0.18s, box-shadow 0.18s !important;
+  white-space: nowrap;
+  font-family: 'Share Tech Mono', 'Courier New', monospace !important;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+body.theme-neon-cortex .cortex-tabstrip-tab:hover {
+  color: var(--cortex-text) !important;
+  background: rgba(0, 229, 255, 0.06) !important;
+  border-color: rgba(0, 229, 255, 0.25) !important;
+}
+
+body.theme-neon-cortex .cortex-tabstrip-tab[aria-selected="true"],
+body.theme-neon-cortex .cortex-tabstrip-tab.active,
+body.theme-neon-cortex .cortex-tabstrip-tab[data-active="true"] {
+  background: rgba(0, 229, 255, 0.08) !important;
+  color: var(--cortex-cyan) !important;
+  border-color: var(--cortex-cyan) !important;
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.15) !important;
+  font-weight: 600 !important;
+}
+
+/* ──────────────────────────────────────────
+   10. 패널 / 리스트
+   ────────────────────────────────────────── */
+body.theme-neon-cortex .cortex-sunken {
+  background: rgba(10, 10, 22, 0.40) !important;
+  border: 1px solid rgba(0, 229, 255, 0.15) !important;
+  border-radius: var(--cortex-radius-sm) !important;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5) !important;
+  color: var(--cortex-text) !important;
+}
+
+body.theme-neon-cortex .cortex-sunken-white {
+  background: rgba(0, 229, 255, 0.02) !important;
+  border: 1px solid var(--cortex-border) !important;
+  border-radius: var(--cortex-radius-sm) !important;
+  color: var(--cortex-text) !important;
+}
+
+body.theme-neon-cortex .cortex-list-item {
+  background: rgba(0, 229, 255, 0.03) !important;
+  border: 1px solid var(--cortex-border) !important;
+  border-radius: var(--cortex-radius-sm) !important;
+  color: var(--cortex-text) !important;
+  transition: background 0.15s, border-color 0.15s !important;
+}
+
+body.theme-neon-cortex .cortex-list-item:hover {
+  background: rgba(0, 229, 255, 0.06) !important;
+  border-color: rgba(0, 229, 255, 0.3) !important;
+}
+
+body.theme-neon-cortex .cortex-list-item-highlight {
+  color: var(--cortex-cyan) !important;
+  font-weight: 700 !important;
+  text-shadow: 0 0 6px rgba(0, 229, 255, 0.4) !important;
+}
+
+body.theme-neon-cortex .cortex-badge {
+  background: rgba(10, 10, 22, 0.85) !important;
+  color: var(--cortex-cyan) !important;
+  border: 1px solid var(--cortex-cyan) !important;
+  border-radius: 2px !important;
+  padding: 1px 8px !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  box-shadow: 0 0 6px rgba(0, 229, 255, 0.15) !important;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-family: 'Share Tech Mono', 'Courier New', monospace !important;
+}
+
+body.theme-neon-cortex .cortex-fieldset {
+  border: 1px solid var(--cortex-border) !important;
+  border-radius: var(--cortex-radius-sm) !important;
+  padding: 10px 12px !important;
+  background: rgba(10, 10, 22, 0.30) !important;
+}
+
+body.theme-neon-cortex .cortex-fieldset legend {
+  color: var(--cortex-cyan) !important;
+  font-family: 'Orbitron', 'Share Tech Mono', monospace !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.1em !important;
+  text-shadow: 0 0 6px rgba(0, 229, 255, 0.4) !important;
+  padding: 0 6px !important;
+  text-transform: uppercase;
+}
+
+/* ──────────────────────────────────────────
+   11. 진행바
+   ────────────────────────────────────────── */
+body.theme-neon-cortex .cortex-progress-track {
+  background: rgba(0, 0, 0, 0.80) !important;
+  border: 1px solid var(--cortex-border) !important;
+  border-radius: 2px !important;
+  height: 8px !important;
+  overflow: hidden !important;
+}
+
+body.theme-neon-cortex .cortex-progress-fill {
+  background: linear-gradient(90deg, var(--cortex-purple), var(--cortex-cyan)) !important;
+  border-radius: 2px !important;
+  height: 100% !important;
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.5) !important;
+  transition: width 0.3s ease !important;
+  position: relative;
+}
+
+body.theme-neon-cortex .cortex-progress-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--cortex-scanline);
+  background-size: 100% 2px;
+  opacity: 0.3;
+}
+
+/* ──────────────────────────────────────────
+   12. 보드 셸
+   ────────────────────────────────────────── */
+body.theme-neon-cortex .cortex-board-shell {
+  background: rgba(10, 10, 20, 0.28) !important;
+  border: 1px solid rgba(0, 229, 255, 0.25) !important;
+  border-radius: var(--cortex-radius) !important;
+  box-shadow:
+    0 0 18px rgba(0, 0, 0, 0.34),
+    inset 0 0 0 1px rgba(0, 229, 255, 0.08) !important;
+}
+
+body.theme-neon-cortex .cortex-board-cell {
+  background: rgba(10, 10, 22, 0.32) !important;
+  border: 1px solid rgba(0, 229, 255, 0.15) !important;
+  border-radius: 3px !important;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55) !important;
+}
+
+body.theme-neon-cortex .cortex-ghost-valid {
+  background: rgba(0, 229, 255, 0.12) !important;
+  border: 2px solid rgba(0, 229, 255, 0.5) !important;
+  border-radius: 3px !important;
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.2) !important;
+}
+
+body.theme-neon-cortex .cortex-ghost-invalid {
+  background: rgba(255, 0, 64, 0.10) !important;
+  border: 2px solid rgba(255, 0, 64, 0.4) !important;
+  border-radius: 3px !important;
+  box-shadow: 0 0 8px rgba(255, 0, 64, 0.15) !important;
+}
+
+body.theme-neon-cortex .cortex-game-header {
+  align-items: flex-start;
+}
+
+body.theme-neon-cortex .cortex-game-board-window {
+  max-width: 520px;
+}
+
+body.theme-neon-cortex .cortex-window.cortex-game-board-window {
+  background: transparent !important;
+  border-color: rgba(0, 229, 255, 0.15) !important;
+  box-shadow: 0 0 0 1px rgba(0, 229, 255, 0.08) !important;
+}
+
+body.theme-neon-cortex .cortex-game-board-window .cortex-title-bar {
+  background: linear-gradient(180deg, rgba(0, 229, 255, 0.06), rgba(0, 229, 255, 0.02)) !important;
+  border-bottom: 1px solid rgba(0, 229, 255, 0.15) !important;
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.08) !important;
+}
+
+body.theme-neon-cortex .cortex-board-body {
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  background: transparent !important;
+}
+
+/* ──────────────────────────────────────────
+   13. 슬롯
+   ────────────────────────────────────────── */
+body.theme-neon-cortex .cortex-slot-shell {
+  background: rgba(10, 10, 20, 0.35) !important;
+  border: 1px solid rgba(0, 229, 255, 0.2) !important;
+  border-radius: var(--cortex-radius-sm) !important;
+  box-shadow:
+    0 0 12px rgba(0, 0, 0, 0.40),
+    0 0 24px rgba(0, 0, 0, 0.15),
+    inset 0 0 15px rgba(0, 229, 255, 0.02) !important;
+}
+
+body.theme-neon-cortex .cortex-slot-mini-cell {
+  background: rgba(10, 10, 22, 0.72) !important;
+  border: 1px solid rgba(0, 229, 255, 0.2) !important;
+  border-radius: 2px !important;
+}
+
+body.theme-neon-cortex .cortex-slot-rotate-btn {
+  background: var(--cortex-btn-bg) !important;
+  border: 1px solid var(--cortex-btn-border) !important;
+  border-radius: var(--cortex-radius-sm) !important;
+  color: var(--cortex-cyan) !important;
+  box-shadow: var(--cortex-glow-sm) !important;
+}
+
+body.theme-neon-cortex .cortex-slot-rotate-btn:hover {
+  background: var(--cortex-btn-hover) !important;
+  border-color: var(--cortex-cyan) !important;
+}
+
+/* ──────────────────────────────────────────
+   14. 하단 네비게이션
+   ────────────────────────────────────────── */
+body.theme-neon-cortex .cortex-nav-wrapper {
+  background: rgba(8, 8, 18, 0.95) !important;
+  border-top: 1px solid rgba(0, 229, 255, 0.12) !important;
+}
+
+body.theme-neon-cortex .cortex-bottom-nav {
+  background: rgba(8, 8, 18, 0.95) !important;
+  border-top: 1px solid rgba(0, 229, 255, 0.15) !important;
+  min-height: var(--cortex-nav-height) !important;
+  display: flex !important;
+  align-items: center !important;
+  box-shadow: 0 -1px 0 rgba(0, 229, 255, 0.08), 0 -12px 28px rgba(0, 0, 0, 0.46) !important;
+}
+
+body.theme-neon-cortex .cortex-bottom-nav-button {
+  background: rgba(0, 229, 255, 0.03) !important;
+  color: var(--cortex-text-dim) !important;
+  border: 1px solid rgba(0, 229, 255, 0.12) !important;
+  border-radius: 4px !important;
+  padding: 6px 10px !important;
+  cursor: pointer !important;
+  transition: color 0.18s, background 0.18s, border-color 0.18s, box-shadow 0.18s !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 2px !important;
+  font-size: 9px !important;
+  font-family: 'Share Tech Mono', 'Courier New', monospace !important;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+body.theme-neon-cortex .cortex-bottom-nav-button:hover,
+body.theme-neon-cortex .cortex-bottom-nav-button[aria-pressed="true"],
+body.theme-neon-cortex .cortex-bottom-nav-button.active {
+  color: var(--cortex-cyan) !important;
+  background: rgba(0, 229, 255, 0.08) !important;
+  border-color: var(--cortex-cyan) !important;
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.2) !important;
+  text-shadow: 0 0 6px rgba(0, 229, 255, 0.4) !important;
+}
+
+body.theme-neon-cortex .cortex-bottom-nav-badge {
+  background: var(--cortex-magenta) !important;
+  color: #fff !important;
+  border-radius: 2px !important;
+  font-size: 9px !important;
+  font-weight: 700 !important;
+  padding: 1px 5px !important;
+  box-shadow: 0 0 6px rgba(255, 0, 128, 0.4) !important;
+  font-family: 'Share Tech Mono', 'Courier New', monospace !important;
+}
+
+body.theme-neon-cortex .cortex-lock-toast {
+  background: rgba(8, 8, 18, 0.92) !important;
+  border: 1px solid rgba(0, 229, 255, 0.2) !important;
+  border-radius: 4px !important;
+  color: var(--cortex-text-dim) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+/* ──────────────────────────────────────────
+   15. 상태바
+   ────────────────────────────────────────── */
+body.theme-neon-cortex .cortex-status-bar {
+  background: rgba(8, 8, 18, 0.90) !important;
+  border-top: 1px solid rgba(0, 229, 255, 0.12) !important;
+  display: flex !important;
+  gap: 4px !important;
+  padding: 3px 6px !important;
+  font-size: 10px !important;
+  color: var(--cortex-text-dim) !important;
+  font-family: 'Share Tech Mono', 'Courier New', monospace !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase;
+}
+
+body.theme-neon-cortex .cortex-status-bar-field {
+  border: 1px solid var(--cortex-border) !important;
+  padding: 2px 8px !important;
+  color: var(--cortex-text-dim) !important;
+  background: rgba(10, 10, 22, 0.36) !important;
+}
+
+/* ──────────────────────────────────────────
+   16. 폼 레이아웃
+   ────────────────────────────────────────── */
+body.theme-neon-cortex .cortex-field-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin-bottom: 8px !important;
+}
+
+body.theme-neon-cortex .cortex-field-row-stacked {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  margin-bottom: 8px !important;
+}
+
+/* ──────────────────────────────────────────
+   17. 텍스트 유틸리티
+   ────────────────────────────────────────── */
+body.theme-neon-cortex .cortex-muted {
+  color: var(--cortex-text-dim) !important;
+}
+
+/* ──────────────────────────────────────────
+   18. 라디오 그룹
+   ────────────────────────────────────────── */
+body.theme-neon-cortex .cortex-radio-group input[type="radio"] {
+  accent-color: var(--cortex-cyan);
+}
+
+body.theme-neon-cortex .cortex-radio-group input[type="radio"] + label {
+  color: var(--cortex-text) !important;
+  cursor: pointer;
+}
+
+body.theme-neon-cortex .cortex-radio-group {
+  background: rgba(10, 10, 22, 0.48) !important;
+  border: 1px solid rgba(0, 229, 255, 0.15) !important;
+  border-radius: var(--cortex-radius-sm) !important;
+  padding: 8px;
+}
+
+/* ──────────────────────────────────────────
+   19. h1/h2 타이틀
+   ────────────────────────────────────────── */
+body.theme-neon-cortex .cortex-app-shell h1 {
+  font-family: 'Orbitron', 'Share Tech Mono', monospace !important;
+  font-size: 2.2rem !important;
+  font-weight: 900 !important;
+  color: var(--cortex-cyan) !important;
+  text-shadow:
+    0 0 15px rgba(0, 229, 255, 0.5),
+    0 0 30px rgba(0, 229, 255, 0.2),
+    0 0 60px rgba(112, 0, 255, 0.15) !important;
+  letter-spacing: 0.08em !important;
+  line-height: 1.1 !important;
+  text-transform: uppercase;
+}
+
+body.theme-neon-cortex .cortex-app-shell h2,
+body.theme-neon-cortex .cortex-app-shell h3 {
+  font-family: 'Orbitron', 'Share Tech Mono', monospace !important;
+  color: var(--cortex-text) !important;
+  text-shadow: 0 0 8px rgba(0, 229, 255, 0.3) !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase;
+}
+
+/* ──────────────────────────────────────────
+   20. 스크롤바
+   ────────────────────────────────────────── */
+body.theme-neon-cortex ::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+body.theme-neon-cortex ::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.50);
+}
+
+body.theme-neon-cortex ::-webkit-scrollbar-thumb {
+  background: var(--cortex-cyan);
+  border-radius: 2px;
+}
+
+/* ──────────────────────────────────────────
+   21. 일반 버튼 폴백
+   ────────────────────────────────────────── */
+body.theme-neon-cortex .cortex-app-shell button:not([class*="cortex-"]):not([data-skin-preview-tile="true"]):not([data-premium-ui-allow-gradient="true"]) {
+  background: var(--cortex-btn-bg);
+  color: var(--cortex-text);
+  border: 1px solid var(--cortex-btn-border);
+  border-radius: var(--cortex-radius-sm);
+  transition: background 0.18s, border-color 0.18s;
+}
+
+body.theme-neon-cortex .cortex-app-shell button:not([class*="cortex-"]):not([data-skin-preview-tile="true"]):hover {
+  background: var(--cortex-btn-hover);
+  border-color: var(--cortex-cyan);
+}
+
+/* ──────────────────────────────────────────
+   22. 입력 폼 요소
+   ────────────────────────────────────────── */
+body.theme-neon-cortex input[type="text"],
+body.theme-neon-cortex input[type="email"],
+body.theme-neon-cortex input[type="number"],
+body.theme-neon-cortex textarea {
+  background: rgba(10, 10, 22, 0.72) !important;
+  color: var(--cortex-text) !important;
+  border: 1px solid var(--cortex-border) !important;
+  border-radius: var(--cortex-radius-sm) !important;
+  padding: 8px 12px !important;
+  outline: none !important;
+  caret-color: var(--cortex-cyan) !important;
+  transition: border-color 0.18s !important;
+  font-family: 'Share Tech Mono', 'Courier New', monospace !important;
+}
+
+body.theme-neon-cortex input[type="text"]:focus,
+body.theme-neon-cortex input[type="email"]:focus,
+body.theme-neon-cortex input[type="number"]:focus,
+body.theme-neon-cortex textarea:focus {
+  border-color: var(--cortex-cyan) !important;
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.25) !important;
+}
+
+body.theme-neon-cortex input::placeholder,
+body.theme-neon-cortex textarea::placeholder {
+  color: var(--cortex-text-dim) !important;
+}
+
+/* ──────────────────────────────────────────
+   23. 전역 배경 레이어 (Canvas 네온 그리드)
+   ────────────────────────────────────────── */
+.cortex-global-background {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+  isolation: isolate;
+  /* 캔버스 백업용 베이스 색상 */
+  background-color: #0a0a14;
+}
+
+.cortex-global-background canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block !important;
+}
+
+/* ──────────────────────────────────────────
+   24. Neon Cortex 스킨 타일
+   ────────────────────────────────────────── */
+.skin-neon-cortex-tile {
+  background: rgba(10, 12, 24, 0.55) !important;
+  border: 1px solid rgba(0, 229, 255, 0.25) !important;
+  box-shadow:
+    0 0 8px rgba(0, 229, 255, 0.06),
+    inset 0 1px 0 rgba(0, 229, 255, 0.08),
+    inset 0 0 12px rgba(0, 229, 255, 0.03) !important;
+  border-radius: 4px !important;
+  color: #e0f0ff !important;
+  text-shadow:
+    0 0 6px rgba(0, 229, 255, 0.5),
+    0 1px 2px rgba(0, 0, 0, 0.80) !important;
+}
+
+.skin-neon-cortex-tile[data-ghost] {
+  background: rgba(0, 229, 255, 0.08) !important;
+  border-color: rgba(0, 229, 255, 0.35) !important;
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.15) !important;
+}
+
+/* ──────────────────────────────────────────
+   25. 고스트 타일 스테이지 (슬롯 프리뷰)
+   ────────────────────────────────────────── */
+body.theme-neon-cortex .skin-cortex-slot-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 6px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 229, 255, 0.15);
+  border-radius: 4px;
+  background:
+    linear-gradient(180deg, rgba(0, 229, 255, 0.02) 0%, transparent 50%),
+    rgba(10, 10, 22, 0.30);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.46),
+    inset 0 0 0 4px rgba(0, 0, 0, 0.10);
+}
+
+body.theme-neon-cortex .skin-cortex-preview-grid {
+  position: relative;
+  z-index: 1;
+}
+
+body.theme-neon-cortex .skin-cortex-preview-cell {
+  border: 1px solid rgba(0, 229, 255, 0.35) !important;
+  border-radius: 2px !important;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.9),
+    inset 0 0 0 1px rgba(0, 229, 255, 0.08),
+    0 4px 8px rgba(0, 0, 0, 0.18) !important;
+}
+
+/* ──────────────────────────────────────────
+   26. 글리치 애니메이션 (타이틀 텍스트용)
+   ────────────────────────────────────────── */
+@keyframes cortex-glitch {
+  0%, 88%, 100% { transform: translate(0); opacity: 1; }
+  90% { transform: translate(-2px, 1px); opacity: 0.9; }
+  92% { transform: translate(2px, -1px); opacity: 0.95; }
+  94% { transform: translate(-1px, 2px); opacity: 0.8; }
+  96% { transform: translate(1px, -2px); opacity: 0.9; }
+  98% { transform: translate(0); opacity: 1; }
+}
+
+body.theme-neon-cortex .cortex-title-bar-text {
+  animation: cortex-glitch 6s infinite;
+}
+
+/* ──────────────────────────────────────────
+   27. 네온 깜빡임 (강조 요소용)
+   ────────────────────────────────────────── */
+@keyframes cortex-flicker {
+  0%, 19.999%, 22%, 62.999%, 64%, 64.999%, 70%, 100% {
+    opacity: 1;
+    text-shadow:
+      0 0 4px rgba(0, 229, 255, 0.4),
+      0 0 11px rgba(0, 229, 255, 0.3),
+      0 0 19px rgba(0, 229, 255, 0.2);
+  }
+  20%, 21.999% {
+    opacity: 0.35;
+    text-shadow: none;
+  }
+  63%, 63.999% {
+    opacity: 0.6;
+    text-shadow: 0 0 2px rgba(0, 229, 255, 0.2);
+  }
+}
+
+body.theme-neon-cortex .cortex-badge {
+  animation: cortex-flicker 5s infinite;
+}

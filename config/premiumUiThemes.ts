@@ -433,10 +433,119 @@ export const PIXELBLAST_VOID_PREMIUM_UI_THEME: PremiumUiThemeConfig = {
  * - 실제 적용은 context/BlockCustomizationContext.tsx에서 수행한다.
  * - 여기서 id가 누락되면 premiumUiThemeId를 설정해도 활성화되지 않는다.
  */
+export const NEON_CORTEX_PREMIUM_UI_THEME: PremiumUiThemeConfig = {
+  id: 'neon_cortex',
+  family: 'neon_cortex',
+  rootClassName: 'theme-neon-cortex',
+  labels: {
+    ...DEFAULT_PREMIUM_UI_LABELS,
+    topWindowTitle: '네온 코텍스\n(Neon Cortex)',
+    menuWindowTitle: '인터페이스 접속',
+    difficultyLegend: '신경망 난이도',
+    utilityLegend: '유틸리티',
+    languageLegend: '언어',
+    gameWindowTitle: '시스템 활성화',
+    statusBarText: 'Neon Cortex v2.0',
+    statusBarVersion: 'rev. cyber',
+  },
+  objects: {
+    appShellClassName: 'cortex-app-shell',
+    modalOverlayClassName: 'cortex-modal-overlay',
+    windowClassName: 'cortex-window',
+    windowBodyClassName: 'cortex-window-body',
+    titleBarClassName: 'cortex-title-bar',
+    titleBarTextClassName: 'cortex-title-bar-text',
+    titleBarControlsClassName: 'cortex-title-bar-controls',
+    blockClassName: 'cortex-board-shell',
+    buttons: {
+      menuClassName: 'cortex-menu-btn',
+      gameClassName: 'cortex-game-btn',
+      iconClassName: 'cortex-icon-btn',
+      pillClassName: 'cortex-pill-btn',
+      headerMainClassName: 'cortex-header-main-btn',
+      headerIconClassName: 'cortex-header-icon-btn',
+      headerActionClassName: 'cortex-header-action-btn',
+      compartmentClassName: 'cortex-compartment',
+    },
+    tabs: {
+      level: { containerClassName: 'cortex-tabstrip', buttonClassName: 'cortex-tabstrip-tab' },
+      skin: { containerClassName: 'cortex-tabstrip', buttonClassName: 'cortex-tabstrip-tab' },
+      mission: { containerClassName: 'cortex-tabstrip', buttonClassName: 'cortex-tabstrip-tab' },
+    },
+    panels: {
+      sunkenClassName: 'cortex-sunken',
+      sunkenWhiteClassName: 'cortex-sunken-white',
+      listItemClassName: 'cortex-list-item',
+      listItemHighlightClassName: 'cortex-list-item-highlight',
+      badgeClassName: 'cortex-badge',
+      fieldsetClassName: 'cortex-fieldset',
+    },
+    progress: {
+      trackClassName: 'cortex-progress-track',
+      fillClassName: 'cortex-progress-fill',
+    },
+    board: {
+      gameHeaderClassName: 'cortex-game-header',
+      gameWindowClassName: 'cortex-game-board-window',
+      gameBodyClassName: 'cortex-board-body',
+      slotShellClassName: 'cortex-slot-shell',
+      slotMiniCellClassName: 'cortex-slot-mini-cell',
+      slotRotateButtonClassName: 'cortex-slot-rotate-btn',
+    },
+    extended: {
+      windows: {
+        topWindowClassName: 'cortex-top-window',
+        menuWindowClassName: 'cortex-menu-window',
+        modalWindowClassName: 'cortex-window',
+        radioGroupClassName: 'cortex-radio-group',
+      },
+      text: {
+        mutedClassName: 'cortex-muted',
+        tileFaceClassName: 'cortex-tile-face',
+        tileNumberClassName: 'cortex-tile-number',
+      },
+      buttons: {
+        exitHomeClassName: 'cortex-exit-home-btn',
+        exitCancelClassName: 'cortex-exit-cancel-btn',
+      },
+      tabs: {
+        leaderboardMode: { containerClassName: 'cortex-tabstrip', buttonClassName: 'cortex-tabstrip-tab' },
+        leaderboardFilter: { containerClassName: 'cortex-tabstrip', buttonClassName: 'cortex-tabstrip-tab' },
+        leaderboardEventPeriod: { containerClassName: 'cortex-tabstrip', buttonClassName: 'cortex-tabstrip-tab' },
+        weeklyEvent: { containerClassName: 'cortex-tabstrip', buttonClassName: 'cortex-tabstrip-tab' },
+      },
+      navigation: {
+        taskbarWrapperClassName: 'cortex-nav-wrapper',
+        taskbarClassName: 'cortex-bottom-nav',
+        taskbarButtonClassName: 'cortex-bottom-nav-button',
+        taskbarBadgeClassName: 'cortex-bottom-nav-badge',
+        lockToastClassName: 'cortex-lock-toast',
+        navHeightPx: 48,
+      },
+      statusBar: {
+        containerClassName: 'cortex-status-bar',
+        fieldClassName: 'cortex-status-bar-field',
+      },
+      forms: {
+        fieldRowClassName: 'cortex-field-row',
+        fieldRowStackedClassName: 'cortex-field-row-stacked',
+      },
+      board: {
+        boardCellClassName: 'cortex-board-cell',
+        boardShellClassName: 'cortex-board-shell',
+        ghostValidClassName: 'cortex-ghost-valid',
+        ghostInvalidClassName: 'cortex-ghost-invalid',
+      },
+    },
+  },
+  usageGuide: SHARED_PREMIUM_UI_USAGE_GUIDE,
+};
+
 const PREMIUM_UI_THEME_BY_ID: Record<PremiumUiThemeId, PremiumUiThemeConfig> = {
   retro_windows_98: RETRO_WINDOWS_98_PREMIUM_UI_THEME,
   explore_galaxy: EXPLORE_GALAXY_PREMIUM_UI_THEME,
   pixelblast_void: PIXELBLAST_VOID_PREMIUM_UI_THEME,
+  neon_cortex: NEON_CORTEX_PREMIUM_UI_THEME,
 };
 
 export const PREMIUM_UI_THEMES: readonly PremiumUiThemeConfig[] = Object.freeze(

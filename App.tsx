@@ -965,6 +965,7 @@ const App: React.FC = () => {
     let isDisposed = false;
     let checkInFlight = false;
     let listenerHandle: { remove: () => Promise<void> } | null = null;
+    let backButtonHandle: { remove: () => Promise<void> } | null = null;
 
     const runVersionCheck = async () => {
       if (checkInFlight) return;
@@ -1000,6 +1001,20 @@ const App: React.FC = () => {
       }).catch(() => {
         // ignore
       });
+
+      CapacitorApp.addListener('backButton', () => {
+        if (gameStateRef.current === GameState.PLAYING) {
+          openActiveGameExitModalRef.current?.('HOME');
+        }
+      }).then((handle) => {
+        if (isDisposed) {
+          void handle.remove();
+          return;
+        }
+        backButtonHandle = handle;
+      }).catch(() => {
+        // ignore
+      });
     }).catch(() => {
       // ignore — web environment
     });
@@ -1008,6 +1023,9 @@ const App: React.FC = () => {
       isDisposed = true;
       if (listenerHandle) {
         void listenerHandle.remove();
+      }
+      if (backButtonHandle) {
+        void backButtonHandle.remove();
       }
     };
   }, [isNative, isAppIntoSBuild]);
@@ -1427,6 +1445,7 @@ const App: React.FC = () => {
   const gameModeRef = useRef<GameMode>(gameMode);
   const gameStateRef = useRef<GameState>(gameState);
   const previousGameStateRef = useRef<GameState>(gameState);
+  const openActiveGameExitModalRef = useRef<((context: ActiveGameExitContext, nextDifficulty?: BoardSize) => void) | null>(null);
 
   useEffect(() => {
     scoreRef.current = score;
@@ -2055,6 +2074,10 @@ const App: React.FC = () => {
     setActiveGameRankingSnapshot(snapshot);
     openActiveGameExitDialog();
   }, [buildActiveGameRankingSnapshot, goToMenuWithHomeFlush, openActiveGameExitDialog, startGameWithSessionNamePrompt]);
+
+  useEffect(() => {
+    openActiveGameExitModalRef.current = openActiveGameExitModal;
+  }, [openActiveGameExitModal]);
 
   const handleGameOverClose = useCallback(() => {
     // 게임오버 결과 확인을 마치고 메뉴로 돌아갈 때 해당 모드의 복구 상태만 정리한다.

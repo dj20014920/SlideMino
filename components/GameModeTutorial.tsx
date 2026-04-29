@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Hand, Sparkles, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -13,9 +14,22 @@ const MAX_BUBBLE_WIDTH_PX = 360;
 const TARGET_RETRY_INTERVAL_MS = 250;
 const MAX_TARGET_CHECK_ATTEMPTS = 20;
 
+const round = Math.round;
+
 const clamp = (value: number, min: number, max: number): number => {
   if (min > max) return min;
   return Math.min(Math.max(value, min), max);
+};
+
+const getViewportDims = (): { width: number; height: number; offsetTop: number; offsetLeft: number } => {
+  if (typeof window === 'undefined') return { width: 390, height: 844, offsetTop: 0, offsetLeft: 0 };
+  const vv = window.visualViewport;
+  return {
+    width: round(vv ? vv.width : window.innerWidth),
+    height: round(vv ? vv.height : window.innerHeight),
+    offsetTop: round(vv ? vv.offsetTop : 0),
+    offsetLeft: round(vv ? vv.offsetLeft : 0),
+  };
 };
 
 interface GameModeTutorialProps {
@@ -35,10 +49,7 @@ export const GameModeTutorial: React.FC<GameModeTutorialProps> = ({
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [bubbleHeight, setBubbleHeight] = useState(0);
-  const [viewport, setViewport] = useState(() => ({
-    width: typeof window !== 'undefined' ? window.innerWidth : 390,
-    height: typeof window !== 'undefined' ? window.innerHeight : 844,
-  }));
+  const [viewport, setViewport] = useState(() => getViewportDims());
   const bubbleRef = useRef<HTMLDivElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const dismissedRef = useRef(false);
@@ -89,17 +100,7 @@ export const GameModeTutorial: React.FC<GameModeTutorialProps> = ({
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let tracker: ReturnType<typeof createTargetRectTracker> | null = null;
 
-    const updateViewport = () => {
-      const nextViewport = {
-        width: window.innerWidth,
-        height: window.innerHeight,
-      };
-      setViewport((prev) =>
-        prev.width === nextViewport.width && prev.height === nextViewport.height
-          ? prev
-          : nextViewport
-      );
-    };
+    const updateViewport = () => setViewport(getViewportDims());
 
     const clearRetryTimer = () => {
       if (!retryTimer) return;
@@ -168,7 +169,7 @@ export const GameModeTutorial: React.FC<GameModeTutorialProps> = ({
 
     const measure = () => {
       if (!bubbleRef.current) return;
-      const nextHeight = bubbleRef.current.getBoundingClientRect().height;
+      const nextHeight = round(bubbleRef.current.getBoundingClientRect().height);
       setBubbleHeight((prev) => (Math.abs(prev - nextHeight) < 0.5 ? prev : nextHeight));
     };
 
@@ -192,32 +193,34 @@ export const GameModeTutorial: React.FC<GameModeTutorialProps> = ({
   const layout = useMemo(() => {
     if (!targetRect) return null;
 
-    const viewportWidth =
-      typeof window !== 'undefined' ? window.innerWidth : viewport.width;
-    const viewportHeight =
-      typeof window !== 'undefined' ? window.innerHeight : viewport.height;
-    const usableHeight = viewportHeight;
-    const targetLeft = targetRect.left;
-    const targetTop = targetRect.top;
-    const targetBottom = targetRect.bottom;
-    const targetCenterX = targetLeft + targetRect.width / 2;
+    const vpWidth = viewport.width;
+    const vpHeight = viewport.height;
+    const vpOffsetTop = viewport.offsetTop;
+    const vpOffsetLeft = viewport.offsetLeft;
+
+    const targetLeft = round(targetRect.left - vpOffsetLeft);
+    const targetTop = round(targetRect.top - vpOffsetTop);
+    const targetWidth = round(targetRect.width);
+    const targetHeight = round(targetRect.height);
+    const targetBottom = targetTop + targetHeight;
+    const targetCenterX = targetLeft + round(targetWidth / 2);
 
     const bubbleWidth = clamp(
-      viewportWidth - EDGE_PADDING_PX * 2,
+      vpWidth - EDGE_PADDING_PX * 2,
       MIN_BUBBLE_WIDTH_PX,
       MAX_BUBBLE_WIDTH_PX
     );
     const bubbleLeft = clamp(
-      targetCenterX - bubbleWidth / 2,
+      round(targetCenterX - bubbleWidth / 2),
       EDGE_PADDING_PX,
-      viewportWidth - bubbleWidth - EDGE_PADDING_PX
+      vpWidth - bubbleWidth - EDGE_PADDING_PX
     );
     const resolvedBubbleHeight = bubbleHeight || DEFAULT_BUBBLE_HEIGHT_PX;
 
     const candidateBelowTop = targetBottom + TARGET_GAP_PX;
     const candidateAboveTop = targetTop - TARGET_GAP_PX - resolvedBubbleHeight;
     const canPlaceBelow =
-      candidateBelowTop + resolvedBubbleHeight <= usableHeight - EDGE_PADDING_PX;
+      candidateBelowTop + resolvedBubbleHeight <= vpHeight - EDGE_PADDING_PX;
     const canPlaceAbove = candidateAboveTop >= EDGE_PADDING_PX;
     const placement: 'above' | 'below' = canPlaceBelow || !canPlaceAbove ? 'below' : 'above';
 
@@ -226,28 +229,38 @@ export const GameModeTutorial: React.FC<GameModeTutorialProps> = ({
         ? clamp(
             candidateBelowTop,
             EDGE_PADDING_PX,
-            usableHeight - resolvedBubbleHeight - EDGE_PADDING_PX
+            vpHeight - resolvedBubbleHeight - EDGE_PADDING_PX
           )
         : clamp(
             candidateAboveTop,
             EDGE_PADDING_PX,
-            usableHeight - resolvedBubbleHeight - EDGE_PADDING_PX
+            vpHeight - resolvedBubbleHeight - EDGE_PADDING_PX
           );
 
-    const arrowLeft = clamp(targetCenterX - bubbleLeft - 8, 20, bubbleWidth - 24);
-    const handLeft = clamp(targetCenterX - 24, EDGE_PADDING_PX, viewportWidth - 56);
-    const handTop = clamp(
-      targetTop + targetRect.height / 2 - 24,
+    const arrowLeft = clamp(
+      round(targetCenterX - bubbleLeft - 8),
+      20,
+      bubbleWidth - 24
+    );
+
+    const handLeft = clamp(
+      round(targetCenterX - 24),
       EDGE_PADDING_PX,
-      usableHeight - 56
+      vpWidth - 56
+    );
+    const handTop = clamp(
+      round(targetTop + targetHeight / 2 - 24),
+      EDGE_PADDING_PX,
+      vpHeight - 56
     );
 
     return {
-      viewportWidth,
+      vpWidth,
+      vpHeight,
       targetLeft,
       targetTop,
-      targetWidth: targetRect.width,
-      targetHeight: targetRect.height,
+      targetWidth,
+      targetHeight,
       bubbleWidth,
       bubbleLeft,
       bubbleTop,
@@ -256,23 +269,25 @@ export const GameModeTutorial: React.FC<GameModeTutorialProps> = ({
       handTop,
       placement,
     };
-  }, [bubbleHeight, targetRect, viewport.height, viewport.width]);
+  }, [bubbleHeight, targetRect, viewport]);
 
   if (!enabled || suppressed || !isVisible || !targetRect || !layout) return null;
 
-  return (
+  return createPortal(
     <AnimatePresence>
       <div ref={overlayRef} className="fixed inset-0 z-[60] pointer-events-none">
+        {/* Highlight Box around Target */}
         <div
           className="absolute rounded-2xl border-2 border-blue-200/80 shadow-[0_0_0_9999px_rgba(15,23,42,0.45)]"
           style={{
-            left: clamp(layout.targetLeft - 4, EDGE_PADDING_PX, layout.viewportWidth - 16),
-            top: clamp(layout.targetTop - 4, EDGE_PADDING_PX, viewport.height - 16),
+            left: clamp(layout.targetLeft - 4, EDGE_PADDING_PX, layout.vpWidth - 16),
+            top: clamp(layout.targetTop - 4, EDGE_PADDING_PX, layout.vpHeight - 16),
             width: layout.targetWidth + 8,
             height: layout.targetHeight + 8,
           }}
         />
 
+        {/* Hand Pointer */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -294,6 +309,7 @@ export const GameModeTutorial: React.FC<GameModeTutorialProps> = ({
           </motion.div>
         </motion.div>
 
+        {/* Bubble */}
         <motion.div
           ref={bubbleRef}
           initial={{ opacity: 0, y: layout.placement === 'below' ? 12 : -12 }}
@@ -356,6 +372,7 @@ export const GameModeTutorial: React.FC<GameModeTutorialProps> = ({
           </div>
         </motion.div>
       </div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 };

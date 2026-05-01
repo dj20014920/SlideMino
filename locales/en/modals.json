@@ -18,6 +18,18 @@
     "reviveNoTargets": "No blocks available to destroy. Returning to play now.",
     "registerRanking": "Register Score",
     "backToMenu": "Back to Menu",
+    "reviewGame": "Review Game",
+    "reviewPrev": "Previous",
+    "reviewNext": "Next",
+    "goHome": "Home",
+    "viewRankings": "Rankings",
+    "close": "Close",
+    "reason": {
+      "no_empty_cells": "No empty cells left on the board",
+      "no_placeable_slot": "No room to place the current blocks",
+      "no_merge_possible": "No more blocks can be merged",
+      "full_board_no_merge": "The board is full and no more blocks can be merged"
+    },
     "challengeSubmitted": "Daily Challenge Rank #{{rank}} / {{total}} players",
     "viewEventRankings": "View Event Rankings"
   },

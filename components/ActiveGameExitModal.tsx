@@ -32,7 +32,6 @@ interface ActiveGameExitModalProps {
     eventAttemptNumber?: number;
     onCancel: () => void;
     onProceedWithoutRegister: () => void;
-    onIntermediateSaveComplete: () => void;
     onSessionNameLocked?: (name: string) => void;
     onRegisteredAndProceed: () => void;
 }
@@ -53,7 +52,6 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
     eventAttemptNumber,
     onCancel,
     onProceedWithoutRegister,
-    onIntermediateSaveComplete,
     onSessionNameLocked,
     onRegisteredAndProceed,
 }) => {
@@ -73,7 +71,6 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
     const premiumUiExitHomeButtonClassName = premiumUiObjects.extended.buttons.exitHomeClassName;
     const premiumUiExitCancelButtonClassName = premiumUiObjects.extended.buttons.exitCancelClassName;
     const [step, setStep] = useState<'CHOICE' | 'REGISTER' | 'SUBMITTED'>('CHOICE');
-    const [submitIntent, setSubmitIntent] = useState<'EXIT' | 'MID_SAVE'>('EXIT');
     const [name, setName] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [nameError, setNameError] = useState<string | null>(null);
@@ -110,7 +107,6 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
     useEffect(() => {
         if (!open) return;
         setStep('CHOICE');
-        setSubmitIntent('EXIT');
         setName(lockedPlayerName || playerName || rankingService.getSavedName());
         setIsSubmitting(false);
         setNameError(null);
@@ -120,11 +116,10 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
 
     if (!open) return null;
 
-    const submitScoreWithName = async (trimmedName: string, intent: 'EXIT' | 'MID_SAVE') => {
+    const submitScoreWithName = async (trimmedName: string) => {
         setIsSubmitting(true);
         setNameError(null);
         setSubmitError(null);
-        setSubmitIntent(intent);
 
         // 이벤트 모드: 이벤트 전용 API로 제출
         if (gameMode === 'weekly_event') {
@@ -137,7 +132,7 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                 duration,
                 attemptNumber: eventAttemptNumber ?? 1,
                 levelBadge: levelBadgeId,
-                isIntermediate: intent === 'MID_SAVE',
+                isIntermediate: false,
             });
             setIsSubmitting(false);
             if (eventResult.success) {
@@ -173,7 +168,7 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
             onSessionNameLocked?.(trimmedName);
             setSubmittedMessageOverride(null);
             setStep('SUBMITTED');
-            // 미션 추적: 랭킹 제출 이벤트 (중간저장/나가기)
+            // 미션 추적: 랭킹 제출 이벤트
             gameEventBus.emit('SCORE_SUBMITTED', {
                 score, boardSize, mode: gameMode,
             });
@@ -184,11 +179,7 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
             // 구버전 서버(세션당 1회 등록 제한)와의 호환:
             // 이미 등록된 세션은 실패로 막지 않고 다음 단계로 진행시킨다.
             onSessionNameLocked?.(trimmedName);
-            setSubmittedMessageOverride(
-                intent === 'MID_SAVE'
-                    ? t('modals:activeGameExit.alreadySubmittedMidSaveMessage')
-                    : t('modals:activeGameExit.alreadySubmittedExitMessage')
-            );
+            setSubmittedMessageOverride(t('modals:activeGameExit.alreadySubmittedExitMessage'));
             setStep('SUBMITTED');
             // 이미 제출된 경우에도 미션 추적
             gameEventBus.emit('SCORE_SUBMITTED', {
@@ -223,7 +214,6 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
             status: result.status,
             code: result.code,
             errorMessage: result.errorMessage,
-            intent,
         });
         setSubmitError(t('modals:rankingRegister.failureMessage'));
     };
@@ -232,7 +222,7 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
         e.preventDefault();
         const fixedName = normalizePlayerName(lockedPlayerName ?? '');
         if (fixedName) {
-            await submitScoreWithName(fixedName, submitIntent);
+            await submitScoreWithName(fixedName);
             return;
         }
 
@@ -243,16 +233,10 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
             return;
         }
 
-        await submitScoreWithName(trimmedName, submitIntent);
+        await submitScoreWithName(trimmedName);
     };
 
     const handleRegisterAndExitClick = () => {
-        setSubmitIntent('EXIT');
-        setStep('REGISTER');
-    };
-
-    const handleIntermediateSaveClick = () => {
-        setSubmitIntent('MID_SAVE');
         setStep('REGISTER');
     };
 
@@ -274,19 +258,8 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
     const confirmKey = context === 'HOME'
         ? 'modals:activeGameExit.confirmHome'
         : 'modals:activeGameExit.confirmNewGame';
-    const midSaveHintKey = context === 'HOME'
-        ? 'modals:activeGameExit.midSaveButtonHint'
-        : 'modals:activeGameExit.midSaveButtonHintNewGame';
-    const showManualMidSave = context !== 'HOME';
     const showManualRegisterFlow = context !== 'HOME';
-    const midSaveConfirmKey = context === 'HOME'
-        ? 'modals:activeGameExit.continueAfterMidSave'
-        : 'modals:activeGameExit.confirmMidSaveNewGame';
-    const submittedMessage = submittedMessageOverride ?? (submitIntent === 'MID_SAVE'
-        ? (context === 'HOME'
-            ? t('modals:activeGameExit.midSaveSubmittedMessage')
-            : t('modals:activeGameExit.midSaveSubmittedMessageNewGame'))
-        : t('modals:activeGameExit.submittedMessage'));
+    const submittedMessage = submittedMessageOverride ?? t('modals:activeGameExit.submittedMessage');
     const isPremiumUi = Boolean(isPremiumUiThemeActive ?? contextIsPremiumUiThemeActive);
 
     return (
@@ -354,26 +327,6 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                                         </p>
                                     )}
                                 </div>
-
-                                {showManualMidSave && (
-                                    <div className="flex flex-col items-center gap-1">
-                                        <button
-                                            type="button"
-                                            onClick={handleIntermediateSaveClick}
-                                            className={isPremiumUi
-                                                ? `w-full py-2 px-3 ${premiumUiMenuButtonClassName} text-sm font-semibold`
-                                                : 'w-full py-4 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-bold text-lg shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/35 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200'}
-                                        >
-                                            <span className="flex items-center justify-center gap-2">
-                                                <Send size={isPremiumUi ? 14 : 18} className={isPremiumUi ? '' : 'text-emerald-100'} />
-                                                {t('modals:activeGameExit.midSaveButton')}
-                                            </span>
-                                        </button>
-                                        <p className={isPremiumUi ? 'text-xs text-gray-500' : 'text-xs text-gray-400'}>
-                                            {t(midSaveHintKey)}
-                                        </p>
-                                    </div>
-                                )}
 
                                 {showManualRegisterFlow && (
                                     <button
@@ -533,12 +486,12 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                             <div className="flex gap-3 w-full">
                                 <button
                                     type="button"
-                                    onClick={submitIntent === 'MID_SAVE' ? onIntermediateSaveComplete : onRegisteredAndProceed}
+                                    onClick={onRegisteredAndProceed}
                                     className={isPremiumUi
                                         ? `flex-1 py-2 px-3 ${premiumUiMenuButtonClassName} text-sm font-semibold`
                                         : 'flex-1 py-4 rounded-2xl bg-gray-900 text-white font-bold text-lg shadow-lg hover:bg-gray-800 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200'}
                                 >
-                                    {submitIntent === 'MID_SAVE' ? t(midSaveConfirmKey) : t(confirmKey)}
+                                    {t(confirmKey)}
                                 </button>
                                 {/* 작은 공유 아이콘 */}
                                 <button

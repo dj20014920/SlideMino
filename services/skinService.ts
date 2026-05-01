@@ -79,6 +79,15 @@ const normalizeSkinSettings = (parsed: unknown): SkinSettings | null => {
   const obj = parsed as Record<string, unknown>;
   if (obj.version !== 2) return null;
 
+  // Removed skin ID → replacement ID migration map.
+  // When a skin is removed from the catalog, existing users who owned it
+  // are transparently migrated to the closest surviving counterpart.
+  const REMOVED_SKIN_MIGRATION: Record<string, string> = {
+    skin_1: 'skin_0',   // basicCoralPunch → basicCherryPop
+    skin_18: 'skin_19', // basicVioletFlash → basicPurpleRush
+    skin_22: 'skin_23', // basicRoseDash → basicRedCore
+  };
+
   const ownedSkins: SkinItem[] = [];
   const validCatalogIds = new Set(SKIN_CATALOG.map((entry) => entry.id));
   const seenSkinIds = new Set<string>();
@@ -86,10 +95,20 @@ const normalizeSkinSettings = (parsed: unknown): SkinSettings | null => {
     for (const item of obj.ownedSkins) {
       const sanitized = sanitizeSkinItem(item);
       if (!sanitized) continue;
-      if (!validCatalogIds.has(sanitized.id)) continue;
-      if (seenSkinIds.has(sanitized.id)) continue;
-      seenSkinIds.add(sanitized.id);
-      ownedSkins.push(sanitized);
+
+      // Migrate removed skin IDs to their replacement
+      const migratedId = REMOVED_SKIN_MIGRATION[sanitized.id] ?? sanitized.id;
+      if (!validCatalogIds.has(migratedId)) continue;
+      if (seenSkinIds.has(migratedId)) continue;
+      seenSkinIds.add(migratedId);
+
+      // Preserve original acquiredAt; use replacement skin's hex from catalog
+      const replacementEntry = SKIN_CATALOG.find(e => e.id === migratedId);
+      ownedSkins.push({
+        id: migratedId,
+        hex: replacementEntry?.hex ?? sanitized.hex,
+        acquiredAt: sanitized.acquiredAt,
+      });
     }
   }
 

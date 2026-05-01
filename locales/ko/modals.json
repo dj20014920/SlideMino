@@ -18,6 +18,18 @@
     "reviveNoTargets": "파괴할 블럭이 없어 바로 플레이로 복귀합니다.",
     "registerRanking": "랭킹 등록하기",
     "backToMenu": "메뉴로 돌아가기",
+    "reviewGame": "게임 다시보기",
+    "reviewPrev": "이전",
+    "reviewNext": "다음",
+    "goHome": "홈으로",
+    "viewRankings": "랭킹보기",
+    "close": "닫기",
+    "reason": {
+      "no_empty_cells": "보드에 빈 칸이 없어졌어요",
+      "no_placeable_slot": "현재 블록을 놓을 수 있는 자리가 없어요",
+      "no_merge_possible": "더 이상 합칠 수 있는 블록이 없어요",
+      "full_board_no_merge": "보드가 가득 찼고, 합칠 수 있는 블록이 없어요"
+    },
     "challengeSubmitted": "오늘의 챌린지 {{rank}}위 / {{total}}명",
     "viewEventRankings": "이벤트 랭킹 보기"
   },

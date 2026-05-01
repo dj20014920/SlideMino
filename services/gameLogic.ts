@@ -1,4 +1,4 @@
-import { Grid, Piece, ShapeType, Coordinate, Phase, Tile, MergingTile } from '../types';
+import { Grid, Piece, ShapeType, Coordinate, Phase, Tile, MergingTile, type GameOverDiagnosis } from '../types';
 import { SHAPES, STANDARD_SHAPES } from '../constants';
 
 // --- Utils ---
@@ -379,7 +379,7 @@ export const hasPossibleMoves = (grid: Grid): boolean => {
 
 // --- Game Over Logic ---
 
-const hasPlaceableSlotMove = (grid: Grid, slots: (Piece | null)[], disableRotation = false): boolean => {
+export const hasPlaceableSlotMove = (grid: Grid, slots: (Piece | null)[], disableRotation = false): boolean => {
   // PLACE 단계에서 슬롯 조각 중 하나라도 보드에 둘 수 있으면 생존
   const size = grid.length;
 
@@ -432,3 +432,41 @@ export const getTurnActionAvailability = (
     isGameOver: !canPlace,
   };
 };
+
+export function diagnoseGameOver(
+  grid: Grid,
+  slots: (Piece | null)[],
+  disableRotation: boolean = false
+): GameOverDiagnosis {
+  const size = grid.length;
+  const totalCells = size * size;
+  let occupiedCount = 0;
+  let hasEmptyCells = false;
+
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      if (grid[y][x] !== null) {
+        occupiedCount++;
+      } else {
+        hasEmptyCells = true;
+      }
+    }
+  }
+
+  const boardIsFull = !hasEmptyCells;
+  const canPlaceAnySlot = hasPlaceableSlotMove(grid, slots, disableRotation);
+  const canMergeAnywhere = hasPossibleMoves(grid);
+
+  let reason: GameOverDiagnosis['reason'];
+  if (boardIsFull && !canMergeAnywhere) {
+    reason = 'full_board_no_merge';
+  } else if (!hasEmptyCells) {
+    reason = 'no_empty_cells';
+  } else if (!canPlaceAnySlot) {
+    reason = 'no_placeable_slot';
+  } else {
+    reason = 'no_merge_possible';
+  }
+
+  return { reason, boardIsFull, hasEmptyCells, canPlaceAnySlot, canMergeAnywhere, occupiedCount, totalCells };
+}

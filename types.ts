@@ -316,3 +316,13 @@ export interface SkinSettings {
 export type SkinDrawResult =
   | { type: 'new'; skin: SkinItem }
   | { type: 'duplicate'; skin: SkinCatalogEntry; fragmentsEarned: number };
+
+export interface GameOverDiagnosis {
+  reason: 'no_empty_cells' | 'no_placeable_slot' | 'no_merge_possible' | 'full_board_no_merge';
+  boardIsFull: boolean;
+  hasEmptyCells: boolean;
+  canPlaceAnySlot: boolean;
+  canMergeAnywhere: boolean;
+  occupiedCount: number;
+  totalCells: number;
+}

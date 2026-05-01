@@ -292,7 +292,6 @@ export const SKIN_NEW_DURATION_MS = 60_000;  // 신규 획득 스킨에 "New!" �
 export const SKIN_CATALOG: readonly SkinCatalogEntry[] = [
   ...ADDITIONAL_SKIN_CATALOG,
   { id: 'skin_0',  hex: '#FF5C5C', nameKey: 'basicCherryPop' },
-  { id: 'skin_1',  hex: '#FF6B6B', nameKey: 'basicCoralPunch' },
   { id: 'skin_2',  hex: '#FF7A59', nameKey: 'basicSalmonTwist' },
   { id: 'skin_3',  hex: '#FF8A3D', nameKey: 'basicOrangeBlush' },
   { id: 'skin_4',  hex: '#F97316', nameKey: 'basicTangerineFire' },
@@ -309,11 +308,9 @@ export const SKIN_CATALOG: readonly SkinCatalogEntry[] = [
   { id: 'skin_15', hex: '#3B82F6', nameKey: 'basicBlueBolt' },
   { id: 'skin_16', hex: '#4F46E5', nameKey: 'basicIndigoShot' },
   { id: 'skin_17', hex: '#6366F1', nameKey: 'basicPeriwinklePop' },
-  { id: 'skin_18', hex: '#8B5CF6', nameKey: 'basicVioletFlash' },
   { id: 'skin_19', hex: '#A855F7', nameKey: 'basicPurpleRush' },
   { id: 'skin_20', hex: '#D946EF', nameKey: 'basicFuchsiaBeat' },
   { id: 'skin_21', hex: '#EC4899', nameKey: 'basicPinkPulse' },
-  { id: 'skin_22', hex: '#F43F5E', nameKey: 'basicRoseDash' },
   { id: 'skin_23', hex: '#EF4444', nameKey: 'basicRedCore' },
 ];
 

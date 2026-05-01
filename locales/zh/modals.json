@@ -18,6 +18,18 @@
     "reviveNoTargets": "当前没有可摧毁方块，已直接返回游戏。",
     "registerRanking": "注册排名",
     "backToMenu": "返回菜单",
+    "reviewGame": "回放游戏",
+    "reviewPrev": "上一个",
+    "reviewNext": "下一个",
+    "goHome": "主页",
+    "viewRankings": "排行榜",
+    "close": "关闭",
+    "reason": {
+      "no_empty_cells": "棋盘没有空格了",
+      "no_placeable_slot": "无法放置当前方块",
+      "no_merge_possible": "无法合并更多方块",
+      "full_board_no_merge": "棋盘已满，无法合并更多方块"
+    },
     "challengeSubmitted": "今日挑战 第{{rank}}名 / 共{{total}}人",
     "viewEventRankings": "查看活动排名"
   },

@@ -11,7 +11,7 @@ import { gameEventBus } from '../services/gameEventBus';
 import { isFeatureUnlocked } from '../services/onboardingService';
 import { getHighestLevelBadgeForLevel, loadXpData } from '../services/xpLevelService';
 import { PLAYER_NAME_MAX_LENGTH, normalizePlayerName, validatePlayerName } from '../utils/playerName';
-import type { GameMode, BoardSize } from '../types';
+import type { GameMode, BoardSize, GameOverDiagnosis } from '../types';
 import AdBanner from './AdBanner';
 import { useBlockCustomization } from '../context/BlockCustomizationContext';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
@@ -31,6 +31,8 @@ interface GameOverModalProps {
     isReviveInProgress: boolean;
     onWatchReviveAd: () => void;
     onClose: () => void;
+    onReview?: () => void;
+    hasReviewSnapshots?: boolean;
     gameMode?: GameMode;
     challengeDate?: string;
     /** 주간 이벤트 전용: 도전 회차 */
@@ -41,6 +43,7 @@ interface GameOverModalProps {
     /** 제출 완료 후 랭킹 보기 (weekly_event 전용) */
     onViewRankings?: () => void;
     onSessionNameLocked?: (name: string) => void;
+    gameOverReason?: GameOverDiagnosis | null;
 }
 
 export const GameOverModal: React.FC<GameOverModalProps> = ({
@@ -58,6 +61,8 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
     isReviveInProgress,
     onWatchReviveAd,
     onClose,
+    onReview,
+    hasReviewSnapshots = false,
     gameMode = 'normal',
     challengeDate,
     eventAttemptNumber,
@@ -65,6 +70,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
     submittedTotal,
     onViewRankings,
     onSessionNameLocked,
+    gameOverReason,
 }) => {
     const { t } = useTranslation();
     useBodyScrollLock(true);
@@ -350,6 +356,21 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                                 </p>
                             </div>
 
+                            {/* 게임오버 원인 메시지 */}
+                            {gameOverReason && (
+                                <div className="mt-3 px-4 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800 text-sm text-rose-700 dark:text-rose-300 text-center">
+                                    {(() => {
+                                        switch (gameOverReason.reason) {
+                                            case 'no_empty_cells': return t('modals:gameOver.reason.no_empty_cells', '보드에 빈 칸이 없어졌어요');
+                                            case 'no_placeable_slot': return t('modals:gameOver.reason.no_placeable_slot', '현재 블록을 놓을 수 있는 자리가 없어요');
+                                            case 'no_merge_possible': return t('modals:gameOver.reason.no_merge_possible', '더 이상 합칠 수 있는 블록이 없어요');
+                                            case 'full_board_no_merge': return t('modals:gameOver.reason.full_board_no_merge', '보드가 가득 찼고, 합칠 수 있는 블록이 없어요');
+                                            default: return null;
+                                        }
+                                    })()}
+                                </div>
+                            )}
+
                             {/* 공유 버튼 (점수 아래) */}
                             {isFeatureUnlocked('share_card') && (
                                 <button
@@ -460,6 +481,22 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                                 >
                                     {t('modals:gameOver.backToMenu')}
                                 </button>
+
+                                {hasReviewSnapshots && onReview && (
+                                    <button
+                                        onClick={onReview}
+                                        className="
+                    w-full py-3 rounded-2xl
+                    bg-gray-100 border border-gray-200
+                    text-gray-600 font-medium text-sm
+                    hover:bg-gray-200 hover:text-gray-900
+                    active:scale-[0.98]
+                    transition-all duration-200
+                  "
+                                    >
+                                        {t('modals:gameOver.reviewGame', '게임 다시보기')}
+                                    </button>
+                                )}
                             </div>
 
                             {submitError && (

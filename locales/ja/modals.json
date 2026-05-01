@@ -18,6 +18,18 @@
     "reviveNoTargets": "破壊できるブロックがないため、すぐにプレイへ戻ります。",
     "registerRanking": "ランキング登録",
     "backToMenu": "メニューに戻る",
+    "reviewGame": "ゲームを見返す",
+    "reviewPrev": "前へ",
+    "reviewNext": "次へ",
+    "goHome": "ホーム",
+    "viewRankings": "ランキング",
+    "close": "閉じる",
+    "reason": {
+      "no_empty_cells": "ボードに空きマスがありません",
+      "no_placeable_slot": "現在のブロックを置く場所がありません",
+      "no_merge_possible": "これ以上ブロックを合成できません",
+      "full_board_no_merge": "ボードがいっぱいで、合成できるブロックがありません"
+    },
     "challengeSubmitted": "本日チャレンジ {{rank}}位 / {{total}}人",
     "viewEventRankings": "イベントランキングを見る"
   },

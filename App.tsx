@@ -12,6 +12,7 @@ import {
   ShapeType,
   MergingTile,
   GameMode,
+  type GameOverDiagnosis,
 } from './types';
 import {
   createEmptyGrid,
@@ -23,6 +24,7 @@ import {
   getTurnActionAvailability,
   slideGrid,
   hasPossibleMoves,
+  diagnoseGameOver,
   type MergedTile,
 } from './services/gameLogic';
 import { Board, type BoardHandle, type ReviveDestroyEffect } from './components/Board';
@@ -227,11 +229,11 @@ interface GameSnapshot {
 }
 
 const REVIVE_DESTROY_COUNT_BY_BOARD_SIZE: Record<BoardSize, number> = {
-  4: 3,
+  4: 6,
   5: 4,
   7: 6,
-  8: 7,
-  10: 9,
+  8: 5,
+  10: 8,
 };
 
 interface ActiveGameRankingSnapshot {
@@ -747,6 +749,7 @@ const App: React.FC = () => {
   const premiumModalWindowClassName = premiumUiObjects.extended.windows.modalWindowClassName;
   const premiumRadioGroupClassName = premiumUiObjects.extended.windows.radioGroupClassName;
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
+  const [gameOverReason, setGameOverReason] = useState<GameOverDiagnosis | null>(null);
   const premiumNavHeightPx = premiumUiObjects.extended.navigation.navHeightPx;
   const [menuBottomNavHeight, setMenuBottomNavHeight] = useState<number>(() =>
     isNative ? getEstimatedBottomNavHeight(isPremiumUiThemeActive, premiumNavHeightPx) : 0
@@ -965,7 +968,6 @@ const App: React.FC = () => {
     let isDisposed = false;
     let checkInFlight = false;
     let listenerHandle: { remove: () => Promise<void> } | null = null;
-    let backButtonHandle: { remove: () => Promise<void> } | null = null;
 
     const runVersionCheck = async () => {
       if (checkInFlight) return;
@@ -1001,20 +1003,6 @@ const App: React.FC = () => {
       }).catch(() => {
         // ignore
       });
-
-      CapacitorApp.addListener('backButton', () => {
-        if (gameStateRef.current === GameState.PLAYING) {
-          openActiveGameExitModalRef.current?.('HOME');
-        }
-      }).then((handle) => {
-        if (isDisposed) {
-          void handle.remove();
-          return;
-        }
-        backButtonHandle = handle;
-      }).catch(() => {
-        // ignore
-      });
     }).catch(() => {
       // ignore — web environment
     });
@@ -1023,9 +1011,6 @@ const App: React.FC = () => {
       isDisposed = true;
       if (listenerHandle) {
         void listenerHandle.remove();
-      }
-      if (backButtonHandle) {
-        void backButtonHandle.remove();
       }
     };
   }, [isNative, isAppIntoSBuild]);
@@ -1183,6 +1168,12 @@ const App: React.FC = () => {
   const [lastSnapshot, setLastSnapshot] = useState<GameSnapshot | null>(null);
   const [undoRemaining, setUndoRemaining] = useState(INITIAL_UNDO_AMOUNT);
   const [blockRefreshRemaining, setBlockRefreshRemaining] = useState(INITIAL_BLOCK_REFRESH_AMOUNT);
+
+  // 복기(Review) 모드: 게임오버 후 지난 플레이를 돌아볼 수 있는 스냅샷 히스토리
+  const MAX_SNAPSHOTS = 20;
+  const [snapshotHistory, setSnapshotHistory] = useState<GameSnapshot[]>([]);
+  const [isReviewMode, setIsReviewMode] = useState(false);
+  const [reviewIndex, setReviewIndex] = useState(0);
 
   // 1024 타일 Undo 파밍 방지: 세션 내 실제 1024 보상 지급 횟수를 추적
   // (Undo로 되돌려도 이미 지급된 카운트는 유지)
@@ -1445,7 +1436,6 @@ const App: React.FC = () => {
   const gameModeRef = useRef<GameMode>(gameMode);
   const gameStateRef = useRef<GameState>(gameState);
   const previousGameStateRef = useRef<GameState>(gameState);
-  const openActiveGameExitModalRef = useRef<((context: ActiveGameExitContext, nextDifficulty?: BoardSize) => void) | null>(null);
 
   useEffect(() => {
     scoreRef.current = score;
@@ -2075,10 +2065,6 @@ const App: React.FC = () => {
     openActiveGameExitDialog();
   }, [buildActiveGameRankingSnapshot, goToMenuWithHomeFlush, openActiveGameExitDialog, startGameWithSessionNamePrompt]);
 
-  useEffect(() => {
-    openActiveGameExitModalRef.current = openActiveGameExitModal;
-  }, [openActiveGameExitModal]);
-
   const handleGameOverClose = useCallback(() => {
     // 게임오버 결과 확인을 마치고 메뉴로 돌아갈 때 해당 모드의 복구 상태만 정리한다.
     if (gameMode === 'daily_challenge') {
@@ -2101,6 +2087,11 @@ const App: React.FC = () => {
     challengeDateRef.current = null;
     challengeSeedRef.current = null;
     challengePieceIndexRef.current = 0;
+    // 복기 모드 정리
+    setIsReviewMode(false);
+    setReviewIndex(0);
+    setSnapshotHistory([]);
+    setGameOverReason(null);
     setGameState(GameState.MENU);
   }, [gameMode, resetEventTimer]);
 
@@ -2111,6 +2102,35 @@ const App: React.FC = () => {
     // 상태 업데이트 batching으로 동일 틱에서 모달을 열어도 안전하다.
     openWeeklyEventModal();
   }, [handleGameOverClose, openWeeklyEventModal]);
+
+  // 복기 모드 진입
+  const handleEnterReviewMode = useCallback(() => {
+    if (snapshotHistory.length === 0) return;
+    setIsReviewMode(true);
+    setReviewIndex(snapshotHistory.length - 1); // 마지막 스냅샷부터 시작
+  }, [snapshotHistory.length]);
+
+  // 복기 모드 종료
+  const handleExitReviewMode = useCallback(() => {
+    setIsReviewMode(false);
+    setReviewIndex(0);
+  }, []);
+
+  // 복기 모드에서 홈으로 가기
+  const handleReviewGoHome = useCallback(() => {
+    setIsReviewMode(false);
+    setReviewIndex(0);
+    setSnapshotHistory([]);
+    handleGameOverClose();
+  }, [handleGameOverClose]);
+
+  // 복기 모드에서 랭킹 보기
+  const handleReviewOpenRankings = useCallback(() => {
+    setIsReviewMode(false);
+    setReviewIndex(0);
+    handleGameOverClose();
+    openLeaderboardModal();
+  }, [handleGameOverClose, openLeaderboardModal]);
 
   const handleHomeButtonClick = useCallback(() => {
     if (gameState === GameState.PLAYING) {
@@ -2225,15 +2245,6 @@ const App: React.FC = () => {
     rankingService.saveName(name);
   }, []);
 
-  const handleActiveGameExitIntermediateSaveComplete = useCallback(() => {
-    if (activeGameExitContext === 'NEW_GAME') {
-      setPendingDifficulty(null);
-      setPendingSessionMode(null);
-    }
-    setIsActiveGameExitModalOpen(false);
-    setActiveGameRankingSnapshot(null);
-  }, [activeGameExitContext]);
-
   const handleActiveGameExitRegisteredAndProceed = useCallback(() => {
     const context = activeGameExitContext;
     const modeToClear: GameMode = context === 'NEW_GAME' ? 'normal' : gameMode;
@@ -2342,6 +2353,10 @@ const App: React.FC = () => {
     setLastSnapshot(null);
     setUndoRemaining(INITIAL_UNDO_AMOUNT);
     setBlockRefreshRemaining(INITIAL_BLOCK_REFRESH_AMOUNT);
+    // 복기 모드 초기화
+    setIsReviewMode(false);
+    setReviewIndex(0);
+    setSnapshotHistory([]);
     setShowBlockRefreshAdButton(false);
     setHasUsedReviveThisRun(false);
     rewarded1024CountRef.current = 0;
@@ -2391,12 +2406,6 @@ const App: React.FC = () => {
 
   // --- 데일리 챌린지 시작 ---
   async function startDailyChallenge() {
-    // 사용자 결정사항(임시 운영 정책):
-    // 데일리 챌린지는 사용자 증가 시점까지 비활성화한다.
-    // 재활성화 시 이 return 블록을 제거하면 기존 로직이 즉시 동작한다.
-    showComboMessage('오늘의 챌린지는 현재 임시 비활성화 상태입니다.', 2500);
-    return;
-
     if (isDailyChallengeLoading) return;
     // 진행 중인 데일리 챌린지가 있으면 덮어쓰기 방지 — 자동으로 이어하기
     if (hasActiveDailyChallenge()) {
@@ -2450,6 +2459,10 @@ const App: React.FC = () => {
       clearComboMessageQueue();
       setCanSkipSlide(false);
       setLastSnapshot(null);
+      // 복기 모드 초기화
+      setIsReviewMode(false);
+      setReviewIndex(0);
+      setSnapshotHistory([]);
       // 챌린지 모드: undo/blockRefresh/revive 비활성화
       setUndoRemaining(0);
       setBlockRefreshRemaining(0);
@@ -2548,6 +2561,10 @@ const App: React.FC = () => {
     clearComboMessageQueue();
     setCanSkipSlide(false);
     setLastSnapshot(null);
+    // 복기 모드 초기화
+    setIsReviewMode(false);
+    setReviewIndex(0);
+    setSnapshotHistory([]);
     // 이벤트 모드: undo/blockRefresh/revive 비활성화
     setUndoRemaining(rule.disableUndo ? 0 : INITIAL_UNDO_AMOUNT);
     setBlockRefreshRemaining(rule.disableBlockRefresh ? 0 : INITIAL_BLOCK_REFRESH_AMOUNT);
@@ -2638,6 +2655,10 @@ const App: React.FC = () => {
     clearComboMessageQueue();
     setCanSkipSlide(false);
     setLastSnapshot(null);
+    // 복기 모드 초기화
+    setIsReviewMode(false);
+    setReviewIndex(0);
+    setSnapshotHistory([]);
     setUndoRemaining(rule.disableUndo ? 0 : INITIAL_UNDO_AMOUNT);
     setBlockRefreshRemaining(rule.disableBlockRefresh ? 0 : INITIAL_BLOCK_REFRESH_AMOUNT);
     setShowBlockRefreshAdButton(false);
@@ -2686,12 +2707,22 @@ const App: React.FC = () => {
 
   // 현재 상태를 스냅샷으로 저장 (행동 실행 전 호출)
   const saveSnapshot = useCallback(() => {
-    setLastSnapshot({
+    const snapshot: GameSnapshot = {
       grid: grid.map(row => row.map(tile => tile ? { ...tile } : null)),
       slots: slots.map(p => p ? { ...p, cells: [...p.cells] } : null),
       score,
       phase,
       canSkipSlide
+    };
+    // Undo용 단일 스냅샷 유지
+    setLastSnapshot(snapshot);
+    // 복기용 히스토리 배열에 추가 (최대 20개)
+    setSnapshotHistory(prev => {
+      const next = [...prev, snapshot];
+      if (next.length > MAX_SNAPSHOTS) {
+        return next.slice(next.length - MAX_SNAPSHOTS);
+      }
+      return next;
     });
   }, [grid, slots, score, phase, canSkipSlide]);
 
@@ -4048,6 +4079,23 @@ const App: React.FC = () => {
       } else if (gameModeRef.current === 'daily_challenge') {
         clearDailyChallengeState();
       }
+      // 게임오버 직전 최종 상태를 복기용 스냅샷에 추가
+      setSnapshotHistory(prev => {
+        const finalSnapshot: GameSnapshot = {
+          grid: grid.map(row => row.map(tile => tile ? { ...tile } : null)),
+          slots: slots.map(p => p ? { ...p, cells: [...p.cells] } : null),
+          score,
+          phase,
+          canSkipSlide,
+        };
+        const next = [...prev, finalSnapshot];
+        if (next.length > MAX_SNAPSHOTS) {
+          return next.slice(next.length - MAX_SNAPSHOTS);
+        }
+        return next;
+      });
+      const diagnosis = diagnoseGameOver(grid, slots, eventRuleRef.current?.disableRotation ?? false);
+      setGameOverReason(diagnosis);
       setGameState(GameState.GAME_OVER);
       // 이벤트 버스: 게임 오버 (activePlayDuration 사용 — 일시정지 시간 제외)
       const startedAt = activePlayStartedAtRef.current;
@@ -4646,9 +4694,7 @@ const App: React.FC = () => {
           {isLoading && <LoadingScreen key="loading-screen-menu" />}
         </AnimatePresence>
 
-        {/* 사용자 결정사항(임시 운영 정책): 데일리 챌린지 홈 버튼 숨김.
-            사용자 증가 시점에 아래 블록을 복구해 재활성화한다.
-            {isFeatureUnlocked('daily_challenge') && (
+        {isFeatureUnlocked('daily_challenge') && (
             <div className="relative w-full">
               <button
                 onClick={startDailyChallenge}
@@ -4693,7 +4739,6 @@ const App: React.FC = () => {
               )}
             </div>
             )}
-        */}
 
         {/* 주간 이벤트 버튼 — 항상 표시, 잠금 시 비활성 UI */}
         {(() => {
@@ -5084,7 +5129,6 @@ const App: React.FC = () => {
               eventAttemptNumber={eventAttemptNumberRef.current}
               onCancel={handleActiveGameExitCancel}
               onProceedWithoutRegister={handleActiveGameExitProceedWithoutRegister}
-              onIntermediateSaveComplete={handleActiveGameExitIntermediateSaveComplete}
               onSessionNameLocked={handleActiveGameExitNameLocked}
               onRegisteredAndProceed={handleActiveGameExitRegisteredAndProceed}
             />
@@ -5190,8 +5234,7 @@ const App: React.FC = () => {
             onAction={(action) => {
               if (action === 'streak') openStreakInfoModal();
               else if (action === 'mission') openMissionModal();
-              // 사용자 결정사항(임시 운영 정책): 데일리 챌린지 캘린더 진입 비활성화
-              // else if (action === 'daily_challenge') startDailyChallenge();
+              else if (action === 'daily_challenge') startDailyChallenge();
               else if (action === 'weekly_event') openWeeklyEventModal();
             }}
           />
@@ -5704,7 +5747,7 @@ const App: React.FC = () => {
         {renderDraggingPiece()}
 
         {/* Game Over Modal */}
-        {gameState === GameState.GAME_OVER && (
+        {gameState === GameState.GAME_OVER && !isReviewMode && (
           <GameOverModal
             sessionId={sessionIdRef.current}
             score={score}
@@ -5723,11 +5766,86 @@ const App: React.FC = () => {
             onWatchReviveAd={handleWatchReviveAd}
             onSessionNameLocked={handleActiveGameExitNameLocked}
             onClose={handleGameOverClose}
+            onReview={handleEnterReviewMode}
+            hasReviewSnapshots={snapshotHistory.length > 0}
             gameMode={gameMode}
             challengeDate={challengeDateRef.current ?? undefined}
             eventAttemptNumber={eventAttemptNumberRef.current}
             onViewRankings={handleGameOverViewRankings}
+            gameOverReason={gameOverReason}
           />
+        )}
+
+        {/* 복기(Review) 모드 */}
+        {gameState === GameState.GAME_OVER && isReviewMode && snapshotHistory.length > 0 && (
+          <div className="fixed inset-0 z-50 flex flex-col items-center bg-white">
+            {/* 상단 헤더 */}
+            <div
+              className="w-full flex items-center justify-between px-4 py-3 border-b border-gray-200 shrink-0"
+              style={{ paddingTop: 'calc(12px + var(--game-safe-top))' }}
+            >
+              <span className="text-sm font-semibold text-gray-700">
+                {t('modals:gameOver.reviewGame')} ({reviewIndex + 1}/{snapshotHistory.length})
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleReviewGoHome}
+                  className="px-3 py-1.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200 active:scale-95 transition-all"
+                >
+                  {t('modals:gameOver.goHome', '홈으로')}
+                </button>
+                <button
+                  onClick={handleReviewOpenRankings}
+                  className="px-3 py-1.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200 active:scale-95 transition-all"
+                >
+                  {t('modals:gameOver.viewRankings', '랭킹보기')}
+                </button>
+                <button
+                  onClick={handleExitReviewMode}
+                  className="px-3 py-1.5 rounded-full text-xs font-semibold bg-gray-900 text-white hover:bg-gray-800 active:scale-95 transition-all"
+                >
+                  {t('modals:gameOver.close', '닫기')}
+                </button>
+              </div>
+            </div>
+
+            {/* 보드 표시 (읽기 전용) */}
+            <div className="flex-1 w-full flex items-center justify-center p-4 min-h-0">
+              <div className="w-full max-w-[420px]">
+                <Board
+                  htmlId="review-board"
+                  grid={snapshotHistory[reviewIndex].grid}
+                  phase={snapshotHistory[reviewIndex].phase}
+                  activePiece={null}
+                  boardRef={boardRef}
+                  mergingTiles={EMPTY_MERGING_TILES}
+                  boardScale={boardScale}
+                  readonly={true}
+                />
+              </div>
+            </div>
+
+            {/* 하단 네비게이션 */}
+            <div className="w-full flex items-center justify-center gap-6 py-4 border-t border-gray-200 shrink-0">
+              <button
+                onClick={() => setReviewIndex(prev => Math.max(0, prev - 1))}
+                disabled={reviewIndex === 0}
+                className="px-5 py-2.5 rounded-full text-sm font-semibold bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
+              >
+                ← {t('modals:gameOver.reviewPrev', '이전')}
+              </button>
+              <span className="text-sm font-semibold text-gray-500 tabular-nums">
+                {reviewIndex + 1} / {snapshotHistory.length}
+              </span>
+              <button
+                onClick={() => setReviewIndex(prev => Math.min(snapshotHistory.length - 1, prev + 1))}
+                disabled={reviewIndex === snapshotHistory.length - 1}
+                className="px-5 py-2.5 rounded-full text-sm font-semibold bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
+              >
+                {t('modals:gameOver.reviewNext', '다음')} →
+              </button>
+            </div>
+          </div>
         )}
 
         {/* ── 최초 50점 돌파 무료 스킨 뽑기권 모달 ── */}
@@ -5787,7 +5905,6 @@ const App: React.FC = () => {
             eventAttemptNumber={eventAttemptNumberRef.current}
             onCancel={handleActiveGameExitCancel}
             onProceedWithoutRegister={handleActiveGameExitProceedWithoutRegister}
-            onIntermediateSaveComplete={handleActiveGameExitIntermediateSaveComplete}
             onSessionNameLocked={handleActiveGameExitNameLocked}
             onRegisteredAndProceed={handleActiveGameExitRegisteredAndProceed}
           />

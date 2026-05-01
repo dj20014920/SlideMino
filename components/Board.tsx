@@ -45,6 +45,7 @@ interface BoardProps {
   valueOverrides?: Record<string, number>;
   htmlId?: string;
   boardScale?: number;
+  readonly?: boolean;
   reviveSelectionEnabled?: boolean;
   revivePendingTileId?: string | null;
   onReviveTileTap?: (tileId: string) => void;
@@ -514,6 +515,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
   valueOverrides,
   htmlId,
   boardScale,
+  readonly = false,
   reviveSelectionEnabled = false,
   revivePendingTileId = null,
   onReviveTileTap,
@@ -996,7 +998,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
 
   // Calculate ghost overlay
   const ghostCells = useMemo(() => {
-    if (!activePiece || !hoverLocation) return null;
+    if (readonly || !activePiece || !hoverLocation) return null;
 
     const { x, y } = hoverLocation;
     const isValid = canPlacePiece(grid, activePiece, x, y);
@@ -1005,7 +1007,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
       cells: activePiece.cells.map(c => ({ x: x + c.x, y: y + c.y })),
       isValid
     };
-  }, [grid, activePiece, hoverLocation]);
+  }, [readonly, grid, activePiece, hoverLocation]);
 
   // Phase별 보드 테두리 스타일
   const boardBorderStyle = isPremiumUiThemeActive
@@ -1031,6 +1033,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
         ${isPremiumUiThemeActive ? '' : 'rounded-3xl'} select-none overflow-hidden
         shadow-lg transition-shadow duration-200 ease-out
         ${boardBorderStyle}
+        ${readonly ? 'pointer-events-none' : ''}
       `}
       style={{
         width: `${boardPx}px`,

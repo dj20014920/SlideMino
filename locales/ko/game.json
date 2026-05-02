@@ -18,7 +18,7 @@
   },
   "phases": {
     "place": "블록 배치",
-    "swipe": "보드 스와이프"
+    "swipe": "스와이프"
   },
   "hints": {
     "rotate": "회전: 빈 공간 탭/회전 버튼, PC는 R",

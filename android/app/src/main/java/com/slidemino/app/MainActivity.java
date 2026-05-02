@@ -1,6 +1,8 @@
 package com.slidemino.app;
 
 import android.os.Bundle;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
 import androidx.core.splashscreen.SplashScreen;
 import androidx.activity.EdgeToEdge;
 import com.getcapacitor.BridgeActivity;
@@ -20,5 +22,12 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(StoreInstallPlugin.class);
 
         super.onCreate(savedInstanceState);
+
+        // 🛡️ 시스템 accessibility font scaling 차단
+        // OS 글꼴 크기 설정을 100%로 고정하여 WebView 내 UI 붕괴 방지
+        WebView webView = this.bridge.getWebView();
+        if (webView != null) {
+            webView.getSettings().setTextZoom(100);
+        }
     }
 }

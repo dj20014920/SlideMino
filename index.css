@@ -3,6 +3,22 @@
 @tailwind utilities;
 
 /* ==============================================
+   🛡️ 시스템 accessibility font scaling 차단
+   모바일 WebView에서 OS 글꼴 크기 설정이
+   게임 UI를 무너뜨리지 않도록 강제 고정한다.
+   ============================================== */
+html {
+  -webkit-text-size-adjust: 100% !important;
+  text-size-adjust: 100% !important;
+}
+
+/* 게임 화면 외부 (약관/정책 페이지 등)는 시스템 설정 존중 */
+.privacy-page, .terms-page, .about-page, .contact-page {
+  -webkit-text-size-adjust: auto !important;
+  text-size-adjust: auto !important;
+}
+
+/* ==============================================
    ✨ Skin Animations
    Designed to use only `filter` & `drop-shadow`
    so they never conflict with tile `transform: translate3d()`.
@@ -429,6 +445,15 @@
   50% {
     opacity: 1;
     transform: scale(1.005);
+  }
+}
+
+@keyframes combo-pulse {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.85;
   }
 }
 

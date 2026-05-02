@@ -5692,9 +5692,10 @@ const App: React.FC = () => {
               </div>
             </div>
             <div className="flex flex-col items-end gap-2 transition-all duration-200">
-              {/* Phase Indicator - Glass Pill */}
+              {/* Phase Indicator - Glass Pill - 고정 폭으로 레이아웃 안정화 */}
               <div className={`
             px-4 py-2 rounded-full text-sm font-semibold flex items-center justify-center gap-2 ${premiumPillButtonClassName}
+            min-w-[100px]
             ${isPremiumUiThemeActive ? premiumHeaderMainButtonClassName : ''}
             transition-all duration-200 ease-out
             ${phaseIndicatorInteractivityClass}

@@ -433,6 +433,7 @@ interface PendingEventScore {
   levelBadge?: string;
   isIntermediate?: boolean;
   isProgress?: boolean;
+  comboMultiplier?: number;
   updatedAt: number;
 }
 
@@ -509,6 +510,7 @@ function mergePendingEventScore(
     duration: best.duration,
     attemptNumber: incoming.attemptNumber,
     levelBadge: incoming.levelBadge ?? existing.levelBadge,
+    comboMultiplier: incoming.comboMultiplier ?? existing.comboMultiplier,
     isIntermediate: existing.isIntermediate && incoming.isIntermediate,
     isProgress: (existing.isProgress === true && existing.isIntermediate === true)
       && (incoming.isProgress === true && incoming.isIntermediate === true),
@@ -652,6 +654,7 @@ async function postEventScore(params: {
   levelBadge?: string;
   isIntermediate?: boolean;
   isProgress?: boolean;
+  comboMultiplier?: number;
 }): Promise<EventSubmitResult> {
   try {
     const installId = getAnalyticsInstallId();
@@ -664,6 +667,7 @@ async function postEventScore(params: {
         eventType: params.eventType,
         installId,
         ...scoreParams,
+        comboMultiplier: params.comboMultiplier ?? 1.0,
         ...(isIntermediate ? { isIntermediate: true } : {}),
         ...(isProgress ? { isProgress: true } : {}),
       }),
@@ -703,6 +707,7 @@ async function runFlushPendingEventScores(): Promise<void> {
       levelBadge: item.levelBadge,
       isIntermediate: item.isIntermediate,
       isProgress: item.isProgress,
+      comboMultiplier: item.comboMultiplier,
     });
 
     if (result.success) {
@@ -945,6 +950,7 @@ export async function submitEventScore(params: {
   levelBadge?: string;
   isIntermediate?: boolean;
   isProgress?: boolean;
+  comboMultiplier?: number;
 }): Promise<EventSubmitResult> {
   const current = getCurrentEvent();
   const isIntermediate = params.isIntermediate === true;
@@ -961,6 +967,7 @@ export async function submitEventScore(params: {
     levelBadge: params.levelBadge,
     isIntermediate,
     isProgress: params.isProgress === true,
+    comboMultiplier: params.comboMultiplier ?? 1.0,
   };
 
   if (!isOnline()) {

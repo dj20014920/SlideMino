@@ -15,7 +15,7 @@ import {
 } from '../../utils/validation';
 import { hashInstallId } from '../../utils/hash';
 import { checkRateLimit, getClientIp } from '../../utils/rateLimit';
-import { buildCorsHeaders } from '../../utils/cors';
+import { buildCorsHeaders, createJsonResponse, isCrossSiteMutation, isTrustedRequestOrigin } from '../../utils/cors';
 
 interface Env {
   DB: D1Database;
@@ -56,6 +56,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const corsHeaders = buildCorsHeaders(request, 'POST, OPTIONS');
 
   try {
+    // CSRF Protection
+    if (isCrossSiteMutation(request) || !isTrustedRequestOrigin(request)) {
+      return createJsonResponse(request, 'POST, OPTIONS', { error: 'Blocked by origin policy' }, 403);
+    }
+
     // Rate limiting
     const clientIP = getClientIp(request);
     const { allowed } = await checkRateLimit(env.DB, `daily-submit:${clientIP}`, 60, 60);
@@ -89,7 +94,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const moves = movesV.value!;
 
     // 안티치트: 게임 일관성 검증 (난이도 5 고정)
-    const consistency = validateGameConsistency(score, '5', duration, moves);
+    const rawCombo = typeof data.comboMultiplier === 'number' && Number.isFinite(data.comboMultiplier) && data.comboMultiplier >= 1 ? data.comboMultiplier : 1;
+    const comboMultiplier = Math.max(1, Math.min(3, rawCombo)); // 1~3 clamp
+    const consistency = validateGameConsistency(score, '5', duration, moves, undefined, comboMultiplier);
     if (!consistency.valid) {
       console.log(`[DailyChallenge] anti-cheat blocked: ${consistency.error}`);
       return errorResponse('Score could not be saved. Please play normally.', 403, corsHeaders);

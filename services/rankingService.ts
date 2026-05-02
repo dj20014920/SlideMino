@@ -55,6 +55,7 @@ interface PendingScore {
     platform?: string;
     levelBadge?: string;
     mode?: 'final' | 'progress';
+    comboMultiplier?: number;
 }
 
 interface PendingScoreQueueEnvelopeV2 {
@@ -169,6 +170,7 @@ const sanitizePendingScore = (sessionId: string, raw: unknown): PendingScore | n
         platform: typeof raw.platform === 'string' && raw.platform.length > 0 ? raw.platform : undefined,
         levelBadge: typeof raw.levelBadge === 'string' && raw.levelBadge.length > 0 ? raw.levelBadge : undefined,
         mode: raw.mode === 'progress' ? 'progress' : 'final',
+        comboMultiplier: typeof raw.comboMultiplier === 'number' && Number.isFinite(raw.comboMultiplier) && raw.comboMultiplier >= 1 ? raw.comboMultiplier : undefined,
     };
 };
 
@@ -381,7 +383,8 @@ const buildPayload = (
     moves: number,
     installId?: string,
     levelBadge?: string,
-    mode: 'final' | 'progress' = 'final'
+    mode: 'final' | 'progress' = 'final',
+    comboMultiplier?: number
 ): Omit<PendingScore, 'updatedAt'> => {
     return {
         sessionId,
@@ -395,6 +398,7 @@ const buildPayload = (
         platform: Capacitor.getPlatform(),
         levelBadge,
         mode,
+        comboMultiplier: comboMultiplier ?? 1.0,
     };
 };
 
@@ -497,11 +501,12 @@ export const rankingService = {
         duration: number,
         moves: number,
         installId?: string,
-        levelBadge?: string
+        levelBadge?: string,
+        comboMultiplier?: number
     ): Promise<SubmitScoreResponse> => {
         // Save name locally first
         rankingService.saveName(name);
-        const payload = buildPayload(sessionId, name, score, difficulty, duration, moves, installId, levelBadge, 'final');
+        const payload = buildPayload(sessionId, name, score, difficulty, duration, moves, installId, levelBadge, 'final', comboMultiplier);
 
         if (!isOnline()) {
             if (!REALTIME_RANKING_ONLY) {
@@ -557,10 +562,11 @@ export const rankingService = {
         difficulty: string,
         duration: number,
         moves: number,
-        installId?: string
+        installId?: string,
+        comboMultiplier?: number
     ): Promise<SubmitScoreResponse> => {
         rankingService.saveName(name);
-        const payload = buildPayload(sessionId, name, score, difficulty, duration, moves, installId, undefined, 'progress');
+        const payload = buildPayload(sessionId, name, score, difficulty, duration, moves, installId, undefined, 'progress', comboMultiplier);
 
         if (!isOnline()) {
             if (!REALTIME_RANKING_ONLY) {

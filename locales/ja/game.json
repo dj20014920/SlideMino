@@ -82,6 +82,18 @@
       "notSupported": "現在の環境では広告機能がサポートされていません。"
     }
   },
+  "onboarding": {
+    "skinTitle": "スキンコレクション",
+    "skinHint": "スキン画面でブロックの見た目を変えたり、新しいスキンを引いたりできます。",
+    "skinAction": "スキンを見る",
+    "weeklyEventTitle": "ウィークリーイベント",
+    "weeklyEventHint": "メニューのウィークリーイベントから、毎週変わるルールに挑戦してイベントランキングを確認できます。",
+    "weeklyEventAction": "イベントを見る",
+    "rankingTitle": "ランキング",
+    "rankingHint": "スコアは自動保存されます。ランキング画面で自分の記録やイベント順位を確認できます。",
+    "rankingAction": "ランキングを見る",
+    "later": "あとで"
+  },
   "tutorial": {
     "swipeBack": "右にスワイプして戻る",
     "tapToDismiss": "タップして閉じる",

@@ -16,7 +16,7 @@ import {
 import { getSeasonBoundaries, resetSeasonIfNeeded } from '../utils/seasonReset';
 import { hashInstallId } from '../utils/hash';
 import { checkRateLimit, getClientIp } from '../utils/rateLimit';
-import { buildCorsHeaders } from '../utils/cors';
+import { buildCorsHeaders, createJsonResponse, isCrossSiteMutation, isTrustedRequestOrigin } from '../utils/cors';
 
 interface Env {
   DB: D1Database;
@@ -36,6 +36,7 @@ interface SubmitRequest {
   platform?: unknown;              // 플랫폼 ('android', 'ios', 'web')
   levelBadge?: unknown;            // 레벨 배지 ID (예: lv15)
   mode?: unknown;                  // 'final' | 'progress' (진행 중 자동 저장)
+  comboMultiplier?: unknown;       // 콤보 배율 (1.0 ~ 3.0)
 }
 
 const VALID_LEVEL_BADGES = new Set([
@@ -95,6 +96,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const corsHeaders = buildCorsHeaders(request, 'POST, OPTIONS');
 
   try {
+    // ========== CSRF Protection (Layer 1) ==========
+    if (isCrossSiteMutation(request) || !isTrustedRequestOrigin(request)) {
+      return createJsonResponse(request, 'POST, OPTIONS', { error: 'Blocked by origin policy' }, 403);
+    }
+
     // ========== Rate Limiting (Layer 2) ==========
     const clientIP = getClientIp(request);
     if (env.SUBMIT_RATE_LIMITER) {
@@ -169,7 +175,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const submitMode = data.mode === 'progress' ? 'progress' : 'final';
 
     // ========== 안티-치트 검증 (Layer 3) ==========
-    const consistencyCheck = validateGameConsistency(score, difficulty, duration, moves);
+    const rawCombo = typeof data.comboMultiplier === 'number' && Number.isFinite(data.comboMultiplier) && data.comboMultiplier >= 1 ? data.comboMultiplier : 1;
+    const comboMultiplier = Math.max(1, Math.min(3, rawCombo)); // 1~3 clamp
+    const consistencyCheck = validateGameConsistency(score, difficulty, duration, moves, undefined, comboMultiplier);
     if (!consistencyCheck.valid) {
       // 일반적인 메시지로 치터에게 정보 노출 방지
       console.log(`Anti-cheat blocked: ${consistencyCheck.error}`); // 서버 로그에만 기록

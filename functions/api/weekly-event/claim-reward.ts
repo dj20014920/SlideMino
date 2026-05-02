@@ -11,7 +11,7 @@
 
 import { hashInstallId } from '../../utils/hash';
 import { checkRateLimit, getClientIp } from '../../utils/rateLimit';
-import { buildCorsHeaders } from '../../utils/cors';
+import { buildCorsHeaders, createJsonResponse, isCrossSiteMutation, isTrustedRequestOrigin } from '../../utils/cors';
 import { getPreviousEventId, REWARD_FRAGMENTS } from '../../utils/eventSchedule';
 import { ensureWeeklyEventSchema } from '../../utils/weeklyEventSchema';
 
@@ -45,6 +45,10 @@ export const onRequestOptions: PagesFunction<Env> = async (context) => {
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
   const corsHeaders = buildCorsHeaders(request, 'POST, OPTIONS');
+
+  if (isCrossSiteMutation(request) || !isTrustedRequestOrigin(request)) {
+    return createJsonResponse(request, 'POST, OPTIONS', { error: 'Blocked by origin policy' }, 403);
+  }
 
   try {
     // Rate limiting (30 req / 60s)

@@ -9,12 +9,31 @@
  * - 레벨 3 도달 → 공유 카드
  * - 레벨 5 도달 → 캘린더 전체 표시
  *
+ * 점수 기반 온보딩 안내 (기능 잠금 없음, 안내만):
+ * - 50점 도달 → 스킨 안내
+ * - 70점 도달 → 이벤트모드 안내
+ * - 100점 도달 → 랭킹 안내
+ *
  * localStorage 기반. 한번 해금된 기능은 영구적.
  */
 
 import { loadXpData } from './xpLevelService';
 
 const STORAGE_KEY = 'slidemino.onboarding.v1';
+const SCORE_ONBOARDING_STORAGE_KEY = 'slidemino.score_onboarding.v1';
+
+/** 점수 기반 온보딩 단계 */
+export type ScoreOnboardingStep = 'skin' | 'weekly_event' | 'ranking';
+
+/** 점수 기준: 각 단계별 최소 점수 */
+export const SCORE_ONBOARDING_THRESHOLDS: Record<ScoreOnboardingStep, number> = {
+  skin: 50,
+  weekly_event: 70,
+  ranking: 100,
+};
+
+/** 점수 기준 오름차순 순서 */
+export const SCORE_ONBOARDING_ORDER: ScoreOnboardingStep[] = ['skin', 'weekly_event', 'ranking'];
 
 // ====== 기능 해금 조건 ======
 
@@ -175,4 +194,66 @@ function hasExistingGameData(): boolean {
   } catch {
     return false;
   }
+}
+
+// ====== 점수 기반 온보딩 안내 (기능 잠금 없음) ======
+
+interface ScoreOnboardingData {
+  seenSteps: string[];
+}
+
+function loadScoreOnboardingData(): ScoreOnboardingData {
+  try {
+    const raw = localStorage.getItem(SCORE_ONBOARDING_STORAGE_KEY);
+    if (!raw) return { seenSteps: [] };
+    const parsed = JSON.parse(raw);
+    return {
+      seenSteps: Array.isArray(parsed.seenSteps) ? parsed.seenSteps : [],
+    };
+  } catch {
+    return { seenSteps: [] };
+  }
+}
+
+function saveScoreOnboardingData(data: ScoreOnboardingData): void {
+  try {
+    localStorage.setItem(SCORE_ONBOARDING_STORAGE_KEY, JSON.stringify(data));
+  } catch { /* 무시 */ }
+}
+
+/** 이미 본 점수 기반 온보딩 단계 목록 */
+export function getSeenScoreOnboardingSteps(): string[] {
+  return loadScoreOnboardingData().seenSteps;
+}
+
+/**
+ * 현재 점수에 따라 표시할 온보딩 단계를 반환.
+ * 이미 본 단계는 건너뛰고, 점수 기준을 충족하는 가장 낮은 단계를 반환.
+ * 표시할 단계가 없으면 null.
+ */
+export function shouldShowOnboardingForScore(score: number): ScoreOnboardingStep | null {
+  const data = loadScoreOnboardingData();
+  for (const step of SCORE_ONBOARDING_ORDER) {
+    if (data.seenSteps.includes(step)) continue;
+    if (score >= SCORE_ONBOARDING_THRESHOLDS[step]) {
+      return step;
+    }
+  }
+  return null;
+}
+
+/** 점수 기반 온보딩 단계를 본 것으로 기록 */
+export function markScoreOnboardingStepSeen(step: ScoreOnboardingStep): void {
+  const data = loadScoreOnboardingData();
+  if (!data.seenSteps.includes(step)) {
+    data.seenSteps.push(step);
+    saveScoreOnboardingData(data);
+  }
+}
+
+/** 점수 기반 온보딩 초기화 (튜토리얼 리셋 시) */
+export function clearScoreOnboardingProgress(): void {
+  try {
+    localStorage.removeItem(SCORE_ONBOARDING_STORAGE_KEY);
+  } catch { /* 무시 */ }
 }

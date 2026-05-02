@@ -82,6 +82,18 @@
       "notSupported": "Ads are not supported in this environment."
     }
   },
+  "onboarding": {
+    "skinTitle": "Skin Collection",
+    "skinHint": "Open Skins to change your block style and draw new looks.",
+    "skinAction": "Open Skins",
+    "weeklyEventTitle": "Weekly Event",
+    "weeklyEventHint": "Use Weekly Event from the menu to play new rules each week and check event rankings.",
+    "weeklyEventAction": "Open Event",
+    "rankingTitle": "Rankings",
+    "rankingHint": "Your score is saved automatically. Open Rankings to check your records and event standings.",
+    "rankingAction": "Open Rankings",
+    "later": "Later"
+  },
   "tutorial": {
     "swipeBack": "Swipe right to go back",
     "tapToDismiss": "Tap to close",

@@ -14,6 +14,7 @@ releases/
 .omx
 .qwen
 .opencode
+project.yml
 # Dependencies
 node_modules
 dist
@@ -161,5 +162,8 @@ services/skinGiftService.ts
 # Project-specific directories
 mcp-server/
 oh-my-githubcopilot/
+
+.playwright-mcp/
+onboarding-weekly-overlay.png
 
 .github/

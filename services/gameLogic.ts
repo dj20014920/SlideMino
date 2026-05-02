@@ -1,6 +1,14 @@
 import { Grid, Piece, ShapeType, Coordinate, Phase, Tile, MergingTile, type GameOverDiagnosis } from '../types';
 import { SHAPES, STANDARD_SHAPES } from '../constants';
 
+// --- Constants ---
+
+/** 최대 타일 값 상한 (2^17 = 131072). 이 이상은 사실상 도달 불가능하며, 서버 anti-cheat 점수 상한(100만점)을 고려한 안전값 */
+const MAX_TILE_VALUE = 131072;
+
+/** 클라이언트 측 점수 누적 상한 (서버 점수 상한 100만점과 일치) */
+const MAX_SCORE = 1_000_000;
+
 // --- Utils ---
 
 export const createEmptyGrid = (size: number): Grid => {
@@ -191,7 +199,7 @@ const mergeLine = (line: (Tile | null)[]): MergeLineResult => {
 
     if (next && current.tile.value === next.tile.value) {
       // 병합 발생!
-      const newVal = current.tile.value * 2;
+      const newVal = Math.min(current.tile.value * 2, MAX_TILE_VALUE);
 
       // ✅ 핵심 수정: current(먼저 도착하는 타일)의 ID 유지
       // 이렇게 해야 React의 key 기반 렌더링에서 순서가 보존됨
@@ -211,7 +219,7 @@ const mergeLine = (line: (Tile | null)[]): MergeLineResult => {
       });
       maxDistance = Math.max(maxDistance, Math.abs(outIndex - next.originalIndex));
 
-      score += newVal;
+      score = Math.min(score + newVal, MAX_SCORE);
       i += 2; // 두 타일 모두 처리됨
     } else {
       // 병합 없음, 그대로 이동

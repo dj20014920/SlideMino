@@ -44,6 +44,8 @@ interface GameOverModalProps {
     onViewRankings?: () => void;
     onSessionNameLocked?: (name: string) => void;
     gameOverReason?: GameOverDiagnosis | null;
+    /** 콤보 배율 (서버 안티치트 검증용) */
+    comboMultiplier?: number;
 }
 
 export const GameOverModal: React.FC<GameOverModalProps> = ({
@@ -71,6 +73,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
     onViewRankings,
     onSessionNameLocked,
     gameOverReason,
+    comboMultiplier,
 }) => {
     const { t } = useTranslation();
     useBodyScrollLock(true);
@@ -201,6 +204,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                 duration,
                 attemptNumber: eventAttemptNumber ?? 1,
                 levelBadge: levelBadgeId,
+                comboMultiplier,
             });
             setIsSubmitting(false);
             if (eventResult.success) {
@@ -240,7 +244,8 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
             duration,
             moves,
             getAnalyticsInstallId(),
-            levelBadgeId
+            levelBadgeId,
+            comboMultiplier
         );
         setIsSubmitting(false);
         if (result.success) {

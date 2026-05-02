@@ -150,6 +150,8 @@ export const clearOnboardingProgress = (): void => {
     localStorage.removeItem(ONBOARDING_STORAGE_KEYS.skinFeatureTutorialSeen);
     localStorage.removeItem(ONBOARDING_STORAGE_KEYS.gameFeaturesTutorialSeen);
     localStorage.removeItem(ONBOARDING_STORAGE_KEYS.tutorialCompleted);
+    // 점수 기반 온보딩도 함께 초기화
+    localStorage.removeItem('slidemino.score_onboarding.v1');
   } catch {
     // noop
   }

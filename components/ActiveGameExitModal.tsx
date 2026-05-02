@@ -34,6 +34,8 @@ interface ActiveGameExitModalProps {
     onProceedWithoutRegister: () => void;
     onSessionNameLocked?: (name: string) => void;
     onRegisteredAndProceed: () => void;
+    /** 콤보 배율 (서버 안티치트 검증용) */
+    comboMultiplier?: number;
 }
 
 export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
@@ -54,6 +56,7 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
     onProceedWithoutRegister,
     onSessionNameLocked,
     onRegisteredAndProceed,
+    comboMultiplier,
 }) => {
     const { t } = useTranslation();
     useBodyScrollLock(open);
@@ -133,6 +136,7 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                 attemptNumber: eventAttemptNumber ?? 1,
                 levelBadge: levelBadgeId,
                 isIntermediate: false,
+                comboMultiplier,
             });
             setIsSubmitting(false);
             if (eventResult.success) {
@@ -160,7 +164,9 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
             difficulty,
             duration,
             moves,
-            getAnalyticsInstallId()
+            getAnalyticsInstallId(),
+            undefined,
+            comboMultiplier
         );
 
         setIsSubmitting(false);

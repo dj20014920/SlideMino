@@ -82,6 +82,18 @@
       "notSupported": "현재 환경에서는 광고 기능이 지원되지 않습니다."
     }
   },
+  "onboarding": {
+    "skinTitle": "스킨 컬렉션",
+    "skinHint": "스킨 화면에서 블록 스타일을 바꾸고 새 스킨을 뽑을 수 있어요.",
+    "skinAction": "스킨 화면 보기",
+    "weeklyEventTitle": "주간 이벤트",
+    "weeklyEventHint": "메뉴의 주간 이벤트에서 매주 바뀌는 규칙으로 도전하고 이벤트 랭킹을 확인할 수 있어요.",
+    "weeklyEventAction": "이벤트 화면 보기",
+    "rankingTitle": "랭킹",
+    "rankingHint": "점수는 자동 저장되고, 랭킹 화면에서 내 기록과 이벤트 순위를 확인할 수 있어요.",
+    "rankingAction": "랭킹 보기",
+    "later": "나중에"
+  },
   "tutorial": {
     "swipeBack": "오른쪽으로 스와이프하여 뒤로가기",
     "tapToDismiss": "터치하여 닫기",

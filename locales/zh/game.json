@@ -82,6 +82,18 @@
       "notSupported": "当前环境不支持广告功能。"
     }
   },
+  "onboarding": {
+    "skinTitle": "皮肤收藏",
+    "skinHint": "在皮肤页面可以更换方块样式，也可以抽取新的皮肤。",
+    "skinAction": "打开皮肤",
+    "weeklyEventTitle": "周活动",
+    "weeklyEventHint": "从菜单进入周活动，挑战每周变化的规则并查看活动排名。",
+    "weeklyEventAction": "打开活动",
+    "rankingTitle": "排行榜",
+    "rankingHint": "分数会自动保存。打开排行榜可以查看你的记录和活动排名。",
+    "rankingAction": "打开排行榜",
+    "later": "稍后"
+  },
   "tutorial": {
     "swipeBack": "向右滑动返回",
     "tapToDismiss": "点击关闭",

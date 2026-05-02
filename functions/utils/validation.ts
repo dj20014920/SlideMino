@@ -168,10 +168,12 @@ export function validateGameConsistency(
   difficulty: Difficulty,
   duration: number,
   moves: number,
-  scoreMultiplier: number = 1
+  scoreMultiplier: number = 1,
+  comboMultiplier: number = 1
 ): { valid: boolean; error?: string } {
-  // 이벤트 보정: 배율이 적용된 점수를 원래 범위로 환산
-  const normalizedScore = scoreMultiplier > 1 ? Math.floor(score / scoreMultiplier) : score;
+  // 이벤트 보정 + 콤보 보정: 배율이 적용된 점수를 원래 범위로 환산
+  const totalMultiplier = Math.max(1, scoreMultiplier * comboMultiplier);
+  const normalizedScore = totalMultiplier > 1 ? Math.floor(score / totalMultiplier) : score;
 
   // 1. 최소 게임 시간 체크
   // 의미 있는 점수(10점 이상)일 때 최소 시간 적용 - 치팅 방지

@@ -16,7 +16,7 @@ import {
 } from '../../utils/validation';
 import { hashInstallId } from '../../utils/hash';
 import { checkRateLimit, getClientIp } from '../../utils/rateLimit';
-import { buildCorsHeaders } from '../../utils/cors';
+import { buildCorsHeaders, createJsonResponse, isCrossSiteMutation, isTrustedRequestOrigin } from '../../utils/cors';
 import { getCurrentEventId } from '../../utils/eventSchedule';
 import { ensureWeeklyEventSchema } from '../../utils/weeklyEventSchema';
 
@@ -120,6 +120,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const corsHeaders = buildCorsHeaders(request, 'POST, OPTIONS');
 
   try {
+    // CSRF Protection
+    if (isCrossSiteMutation(request) || !isTrustedRequestOrigin(request)) {
+      return createJsonResponse(request, 'POST, OPTIONS', { error: 'Blocked by origin policy' }, 403);
+    }
+
     // Rate limiting
     const clientIP = getClientIp(request);
     const { allowed } = await checkRateLimit(env.DB, `event-submit:${clientIP}`, 30, 60);
@@ -195,10 +200,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       return errorResponse('Time limit exceeded', 403, corsHeaders);
     }
 
+    // 콤보 배율 추출 및 clamp (1~3)
+    const rawCombo = typeof data.comboMultiplier === 'number' && Number.isFinite(data.comboMultiplier) && data.comboMultiplier >= 1 ? data.comboMultiplier : 1;
+    const comboMultiplier = Math.max(1, Math.min(3, rawCombo));
+
     // 이벤트 타입별 점수 일관성 검증
     const multiplier = EVENT_SCORE_MULTIPLIER[eventType] ?? 1;
     const boardSize = EVENT_BOARD_SIZE[eventType] ?? '5';
-    const consistencyCheck = validateGameConsistency(score, boardSize, duration, moves, multiplier);
+    const consistencyCheck = validateGameConsistency(score, boardSize, duration, moves, multiplier, comboMultiplier);
     if (!consistencyCheck.valid) {
       return errorResponse(consistencyCheck.error ?? 'Inconsistent game data', 403, corsHeaders);
     }

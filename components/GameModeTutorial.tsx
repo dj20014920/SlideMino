@@ -275,7 +275,7 @@ export const GameModeTutorial: React.FC<GameModeTutorialProps> = ({
 
   return createPortal(
     <AnimatePresence>
-      <div ref={overlayRef} className="fixed inset-0 z-[60] pointer-events-none">
+      <div ref={overlayRef} className="fixed inset-0 z-[9999] pointer-events-none">
         {/* Highlight Box around Target */}
         <div
           className="absolute rounded-2xl border-2 border-blue-200/80 shadow-[0_0_0_9999px_rgba(15,23,42,0.45)]"

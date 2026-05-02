@@ -35,6 +35,7 @@ import { Undo2, Home, RotateCw, Move, Palette, Lock, Trophy, HelpCircle, RotateC
 
 import { GameOverModal } from './components/GameOverModal';
 import { GameModeTutorial } from './components/GameModeTutorial';
+import { GameOnboardingOverlay } from './components/GameOnboardingOverlay';
 import { LeaderboardModal } from './components/LeaderboardModal';
 import { NameInputModal } from './components/NameInputModal';
 import { ActiveGameExitModal, type ActiveGameExitContext } from './components/ActiveGameExitModal';
@@ -42,7 +43,9 @@ import { TutorialOverlay } from './components/TutorialOverlay';
 import { GameFeaturesTutorial } from './components/GameFeaturesTutorial';
 import { SkinFeatureTutorial } from './components/SkinFeatureTutorial';
 import AdBanner from './components/AdBanner';
+import AppDownloadBanner from './components/AppDownloadBanner';
 import { CookieConsent } from './components/CookieConsent';
+import ComboIndicator from './components/ComboIndicator';
 import { HelpModal } from './components/HelpModal';
 import { LanguageSwitcher } from './components/LanguageSwitcher';
 import { BottomNavBar, getEstimatedBottomNavHeight } from './components/BottomNavBar';
@@ -177,7 +180,10 @@ import {
   checkLevelUnlocks,
   isFeatureUnlocked,
   markFeatureNotified,
+  shouldShowOnboardingForScore,
+  markScoreOnboardingStepSeen,
   type FeatureId,
+  type ScoreOnboardingStep,
 } from './services/onboardingService';
 import { XpLevelModal } from './components/XpLevelModal';
 import { CalendarModal } from './components/CalendarModal';
@@ -212,6 +218,7 @@ const HOME_NAV_FLUSH_TIMEOUT_MS = 320;
 const SKIN_GIFT_CLAIM_RETRY_DELAYS_MS = [0, 2000, 10000, 30000] as const;
 const SKIN_GIFT_CLAIM_POLL_INTERVAL_MS = 3 * 60 * 1000;
 const SWIPE_TRIGGER_DISTANCE_PX = 24;
+const DAILY_CHALLENGE_ENABLED = false;
 
 type ComboMessageItem = {
   id: number;
@@ -1033,6 +1040,74 @@ const App: React.FC = () => {
   const [viewportSize, setViewportSize] = useState<ViewportSize>(getViewportSize);
   const [layoutChromeHeights, setLayoutChromeHeights] = useState<LayoutChromeHeights>(DEFAULT_LAYOUT_CHROME_HEIGHTS);
   const [comboMessageQueue, setComboMessageQueue] = useState<ComboMessageItem[]>([]);
+
+  // ── Combo system ──
+  const [comboCount, setComboCount] = useState(0);
+  const [comboTimerMs, setComboTimerMs] = useState(0);
+  const [isComboActive, setIsComboActive] = useState(false);
+  const comboMultiplierRef = useRef(1.0);
+  const maxComboMultiplierRef = useRef(1.0);
+  const comboTimerRef = useRef<number | null>(null);
+
+  const COMBO_MULTIPLIERS = [1.0, 1.0, 1.2, 1.5, 2.0, 3.0];
+  const COMBO_TIMER_MS = 2500;
+  const COMBO_TICK_MS = 50;
+
+  const getComboMultiplier = useCallback((count: number): number => {
+    if (count >= 5) return 3.0;
+    return COMBO_MULTIPLIERS[count] || 1.0;
+  }, []);
+
+  const startComboTimer = useCallback(() => {
+    if (comboTimerRef.current) clearInterval(comboTimerRef.current);
+
+    setComboTimerMs(COMBO_TIMER_MS);
+
+    comboTimerRef.current = window.setInterval(() => {
+      setComboTimerMs(prev => {
+        const next = prev - COMBO_TICK_MS;
+        if (next <= 0) {
+          if (comboTimerRef.current) clearInterval(comboTimerRef.current);
+          comboTimerRef.current = null;
+          setComboCount(0);
+          setIsComboActive(false);
+          comboMultiplierRef.current = 1.0;
+          return 0;
+        }
+        return next;
+      });
+    }, COMBO_TICK_MS);
+  }, []);
+
+  const triggerComboIncrement = useCallback((mergeCount: number) => {
+    if (mergeCount <= 1) return;
+
+    setComboCount(prev => {
+      const next = prev + 1;
+      if (next >= 1) {
+        setIsComboActive(true);
+        comboMultiplierRef.current = getComboMultiplier(next);
+        if (comboMultiplierRef.current > maxComboMultiplierRef.current) {
+          maxComboMultiplierRef.current = comboMultiplierRef.current;
+        }
+        startComboTimer();
+      }
+      return next;
+    });
+  }, [getComboMultiplier, startComboTimer]);
+
+  const resetComboState = useCallback(() => {
+    if (comboTimerRef.current) {
+      clearInterval(comboTimerRef.current);
+      comboTimerRef.current = null;
+    }
+    setComboCount(0);
+    setComboTimerMs(0);
+    setIsComboActive(false);
+    comboMultiplierRef.current = 1.0;
+    maxComboMultiplierRef.current = 1.0;
+  }, []);
+
   const isWin98ThemeActive = isPremiumUiThemeActive && premiumUiTheme?.family === 'win98';
   const isLandscapeViewport = useMemo(() => {
     if (typeof window === 'undefined') return false;
@@ -1191,6 +1266,10 @@ const App: React.FC = () => {
   const [activeOnboardingStep, setActiveOnboardingStep] = useState<MenuOnboardingStep>('none');
   const skinFeatureAutoSkipRetryTimerRef = useRef<number | null>(null);
 
+  // 점수 기반 온보딩 오버레이 상태
+  const [onboardingOverlayStep, setOnboardingOverlayStep] = useState<ScoreOnboardingStep | null>(null);
+  const [isOnboardingOverlayVisible, setIsOnboardingOverlayVisible] = useState(false);
+
   // Help Modal
   const [showHelpModal, setShowHelpModal] = useState(false);
 
@@ -1345,6 +1424,66 @@ const App: React.FC = () => {
       refreshMenuOnboardingStep();
     }, SKIN_TARGET_POLICY.deferredRetryIntervalMs);
   }, [refreshMenuOnboardingStep]);
+
+  // 점수 기반 온보딩 오버레이 닫기 핸들러
+  const handleDismissOnboardingOverlay = useCallback(() => {
+    if (onboardingOverlayStep) {
+      markScoreOnboardingStepSeen(onboardingOverlayStep);
+    }
+    setIsOnboardingOverlayVisible(false);
+    setOnboardingOverlayStep(null);
+  }, [onboardingOverlayStep]);
+
+  const handleOpenOnboardingFeature = useCallback(() => {
+    const step = onboardingOverlayStep;
+    if (!step) return;
+
+    markScoreOnboardingStepSeen(step);
+    setIsOnboardingOverlayVisible(false);
+    setOnboardingOverlayStep(null);
+
+    if (step === 'skin') {
+      openSkinModal();
+      return;
+    }
+    if (step === 'weekly_event') {
+      openWeeklyEventModal();
+      return;
+    }
+    openLeaderboardModal();
+  }, [onboardingOverlayStep, openLeaderboardModal, openSkinModal, openWeeklyEventModal]);
+
+  const isScoreOnboardingSuppressed = useMemo(() => (
+    activeOnboardingStep !== 'none' ||
+    isMenuTutorialSuppressed({
+      isNameInputOpen,
+      isCustomizationOpen,
+      isSkinOpen,
+      isLeaderboardOpen,
+      isStreakInfoOpen,
+      isSeasonRewardOpen,
+      isMissionModalOpen,
+      isXpModalOpen,
+      isCalendarOpen,
+      isWeeklyEventModalOpen,
+      isActiveGameExitModalOpen,
+      showFirstSkinRewardModal,
+    })
+  ), [
+    activeOnboardingStep,
+    isActiveGameExitModalOpen,
+    isCalendarOpen,
+    isCustomizationOpen,
+    isLeaderboardOpen,
+    isMissionModalOpen,
+    isNameInputOpen,
+    isSeasonRewardOpen,
+    isSkinOpen,
+    isStreakInfoOpen,
+    isWeeklyEventModalOpen,
+    isXpModalOpen,
+    showFirstSkinRewardModal,
+  ]);
 
   // 🆕 Reward Ad State
   const [isAdReady, setIsAdReady] = useState(false);
@@ -2092,8 +2231,10 @@ const App: React.FC = () => {
     setReviewIndex(0);
     setSnapshotHistory([]);
     setGameOverReason(null);
+    resetComboState();
+    maxComboMultiplierRef.current = 1.0;
     setGameState(GameState.MENU);
-  }, [gameMode, resetEventTimer]);
+  }, [gameMode, resetEventTimer, resetComboState]);
 
   // 게임오버 후 이벤트 랭킹 바로 보기 (weekly_event 전용)
   const handleGameOverViewRankings = useCallback(() => {
@@ -2348,6 +2489,8 @@ const App: React.FC = () => {
     setPhase(Phase.PLACE);
     setGameState(GameState.PLAYING);
     clearComboMessageQueue();
+    resetComboState();
+    maxComboMultiplierRef.current = 1.0;
     setCanSkipSlide(false);
     // Undo 초기화
     setLastSnapshot(null);
@@ -2406,6 +2549,10 @@ const App: React.FC = () => {
 
   // --- 데일리 챌린지 시작 ---
   async function startDailyChallenge() {
+    if (!DAILY_CHALLENGE_ENABLED) {
+      showComboMessage(t('game:dailyChallenge.disabled', '오늘의 챌린지는 곧 오픈 예정입니다'), 2500);
+      return;
+    }
     if (isDailyChallengeLoading) return;
     // 진행 중인 데일리 챌린지가 있으면 덮어쓰기 방지 — 자동으로 이어하기
     if (hasActiveDailyChallenge()) {
@@ -2457,6 +2604,8 @@ const App: React.FC = () => {
       setPhase(Phase.PLACE);
       setGameState(GameState.PLAYING);
       clearComboMessageQueue();
+      resetComboState();
+      maxComboMultiplierRef.current = 1.0;
       setCanSkipSlide(false);
       setLastSnapshot(null);
       // 복기 모드 초기화
@@ -2559,6 +2708,8 @@ const App: React.FC = () => {
     setPhase(Phase.PLACE);
     setGameState(GameState.PLAYING);
     clearComboMessageQueue();
+    resetComboState();
+    maxComboMultiplierRef.current = 1.0;
     setCanSkipSlide(false);
     setLastSnapshot(null);
     // 복기 모드 초기화
@@ -2653,6 +2804,8 @@ const App: React.FC = () => {
     setPhase(saved.phase as Phase);
     setGameState(GameState.PLAYING);
     clearComboMessageQueue();
+    resetComboState();
+    maxComboMultiplierRef.current = 1.0;
     setCanSkipSlide(false);
     setLastSnapshot(null);
     // 복기 모드 초기화
@@ -2841,8 +2994,44 @@ const App: React.FC = () => {
     setShowFirstSkinRewardModal(true);
   }, [gameMode, gameState, score]);
 
+  // ── 점수 기반 온보딩 오버레이 트리거 ──
+  useEffect(() => {
+    if (gameState !== GameState.PLAYING) return;
+    const step = shouldShowOnboardingForScore(score);
+    if (!step) return;
+
+    // skin 단계는 skinRewardModal로 처리되므로, 즉시 seen 처리 후 다음 단계로 진행
+    if (step === 'skin') {
+      markScoreOnboardingStepSeen('skin');
+      const nextStep = shouldShowOnboardingForScore(score);
+      if (!nextStep || nextStep === 'skin') return;
+      setOnboardingOverlayStep((prev) => prev ?? nextStep);
+      return;
+    }
+
+    setOnboardingOverlayStep((prev) => prev ?? step);
+  }, [score, gameState]);
+
+  useEffect(() => {
+    const shouldShowScoreOnboarding =
+      gameState === GameState.MENU &&
+      onboardingOverlayStep !== null &&
+      !isScoreOnboardingSuppressed;
+
+    setIsOnboardingOverlayVisible(shouldShowScoreOnboarding);
+  }, [gameState, isScoreOnboardingSuppressed, onboardingOverlayStep]);
+
+  // ── 게임오버 시 온보딩 오버레이 자동 닫기 ──
+  useEffect(() => {
+    if (gameState === GameState.GAME_OVER && isOnboardingOverlayVisible) {
+      setIsOnboardingOverlayVisible(false);
+      // onboardingOverlayStep 유지 → MENU 복귀 시 표시됨
+    }
+  }, [gameState, isOnboardingOverlayVisible]);
+
   useEffect(() => {
     if (!showFirstSkinRewardModal) return;
+    markScoreOnboardingStepSeen('skin');
     const pendingPersisted = setFirstScoreSkinRewardPending(true);
     if (!pendingPersisted) {
       console.warn('[App] First-score reward pending-state persistence degraded to session-only latch.');
@@ -2915,7 +3104,8 @@ const App: React.FC = () => {
           activeDuration,
           moveCountRef.current,
           getAnalyticsInstallId(),
-          undefined
+          undefined,
+          maxComboMultiplierRef.current
         );
       } catch (e) {
         // 오프라인 큐 실패 시 콘솔 경고 (재시도는 rankingService 내부 처리)
@@ -3441,6 +3631,10 @@ const App: React.FC = () => {
       if (unlockTimeoutRef.current) window.clearTimeout(unlockTimeoutRef.current);
       if (comboMessageTimeoutRef.current) window.clearTimeout(comboMessageTimeoutRef.current);
       if (blockRefreshNoticeTimeoutRef.current) window.clearTimeout(blockRefreshNoticeTimeoutRef.current);
+      if (comboTimerRef.current) {
+        clearInterval(comboTimerRef.current);
+        comboTimerRef.current = null;
+      }
       reviveDestroyEffectTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
       reviveDestroyEffectTimeoutsRef.current = [];
     };
@@ -3915,6 +4109,23 @@ const App: React.FC = () => {
       return;
     }
 
+    // Combo: trigger increment based on merge count
+    triggerComboIncrement(mergedTiles.length);
+
+    // Combo message display
+    if (mergedTiles.length > 1) {
+      const newComboCount = comboCount + 1;
+      if (newComboCount >= 5) {
+        showComboMessage('LEGENDARY!', 2000);
+      } else if (newComboCount >= 4) {
+        showComboMessage('4x Combo!!', 1800);
+      } else if (newComboCount >= 3) {
+        showComboMessage('3x Combo!', 1600);
+      } else if (newComboCount >= 2) {
+        showComboMessage('2x Combo!', 1400);
+      }
+    }
+
     // 미션 이벤트: 슬라이드 수행
     gameEventBus.emit('SLIDE_PERFORMED', {
       direction: dir.toLowerCase() as 'up' | 'down' | 'left' | 'right',
@@ -4005,6 +4216,15 @@ const App: React.FC = () => {
             finalScore += evRule.tripleKillBonus;
           }
         }
+        // Combo multiplier (applied after event multiplier, capped at server max)
+        const comboMult = comboMultiplierRef.current;
+        if (comboMult > 1.0) {
+          finalScore = Math.round(finalScore * comboMult);
+        }
+        // 상한 적용 (MAX_SCORE = 1,000,000)
+        const MAX_SCORE = 1_000_000;
+        finalScore = Math.min(finalScore, MAX_SCORE - scoreRef.current);
+        if (finalScore < 0) finalScore = 0;
         setScore(prev => prev + finalScore);
 
         // 1024 블럭이 새로 만들어질 때마다 스킨 조각 1개씩 지급
@@ -4266,6 +4486,7 @@ const App: React.FC = () => {
           attemptNumber: eventAttemptNumberRef.current,
           isIntermediate: true,
           isProgress: true,
+          comboMultiplier: maxComboMultiplierRef.current,
         });
         succeeded = Boolean(eventResult.success);
       } else {
@@ -4276,7 +4497,8 @@ const App: React.FC = () => {
           `${boardSizeRef.current}x${boardSizeRef.current}`,
           getCurrentActiveDurationSeconds(),
           moveCountRef.current,
-          getAnalyticsInstallId()
+          getAnalyticsInstallId(),
+          maxComboMultiplierRef.current
         );
         succeeded = Boolean(submitResult.success);
       }
@@ -4542,6 +4764,8 @@ const App: React.FC = () => {
       <div className={`w-full h-[52px] mb-3 ${premiumMenuRowContainerClassName}`}>
         <div className="flex h-full">
           <button
+            id="weekly-event-btn"
+            data-tutorial-anchor="weekly-event-btn"
             onClick={() => {
               if (weeklyEventUnlocked) {
                 openWeeklyEventModal();
@@ -4628,6 +4852,7 @@ const App: React.FC = () => {
         <div className="flex flex-col gap-2 mt-2">
           <div className={`relative w-full h-[52px] ${premiumMenuRowContainerClassName}`}>
             <button
+              data-tutorial-anchor="leaderboard-btn"
               className={`w-full h-full text-left font-bold px-4 flex items-center gap-2 ${premiumMenuRowPrimaryButtonClassName}`}
               onClick={openLeaderboardModal}
             >
@@ -4746,6 +4971,8 @@ const App: React.FC = () => {
           return (
             <div className="relative w-full">
               <button
+                id="weekly-event-btn"
+                data-tutorial-anchor="weekly-event-btn"
                 onClick={() => {
                   if (weeklyEventUnlocked) {
                     openWeeklyEventModal();
@@ -4987,11 +5214,15 @@ const App: React.FC = () => {
                   </fieldset>
                   {premiumUtilityButtons}
                 </div>
+                <div className="mt-3 flex justify-center">
+                  <AppDownloadBanner isPremiumUiThemeActive={true} />
+                </div>
               </div>
             </div>
           ) : (
             <div className="flex flex-col gap-4 w-full max-w-xs animate-slide-up">
               {menuActionButtons}
+              <AppDownloadBanner isPremiumUiThemeActive={false} />
             </div>
           )}
 
@@ -5131,6 +5362,7 @@ const App: React.FC = () => {
               onProceedWithoutRegister={handleActiveGameExitProceedWithoutRegister}
               onSessionNameLocked={handleActiveGameExitNameLocked}
               onRegisteredAndProceed={handleActiveGameExitRegisteredAndProceed}
+              comboMultiplier={maxComboMultiplierRef.current}
             />
           )}
 
@@ -5145,6 +5377,12 @@ const App: React.FC = () => {
             isEnabled={activeOnboardingStep === 'menu-skin-feature' && !shouldSuppressGameModeTutorial}
             onComplete={refreshMenuOnboardingStep}
             onSkip={handleSkinFeatureTutorialSkip}
+          />
+          <GameOnboardingOverlay
+            step={onboardingOverlayStep}
+            visible={isOnboardingOverlayVisible && gameState === GameState.MENU}
+            onDismiss={handleDismissOnboardingOverlay}
+            onOpenFeature={handleOpenOnboardingFeature}
           />
 
           <StreakInfoModal
@@ -5569,7 +5807,8 @@ const App: React.FC = () => {
                 data-game-phase={phase}
                 data-focus-family={premiumSkinRuntime.family}
               >
-                <div className={`${premiumWindowBodyClassName} ${premiumGameBoardBodyClassName}`}>
+                <div className={`${premiumWindowBodyClassName} ${premiumGameBoardBodyClassName} relative`}>
+                  <ComboIndicator comboCount={comboCount} timerMs={comboTimerMs} isActive={isComboActive} multiplier={comboMultiplierRef.current} />
                   <Board
                     ref={boardHandleRef}
                     htmlId="game-board"
@@ -5591,10 +5830,11 @@ const App: React.FC = () => {
               </div>
             ) : (
               <div
-                className="game-mode-focus-shell game-mode-focus-board"
+                className="game-mode-focus-shell game-mode-focus-board relative"
                 data-game-phase={phase}
                 data-focus-family="default"
               >
+                <ComboIndicator comboCount={comboCount} timerMs={comboTimerMs} isActive={isComboActive} multiplier={comboMultiplierRef.current} />
                 <Board
                   ref={boardHandleRef}
                   htmlId="game-board"
@@ -5773,6 +6013,7 @@ const App: React.FC = () => {
             eventAttemptNumber={eventAttemptNumberRef.current}
             onViewRankings={handleGameOverViewRankings}
             gameOverReason={gameOverReason}
+            comboMultiplier={maxComboMultiplierRef.current}
           />
         )}
 
@@ -5907,6 +6148,7 @@ const App: React.FC = () => {
             onProceedWithoutRegister={handleActiveGameExitProceedWithoutRegister}
             onSessionNameLocked={handleActiveGameExitNameLocked}
             onRegisteredAndProceed={handleActiveGameExitRegisteredAndProceed}
+            comboMultiplier={maxComboMultiplierRef.current}
           />
         )}
       </div>

@@ -339,7 +339,7 @@ const getGlobalPaletteColorForValue = (value: number, palette: GlobalTilePalette
   const baseRgb = hexToRgb(palette.baseColor);
   const baseHsl = rgbToHsl(baseRgb);
 
-  const exp = Math.log2(value);
+  const exp = Math.log2(Math.max(1, value));
   const maxExp = 11; // up to 2048 (2^11) is the "core" range; higher values converge to the darkest color.
   const t = clamp(exp / maxExp, 0, 1);
 
@@ -425,7 +425,7 @@ const buildFresnelEdgeGradient = (
 
 export const getSkinColorForValue = (value: number, skinHex: string, maxExponent = 15): string => {
   const skinRgb = hexToRgb(skinHex);
-  const exp = Math.log2(value);
+  const exp = Math.log2(Math.max(1, value));
   const t = clamp(exp / maxExponent, 0, 1);
   const mixed = mixRgb(WHITE_RGB, skinRgb, t);
   return rgbToHex(mixed);

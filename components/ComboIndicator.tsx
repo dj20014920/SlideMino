@@ -20,27 +20,24 @@ function getComboColors(comboCount: number) {
 export default function ComboIndicator({ comboCount, timerMs, isActive, multiplier }: ComboIndicatorProps) {
   if (!isActive || comboCount < 2) return null;
 
-  const progress = timerMs / COMBO_TIMER_MS;
+  const progress = Math.min(1, Math.max(0, timerMs / COMBO_TIMER_MS));
   const isUrgent = timerMs < 500;
   const colors = getComboColors(comboCount);
 
-  const feverBorder = (
-    <div
-      className="fixed inset-0 pointer-events-none transition-all duration-300"
-      style={{
-        zIndex: 9998,
-        boxShadow: `inset 0 0 100px 30px ${colors.glow}, inset 0 0 40px 10px ${colors.glow}`,
-        animation: isUrgent ? 'combo-pulse 0.4s ease-in-out infinite' : 'none',
-        background: `radial-gradient(ellipse at center, transparent 60%, ${colors.glow.replace(/[\d.]+\)$/, '0.12')}) 70%)`,
-      }}
-    />
-  );
-
-  return (
+  const overlay = (
     <>
-      {createPortal(feverBorder, document.body)}
-      {/* Combo counter + timer bar */}
-      <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
+      {/* Fever border around screen edges */}
+      <div
+        className="fixed inset-0 pointer-events-none transition-all duration-300"
+        style={{
+          zIndex: 9998,
+          boxShadow: `inset 0 0 100px 30px ${colors.glow}, inset 0 0 40px 10px ${colors.glow}`,
+          animation: isUrgent ? 'combo-pulse 0.4s ease-in-out infinite' : 'none',
+          background: `radial-gradient(ellipse at center, transparent 60%, ${colors.glow.replace(/[\d.]+\)$/, '0.12')}) 70%)`,
+        }}
+      />
+      {/* Combo counter + timer bar — viewport-top, above the board */}
+      <div className="fixed top-2 left-1/2 -translate-x-1/2 pointer-events-none" style={{ zIndex: 9999 }}>
         <div className="text-center mb-1">
           <span className={`text-lg font-bold drop-shadow-[0_0_8px_currentColor] ${colors.text}`}>
             {comboCount}x COMBO!
@@ -50,10 +47,12 @@ export default function ComboIndicator({ comboCount, timerMs, isActive, multipli
         <div className="w-48 h-1.5 bg-white/10 rounded-full overflow-hidden">
           <div
             className={`h-full rounded-full transition-all duration-50 ${colors.bar} ${isUrgent ? 'animate-pulse' : ''}`}
-            style={{ width: `${Math.max(0, progress * 100)}%` }}
+            style={{ width: `${progress * 100}%` }}
           />
         </div>
       </div>
     </>
   );
+
+  return createPortal(overlay, document.body);
 }

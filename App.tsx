@@ -1069,9 +1069,11 @@ const App: React.FC = () => {
         if (next <= 0) {
           if (comboTimerRef.current) clearInterval(comboTimerRef.current);
           comboTimerRef.current = null;
-          setComboCount(0);
-          setIsComboActive(false);
-          comboMultiplierRef.current = 1.0;
+          requestAnimationFrame(() => {
+            setComboCount(0);
+            setIsComboActive(false);
+            comboMultiplierRef.current = 1.0;
+          });
           return 0;
         }
         return next;
@@ -4112,20 +4114,26 @@ const App: React.FC = () => {
       return;
     }
 
-    // Combo: trigger increment based on merge count
-    triggerComboIncrement(mergedTiles.length);
+    // Fever time rule: only continues when a merge actually happened
+    if (mergedTiles.length === 0) {
+      clearComboMessageQueue();
+      resetComboState();
+    } else {
+      // Combo: trigger increment based on merge count
+      triggerComboIncrement(mergedTiles.length);
 
-    // Combo message display
-    if (comboCount >= 1) {
-      const nextCount = comboCount + 1;
-      if (nextCount >= 5) {
-        showComboMessage('LEGENDARY!', 2000);
-      } else if (nextCount >= 4) {
-        showComboMessage('4x Combo!!', 1800);
-      } else if (nextCount >= 3) {
-        showComboMessage('3x Combo!', 1600);
-      } else if (nextCount >= 2) {
-        showComboMessage('2x Combo!', 1400);
+      // Combo message display
+      if (comboCount >= 1) {
+        const nextCount = comboCount + 1;
+        if (nextCount >= 5) {
+          showComboMessage('LEGENDARY!', 2000);
+        } else if (nextCount >= 4) {
+          showComboMessage('4x Combo!!', 1800);
+        } else if (nextCount >= 3) {
+          showComboMessage('3x Combo!', 1600);
+        } else if (nextCount >= 2) {
+          showComboMessage('2x Combo!', 1400);
+        }
       }
     }
 

@@ -119,4 +119,24 @@ class MainBridgeViewController: CAPBridgeViewController {
     override func capacitorDidLoad() {
         bridge?.registerPluginType(StoreInstallPlugin.self)
     }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+
+        // 🛡️ 시스템 accessibility font scaling 차단
+        // WKWebView UserScript로 CSS font-size 강제 고정
+        let source = """
+        (function() {
+            var style = document.createElement('style');
+            style.textContent = 'html { -webkit-text-size-adjust: 100% !important; text-size-adjust: 100% !important; }';
+            document.head.appendChild(style);
+        })();
+        """
+        let userScript = WKUserScript(
+            source: source,
+            injectionTime: .atDocumentEnd,
+            forMainFrameOnly: true
+        )
+        webView?.configuration.userContentController.addUserScript(userScript)
+    }
 }

@@ -5519,16 +5519,16 @@ const App: React.FC = () => {
   const isSwipePhase = phase === Phase.SLIDE;
   const isPlaceFocusMode = isPlacePhase;
   const isSwipeFocusMode = isSwipePhase;
-  const focusSurfaceClass = 'scale-[1.01] drop-shadow-[0_22px_40px_rgba(15,23,42,0.18)]';
+  const focusSurfaceClass = 'drop-shadow-[0_22px_40px_rgba(15,23,42,0.18)]';
   const boardFocusSurfaceClass = (isPlaceFocusMode || isSwipeFocusMode)
     ? focusSurfaceClass
-    : 'scale-100';
+    : '';
   const undoFocusSurfaceClass = isSwipeFocusMode
     ? focusSurfaceClass
-    : 'scale-100';
+    : '';
   const slotFocusSurfaceClass = isPlaceFocusMode
     ? focusSurfaceClass
-    : 'scale-100';
+    : '';
   const slotVisibilityRuntime = premiumSkinRuntime.app.slotVisibility;
   const slotVisibilityClass = isAnimating
     ? slotVisibilityRuntime.animatingClassName
@@ -5691,7 +5691,7 @@ const App: React.FC = () => {
                 )}
               </div>
             </div>
-            <div className="flex flex-col items-end gap-2 transition-all duration-200">
+            <div className="flex flex-col items-end gap-2 transition-opacity duration-200">
               {/* Phase Indicator - Glass Pill - 고정 폭으로 레이아웃 안정화 */}
               <div className={`
             px-4 py-2 rounded-full text-sm font-semibold flex items-center justify-center gap-2 ${premiumPillButtonClassName}
@@ -5802,7 +5802,7 @@ const App: React.FC = () => {
           )}
 
           <div className={`
-            transition-all duration-200 w-full flex items-center justify-center
+            transition-shadow duration-200 w-full flex items-center justify-center
             ${boardFocusSurfaceClass}
           `}>
             {isPremiumUiThemeActive ? (
@@ -5864,7 +5864,7 @@ const App: React.FC = () => {
           {/* Inventory Slots */}
           <div className={`
           game-mode-focus-shell game-mode-focus-slots w-full grid grid-cols-3 gap-4
-          transition-all duration-200
+          transition-shadow duration-200
           ${slotFocusSurfaceClass}
           ${isSlotPointerLocked ? 'pointer-events-none' : ''}
           ${slotVisibilityClass}

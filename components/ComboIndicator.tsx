@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 
 interface ComboIndicatorProps {
   comboCount: number;
@@ -23,17 +24,21 @@ export default function ComboIndicator({ comboCount, timerMs, isActive, multipli
   const isUrgent = timerMs < 500;
   const colors = getComboColors(comboCount);
 
+  const feverBorder = (
+    <div
+      className="fixed inset-0 pointer-events-none transition-all duration-300"
+      style={{
+        zIndex: 9998,
+        boxShadow: `inset 0 0 100px 30px ${colors.glow}, inset 0 0 40px 10px ${colors.glow}`,
+        animation: isUrgent ? 'combo-pulse 0.4s ease-in-out infinite' : 'none',
+        background: `radial-gradient(ellipse at center, transparent 60%, ${colors.glow.replace(/[\d.]+\)$/, '0.12')}) 70%)`,
+      }}
+    />
+  );
+
   return (
     <>
-      {/* Fever border around screen edges */}
-      <div
-        className="fixed inset-0 z-25 pointer-events-none transition-all duration-300"
-        style={{
-          boxShadow: `inset 0 0 80px 24px ${colors.glow}, inset 0 0 30px 8px ${colors.glow}`,
-          animation: isUrgent ? 'combo-pulse 0.4s ease-in-out infinite' : 'none',
-        }}
-      />
-
+      {createPortal(feverBorder, document.body)}
       {/* Combo counter + timer bar */}
       <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
         <div className="text-center mb-1">

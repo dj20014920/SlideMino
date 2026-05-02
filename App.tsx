@@ -1080,10 +1080,13 @@ const App: React.FC = () => {
   }, []);
 
   const triggerComboIncrement = useCallback((mergeCount: number) => {
-    if (mergeCount <= 1) return;
+    if (mergeCount < 1) return;
+
+    const bonusSteps = mergeCount >= 3 ? Math.floor(mergeCount / 3) : 0;
+    const increment = 1 + bonusSteps;
 
     setComboCount(prev => {
-      const next = prev + 1;
+      const next = prev + increment;
       if (next >= 1) {
         setIsComboActive(true);
         comboMultiplierRef.current = getComboMultiplier(next);
@@ -4113,15 +4116,15 @@ const App: React.FC = () => {
     triggerComboIncrement(mergedTiles.length);
 
     // Combo message display
-    if (mergedTiles.length > 1) {
-      const newComboCount = comboCount + 1;
-      if (newComboCount >= 5) {
+    if (comboCount >= 1) {
+      const nextCount = comboCount + 1;
+      if (nextCount >= 5) {
         showComboMessage('LEGENDARY!', 2000);
-      } else if (newComboCount >= 4) {
+      } else if (nextCount >= 4) {
         showComboMessage('4x Combo!!', 1800);
-      } else if (newComboCount >= 3) {
+      } else if (nextCount >= 3) {
         showComboMessage('3x Combo!', 1600);
-      } else if (newComboCount >= 2) {
+      } else if (nextCount >= 2) {
         showComboMessage('2x Combo!', 1400);
       }
     }
@@ -4919,7 +4922,7 @@ const App: React.FC = () => {
           {isLoading && <LoadingScreen key="loading-screen-menu" />}
         </AnimatePresence>
 
-        {isFeatureUnlocked('daily_challenge') && (
+        {DAILY_CHALLENGE_ENABLED && isFeatureUnlocked('daily_challenge') && (
             <div className="relative w-full">
               <button
                 onClick={startDailyChallenge}

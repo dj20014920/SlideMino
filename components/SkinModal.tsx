@@ -19,6 +19,7 @@ import { isSkinRewardAdSupported } from '../services/adConfig';
 import { trackAnalyticsEvent } from '../services/analyticsService';
 import { getSkinFallbackDisplayName } from '../services/skinDisplayName';
 import { measureRectInOverlaySpace, waitForStableRect } from '../services/tutorialTargetGeometry';
+import { getPremiumUiThemeById } from '../config/premiumUiThemes';
 import { SkinAcquisitionOverlay } from './SkinAcquisitionOverlay';
 import { TutorialTooltip } from './TutorialTooltip';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
@@ -33,18 +34,31 @@ type SkinModalProps = {
 
 type SkinSectionKey = 'premium' | 'neon' | 'liquid' | 'mesh' | 'normal';
 const EXPLORE_GALAXY_SKIN_ID = 'skin_digital_explore_galaxy';
+const NEON_CORTEX_SKIN_ID = 'skin_digital_neon_cortex';
 const PIXELBLAST_SKIN_ID = 'skin_digital_pixelblast_void';
 const SKIN_SWATCH_GRID_CLASS_NAME = 'grid grid-cols-6 gap-2.5';
 const SKIN_TUTORIAL_ANCHOR_INSET_PX = 1;
 const getSkinItemTargetId = (skinId: string): string => `skin-item-${skinId}`;
 let drawButtonGuideShownInSession = false;
 
+const getThemeMaskVariant = (skinId?: string | null): 'neon' | 'pixelblast' | null => {
+  if (!skinId) return null;
+  if (skinId === NEON_CORTEX_SKIN_ID) return 'neon';
+  if (skinId === PIXELBLAST_SKIN_ID) return 'pixelblast';
+  return null;
+};
+
 // 스킨 미리보기 타일 렌더링
 const SkinPreviewTile = React.memo<{ value: number; skin: { id?: string; hex: string; style?: any }; tilePx: number }>(
   ({ value, skin, tilePx }) => {
-    const { isPremiumUiThemeActive, premiumUiObjects } = useBlockCustomization();
-    const premiumUiTileFaceClassName = premiumUiObjects.extended.text.tileFaceClassName;
-    const premiumUiTileNumberClassName = premiumUiObjects.extended.text.tileNumberClassName;
+    const previewCatalogEntry = skin.id ? SKIN_CATALOG.find((entry) => entry.id === skin.id) : null;
+    const previewThemeId = previewCatalogEntry?.premiumUiThemeId
+      ?? (previewCatalogEntry?.premiumUiOverrides ? 'retro_windows_98' : null);
+    const previewTheme = getPremiumUiThemeById(previewThemeId);
+    const previewTileFaceClassName = previewTheme?.objects.extended.text.tileFaceClassName ?? '';
+    const previewTileNumberClassName = previewTheme?.objects.extended.text.tileNumberClassName ?? '';
+    const isPreviewPremiumSkin = Boolean(previewTheme);
+    const shouldUsePremiumUiTextClasses = isPreviewPremiumSkin;
     const { className, style } = resolveSkinAppearance(
       value,
       skin,
@@ -52,41 +66,13 @@ const SkinPreviewTile = React.memo<{ value: number; skin: { id?: string; hex: st
     );
     const isNeonBlock = className === 'skin-neon-block';
     const isExploreGalaxy = skin.id === EXPLORE_GALAXY_SKIN_ID;
-    const isPixelBlast = skin.id === PIXELBLAST_SKIN_ID;
+    const shouldUseRoundedCorner = !isNeonBlock && !isPreviewPremiumSkin;
+    const themeMaskVariant = getThemeMaskVariant(skin.id);
     const { text, fontPx } = getTileNumberLayout(value, tilePx);
-
-    if (isPixelBlast) {
-      return (
-        <div
-          className="skin-pixelblast-preview-chip shrink-0 relative overflow-hidden"
-          style={{ width: `${tilePx}px`, height: `${tilePx}px` }}
-        >
-          <div className="skin-pixelblast-preview-chip__slot" aria-hidden="true" />
-          <div
-            className={`skin-pixelblast-preview-chip__tile ${isPremiumUiThemeActive ? premiumUiTileFaceClassName : ''} ${className} flex items-center justify-center font-semibold text-center select-none`}
-            data-skin-preview-tile="true"
-            {...TILE_PREMIUM_UI_PRESERVE_ATTRS}
-            style={{
-              fontSize: `${fontPx}px`,
-              lineHeight: 1,
-              whiteSpace: 'pre-line',
-              ...style,
-            }}
-          >
-            <span
-              className={`${isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''}`}
-              style={TILE_NUMBER_INHERIT_STYLE}
-            >
-              {text}
-            </span>
-          </div>
-        </div>
-      );
-    }
 
     const tileNode = (
       <div
-        className={`${isNeonBlock ? '' : 'rounded-2xl'} ${isPremiumUiThemeActive ? premiumUiTileFaceClassName : ''} ${isExploreGalaxy ? 'explore-galaxy-phase-sync' : ''} flex items-center justify-center font-semibold ${isNeonBlock ? '' : 'overflow-hidden'} text-center select-none shrink-0 ${className}`}
+        className={`${shouldUseRoundedCorner ? 'rounded-2xl' : ''} ${shouldUsePremiumUiTextClasses ? previewTileFaceClassName : ''} ${isExploreGalaxy ? 'explore-galaxy-phase-sync' : ''} relative flex items-center justify-center font-semibold ${isNeonBlock ? '' : 'overflow-hidden'} text-center select-none shrink-0 ${className}`}
         data-skin-preview-tile="true"
         {...TILE_PREMIUM_UI_PRESERVE_ATTRS}
         style={{
@@ -98,6 +84,12 @@ const SkinPreviewTile = React.memo<{ value: number; skin: { id?: string; hex: st
           ...style,
         }}
       >
+        {themeMaskVariant && (
+          <span
+            className={`skin-theme-mask skin-theme-mask--preview skin-theme-mask--${themeMaskVariant}`}
+            aria-hidden="true"
+          />
+        )}
         {isExploreGalaxy && (
           <ExploreGalaxyOverlay
             size={4}
@@ -108,7 +100,7 @@ const SkinPreviewTile = React.memo<{ value: number; skin: { id?: string; hex: st
           />
         )}
         <span
-          className={`${isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''} ${isNeonBlock ? 'skin-neon-block-number' : ''}`}
+          className={`relative z-[2] ${shouldUsePremiumUiTextClasses ? previewTileNumberClassName : ''} ${isNeonBlock ? 'skin-neon-block-number' : ''}`}
           style={TILE_NUMBER_INHERIT_STYLE}
         >
           {text}
@@ -634,6 +626,7 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
                               const style = swatchAppearance?.style;
                               const isNeonSwatch = isNeonSkin(entry.id);
                               const isExploreGalaxySwatch = entry.id === EXPLORE_GALAXY_SKIN_ID;
+                              const themeMaskVariant = getThemeMaskVariant(entry.id);
 
                               return (
                                 <div
@@ -660,6 +653,12 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
                                       data-premium-ui-allow-gradient="true"
                                       data-premium-ui-allow-shadow="true"
                                     >
+                                      {themeMaskVariant && (
+                                        <span
+                                          className={`skin-theme-mask skin-theme-mask--swatch skin-theme-mask--${themeMaskVariant}`}
+                                          aria-hidden="true"
+                                        />
+                                      )}
                                       {isExploreGalaxySwatch && (
                                         <ExploreGalaxyOverlay
                                           size={4}
@@ -885,6 +884,7 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
                             const style = swatchAppearance?.style;
                             const isNeonSwatch = isNeonSkin(entry.id);
                             const isExploreGalaxySwatch = entry.id === EXPLORE_GALAXY_SKIN_ID;
+                            const themeMaskVariant = getThemeMaskVariant(entry.id);
 
                             return (
                               <button
@@ -906,17 +906,23 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
                                 {isRecentlyAcquired && (
                                   <div className="skin-new-badge">{t('modals:skin.newLabel')}</div>
                                 )}
-                                <div
-                                  className={`relative w-full h-full ${isNeonSwatch ? '' : 'overflow-hidden'}`}
-                                  data-skin-swatch="true"
-                                >
                                   <div
-                                    className={`relative w-full h-full ${isNeonSwatch ? '' : 'overflow-hidden'} ${isExploreGalaxySwatch ? 'explore-galaxy-phase-sync' : ''} ${className}`}
-                                    style={style}
+                                    className={`relative w-full h-full ${isNeonSwatch ? '' : 'overflow-hidden'}`}
+                                    data-skin-swatch="true"
                                   >
-                                    {isExploreGalaxySwatch && (
-                                      <ExploreGalaxyOverlay
-                                        size={4}
+                                    <div
+                                      className={`relative w-full h-full ${isNeonSwatch ? '' : 'overflow-hidden'} ${isExploreGalaxySwatch ? 'explore-galaxy-phase-sync' : ''} ${className}`}
+                                      style={style}
+                                    >
+                                      {themeMaskVariant && (
+                                        <span
+                                          className={`skin-theme-mask skin-theme-mask--swatch skin-theme-mask--${themeMaskVariant}`}
+                                          aria-hidden="true"
+                                        />
+                                      )}
+                                      {isExploreGalaxySwatch && (
+                                        <ExploreGalaxyOverlay
+                                          size={4}
                                         cellPx={10}
                                         active
                                         mode="swatch"

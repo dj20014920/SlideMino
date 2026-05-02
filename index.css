@@ -482,6 +482,34 @@
   overflow: hidden;
 }
 
+.skin-theme-mask {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.skin-theme-mask--neon {
+  background:
+    linear-gradient(180deg, rgba(0, 229, 255, 0.05) 0%, rgba(0, 0, 0, 0) 38%, rgba(0, 229, 255, 0.08) 100%),
+    repeating-linear-gradient(0deg, rgba(0, 229, 255, 0.1) 0 1px, rgba(0, 0, 0, 0) 1px 6px),
+    radial-gradient(circle at 22% 18%, rgba(0, 229, 255, 0.28) 0%, rgba(0, 229, 255, 0) 48%),
+    radial-gradient(circle at 78% 72%, rgba(126, 87, 255, 0.2) 0%, rgba(126, 87, 255, 0) 46%),
+    linear-gradient(145deg, rgba(7, 11, 25, 0.95) 0%, rgba(9, 14, 30, 0.92) 52%, rgba(5, 9, 20, 0.98) 100%);
+  box-shadow: inset 0 0 0 1px rgba(0, 229, 255, 0.16);
+}
+
+.skin-theme-mask--pixelblast {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 26%, rgba(255, 255, 255, 0.04) 100%),
+    radial-gradient(circle at 1px 1px, rgba(201, 179, 255, 0.25) 0 1px, transparent 1.2px),
+    radial-gradient(circle at 30% 18%, rgba(225, 208, 255, 0.25) 0%, rgba(225, 208, 255, 0) 52%),
+    linear-gradient(160deg, rgba(54, 37, 96, 0.95) 0%, rgba(23, 15, 43, 0.96) 56%, rgba(12, 9, 24, 0.98) 100%);
+  background-size: auto, 8px 8px, auto, auto;
+  box-shadow: inset 0 0 0 1px rgba(184, 163, 255, 0.2);
+}
+
 .game-mode-focus-board {
   --game-mode-focus-radius: var(--game-mode-focus-board-radius, 30px);
   --game-mode-focus-inset: var(--game-mode-focus-board-inset, 6px);

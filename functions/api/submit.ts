@@ -18,6 +18,7 @@ import { getSeasonBoundaries, resetSeasonIfNeeded } from '../utils/seasonReset';
 import { hashInstallId } from '../utils/hash';
 import { checkRateLimit, getClientIp } from '../utils/rateLimit';
 import { buildCorsHeaders, createJsonResponse, isCrossSiteMutation, isTrustedRequestOrigin } from '../utils/cors';
+import { ensureComboRankingsSchema } from '../utils/comboRankingsSchema';
 
 interface Env {
   DB: D1Database;
@@ -209,6 +210,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       const now = Date.now();
       const seasonId = getSeasonBoundaries(new Date(now)).seasonId;
       const memberKey = toMemberKey(installIdHash, sessionId);
+
+      await ensureComboRankingsSchema(env);
 
       await env.DB.prepare(
         `CREATE TABLE IF NOT EXISTS ranking_member_best (

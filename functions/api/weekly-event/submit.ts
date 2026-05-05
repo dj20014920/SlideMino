@@ -20,6 +20,7 @@ import { checkRateLimit, getClientIp } from '../../utils/rateLimit';
 import { buildCorsHeaders, createJsonResponse, isCrossSiteMutation, isTrustedRequestOrigin } from '../../utils/cors';
 import { getCurrentEventId } from '../../utils/eventSchedule';
 import { ensureWeeklyEventSchema } from '../../utils/weeklyEventSchema';
+import { ensureComboRankingsSchema } from '../../utils/comboRankingsSchema';
 import { getSeasonBoundaries } from '../../utils/seasonReset';
 
 interface Env {
@@ -205,7 +206,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // 콤보 배율 추출 및 clamp (1~3)
     const rawCombo = typeof data.comboMultiplier === 'number' && Number.isFinite(data.comboMultiplier) && data.comboMultiplier >= 1 ? data.comboMultiplier : 1;
     const comboMultiplier = Math.max(1, Math.min(3, rawCombo));
-    const comboCount = validateComboCount(data.comboCount ?? 0);
+    let comboCount: number;
+    try {
+      comboCount = validateComboCount(data.comboCount ?? 0);
+    } catch (error) {
+      if (error instanceof Error && error.name === 'ValidationError') {
+        return errorResponse(error.message, 400, corsHeaders);
+      }
+      throw error;
+    }
 
     // 이벤트 타입별 점수 일관성 검증
     const multiplier = EVENT_SCORE_MULTIPLIER[eventType] ?? 1;
@@ -224,6 +233,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const currentCount = (attemptCountResult as { count: number } | null)?.count ?? 0;
     const now = Date.now();
     const shouldPromoteMetadata = !isProgress;
+
+    await ensureComboRankingsSchema(env);
 
     if (isIntermediate) {
       // ── 중간 저장: 도전 횟수 소모 없이 랭킹만 UPSERT ──

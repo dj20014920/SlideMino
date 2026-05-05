@@ -571,13 +571,13 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
         {/* 랭킹 */}
         <div className={isPremiumUi ? 'px-3 pb-3' : 'px-5 pb-5'}>
           {/* 주차 탭 토글 */}
-          <div className={isPremiumUi ? `${premiumUiEventTabStripClassName} mb-2` : 'flex items-center gap-1 mb-3'}>
+          <div className={isPremiumUi ? `${premiumUiEventTabStripClassName} mb-2 overflow-x-auto overflow-y-visible` : 'flex items-center gap-1 mb-3 overflow-x-auto overflow-y-visible'}>
             <button
               onClick={() => setShowPrevWeek(false)}
               data-active={!showPrevWeek}
               className={isPremiumUi
                 ? premiumUiEventTabButtonClassName
-                : `flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${!showPrevWeek
+                : `flex-1 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${!showPrevWeek
                   ? `bg-gradient-to-r ${theme.gradient} text-white shadow-sm`
                   : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                 }`
@@ -590,7 +590,7 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
               data-active={showPrevWeek}
               className={isPremiumUi
                 ? premiumUiEventTabButtonClassName
-                : `flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${showPrevWeek
+                : `flex-1 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${showPrevWeek
                   ? `bg-gradient-to-r ${theme.gradient} text-white shadow-sm`
                   : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                 }`

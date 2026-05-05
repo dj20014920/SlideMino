@@ -15,6 +15,17 @@ interface AdBannerProps {
     includeSafeBottomInReservedSpace?: boolean;
     /** 배너를 fixed로 배치하여 특정 요소 바로 위에 붙일지 여부 */
     fixedPosition?: 'above-bottom-nav' | 'above-bottom-nav-no-safe';
+    /**
+     * 게임 화면처럼 높이 예산이 고정된 곳에서는 responsive square 광고를 막는다.
+     *
+     * `responsive`는 일반 화면/모달처럼 광고가 컨텐츠 흐름을 넓게 써도 되는 곳에 둔다.
+     * `compact-banner`는 인게임 하단 전용이다. 보드 크기 계산은 안정적인 reserve lane을
+     * 전제로 하므로, 이 모드에서 광고 SDK가 1:1 display ad를 삽입해도 wrapper 높이는
+     * `webReservedHeightPx` 이상 커지지 않아야 한다.
+     */
+    webLayout?: 'responsive' | 'compact-banner';
+    /** `compact-banner`가 차지할 고정 레이아웃 높이. 보통 320x50 배너 + 여백 = 60px. */
+    webReservedHeightPx?: number;
 }
 
 const AdBanner: React.FC<AdBannerProps> = ({
@@ -22,6 +33,8 @@ const AdBanner: React.FC<AdBannerProps> = ({
     reserveNativeSpace = true,
     includeSafeBottomInReservedSpace = true,
     fixedPosition,
+    webLayout = 'responsive',
+    webReservedHeightPx = 60,
 }) => {
     if (isScreenshotMode()) return null;
     const [consent, setConsent] = useState<'accepted' | 'declined' | null>(null);
@@ -167,9 +180,25 @@ const AdBanner: React.FC<AdBannerProps> = ({
         );
     }
 
+    // In-game 광고는 "측정되는 컨텐츠"가 아니라 "예약된 하단 lane"이다.
+    // AdSense responsive display unit은 컨테이너 폭에 따라 정사각형 크기를 선택할 수 있으므로,
+    // 인게임에서는 320x50 고정 slot으로 제한해 보드 scale 예산과 광고 DOM을 분리한다.
+    const isCompactWebBanner = webLayout === 'compact-banner';
+    const compactWebHeightPx = Math.max(50, Math.round(webReservedHeightPx));
+
     // 웹용 AdSense 렌더링
     const adContent = (
-        <div className="relative w-full flex justify-center items-center min-h-[50px] transition-all duration-300">
+        <div
+            className="relative w-full flex justify-center items-center min-h-[50px] transition-all duration-300"
+            style={isCompactWebBanner
+                ? {
+                    height: `${compactWebHeightPx}px`,
+                    minHeight: `${compactWebHeightPx}px`,
+                    maxHeight: `${compactWebHeightPx}px`,
+                    overflow: 'hidden',
+                }
+                : undefined}
+        >
             {/*
             Google AdSense Display Unit
             Replace YOUR_AD_SLOT_ID with your actual Ad Slot ID from Google AdSense dashboard
@@ -179,11 +208,18 @@ const AdBanner: React.FC<AdBannerProps> = ({
                     adSlotRef.current = node;
                 }}
                 className="adsbygoogle"
-                style={{ display: 'block', width: '100%' }}
+                style={isCompactWebBanner
+                    ? {
+                        display: 'inline-block',
+                        width: '320px',
+                        maxWidth: '100%',
+                        height: '50px',
+                    }
+                    : { display: 'block', width: '100%' }}
                 data-ad-client="ca-pub-5319827978116991"
                 data-ad-slot="YOUR_AD_SLOT_ID"
-                data-ad-format="auto"
-                data-full-width-responsive="true"
+                data-ad-format={isCompactWebBanner ? undefined : 'auto'}
+                data-full-width-responsive={isCompactWebBanner ? 'false' : 'true'}
             />
             {/* Placeholder for development/preview when ad blocks usage or ID is invalid */}
             {process.env.NODE_ENV === 'development' && (

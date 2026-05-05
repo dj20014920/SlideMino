@@ -34,25 +34,35 @@ interface SpotlightRect {
   top: number;
   width: number;
   height: number;
+  shadowSpread: number;
 }
 
 interface ViewportDims {
   width: number;
   height: number;
-  offsetTop: number;
-  offsetLeft: number;
 }
 
 const getViewportDims = (): ViewportDims => {
   if (typeof window === 'undefined') {
-    return { width: 390, height: 844, offsetTop: 0, offsetLeft: 0 };
+    return { width: 390, height: 844 };
   }
   const viewport = window.visualViewport;
   return {
     width: round(viewport ? viewport.width : window.innerWidth),
     height: round(viewport ? viewport.height : window.innerHeight),
-    offsetTop: round(viewport ? viewport.offsetTop : 0),
-    offsetLeft: round(viewport ? viewport.offsetLeft : 0),
+  };
+};
+
+/** 뷰포트 너비 기반 반응형 레이아웃 값. 390 = iPhone 14 Pro 기준 */
+const getResponsiveLayout = (viewportWidth: number, viewportHeight: number) => {
+  const wScale = clamp(viewportWidth / 390, 0.67, 1.5);
+  return {
+    edgePadding: round(clamp(EDGE_PADDING_PX * wScale, 8, 24)),
+    targetPadding: round(clamp(TARGET_PADDING_PX * wScale, 6, 16)),
+    targetGap: round(clamp(TARGET_GAP_PX * wScale, 8, 20)),
+    minCardWidth: round(clamp(MIN_CARD_WIDTH_PX * wScale, 140, 280)),
+    maxCardWidth: round(clamp(MAX_CARD_WIDTH_PX * wScale, 240, 500)),
+    shadowSpread: Math.ceil(Math.sqrt(viewportWidth ** 2 + viewportHeight ** 2) * 1.5),
   };
 };
 
@@ -65,10 +75,10 @@ const isElementDisplayable = (el: HTMLElement): boolean => {
   return (
     rect.width > 0 &&
     rect.height > 0 &&
-    rect.right > viewport.offsetLeft &&
-    rect.left < viewport.offsetLeft + viewport.width &&
-    rect.bottom > viewport.offsetTop &&
-    rect.top < viewport.offsetTop + viewport.height
+    rect.right > 0 &&
+    rect.left < viewport.width &&
+    rect.bottom > 0 &&
+    rect.top < viewport.height
   );
 };
 
@@ -123,20 +133,23 @@ export const SequentialOnboardingOverlay: React.FC<SequentialOnboardingOverlayPr
     const nextViewport = getViewportDims();
     setViewport(nextViewport);
 
-    const targetEl = config ? findDisplayableTarget(config.selector) : null;
+    const cfg = getSequentialStepConfig(step);
+    const targetEl = findDisplayableTarget(cfg.selector);
     if (!targetEl) {
       setSpotlight(null);
       return;
     }
 
+    const responsive = getResponsiveLayout(nextViewport.width, nextViewport.height);
     const rect = targetEl.getBoundingClientRect();
     setSpotlight({
-      left: rect.left - nextViewport.offsetLeft - TARGET_PADDING_PX,
-      top: rect.top - nextViewport.offsetTop - TARGET_PADDING_PX,
-      width: rect.width + TARGET_PADDING_PX * 2,
-      height: rect.height + TARGET_PADDING_PX * 2,
+      left: rect.left - responsive.targetPadding,
+      top: rect.top - responsive.targetPadding,
+      width: rect.width + responsive.targetPadding * 2,
+      height: rect.height + responsive.targetPadding * 2,
+      shadowSpread: responsive.shadowSpread,
     });
-  }, [step, config]);
+  }, [step]);
 
   useEffect(() => {
     if (!visible) {
@@ -157,18 +170,23 @@ export const SequentialOnboardingOverlay: React.FC<SequentialOnboardingOverlayPr
     window.visualViewport?.addEventListener('resize', scheduleUpdate);
     window.visualViewport?.addEventListener('scroll', scheduleUpdate);
 
+    const selector = step ? getSequentialStepConfig(step).selector : '';
     const mutationObserver = new MutationObserver(scheduleUpdate);
-    // data-tutorial-anchor 변경만 감지. 나머지 레이아웃 변경은 resize/scroll 이벤트로 대응.
-    const targetEls = config ? Array.from(document.querySelectorAll<HTMLElement>(config.selector)) : [];
+    // data-tutorial-anchor, id, class, style 변경 + DOM 추가 감지 (동적 타겟 등장 대응)
+    const targetEls = selector ? Array.from(document.querySelectorAll<HTMLElement>(selector)) : [];
     const observeTarget = targetEls.length > 0 ? targetEls : [document.body];
     observeTarget.forEach((el) => {
       mutationObserver.observe(el, {
         subtree: targetEls.length === 0,
-        childList: false,
+        childList: targetEls.length === 0,
         attributes: true,
-        attributeFilter: ['data-tutorial-anchor'],
+        attributeFilter: ['id', 'class', 'style', 'data-tutorial-anchor'],
       });
     });
+
+    // 타겟 요소 크기/위치 변경 감지 (광고 배너 로드 등 레이아웃 이동 대응)
+    const targetResizeObserver = new ResizeObserver(scheduleUpdate);
+    targetEls.forEach((el) => targetResizeObserver.observe(el));
 
     return () => {
       window.removeEventListener('resize', scheduleUpdate);
@@ -177,6 +195,7 @@ export const SequentialOnboardingOverlay: React.FC<SequentialOnboardingOverlayPr
       window.visualViewport?.removeEventListener('resize', scheduleUpdate);
       window.visualViewport?.removeEventListener('scroll', scheduleUpdate);
       mutationObserver.disconnect();
+      targetResizeObserver.disconnect();
       if (rafRef.current) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
@@ -217,26 +236,30 @@ export const SequentialOnboardingOverlay: React.FC<SequentialOnboardingOverlayPr
   const cardLayout = (() => {
     if (!spotlight) return null;
 
-    const cardWidth = clamp(viewport.width - EDGE_PADDING_PX * 2, MIN_CARD_WIDTH_PX, MAX_CARD_WIDTH_PX);
+    const responsive = getResponsiveLayout(viewport.width, viewport.height);
+    const cardWidth = clamp(viewport.width - responsive.edgePadding * 2, responsive.minCardWidth, responsive.maxCardWidth);
     const targetCenterX = spotlight.left + round(spotlight.width / 2);
     const cardLeft = clamp(
       round(targetCenterX - cardWidth / 2),
-      EDGE_PADDING_PX,
-      viewport.width - cardWidth - EDGE_PADDING_PX,
+      responsive.edgePadding,
+      viewport.width - cardWidth - responsive.edgePadding,
     );
     const resolvedCardHeight = cardHeight || 80;
-    const candidateBelowTop = spotlight.top + spotlight.height + TARGET_GAP_PX;
-    const candidateAboveTop = spotlight.top - TARGET_GAP_PX - resolvedCardHeight;
-    const canPlaceBelow = candidateBelowTop + resolvedCardHeight <= viewport.height - EDGE_PADDING_PX;
-    const canPlaceAbove = candidateAboveTop >= EDGE_PADDING_PX;
+    const candidateBelowTop = spotlight.top + spotlight.height + responsive.targetGap;
+    const candidateAboveTop = spotlight.top - responsive.targetGap - resolvedCardHeight;
+    const canPlaceBelow = candidateBelowTop + resolvedCardHeight <= viewport.height - responsive.edgePadding;
+    const canPlaceAbove = candidateAboveTop >= responsive.edgePadding;
     const placement: 'above' | 'below' = canPlaceBelow || !canPlaceAbove ? 'below' : 'above';
     const cardTop =
       placement === 'below'
-        ? clamp(candidateBelowTop, EDGE_PADDING_PX, viewport.height - resolvedCardHeight - EDGE_PADDING_PX)
-        : clamp(candidateAboveTop, EDGE_PADDING_PX, viewport.height - resolvedCardHeight - EDGE_PADDING_PX);
+        ? clamp(candidateBelowTop, responsive.edgePadding, viewport.height - resolvedCardHeight - responsive.edgePadding)
+        : clamp(candidateAboveTop, responsive.edgePadding, viewport.height - resolvedCardHeight - responsive.edgePadding);
     const arrowLeft = clamp(round(targetCenterX - cardLeft - 8), 24, cardWidth - 28);
+    const maxCardHeight = placement === 'below'
+      ? viewport.height - cardTop - responsive.edgePadding
+      : cardTop - responsive.edgePadding;
 
-    return { left: cardLeft, top: cardTop, width: cardWidth, arrowLeft, placement };
+    return { left: cardLeft, top: cardTop, width: cardWidth, arrowLeft, placement, maxCardHeight };
   })();
 
   const handleTap = useCallback(() => {
@@ -254,7 +277,7 @@ export const SequentialOnboardingOverlay: React.FC<SequentialOnboardingOverlayPr
 
   const cardContent = (withSpotlight: boolean) => (
     <div
-      className={withSpotlight ? 'relative rounded-2xl border border-white/80 bg-white/95 px-5 py-3 shadow-2xl shadow-slate-950/25 backdrop-blur-md' : 'w-full max-w-xs rounded-2xl border border-white/80 bg-white/95 px-5 py-3 shadow-2xl shadow-slate-950/25 backdrop-blur-md'}
+      className={withSpotlight ? 'relative rounded-2xl border border-white/80 bg-white/95 px-5 py-3 shadow-2xl shadow-slate-950/25 backdrop-blur-md overflow-y-auto' : 'w-full max-w-xs rounded-2xl border border-white/80 bg-white/95 px-5 py-3 shadow-2xl shadow-slate-950/25 backdrop-blur-md'}
     >
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-semibold leading-relaxed text-slate-800 flex-1">
@@ -297,18 +320,19 @@ export const SequentialOnboardingOverlay: React.FC<SequentialOnboardingOverlayPr
           onClick={handleTap}
         >
           {/* 반투명 배경 */}
-          <div className="absolute inset-0 bg-slate-950/55 backdrop-blur-[1px]" />
+          <div className="absolute inset-0 bg-slate-950/30" />
 
           {/* 스포트라이트 */}
           {spotlight && (
             <motion.div
+              layout="position"
               className="absolute rounded-2xl border-2 border-blue-400/70 pointer-events-none"
               style={{
                 left: spotlight.left,
                 top: spotlight.top,
                 width: spotlight.width,
                 height: spotlight.height,
-                boxShadow: '0 0 0 9999px rgba(15, 23, 42, 0.55), 0 0 28px rgba(37, 99, 235, 0.4)',
+                boxShadow: `0 0 0 ${spotlight.shadowSpread}px rgba(15, 23, 42, 0.30), 0 0 28px rgba(37, 99, 235, 0.3)`,
               }}
               animate={{ scale: [1, 1.025, 1] }}
               transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
@@ -323,6 +347,8 @@ export const SequentialOnboardingOverlay: React.FC<SequentialOnboardingOverlayPr
                 left: cardLayout.left,
                 top: cardLayout.top,
                 width: cardLayout.width,
+                maxHeight: cardLayout.maxCardHeight,
+                overflow: 'hidden',
               }}
               onClick={(e) => e.stopPropagation()}
             >

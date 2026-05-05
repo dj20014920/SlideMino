@@ -62,7 +62,7 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({ open, difficulty
     if (!open) return null;
 
     return (
-        <div className={isPremiumUi ? 'fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 modal-safe-overlay' : 'fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 modal-safe-overlay'}>
+        <div className={isPremiumUi ? 'fixed inset-0 z-[400] flex items-end sm:items-center justify-center p-4 modal-safe-overlay' : 'fixed inset-0 z-[400] flex items-end sm:items-center justify-center p-4 modal-safe-overlay'}>
             {/* Backdrop */}
             <div
                 className={isPremiumUi ? `absolute inset-0 ${premiumUiModalOverlayClassName}` : 'absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in'}
@@ -70,8 +70,8 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({ open, difficulty
             />
 
             <div className={isPremiumUi
-                ? `${premiumUiWindowClassName} ${premiumUiModalWindowClassName} relative w-full max-w-sm overflow-hidden animate-scale-in mb-safe modal-safe-panel`
-                : 'relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden animate-scale-in mb-safe modal-safe-panel'}>
+                ? `${premiumUiWindowClassName} ${premiumUiModalWindowClassName} relative w-full max-w-sm overflow-hidden flex flex-col min-h-0 animate-scale-in mb-safe modal-safe-panel`
+                : 'relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col min-h-0 animate-scale-in mb-safe modal-safe-panel'}>
                 {isPremiumUi && (
                     <div className={premiumUiTitleBarClassName}>
                         <div className={premiumUiTitleBarTextClassName}>{String(t('modals:nameInput.title', { difficulty } as any))}</div>
@@ -80,7 +80,7 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({ open, difficulty
                         </div>
                     </div>
                 )}
-                <div className={isPremiumUi ? `${premiumUiWindowBodyClassName} p-4` : 'p-6'}>
+                <div className={isPremiumUi ? `${premiumUiWindowBodyClassName} p-4 flex-1 min-h-0 overflow-y-auto modal-scroll-panel` : 'p-6 flex-1 min-h-0 overflow-y-auto modal-scroll-panel'}>
                     {!isPremiumUi && (
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-bold text-gray-800">

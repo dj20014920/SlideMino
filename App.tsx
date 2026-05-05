@@ -52,6 +52,7 @@ import { BottomNavBar, getEstimatedBottomNavHeight } from './components/BottomNa
 import { NativeUpdateModal } from './components/NativeUpdateModal';
 import {
   BOARD_CELL_GAP_PX,
+  BOARD_GRID_VIEWPORT_SELECTOR,
   SLIDE_UNLOCK_BUFFER_MS,
   getSlideAnimationDurationMs,
   FRAGMENTS_PER_DUPLICATE,
@@ -321,13 +322,16 @@ const getSavedGameActiveDurationMs = (saved: SavedGameState): number => {
 };
 
 
+/**
+ * Pointer hit-test snapshot for the active drag.
+ *
+ * Important: these metrics are read from Board's grid viewport, not the visible
+ * board shell. The shell is allowed to change for skins; this structure must stay
+ * aligned with the same coordinate contract used by `components/Board.tsx`.
+ */
 interface BoardMetrics {
   rectLeft: number;
   rectTop: number;
-  borderLeft: number;
-  borderTop: number;
-  paddingLeft: number;
-  paddingTop: number;
   innerWidth: number;
   innerHeight: number;
   offsetX: number;
@@ -403,6 +407,10 @@ const VIEWPORT_HEIGHT_DROP_GUARD_RATIO = 0.18;
 const VIEWPORT_HEIGHT_DROP_GUARD_MAX_WIDTH_SHIFT_PX = 24;
 const VIEWPORT_HEIGHT_DROP_GUARD_REAPPLY_DELAY_MS = 80;
 const CHROME_SPIKE_GUARD_STEP_PX = 36;
+
+const getStableGameFooterReservePx = (nativeSafeBottomPx: number): number => (
+  STABLE_BANNER_RESERVE_PX + Math.max(0, Math.round(nativeSafeBottomPx))
+);
 
 const lerp = (from: number, to: number, t: number): number => from + (to - from) * t;
 
@@ -481,8 +489,8 @@ const getGameLayoutProfile = (
   const mainTopPaddingPx = Math.round(clamp(lerp(9, 13, tallProgress) * (isLandscape ? 0.75 : 1), 8, 13));
   const mainBottomPaddingPx = Math.max(0, whitespacePx - mainTopPaddingPx);
   const measuredHeaderHeightPx = clamp(chromeHeights.header, 56, 180);
-  const measuredFooterHeightPx = clamp(chromeHeights.footer, STABLE_BANNER_RESERVE_PX, 260);
-  const availableMainHeightPx = Math.max(180, safeHeight - measuredHeaderHeightPx - measuredFooterHeightPx);
+  const reservedFooterHeightPx = clamp(chromeHeights.footer, STABLE_BANNER_RESERVE_PX, 260);
+  const availableMainHeightPx = Math.max(180, safeHeight - measuredHeaderHeightPx - reservedFooterHeightPx);
   // 새로고침 버튼 행(min-h-10)과 두 번째 gap까지 포함해 정확하게 보드 높이 예산 계산
   const REFRESH_ROW_HEIGHT_PX = 40;
   const boardHeightBudgetPx =
@@ -1477,7 +1485,6 @@ const App: React.FC = () => {
 
   // --- Refs ---
   const headerRef = useRef<HTMLDivElement>(null);
-  const footerRef = useRef<HTMLDivElement>(null);
   const boardRef = useRef<HTMLDivElement>(null);
   const boardHandleRef = useRef<BoardHandle | null>(null);
   const dragOverlayRef = useRef<HTMLDivElement>(null); // 드래그 오버레이 직접 제어용 Ref
@@ -1618,7 +1625,6 @@ const App: React.FC = () => {
 
     const updateChromeHeights = () => {
       const measuredHeader = headerRef.current?.getBoundingClientRect().height;
-      const measuredFooter = footerRef.current?.getBoundingClientRect().height;
       const root = document.documentElement;
 
       setLayoutChromeHeights((prev) => {
@@ -1630,18 +1636,11 @@ const App: React.FC = () => {
           ? prev.header - CHROME_SPIKE_GUARD_STEP_PX
           : nextHeaderWithSpikeGuard;
         const nativeSafeBottomPx = isNative ? Math.max(0, Math.round(getSafeAreaInsetPx('bottom'))) : 0;
-        const footerFallbackPx = STABLE_BANNER_RESERVE_PX + nativeSafeBottomPx;
-        // 초기 측정 전에는 safe-bottom을 포함한 fallback을 사용하고,
-        // 측정값이 들어오면 실제 footer 높이(AdBanner spacer 포함)를 신뢰한다.
-        const baseFooter = measuredFooter
-          ? Math.max(STABLE_BANNER_RESERVE_PX, measuredFooter)
-          : footerFallbackPx;
-        const nextFooterWithSpikeGuard = baseFooter > prev.footer + CHROME_SPIKE_GUARD_STEP_PX
-          ? prev.footer + CHROME_SPIKE_GUARD_STEP_PX
-          : baseFooter;
-        const nextFooter = isWin98ThemeActive && nextFooterWithSpikeGuard < prev.footer - CHROME_SPIKE_GUARD_STEP_PX
-          ? prev.footer - CHROME_SPIKE_GUARD_STEP_PX
-          : nextFooterWithSpikeGuard;
+        // In-game footer is a reserved chrome lane, not a measured ad-content lane.
+        // Ad SDKs can resize asynchronously; feeding that measured height into boardScale
+        // was the class of bug where the board suddenly rendered too small. Keep only
+        // stable banner reserve + native safe-bottom here.
+        const nextFooter = getStableGameFooterReservePx(nativeSafeBottomPx);
         root.style.setProperty('--bottom-ad-height', `${Math.max(0, Math.round(nextFooter))}px`);
         root.style.setProperty('--bottom-chrome-height', `${Math.max(0, Math.round(nextFooter))}px`);
         const isHeaderStable = Math.abs(prev.header - nextHeader) <= 0.5;
@@ -1663,7 +1662,6 @@ const App: React.FC = () => {
     if (typeof ResizeObserver !== 'undefined') {
       observer = new ResizeObserver(updateChromeHeights);
       if (headerRef.current) observer.observe(headerRef.current);
-      if (footerRef.current) observer.observe(footerRef.current);
     }
 
     const scheduleChromeSync = () => {
@@ -3616,36 +3614,30 @@ const App: React.FC = () => {
   }, []);
 
   const readBoardMetrics = useCallback((): BoardMetrics | null => {
-    if (!boardRef.current) return null;
+    const boardEl = boardRef.current;
+    if (!boardEl) return null;
 
-    const rect = boardRef.current.getBoundingClientRect();
-    const styles = window.getComputedStyle(boardRef.current);
-    const paddingLeft = parseFloat(styles.paddingLeft) || 0;
-    const paddingTop = parseFloat(styles.paddingTop) || 0;
-    const paddingRight = parseFloat(styles.paddingRight) || 0;
-    const paddingBottom = parseFloat(styles.paddingBottom) || 0;
-    const borderLeft = parseFloat(styles.borderLeftWidth) || 0;
-    const borderTop = parseFloat(styles.borderTopWidth) || 0;
-    const borderRight = parseFloat(styles.borderRightWidth) || 0;
-    const borderBottom = parseFloat(styles.borderBottomWidth) || 0;
+    // Match Board.tsx exactly: drag/drop math uses the grid viewport, while the
+    // outer board shell remains free for skin chrome. If this selector is missing
+    // we fall back to the shell only to keep older renders alive during transitions.
+    const gridViewportEl =
+      boardEl.querySelector<HTMLElement>(BOARD_GRID_VIEWPORT_SELECTOR) ?? boardEl;
+    const rect = gridViewportEl.getBoundingClientRect();
     // Board 컴포넌트와 동일하게 grid.length 기반으로 계산하여 일관성 보장
     const size = grid.length;
-    const innerWidth = rect.width - borderLeft - borderRight - paddingLeft - paddingRight;
-    const innerHeight = rect.height - borderTop - borderBottom - paddingTop - paddingBottom;
+    const innerWidth = rect.width;
+    const innerHeight = rect.height;
     const inner = Math.min(innerWidth, innerHeight);
+    const totalGap = (size - 1) * BOARD_CELL_GAP_PX;
+    if (!Number.isFinite(inner) || inner <= totalGap) return null;
     const offsetX = Math.max(0, (innerWidth - inner) / 2);
     const offsetY = Math.max(0, (innerHeight - inner) / 2);
-    const totalGap = (size - 1) * BOARD_CELL_GAP_PX;
     const cell = (inner - totalGap) / size;
     const pitch = cell + BOARD_CELL_GAP_PX;
 
     return {
       rectLeft: rect.left,
       rectTop: rect.top,
-      borderLeft,
-      borderTop,
-      paddingLeft,
-      paddingTop,
       innerWidth,
       innerHeight,
       offsetX,
@@ -3756,8 +3748,8 @@ const App: React.FC = () => {
     const metrics = boardMetricsRef.current;
     if (!metrics) return null;
 
-    const relativeX = clientX - metrics.rectLeft - metrics.borderLeft - metrics.paddingLeft - metrics.offsetX;
-    const relativeY = clientY - metrics.rectTop - metrics.borderTop - metrics.paddingTop - metrics.offsetY;
+    const relativeX = clientX - metrics.rectLeft - metrics.offsetX;
+    const relativeY = clientY - metrics.rectTop - metrics.offsetY;
     const playableSpan = metrics.pitch * (metrics.size - 1) + metrics.cell;
     const EDGE_EPSILON_PX = 0.5;
     const isOutside =
@@ -5628,6 +5620,11 @@ comboMultiplier={maxComboMultiplierRef.current}
         : '[!점수는 인터넷 연결 시에 반영됩니다!]',
     } as any,
   ));
+  const availableMainHeightPx = Math.max(180, viewportSize.height - layoutChromeHeights.header - Math.max(layoutChromeHeights.footer, STABLE_BANNER_RESERVE_PX));
+  const isGameHeaderCompact =
+    viewportSize.height <= 720 ||
+    viewportSize.width <= 360 ||
+    availableMainHeightPx < 500;
 
   // 모드 알리미(phase) 상태 기반 포커스:
   // - PLACE: 보드 + 슬롯 강조
@@ -5707,25 +5704,25 @@ comboMultiplier={maxComboMultiplierRef.current}
 
           {/* Header */}
           <header
-            className={`w-full flex justify-between items-center px-4 pb-2 ${isPremiumUiThemeActive ? premiumGameHeaderClassName : ''}`}
+            className={`w-full flex justify-between items-center ${isGameHeaderCompact ? 'px-3 pb-1.5' : 'px-4 pb-2'} ${isPremiumUiThemeActive ? premiumGameHeaderClassName : ''}`}
             style={{
               maxWidth: `${gameLayoutProfile.columnWidthPx}px`,
               // safe-top은 상단 래퍼가 일괄 담당하므로 헤더는 내부 여백만 설정
-              paddingTop: isPremiumUiThemeActive ? '8px' : '16px',
+              paddingTop: isGameHeaderCompact ? (isPremiumUiThemeActive ? '6px' : '10px') : (isPremiumUiThemeActive ? '8px' : '16px'),
               // 보드와의 간격을 줄이기 위해 헤더 하단 여백을 공통값으로 고정
-              paddingBottom: '10px',
+              paddingBottom: isGameHeaderCompact ? '6px' : '10px',
               // 앱인토스: 우측 상단 공통 내비게이션 영역 확보
               paddingRight: 'calc(16px + var(--appintos-nav-safe-right))'
             }}
           >
-            <div className="flex items-center gap-3">
+            <div className={`flex items-center ${isGameHeaderCompact ? 'gap-2' : 'gap-3'} min-w-0`}>
               {/* Home Button */}
               <button
                 type="button"
                 onClick={handleHomeButtonClick}
                 disabled={isAnimating}
                 className={`
-              p-2.5 rounded-full flex items-center justify-center ${premiumIconButtonClassName}
+                  ${isGameHeaderCompact ? 'p-2' : 'p-2.5'} rounded-full flex items-center justify-center ${premiumIconButtonClassName}
               border shadow-sm transition-all duration-200
               ${isAnimating
                     ? 'bg-gray-100/50 text-gray-300 border-gray-200/50 cursor-not-allowed'
@@ -5736,26 +5733,26 @@ comboMultiplier={maxComboMultiplierRef.current}
               >
                 <Home size={18} />
               </button>
-              <div className="space-y-0.5">
-                <h2 className="text-sm font-medium text-gray-400 uppercase tracking-wider flex items-center gap-1.5 flex-wrap">
+              <div className="space-y-0.5 min-w-0">
+                <h2 className={`${isGameHeaderCompact ? 'text-[11px] flex-nowrap min-w-0' : 'text-sm flex-wrap'} font-medium text-gray-400 uppercase tracking-wider flex items-center gap-1.5`}>
                   {t('common:labels.score')}
                   {gameMode === 'normal' && liveRankEstimate !== null && gameState === GameState.PLAYING
                     && score > 0 && liveRankEstimate.totalEntries >= 2 && (
-                      <span className="text-xs font-semibold text-blue-600">
+                      <span className={isGameHeaderCompact ? 'text-[10px] font-semibold text-blue-600 whitespace-nowrap truncate' : 'text-xs font-semibold text-blue-600'}>
                         {String(t('game:liveRank.estimatedRank', { rank: liveRankEstimate.rank } as any))}
                       </span>
                     )}
                 </h2>
-                <p className="text-3xl font-bold text-gray-900 tabular-nums">{score}</p>
+                <p className={`${isGameHeaderCompact ? 'text-2xl' : 'text-3xl'} font-bold text-gray-900 tabular-nums leading-none`}>{score}</p>
                 {currentLevelBadge && (
-                  <p className="text-xs font-semibold text-purple-600">
+                  <p className={isGameHeaderCompact ? 'text-[10px] font-semibold text-purple-600 whitespace-nowrap truncate' : 'text-xs font-semibold text-purple-600'}>
                     {currentLevelBadge.emoji} Lv.{currentLevelBadge.level}
                   </p>
                 )}
                 {gameMode === 'normal' && liveRankEstimate !== null && gameState === GameState.PLAYING
                   && score > 0 && liveRankEstimate.totalEntries >= 2 && (
                     <>
-                      <p className="text-xs font-semibold text-blue-500">
+                      <p className={isGameHeaderCompact ? 'text-[10px] font-semibold text-blue-500 whitespace-nowrap truncate' : 'text-xs font-semibold text-blue-500'}>
                         {liveRankEstimate.pointsToNext > 0
                           ? String(t('game:liveRank.pointsToNext', { points: liveRankEstimate.pointsToNext } as any))
                           : t('game:liveRank.topRank')}
@@ -5763,17 +5760,16 @@ comboMultiplier={maxComboMultiplierRef.current}
                     </>
                   )}
                 {shouldShowRankingSyncNotice && (
-                  <p className="text-[10px] font-semibold text-emerald-600">
+                  <p className={isGameHeaderCompact ? 'max-w-[150px] text-[10px] font-semibold text-emerald-600 whitespace-nowrap truncate' : 'text-[10px] font-semibold text-emerald-600'}>
                     {rankingSyncNotice}
                   </p>
                 )}
               </div>
             </div>
-            <div className="flex flex-col items-end gap-2 transition-opacity duration-200">
+            <div className={`flex flex-col items-end ${isGameHeaderCompact ? 'gap-1.5' : 'gap-2'} transition-opacity duration-200 shrink-0`}>
               {/* Phase Indicator - Glass Pill - 고정 폭으로 레이아웃 안정화 */}
               <div className={`
-            px-4 py-2 rounded-full text-sm font-semibold flex items-center justify-center gap-2 ${premiumPillButtonClassName}
-            min-w-[100px]
+            ${isGameHeaderCompact ? 'px-3 py-1.5 text-xs min-w-[82px] gap-1.5' : 'px-4 py-2 text-sm min-w-[100px] gap-2'} rounded-full font-semibold flex items-center justify-center ${premiumPillButtonClassName}
             ${isPremiumUiThemeActive ? premiumHeaderMainButtonClassName : ''}
             transition-all duration-200 ease-out
             ${phaseIndicatorInteractivityClass}
@@ -5790,14 +5786,14 @@ comboMultiplier={maxComboMultiplierRef.current}
               </div>
 
               {/* Help & Undo Buttons - Same Row */}
-              <div className="flex items-center gap-2">
+              <div className={`flex items-center ${isGameHeaderCompact ? 'gap-1.5' : 'gap-2'}`}>
                 {/* Help Button */}
                 <button
                   type="button"
                   onClick={openHelpModal}
                   disabled={isReviveSelectionMode}
                   className={`
-                  p-2 rounded-full text-gray-600 ${premiumIconButtonClassName} ${isPremiumUiThemeActive ? premiumHeaderIconButtonClassName : ''}
+                  ${isGameHeaderCompact ? 'p-1.5' : 'p-2'} rounded-full text-gray-600 ${premiumIconButtonClassName} ${isPremiumUiThemeActive ? premiumHeaderIconButtonClassName : ''}
                   flex items-center justify-center leading-none
                   bg-white/70 hover:bg-white border border-white/50
                   shadow-sm hover:shadow-md transition-all duration-200 active:scale-95
@@ -5828,7 +5824,7 @@ comboMultiplier={maxComboMultiplierRef.current}
                       : t('game:actions.undo')
                   }
                   className={`
-                px-3 py-1.5 rounded-full text-xs font-semibold flex items-center justify-center gap-2 ${premiumGameButtonClassName} ${isPremiumUiThemeActive ? premiumHeaderActionButtonClassName : ''}
+                ${isGameHeaderCompact ? 'px-2.5 py-1 gap-1.5' : 'px-3 py-1.5 gap-2'} rounded-full text-xs font-semibold flex items-center justify-center ${premiumGameButtonClassName} ${isPremiumUiThemeActive ? premiumHeaderActionButtonClassName : ''}
                 border shadow-sm transition-all duration-200
                 ${undoFocusSurfaceClass}
                 pointer-events-auto
@@ -5864,7 +5860,7 @@ comboMultiplier={maxComboMultiplierRef.current}
             maxWidth: `${gameLayoutProfile.columnWidthPx}px`,
             gap: `${gameLayoutProfile.mainGapPx}px`,
             paddingTop: `${gameLayoutProfile.mainTopPaddingPx}px`,
-            paddingBottom: `calc(${gameLayoutProfile.mainBottomPaddingPx}px + var(--app-safe-bottom))`
+            paddingBottom: `${gameLayoutProfile.mainBottomPaddingPx}px`
           }}
         >
 
@@ -6055,13 +6051,24 @@ comboMultiplier={maxComboMultiplierRef.current}
         )}
         <HelpModal isOpen={showHelpModal} onClose={() => setShowHelpModal(false)} />
 
-        {/* Ad Banner for Game Screen: flex flow 기반으로 하단에 배치 (fixed 제거 → 레이아웃 shift 방지) */}
-        <div ref={footerRef} className="w-full shrink-0">
+        {/*
+          In-game ad lane
+
+          The game layout reserves this lane with STABLE_BANNER_RESERVE_PX. Do not
+          reintroduce footer DOM measurement into boardScale calculations: web AdSense
+          and native ad SDKs may resize after load/orientation changes, while the board
+          must remain stable for every skin and device shape.
+        */}
+        <div className="w-full shrink-0">
           <div className={`
           w-full transition-opacity duration-200
           ${isSwipeFocusMode ? 'opacity-20 pointer-events-none' : 'opacity-100'}
         `}>
-            <AdBanner includeSafeBottomInReservedSpace={true} />
+            <AdBanner
+              includeSafeBottomInReservedSpace={true}
+              webLayout="compact-banner"
+              webReservedHeightPx={STABLE_BANNER_RESERVE_PX}
+            />
           </div>
         </div>
 
@@ -6096,6 +6103,7 @@ comboMultiplier={maxComboMultiplierRef.current}
             onViewRankings={handleGameOverViewRankings}
             gameOverReason={gameOverReason}
             comboMultiplier={maxComboMultiplierRef.current}
+            comboCount={maxComboCountRef.current}
           />
         )}
 

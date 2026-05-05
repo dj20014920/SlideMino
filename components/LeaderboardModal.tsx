@@ -412,7 +412,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
         )}
 
         {/* 랭킹 모드 분리 탭: 일반 / 주간 이벤트 */}
-        <div className={isPremiumUi ? premiumUiModeTabStripClassName : 'flex items-center gap-2 border-b border-gray-100 bg-white px-4 py-3'}>
+        <div className={isPremiumUi ? `${premiumUiModeTabStripClassName} overflow-x-auto overflow-y-visible` : 'flex items-center gap-2 overflow-x-auto overflow-y-visible border-b border-gray-100 bg-white px-4 py-3'}>
           <button
             onClick={() => {
               setModeTab('NORMAL');

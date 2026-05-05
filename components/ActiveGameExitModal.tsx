@@ -273,7 +273,7 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
     const isPremiumUi = Boolean(isPremiumUiThemeActive ?? contextIsPremiumUiThemeActive);
 
     return (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 modal-safe-overlay">
+        <div className="fixed inset-0 z-[400] flex flex-col items-center justify-center p-6 modal-safe-overlay">
             <div className={isPremiumUi ? `absolute inset-0 ${premiumUiModalOverlayClassName || 'bg-black/45'}` : 'absolute inset-0 bg-white/80 backdrop-blur-xl animate-fade-in'} />
 
             <div className={isPremiumUi

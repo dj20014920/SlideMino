@@ -13,6 +13,10 @@ export const getSlideAnimationDurationMs = (distance: number): number => {
 
 // Board rendering/layout constants
 export const BOARD_CELL_GAP_PX = 3;
+// 이 selector는 Board 내부의 "실제 게임 좌표계"를 가리킨다.
+// 새 스킨/이펙트가 보드 위치를 계산해야 할 때는 #game-board 루트가 아니라
+// 이 viewport를 기준으로 삼아야 padding/border/shadow 같은 장식과 좌표가 섞이지 않는다.
+export const BOARD_GRID_VIEWPORT_SELECTOR = '[data-board-grid-viewport="true"]';
 
 // --- Tile typography helpers ---
 

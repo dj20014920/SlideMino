@@ -582,6 +582,9 @@ html {
 
 .modal-safe-panel {
   max-height: min(92dvh, calc(100dvh - var(--ui-safe-top, 0px) - var(--bottom-chrome-height, 0px) - 1.5rem));
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   overscroll-behavior: contain;
 }
 

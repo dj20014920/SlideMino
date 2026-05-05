@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Trophy, Send, Check, Medal, RotateCcw, Share2 } from 'lucide-react';
 import { rankingService } from '../services/rankingService';
@@ -89,6 +89,8 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
     // 랭킹 제출 후 순위 (챌린지 결과에서도 사용)
     const [localRank, setLocalRank] = useState<number | undefined>(submittedRank);
     const [localTotal, setLocalTotal] = useState<number | undefined>(submittedTotal);
+    const [localSubmittedScore, setLocalSubmittedScore] = useState<number | undefined>();
+    const submitInFlightRef = useRef(false);
     const levelBadgeId = getHighestLevelBadgeForLevel(loadXpData().level)?.id;
     const { isPremiumUiThemeActive, premiumUiObjects } = useBlockCustomization();
     const premiumUiModalOverlayClassName = premiumUiObjects.modalOverlayClassName;
@@ -110,6 +112,8 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         setShareToast(null);
         setLocalRank(submittedRank);
         setLocalTotal(submittedTotal);
+        setLocalSubmittedScore(undefined);
+        submitInFlightRef.current = false;
     }, [lockedPlayerName, playerName, submittedRank, submittedTotal]);
 
     useEffect(() => {
@@ -152,140 +156,156 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
     }, [isSharing, score, boardSize, gameMode, localRank, localTotal, playerName, challengeDate, t]);
 
     const submitScoreWithName = async (trimmedName: string) => {
+        if (submitInFlightRef.current) return;
+        submitInFlightRef.current = true;
         setIsSubmitting(true);
         setNameError(null);
         setSubmitError(null);
+        let keepSubmitLocked = false;
 
-        if (gameMode === 'daily_challenge' && challengeDate) {
-            setIsSubmitting(false);
-            // 사용자 결정사항(임시 운영 정책):
-            // 데일리 챌린지 모드 및 데일리 챌린지 랭킹 제출을 사용자 증가 시점까지 비활성화한다.
-            // 재활성화 시 아래 기존 제출 로직을 복구한다.
-            //
-            // const challengeResult = await submitDailyChallengeScore(
-            //     challengeDate,
-            //     trimmedName,
-            //     score,
-            //     moves,
-            //     duration,
-            // );
-            // if (challengeResult?.success) {
-            //     if (!hasClaimedTodayReward(challengeDate)) {
-            //         const fragments = getFirstCompletionFragments();
-            //         addFragments(fragments);
-            //         markTodayRewardClaimed(challengeDate);
-            //     }
-            //     setLocalRank(challengeResult.rank);
-            //     setLocalTotal(challengeResult.total);
-            //     setSubmittedMessageOverride(
-            //         String(t('modals:gameOver.challengeSubmitted', {
-            //             rank: challengeResult.rank,
-            //             total: challengeResult.total,
-            //         } as any))
-            //     );
-            //     setStep('SUBMITTED');
-            //     gameEventBus.emit('SCORE_SUBMITTED', {
-            //         score, boardSize, mode: gameMode ?? 'normal',
-            //         rank: challengeResult.rank, total: challengeResult.total,
-            //     });
-            // } else {
-            //     setSubmitError(t('modals:rankingRegister.failureMessage'));
-            // }
-            setSubmitError('데일리 챌린지는 현재 임시 비활성화 상태입니다.');
-            return;
-        }
+        try {
+            if (gameMode === 'daily_challenge' && challengeDate) {
+                setIsSubmitting(false);
+                // 사용자 결정사항(임시 운영 정책):
+                // 데일리 챌린지 모드 및 데일리 챌린지 랭킹 제출을 사용자 증가 시점까지 비활성화한다.
+                // 재활성화 시 아래 기존 제출 로직을 복구한다.
+                //
+                // const challengeResult = await submitDailyChallengeScore(
+                //     challengeDate,
+                //     trimmedName,
+                //     score,
+                //     moves,
+                //     duration,
+                // );
+                // if (challengeResult?.success) {
+                //     if (!hasClaimedTodayReward(challengeDate)) {
+                //         const fragments = getFirstCompletionFragments();
+                //         addFragments(fragments);
+                //         markTodayRewardClaimed(challengeDate);
+                //     }
+                //     setLocalRank(challengeResult.rank);
+                //     setLocalTotal(challengeResult.total);
+                //     setSubmittedMessageOverride(
+                //         String(t('modals:gameOver.challengeSubmitted', {
+                //             rank: challengeResult.rank,
+                //             total: challengeResult.total,
+                //         } as any))
+                //     );
+                //     setStep('SUBMITTED');
+                //     gameEventBus.emit('SCORE_SUBMITTED', {
+                //         score, boardSize, mode: gameMode ?? 'normal',
+                //         rank: challengeResult.rank, total: challengeResult.total,
+                //     });
+                // } else {
+                //     setSubmitError(t('modals:rankingRegister.failureMessage'));
+                // }
+                setSubmitError('데일리 챌린지는 현재 임시 비활성화 상태입니다.');
+                return;
+            }
 
-        if (gameMode === 'weekly_event') {
-            // 주간 이벤트 전용 제출
-            const eventResult = await submitEventScore({
+            if (gameMode === 'weekly_event') {
+                // 주간 이벤트 전용 제출
+                const eventResult = await submitEventScore({
+                    sessionId,
+                    name: trimmedName,
+                    score,
+                    moves,
+                    duration,
+                    attemptNumber: eventAttemptNumber ?? 1,
+                    levelBadge: levelBadgeId,
+                    comboMultiplier,
+                    comboCount,
+                });
+                setIsSubmitting(false);
+                if (eventResult.success) {
+                    onSessionNameLocked?.(trimmedName);
+                    setLocalRank(eventResult.rank);
+                    setLocalTotal(eventResult.total);
+                    setLocalSubmittedScore(eventResult.bestScore ?? score);
+                    setSubmittedMessageOverride(
+                        eventResult.rank
+                            ? String(t('modals:gameOver.challengeSubmitted', {
+                                rank: eventResult.rank,
+                                total: eventResult.total,
+                            } as any))
+                            : null
+                    );
+                    keepSubmitLocked = true;
+                    setStep('SUBMITTED');
+                    // 미션 추적: 랭킹 제출 이벤트 (weekly_event)
+                    gameEventBus.emit('SCORE_SUBMITTED', {
+                        score, boardSize, mode: gameMode ?? 'normal',
+                        rank: eventResult.rank, total: eventResult.total,
+                    });
+                } else if (eventResult.queued) {
+                    onSessionNameLocked?.(trimmedName);
+                    setSubmittedMessageOverride(t('modals:rankingRegister.queuedMessage'));
+                    keepSubmitLocked = true;
+                    setStep('SUBMITTED');
+                } else {
+                    setSubmitError(t('modals:rankingRegister.failureMessage'));
+                }
+                return;
+            }
+
+            // Submit score with anti-cheat metadata and session ID
+            const result = await rankingService.submitScore(
                 sessionId,
-                name: trimmedName,
+                trimmedName,
                 score,
-                moves,
+                difficulty,
                 duration,
-                attemptNumber: eventAttemptNumber ?? 1,
-                levelBadge: levelBadgeId,
+                moves,
+                getAnalyticsInstallId(),
+                levelBadgeId,
                 comboMultiplier,
-                comboCount,
-            });
+                comboCount
+            );
             setIsSubmitting(false);
-            if (eventResult.success) {
+            if (result.success) {
                 onSessionNameLocked?.(trimmedName);
-                setLocalRank(eventResult.rank);
-                setLocalTotal(eventResult.total);
-                setSubmittedMessageOverride(
-                    eventResult.rank
-                        ? String(t('modals:gameOver.challengeSubmitted', {
-                            rank: eventResult.rank,
-                            total: eventResult.total,
-                        } as any))
-                        : null
-                );
+                setLocalRank(result.rank);
+                setSubmittedMessageOverride(null);
+                keepSubmitLocked = true;
                 setStep('SUBMITTED');
-                // 미션 추적: 랭킹 제출 이벤트 (weekly_event)
+                // 미션 추적: 랭킹 제출 이벤트 (normal)
                 gameEventBus.emit('SCORE_SUBMITTED', {
                     score, boardSize, mode: gameMode ?? 'normal',
-                    rank: eventResult.rank, total: eventResult.total,
                 });
-            } else if (eventResult.queued) {
+            } else if (result.code === 'SESSION_ALREADY_SUBMITTED') {
+                // 이미 등록된 세션이면 실패로 막지 않고 완료 단계로 전환한다.
+                onSessionNameLocked?.(trimmedName);
+                setSubmittedMessageOverride(t('modals:rankingRegister.alreadySubmittedMessage'));
+                keepSubmitLocked = true;
+                setStep('SUBMITTED');
+                // 이미 제출된 경우에도 미션 추적 (중간저장 등)
+                gameEventBus.emit('SCORE_SUBMITTED', {
+                    score, boardSize, mode: gameMode ?? 'normal',
+                });
+            } else if (result.queued) {
                 onSessionNameLocked?.(trimmedName);
                 setSubmittedMessageOverride(t('modals:rankingRegister.queuedMessage'));
+                keepSubmitLocked = true;
                 setStep('SUBMITTED');
+            } else if (result.offline) {
+                setSubmitError(t('modals:leaderboard.offline'));
+            } else if (result.status === 403) {
+                setSubmitError(t('modals:rankingRegister.rejectedMessage'));
+            } else if (result.status === 429) {
+                setSubmitError(t('modals:rankingRegister.rateLimitedMessage'));
             } else {
+                console.error('[GameOverModal] submit failed', {
+                    status: result.status,
+                    code: result.code,
+                    errorMessage: result.errorMessage,
+                });
                 setSubmitError(t('modals:rankingRegister.failureMessage'));
             }
-            return;
-        }
-
-        // Submit score with anti-cheat metadata and session ID
-        const result = await rankingService.submitScore(
-            sessionId,
-            trimmedName,
-            score,
-            difficulty,
-            duration,
-            moves,
-            getAnalyticsInstallId(),
-            levelBadgeId,
-            comboMultiplier,
-            comboCount
-        );
-        setIsSubmitting(false);
-        if (result.success) {
-            onSessionNameLocked?.(trimmedName);
-            setLocalRank(result.rank);
-            setSubmittedMessageOverride(null);
-            setStep('SUBMITTED');
-            // 미션 추적: 랭킹 제출 이벤트 (normal)
-            gameEventBus.emit('SCORE_SUBMITTED', {
-                score, boardSize, mode: gameMode ?? 'normal',
-            });
-        } else if (result.code === 'SESSION_ALREADY_SUBMITTED') {
-            // 이미 등록된 세션이면 실패로 막지 않고 완료 단계로 전환한다.
-            onSessionNameLocked?.(trimmedName);
-            setSubmittedMessageOverride(t('modals:rankingRegister.alreadySubmittedMessage'));
-            setStep('SUBMITTED');
-            // 이미 제출된 경우에도 미션 추적 (중간저장 등)
-            gameEventBus.emit('SCORE_SUBMITTED', {
-                score, boardSize, mode: gameMode ?? 'normal',
-            });
-        } else if (result.queued) {
-            onSessionNameLocked?.(trimmedName);
-            setSubmittedMessageOverride(t('modals:rankingRegister.queuedMessage'));
-            setStep('SUBMITTED');
-        } else if (result.offline) {
-            setSubmitError(t('modals:leaderboard.offline'));
-        } else if (result.status === 403) {
-            setSubmitError(t('modals:rankingRegister.rejectedMessage'));
-        } else if (result.status === 429) {
-            setSubmitError(t('modals:rankingRegister.rateLimitedMessage'));
-        } else {
-            console.error('[GameOverModal] submit failed', {
-                status: result.status,
-                code: result.code,
-                errorMessage: result.errorMessage,
-            });
-            setSubmitError(t('modals:rankingRegister.failureMessage'));
+        } finally {
+            if (!keepSubmitLocked) {
+                submitInFlightRef.current = false;
+            }
+            setIsSubmitting(false);
         }
     };
 
@@ -302,21 +322,27 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
     };
 
     const handleRegisterClick = () => {
-        // 랭킹 등록은 항상 이름 입력/확인 단계를 거친다.
+        const lockedName = normalizePlayerName(lockedPlayerName ?? '');
+        if (gameMode === 'weekly_event' && lockedName) {
+            setName(lockedName);
+            void submitScoreWithName(lockedName);
+            return;
+        }
+
         setStep('REGISTER');
     };
 
     const submittedMessage = submittedMessageOverride ?? t('modals:rankingRegister.successMessage');
 
     return (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 modal-safe-overlay">
+        <div className="fixed inset-0 z-[400] flex flex-col items-center justify-center p-3 sm:p-6 modal-safe-overlay">
             {/* Backdrop */}
             <div className={isPremiumUi ? `absolute inset-0 ${premiumUiModalOverlayClassName}` : 'absolute inset-0 bg-white/80 backdrop-blur-xl animate-fade-in'} />
 
             {/* Content */}
             <div className={isPremiumUi
                 ? `${premiumUiWindowClassName} ${premiumUiModalWindowClassName} relative z-10 flex flex-col items-center w-full max-w-sm animate-slide-up modal-safe-panel overflow-hidden`
-                : 'relative z-10 flex flex-col items-center w-full max-w-sm animate-slide-up p-5 modal-safe-panel overflow-hidden'}>
+                : 'relative z-10 flex flex-col items-center w-full max-w-sm animate-slide-up p-4 sm:p-5 modal-safe-panel overflow-hidden'}>
                 {isPremiumUi && (
                     <div className={`${premiumUiTitleBarClassName} w-full`}>
                         <div className={premiumUiTitleBarTextClassName}>{t('modals:gameOver.title')}</div>
@@ -328,30 +354,30 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                 <div className={isPremiumUi ? `${premiumUiWindowBodyClassName} w-full p-3 flex-1 min-h-0 overflow-y-auto modal-scroll-panel` : 'w-full flex-1 min-h-0 overflow-y-auto modal-scroll-panel'}>
 
                     {step === 'INITIAL' && (
-                        <div className="flex flex-col items-center space-y-8 w-full">
+                        <div className="flex flex-col items-center space-y-5 sm:space-y-8 w-full">
                             {/* Trophy Icon */}
                             {isPremiumUi ? (
                                 <div className="text-4xl">{'\u25A3'}</div>
                             ) : (
-                                <div className="
-              w-24 h-24 rounded-full 
+                                 <div className="
+              w-16 h-16 sm:w-24 sm:h-24 rounded-full 
               bg-gradient-to-br from-amber-100 to-yellow-200
               border border-amber-200/50
               shadow-xl shadow-amber-900/10
               flex items-center justify-center
             ">
-                                    <Trophy size={40} className="text-amber-600 drop-shadow-sm" />
-                                </div>
-                            )}
+                                     <Trophy size={30} className="text-amber-600 drop-shadow-sm sm:w-10 sm:h-10" />
+                                 </div>
+                             )}
 
-                            {/* Title */}
-                            <h2 className="text-4xl font-bold text-gray-900 tracking-tight">{t('modals:gameOver.title')}</h2>
+                             {/* Title */}
+                            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">{t('modals:gameOver.title')}</h2>
 
                             {/* Score Display */}
                             <div className={isPremiumUi
-                                ? `w-full text-center px-4 py-6 ${premiumUiSunkenClassName}`
-                                : `
-              w-full text-center px-6 py-8 rounded-3xl
+                                ? `w-full text-center px-3 py-4 sm:px-4 sm:py-6 ${premiumUiSunkenClassName}`
+                                 : `
+              w-full text-center px-4 py-5 sm:px-6 sm:py-8 rounded-3xl
               bg-white/60 backdrop-blur-md
               border border-white/60
               shadow-lg
@@ -359,7 +385,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                                 <p className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-2">
                                     {t('common:labels.finalScore')}
                                 </p>
-                                <p className="text-6xl font-black text-gray-900 tabular-nums tracking-tighter leading-none">
+                                <p className="text-5xl sm:text-6xl font-black text-gray-900 tabular-nums tracking-tighter leading-none">
                                     {score}
                                 </p>
                             </div>
@@ -405,7 +431,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                             )}
 
                             {/* Actions */}
-                            <div className="flex flex-col gap-3 w-full pt-2">
+                            <div className="flex flex-col gap-2.5 sm:gap-3 w-full pt-1 sm:pt-2">
                                 {canOfferRevive && (
                                     <div className="
                   rounded-2xl border border-amber-200
@@ -455,9 +481,9 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                                     onClick={handleRegisterClick}
                                     disabled={isSubmitting}
                                     className="
-                  group relative w-full py-4 rounded-2xl
+                  group relative w-full py-3 sm:py-4 rounded-2xl
                   bg-gradient-to-br from-indigo-500 to-purple-600
-                  text-white font-bold text-lg
+                  text-white font-bold text-base sm:text-lg
                   shadow-lg shadow-indigo-500/25
                   hover:shadow-xl hover:shadow-indigo-500/40 hover:-translate-y-0.5
                   disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0
@@ -476,9 +502,9 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                                 <button
                                     onClick={onClose}
                                     className="
-                  w-full py-4 rounded-2xl
+                  w-full py-3 sm:py-4 rounded-2xl
                   bg-white border border-gray-200
-                  text-gray-900 font-semibold text-lg
+                  text-gray-900 font-semibold text-base sm:text-lg
                   shadow-sm
                   hover:bg-gray-50 hover:border-gray-300
                   active:scale-[0.98]
@@ -616,16 +642,16 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                     )}
 
                     {step === 'SUBMITTED' && (
-                        <div className="flex flex-col items-center space-y-8 w-full animate-pop-in">
+                        <div className="flex flex-col items-center space-y-5 sm:space-y-8 w-full animate-pop-in">
                             {isPremiumUi ? (
                                 <div className="text-4xl">[{' \u2713 '}]</div>
                             ) : (
-                                <div className="
-              w-24 h-24 rounded-full
+                                 <div className="
+              w-16 h-16 sm:w-24 sm:h-24 rounded-full
               bg-green-100 border border-green-200
               flex items-center justify-center
             ">
-                                    <Check size={40} className="text-green-600" />
+                                     <Check size={30} className="text-green-600 sm:w-10 sm:h-10" />
                                 </div>
                             )}
 
@@ -636,15 +662,29 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                                 </p>
                             </div>
 
+                            {gameMode === 'weekly_event' && localSubmittedScore !== undefined && (
+                                <div className="w-full rounded-2xl border border-purple-100 bg-purple-50/80 px-4 py-3 text-center">
+                                    {localRank !== undefined && localTotal !== undefined && (
+                                        <p className="text-xs font-bold uppercase tracking-widest text-purple-500">
+                                            Rank #{localRank} / {localTotal}
+                                        </p>
+                                    )}
+                                    <p className="mt-1 text-2xl font-black tabular-nums text-gray-900">
+                                        {localSubmittedScore}
+                                    </p>
+                                    <p className="text-xs font-semibold text-gray-500">Score</p>
+                                </div>
+                            )}
+
                             {/* 공유 버튼 (강조) */}
                                 <button
                                     onClick={handleShare}
                                     disabled={isSharing}
                                     aria-label={t('common:share.button')}
                                     className="
-                w-full py-4 rounded-2xl
+                w-full py-3 sm:py-4 rounded-2xl
                 bg-gradient-to-r from-indigo-500 to-purple-500
-                text-white font-bold text-lg
+                text-white font-bold text-base sm:text-lg
                 shadow-lg shadow-indigo-500/25
                 hover:shadow-xl hover:-translate-y-0.5
                 disabled:opacity-50
@@ -686,8 +726,8 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                             <button
                                 onClick={onClose}
                                 className="
-                w-full py-4 rounded-2xl
-                bg-gray-900 text-white font-bold text-lg
+                w-full py-3 sm:py-4 rounded-2xl
+                bg-gray-900 text-white font-bold text-base sm:text-lg
                 shadow-lg
                 hover:bg-gray-800 hover:-translate-y-0.5
                 active:scale-[0.98]
@@ -700,9 +740,9 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                     )}
 
 
-                    <div className="w-full mt-4">
+                    {gameMode !== 'weekly_event' && <div className="w-full mt-4">
                         <AdBanner />
-                    </div>
+                    </div>}
                 </div>
             </div>
         </div>

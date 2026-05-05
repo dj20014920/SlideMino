@@ -18,6 +18,7 @@ import { hashInstallId } from '../../utils/hash';
 import { checkRateLimit, getClientIp } from '../../utils/rateLimit';
 import { buildCorsHeaders, createJsonResponse, isCrossSiteMutation, isTrustedRequestOrigin } from '../../utils/cors';
 import { getSeasonBoundaries } from '../../utils/seasonReset';
+import { ensureComboRankingsSchema } from '../../utils/comboRankingsSchema';
 
 interface Env {
   DB: D1Database;
@@ -126,6 +127,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // DB 저장: UPSERT — 더 높은 점수일 때만 갱신
     const now = Date.now();
     try {
+      await ensureComboRankingsSchema(env);
+
       await env.DB.batch([
         // INSERT if not exists
         env.DB.prepare(

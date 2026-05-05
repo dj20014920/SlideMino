@@ -536,6 +536,22 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
   }));
   const [hoverLocation, setHoverLocation] = useState<{ x: number; y: number } | null>(null);
   const hoverLocationRef = useRef<{ x: number; y: number } | null>(null);
+  /**
+   * Board coordinate contract
+   *
+   * - `boardRef` / `#game-board` is the decorative shell. Skins may change its padding,
+   *   border, shadow, glow, background, or rounded-corner treatment.
+   * - `gridViewportRef` is the single gameplay coordinate system. Cells, tiles, ghost
+   *   overlays, drag hit-tests, and board-local FX all use this box.
+   * - New skins/effects should not measure the shell and subtract CSS padding/borders.
+   *   That was the old fragile path: theme changes and async ad/layout shifts could make
+   *   the grid appear too small or misaligned.
+   * - If an effect needs a cell center in client coordinates, use:
+   *   `gridViewport.getBoundingClientRect()` + `layout.offset*` + `layout.pitchPx`.
+   *
+   * Longer guide: GAME_BOARD_LAYOUT_CONTRACT.md
+   */
+  const gridViewportRef = useRef<HTMLDivElement | null>(null);
   const pixelBlastLayerRef = useRef<HTMLDivElement | null>(null);
   const mergeRippleFingerprintRef = useRef<string>('');
   const pendingMergeRippleQueueRef = useRef<PendingMergeRipple[]>([]);
@@ -706,8 +722,8 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
 
   const triggerMergeRipple = useCallback((targets: string[], fingerprint: string): boolean => {
     if (layout.cellPx <= 0 || layout.pitchPx <= 0) return false;
-    const boardEl = boardRef.current;
-    if (!boardEl) return false;
+    const gridViewportEl = gridViewportRef.current;
+    if (!gridViewportEl) return false;
     const globalCanvas = Array.from(document.querySelectorAll('.pixelblast-global-background canvas'))
       .find((node): node is HTMLCanvasElement => node instanceof HTMLCanvasElement && node.isConnected);
     const fallbackCanvas = pixelBlastLayerRef.current?.querySelector('canvas');
@@ -716,22 +732,15 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
       : fallbackCanvas;
     if (!(canvasEl instanceof HTMLCanvasElement)) return false;
 
-    const boardRect = boardEl.getBoundingClientRect();
-    const styles = window.getComputedStyle(boardEl);
-    const paddingLeft = parseFloat(styles.paddingLeft) || 0;
-    const paddingTop = parseFloat(styles.paddingTop) || 0;
-    const borderLeft = parseFloat(styles.borderLeftWidth) || 0;
-    const borderTop = parseFloat(styles.borderTopWidth) || 0;
-    const innerLeft = boardRect.left + borderLeft + paddingLeft;
-    const innerTop = boardRect.top + borderTop + paddingTop;
+    const viewportRect = gridViewportEl.getBoundingClientRect();
 
     targets.forEach((target) => {
       const [xStr, yStr] = target.split(',');
       const x = Number(xStr);
       const y = Number(yStr);
       if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-      const clientX = innerLeft + layout.offsetX + x * layout.pitchPx + layout.cellPx * 0.5;
-      const clientY = innerTop + layout.offsetY + y * layout.pitchPx + layout.cellPx * 0.5;
+      const clientX = viewportRect.left + layout.offsetX + x * layout.pitchPx + layout.cellPx * 0.5;
+      const clientY = viewportRect.top + layout.offsetY + y * layout.pitchPx + layout.cellPx * 0.5;
       if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return;
 
       if (typeof window.PointerEvent === 'function') {
@@ -758,7 +767,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
 
     mergeRippleFingerprintRef.current = fingerprint;
     return true;
-  }, [boardRef, layout.cellPx, layout.offsetX, layout.offsetY, layout.pitchPx]);
+  }, [layout.cellPx, layout.offsetX, layout.offsetY, layout.pitchPx]);
 
   const getPendingMergeNow = useCallback(() => (
     typeof performance !== 'undefined' ? performance.now() : Date.now()
@@ -916,28 +925,30 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
     setHoverLocation(null);
   }, [activePiece]);
 
-  // ResizeObserver: 보드의 실제 inner(content) 크기를 기반으로 px 레이아웃을 계산해
-  // translate3d 애니메이션(컴포지터 레벨)을 사용하도록 함.
+  const premiumUiBoardPaddingClassName = isPremiumUiThemeActive
+    ? premiumUiBoardShellClassName === 'win98-board-shell'
+      ? 'p-2'
+      : 'p-4'
+    : 'p-3';
+
+  // 보드 셸/스킨 장식이 아니라 실제 게임 좌표계 viewport만 측정한다.
+  //
+  // ResizeObserver는 viewport box 자체의 크기 변화만 구독한다. 스킨이 셸의 padding,
+  // border, shadow, background를 바꾸더라도 gameplay math는 이 viewport 안에서만 닫혀
+  // 있어야 한다. 그래서 여기에는 theme class MutationObserver, 지연 timer, root padding
+  // 보정 같은 보완 로직을 넣지 않는다. 그런 로직이 필요해 보이면 먼저 스킨이
+  // grid viewport 계약을 깨고 있는지 확인한다.
   useLayoutEffect(() => {
-    const el = boardRef.current;
+    const el = gridViewportRef.current;
     if (!el) return;
 
     const updateLayout = () => {
       const rect = el.getBoundingClientRect();
-      const styles = window.getComputedStyle(el);
-      const paddingLeft = parseFloat(styles.paddingLeft) || 0;
-      const paddingTop = parseFloat(styles.paddingTop) || 0;
-      const paddingRight = parseFloat(styles.paddingRight) || 0;
-      const paddingBottom = parseFloat(styles.paddingBottom) || 0;
-      const borderLeft = parseFloat(styles.borderLeftWidth) || 0;
-      const borderTop = parseFloat(styles.borderTopWidth) || 0;
-      const borderRight = parseFloat(styles.borderRightWidth) || 0;
-      const borderBottom = parseFloat(styles.borderBottomWidth) || 0;
-
-      const innerWidth = rect.width - borderLeft - borderRight - paddingLeft - paddingRight;
-      const innerHeight = rect.height - borderTop - borderBottom - paddingTop - paddingBottom;
+      const innerWidth = rect.width;
+      const innerHeight = rect.height;
       const inner = Math.min(innerWidth, innerHeight);
       const totalGap = (size - 1) * BOARD_CELL_GAP_PX;
+      if (!Number.isFinite(inner) || inner <= totalGap) return;
       const cellPx = (inner - totalGap) / size;
       const pitchPx = cellPx + BOARD_CELL_GAP_PX;
       const posPx = Array.from({ length: size }, (_, idx) => idx * pitchPx);
@@ -964,7 +975,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
     observer.observe(el);
 
     return () => observer.disconnect();
-  }, [boardRef, size, boardPx]);
+  }, [size, boardPx]);
 
   // Extract tiles for rendering with distance calculation
   const { tiles: renderTiles, nextPositions } = useMemo(() => {
@@ -1015,11 +1026,6 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
     : phase === Phase.SLIDE
       ? 'ring-1 ring-gray-400/50'
       : 'ring-1 ring-white/30';
-  const premiumUiBoardPaddingClassName = isPremiumUiThemeActive
-    ? premiumUiBoardShellClassName === 'win98-board-shell'
-      ? 'p-2'
-      : 'p-4'
-    : 'p-3';
   const glowOpacityClass = isPremiumUiThemeActive || useGalaxyGhostStyle ? 'opacity-0' : phase === Phase.SLIDE ? 'opacity-100' : 'opacity-0';
   const boardLayersTransform = `translate3d(${layout.offsetX}px, ${layout.offsetY}px, 0)`;
 
@@ -1053,8 +1059,22 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
         }}
         aria-hidden="true"
       />
-      {/* Container for content aiming to match padding-box area */}
+      {/*
+        Grid viewport
+
+        이 div가 보드의 유일한 게임 좌표계다. 아래 레이어들은 모두 `absolute inset-0`
+        + `layout` 값으로 이 viewport 안에 그려진다. 새 스킨이 보드 주변 장식을 추가하려면
+        부모 셸(`#game-board`)에 class/style을 더하고, 새 이펙트가 셀 위치를 따라가야 하면
+        이 viewport 또는 `layout` 값을 사용한다.
+
+        금지 패턴:
+        - `#game-board.getBoundingClientRect()`를 읽고 padding/border를 빼서 좌표 계산
+        - 광고/하단 UI의 실측 높이를 보드 scale 재계산에 직접 연결
+        - 스킨 CSS에서 이 viewport에 padding, border, transform을 넣어 좌표계를 이동
+      */}
       <div
+        ref={gridViewportRef}
+        data-board-grid-viewport="true"
         className={`relative w-full h-full ${useGalaxyPhaseSyncClass ? 'explore-galaxy-phase-sync' : ''}`}
       >
         <style>{`

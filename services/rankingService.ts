@@ -36,6 +36,14 @@ export interface LiveRankEstimate {
     totalEntries: number;
 }
 
+export interface ComboRankEntry {
+    rank: number;
+    name: string;
+    multiplier: number;
+    comboCount: number;
+    score: number;
+}
+
 interface LiveRankApiResponse {
     rank?: unknown;
     pointsToNext?: unknown;
@@ -56,6 +64,7 @@ interface PendingScore {
     levelBadge?: string;
     mode?: 'final' | 'progress';
     comboMultiplier?: number;
+    comboCount?: number;
 }
 
 interface PendingScoreQueueEnvelopeV2 {
@@ -171,6 +180,9 @@ const sanitizePendingScore = (sessionId: string, raw: unknown): PendingScore | n
         levelBadge: typeof raw.levelBadge === 'string' && raw.levelBadge.length > 0 ? raw.levelBadge : undefined,
         mode: raw.mode === 'progress' ? 'progress' : 'final',
         comboMultiplier: typeof raw.comboMultiplier === 'number' && Number.isFinite(raw.comboMultiplier) && raw.comboMultiplier >= 1 ? raw.comboMultiplier : undefined,
+        comboCount: typeof raw.comboCount === 'number' && Number.isFinite(raw.comboCount) && raw.comboCount >= 0
+            ? Math.round(raw.comboCount)
+            : 0,
     };
 };
 
@@ -237,6 +249,7 @@ const mergePendingScore = (
         installId: incoming.installId ?? existing.installId,
         platform: incoming.platform ?? existing.platform,
         levelBadge: incoming.levelBadge ?? existing.levelBadge,
+        comboCount: Math.max(existing.comboCount ?? 0, incoming.comboCount ?? 0),
         mode: existingMode === 'final' || incomingMode === 'final' ? 'final' : 'progress',
         updatedAt: Date.now(),
     };
@@ -384,7 +397,8 @@ const buildPayload = (
     installId?: string,
     levelBadge?: string,
     mode: 'final' | 'progress' = 'final',
-    comboMultiplier?: number
+    comboMultiplier?: number,
+    comboCount?: number
 ): Omit<PendingScore, 'updatedAt'> => {
     return {
         sessionId,
@@ -399,6 +413,7 @@ const buildPayload = (
         levelBadge,
         mode,
         comboMultiplier: comboMultiplier ?? 1.0,
+        comboCount: comboCount ?? 0,
     };
 };
 
@@ -502,11 +517,12 @@ export const rankingService = {
         moves: number,
         installId?: string,
         levelBadge?: string,
-        comboMultiplier?: number
+        comboMultiplier?: number,
+        comboCount?: number
     ): Promise<SubmitScoreResponse> => {
         // Save name locally first
         rankingService.saveName(name);
-        const payload = buildPayload(sessionId, name, score, difficulty, duration, moves, installId, levelBadge, 'final', comboMultiplier);
+        const payload = buildPayload(sessionId, name, score, difficulty, duration, moves, installId, levelBadge, 'final', comboMultiplier, comboCount);
 
         if (!isOnline()) {
             if (!REALTIME_RANKING_ONLY) {
@@ -563,10 +579,11 @@ export const rankingService = {
         duration: number,
         moves: number,
         installId?: string,
-        comboMultiplier?: number
+        comboMultiplier?: number,
+        comboCount?: number
     ): Promise<SubmitScoreResponse> => {
         rankingService.saveName(name);
-        const payload = buildPayload(sessionId, name, score, difficulty, duration, moves, installId, undefined, 'progress', comboMultiplier);
+        const payload = buildPayload(sessionId, name, score, difficulty, duration, moves, installId, undefined, 'progress', comboMultiplier, comboCount);
 
         if (!isOnline()) {
             if (!REALTIME_RANKING_ONLY) {
@@ -638,5 +655,23 @@ export const rankingService = {
             logLeaderboardFetchFailure(error);
             throw error;
         }
-    }
+    },
+
+    /**
+     * Fetch combo rankings
+     */
+    fetchComboRankings: async (season?: string): Promise<ComboRankEntry[]> => {
+        const params = new URLSearchParams();
+        if (season) params.set('season', season);
+        const qs = params.toString();
+        const url = `${getApiUrl('/api/combo-rankings')}?tab=ALL${qs ? '&' + qs : ''}`;
+        try {
+            const res = await fetch(url);
+            if (!res.ok) return [];
+            const data = await res.json() as { rankings: ComboRankEntry[] };
+            return data.rankings;
+        } catch {
+            return [];
+        }
+    },
 };

@@ -12,6 +12,7 @@ import {
   validateMoves,
   validateGameConsistency,
   validateSessionId,
+  validateComboCount,
 } from '../utils/validation';
 import { getSeasonBoundaries, resetSeasonIfNeeded } from '../utils/seasonReset';
 import { hashInstallId } from '../utils/hash';
@@ -37,6 +38,7 @@ interface SubmitRequest {
   levelBadge?: unknown;            // 레벨 배지 ID (예: lv15)
   mode?: unknown;                  // 'final' | 'progress' (진행 중 자동 저장)
   comboMultiplier?: unknown;       // 콤보 배율 (1.0 ~ 3.0)
+  comboCount?: unknown;            // 콤보 횟수
 }
 
 const VALID_LEVEL_BADGES = new Set([
@@ -177,6 +179,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // ========== 안티-치트 검증 (Layer 3) ==========
     const rawCombo = typeof data.comboMultiplier === 'number' && Number.isFinite(data.comboMultiplier) && data.comboMultiplier >= 1 ? data.comboMultiplier : 1;
     const comboMultiplier = Math.max(1, Math.min(3, rawCombo)); // 1~3 clamp
+    const comboCount = validateComboCount(data.comboCount ?? 0);
     const consistencyCheck = validateGameConsistency(score, difficulty, duration, moves, undefined, comboMultiplier);
     if (!consistencyCheck.valid) {
       // 일반적인 메시지로 치터에게 정보 노출 방지
@@ -264,6 +267,24 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
              updated_at = excluded.updated_at
            WHERE excluded.best_score > ranking_member_best.best_score`
         ).bind(seasonId, difficulty, memberKey, sanitizedName, score, sessionId, installIdHash, platform, now),
+        ...(comboCount > 0 || comboMultiplier > 1.0
+          ? [
+            env.DB.prepare(
+              `INSERT INTO combo_rankings (season_id, install_id_hash, name, best_combo_multiplier, best_combo_count, best_score, game_mode, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT(season_id, install_id_hash) DO UPDATE SET
+                 name = excluded.name,
+                 best_combo_multiplier = excluded.best_combo_multiplier,
+                 best_combo_count = excluded.best_combo_count,
+                 best_score = excluded.best_score,
+                 game_mode = excluded.game_mode,
+                 updated_at = excluded.updated_at
+               WHERE excluded.best_combo_multiplier > combo_rankings.best_combo_multiplier
+                  OR (excluded.best_combo_multiplier = combo_rankings.best_combo_multiplier AND excluded.best_combo_count > combo_rankings.best_combo_count)
+                  OR (excluded.best_combo_multiplier = combo_rankings.best_combo_multiplier AND excluded.best_combo_count = combo_rankings.best_combo_count AND excluded.best_score > combo_rankings.best_score)`
+            ).bind(seasonId, installIdHash, sanitizedName, comboMultiplier, comboCount, score, 'normal', now),
+          ]
+          : []),
         ...(submitMode === 'final'
           ? [
             env.DB.prepare(

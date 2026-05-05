@@ -52,8 +52,7 @@
     "skin": "스킨",
     "skinDescription": "컬렉션",
     "missionLocked": "게임 {{count}}판 완료 시 해금",
-    "calendarLocked": "레벨 {{level}} 달성 시 해금",
-    "weeklyEventLocked": "게임 {{count}}판 완료 시 해금"
+    "calendarLocked": "레벨 {{level}} 달성 시 해금"
   },
   "rewardAd": {
     "watchButton": "충전",
@@ -92,7 +91,14 @@
     "rankingTitle": "랭킹",
     "rankingHint": "점수는 자동 저장되고, 랭킹 화면에서 내 기록과 이벤트 순위를 확인할 수 있어요.",
     "rankingAction": "랭킹 보기",
-    "later": "나중에"
+    "later": "나중에",
+    "openFeature": "지금 열기",
+    "tapToContinue": "터치 시 다음으로",
+    "sequential": {
+      "leaderboard": "랭킹을 확인하고 주간이벤트에 도전하세요",
+      "dailyActivities": "미션, 출석체크, 레벨업으로 성장하세요",
+      "gameResume": "▶ 버튼으로 저장된 게임을 이어할 수 있어요"
+    }
   },
   "tutorial": {
     "swipeBack": "오른쪽으로 스와이프하여 뒤로가기",
@@ -151,6 +157,9 @@
     "remainingInline": "남은 {{remaining}}회",
     "separateSessionTitle": "일반 게임과 따로 진행돼요",
     "separateSessionBody": "주간 이벤트를 시작해도 일반 게임은 그대로 남아 있어요. 일반 게임과 이벤트 게임이 따로 저장돼서, 두 모드를 각각 이어서 플레이할 수 있어요.",
+    "newEventBanner": "새로운 %이름%! 일반 게임은 안전하게 보관돼요",
+    "rewardBanner": "지난 주 이벤트 보상이 있어요! 탭하여 확인하세요",
+    "bannerDismiss": "닫기",
     "time": {
       "ended": "종료",
       "dayShort": "일",

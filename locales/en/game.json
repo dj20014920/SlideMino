@@ -52,8 +52,7 @@
     "skin": "Skin",
     "skinDescription": "Collection",
     "missionLocked": "Unlocks after {{count}} games",
-    "calendarLocked": "Unlocks at Lv.{{level}}",
-    "weeklyEventLocked": "Unlocks after {{count}} games"
+    "calendarLocked": "Unlocks at Lv.{{level}}"
   },
   "rewardAd": {
     "watchButton": "Refill",
@@ -92,7 +91,14 @@
     "rankingTitle": "Rankings",
     "rankingHint": "Your score is saved automatically. Open Rankings to check your records and event standings.",
     "rankingAction": "Open Rankings",
-    "later": "Later"
+    "later": "Later",
+    "openFeature": "Open",
+    "tapToContinue": "Tap to continue",
+    "sequential": {
+      "leaderboard": "Check rankings and try weekly events",
+      "dailyActivities": "Complete missions, check attendance, and level up",
+      "gameResume": "Use the ▶ button to resume your game"
+    }
   },
   "tutorial": {
     "swipeBack": "Swipe right to go back",
@@ -151,6 +157,9 @@
     "remainingInline": "{{remaining}} left",
     "separateSessionTitle": "Weekly event progress is separate",
     "separateSessionBody": "Starting the weekly event will not overwrite your normal game. Normal games and weekly event games are saved separately, so you can come back to each one later.",
+    "newEventBanner": "New %name%! Your normal game is safe",
+    "rewardBanner": "Last week's event reward is waiting! Tap to check",
+    "bannerDismiss": "Dismiss",
     "time": {
       "ended": "Ended",
       "dayShort": "d",

@@ -52,8 +52,7 @@
     "skin": "皮肤",
     "skinDescription": "收藏",
     "missionLocked": "完成{{count}}局后解锁",
-    "calendarLocked": "达到等级{{level}}后解锁",
-    "weeklyEventLocked": "完成{{count}}局后解锁"
+    "calendarLocked": "达到等级{{level}}后解锁"
   },
   "rewardAd": {
     "watchButton": "充值",
@@ -92,7 +91,14 @@
     "rankingTitle": "排行榜",
     "rankingHint": "分数会自动保存。打开排行榜可以查看你的记录和活动排名。",
     "rankingAction": "打开排行榜",
-    "later": "稍后"
+    "later": "稍后",
+    "openFeature": "打开",
+    "tapToContinue": "点击继续",
+    "sequential": {
+      "leaderboard": "查看排行榜并挑战周活动",
+      "dailyActivities": "完成任务、签到和升级来成长",
+      "gameResume": "点击 ▶ 按钮继续游戏"
+    }
   },
   "tutorial": {
     "swipeBack": "向右滑动返回",
@@ -151,6 +157,9 @@
     "remainingInline": "剩余{{remaining}}次",
     "separateSessionTitle": "周活动会单独保存进度",
     "separateSessionBody": "开始周活动后，普通游戏进度不会被覆盖。普通游戏和周活动会分别保存，所以之后可以分别继续游玩。",
+    "newEventBanner": "新的%name%来了！普通游戏不受影响",
+    "rewardBanner": "上周活动奖励待领取！点击查看",
+    "bannerDismiss": "关闭",
     "time": {
       "ended": "结束",
       "dayShort": "天",

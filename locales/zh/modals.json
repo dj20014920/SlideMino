@@ -37,6 +37,7 @@
     "title": "Leaderboard",
     "modeTabs": {
       "normal": "普通模式",
+      "combo": "连击",
       "weeklyEvent": "每周活动"
     },
     "tabs": {
@@ -46,7 +47,8 @@
     "empty": "暂无排名记录。\n成为第一个冠军吧！",
     "error": "排行榜加载失败。",
     "offline": "当前离线，恢复连接后将刷新排行榜。",
-    "cached": "正在显示最近保存的排行榜。"
+    "cached": "正在显示最近保存的排行榜。",
+    "comboCount": "连击"
   },
   "nameInput": {
     "title": "开始{{difficulty}}×{{difficulty}}游戏",

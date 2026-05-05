@@ -13,7 +13,7 @@
 import { isNativeApp } from '../utils/platform';
 import { isTodayAttended } from './streakService';
 import { getDailyCompletedCount } from './missionService';
-import { isFeatureUnlocked } from './onboardingService';
+import { getLocalAttemptCount } from './weeklyEventService';
 import { KST_OFFSET_MS } from '../config/constants';
 import i18n from '../i18n/config';
 import { DEFAULT_LANGUAGE, LANGUAGE_STORAGE_KEY, normalizeLanguage } from '../i18n/constants';
@@ -25,6 +25,8 @@ const STORAGE_KEY = 'slidemino.notifications.v1';
 const NOTIF_STREAK_REMINDER = 1001;
 const NOTIF_MISSION_MORNING = 1002;
 const NOTIF_MISSION_EVENING = 1003;
+const NOTIF_EVENT_START = 1004;
+const NOTIF_EVENT_END_REMINDER = 1005;
 
 // ====== 알림 콘텐츠 (i18n 미지원 환경 fallback 포함) ======
 
@@ -42,21 +44,29 @@ const NOTIF_TEXTS: Record<string, Record<number, NotifContent>> = {
     [NOTIF_STREAK_REMINDER]: { title: '블록 슬라이드', body: '출석이 끊길 것 같아요! 오늘의 게임을 플레이해보세요 🔥' },
     [NOTIF_MISSION_MORNING]: { title: '블록 슬라이드', body: '오늘의 새로운 미션을 확인해보세요! 🎯' },
     [NOTIF_MISSION_EVENING]: { title: '블록 슬라이드', body: '오늘의 미션이 아직 완료되지 않았어요! ⏰' },
+    [NOTIF_EVENT_START]: { title: '블록 슬라이드', body: '새로운 주간이벤트가 시작됐어요! 일반 게임은 그대로 보관되니 안심하고 참여하세요 🎯' },
+    [NOTIF_EVENT_END_REMINDER]: { title: '블록 슬라이드', body: '이번 주 주간이벤트가 곧 종료됩니다! 보상을 확인하고 참여하세요 ⏰' },
   },
   en: {
     [NOTIF_STREAK_REMINDER]: { title: 'Block Slide', body: 'Your streak is about to break! Play a game today 🔥' },
     [NOTIF_MISSION_MORNING]: { title: 'Block Slide', body: "Check out today's new missions! 🎯" },
     [NOTIF_MISSION_EVENING]: { title: 'Block Slide', body: "Today's missions are not completed yet! ⏰" },
+    [NOTIF_EVENT_START]: { title: 'Block Slide', body: 'A new weekly event has started! Your normal game is safe — play with confidence 🎯' },
+    [NOTIF_EVENT_END_REMINDER]: { title: 'Block Slide', body: 'This week\'s event is ending soon! Check your rewards and participate ⏰' },
   },
   ja: {
     [NOTIF_STREAK_REMINDER]: { title: 'ブロックスライド', body: '連続出席が途切れそうです！今日のゲームをプレイしましょう 🔥' },
     [NOTIF_MISSION_MORNING]: { title: 'ブロックスライド', body: '今日の新しいミッションをチェックしましょう！🎯' },
     [NOTIF_MISSION_EVENING]: { title: 'ブロックスライド', body: '今日のミッションがまだ完了していません！⏰' },
+    [NOTIF_EVENT_START]: { title: 'ブロックスライド', body: '新しいウィークリーイベントが始まりました！通常ゲームはそのまま残るので安心して参加してください 🎯' },
+    [NOTIF_EVENT_END_REMINDER]: { title: 'ブロックスライド', body: '今週のイベントがもうすぐ終了します！報酬を確認して参加しましょう ⏰' },
   },
   zh: {
     [NOTIF_STREAK_REMINDER]: { title: '方块滑动', body: '连续签到即将中断！今天来玩一局吧 🔥' },
     [NOTIF_MISSION_MORNING]: { title: '方块滑动', body: '来看看今天的新任务吧！🎯' },
     [NOTIF_MISSION_EVENING]: { title: '方块滑动', body: '今天的任务还没完成哦！⏰' },
+    [NOTIF_EVENT_START]: { title: '方块滑动', body: '新的周活动开始了！普通游戏进度不受影响，放心参与吧 🎯' },
+    [NOTIF_EVENT_END_REMINDER]: { title: '方块滑动', body: '本周活动即将结束！请查看奖励并参与 ⏰' },
   },
 };
 
@@ -125,6 +135,12 @@ function getTodayKstTime(hour: number, minute: number): Date {
   return new Date(kst.getTime() - KST_OFFSET_MS);
 }
 
+/** KST 기준 오늘의 요일 (0=일, 1=월, ..., 6=토) */
+function getKstDay(): number {
+  const kst = new Date(Date.now() + KST_OFFSET_MS);
+  return kst.getUTCDay();
+}
+
 /**
  * 모든 예약 알림을 취소하고, 현재 조건에 맞게 오늘 알림을 재스케줄링.
  *
@@ -159,6 +175,8 @@ export async function rescheduleNotifications(options: RescheduleNotificationOpt
         { id: NOTIF_STREAK_REMINDER },
         { id: NOTIF_MISSION_MORNING },
         { id: NOTIF_MISSION_EVENING },
+        { id: NOTIF_EVENT_START },
+        { id: NOTIF_EVENT_END_REMINDER },
       ],
     });
 
@@ -171,7 +189,7 @@ export async function rescheduleNotifications(options: RescheduleNotificationOpt
     }> = [];
 
     // 1) 스트릭 리마인더 — 22:00 KST, 오늘 출석 미완료이고 streak 해금 시
-    if (isFeatureUnlocked('streak') && !isTodayAttended()) {
+    if (!isTodayAttended()) {
       const at = getTodayKstTime(22, 0);
       if (at.getTime() > now.getTime()) {
         const c = getNotifContent(NOTIF_STREAK_REMINDER);
@@ -184,22 +202,20 @@ export async function rescheduleNotifications(options: RescheduleNotificationOpt
       }
     }
 
-    // 2) 미션 아침 안내 — 10:00 KST, daily_mission 해금 시
-    if (isFeatureUnlocked('daily_mission')) {
-      const at = getTodayKstTime(10, 0);
-      if (at.getTime() > now.getTime()) {
-        const c = getNotifContent(NOTIF_MISSION_MORNING);
-        notifications.push({
-          id: NOTIF_MISSION_MORNING,
-          title: c.title,
-          body: c.body,
-          schedule: { at, allowWhileIdle: true },
-        });
-      }
+    // 2) 미션 아침 안내 — 10:00 KST
+    const at = getTodayKstTime(10, 0);
+    if (at.getTime() > now.getTime()) {
+      const c = getNotifContent(NOTIF_MISSION_MORNING);
+      notifications.push({
+        id: NOTIF_MISSION_MORNING,
+        title: c.title,
+        body: c.body,
+        schedule: { at, allowWhileIdle: true },
+      });
     }
 
     // 3) 미션 저녁 리마인더 — 21:00 KST, 일일 미션 3개 미완료 시
-    if (isFeatureUnlocked('daily_mission') && getDailyCompletedCount() < 3) {
+    if (getDailyCompletedCount() < 3) {
       const at = getTodayKstTime(21, 0);
       if (at.getTime() > now.getTime()) {
         const c = getNotifContent(NOTIF_MISSION_EVENING);
@@ -209,6 +225,36 @@ export async function rescheduleNotifications(options: RescheduleNotificationOpt
           body: c.body,
           schedule: { at, allowWhileIdle: true },
         });
+      }
+    }
+
+    // 4) 주간이벤트 시작 알림 — 월요일 10:00 KST, weekly_event 해금 + 미참여 시
+    if (getLocalAttemptCount() === 0) {
+      const kstDay = getKstDay();
+      if (kstDay === 1) {
+        // 월요일: 시작 알림
+        const at = getTodayKstTime(10, 0);
+        if (at.getTime() > now.getTime()) {
+          const c = getNotifContent(NOTIF_EVENT_START);
+          notifications.push({
+            id: NOTIF_EVENT_START,
+            title: c.title,
+            body: c.body,
+            schedule: { at, allowWhileIdle: true },
+          });
+        }
+      } else if (kstDay === 0) {
+        // 일요일: 종료 리마인더
+        const at = getTodayKstTime(21, 0);
+        if (at.getTime() > now.getTime()) {
+          const c = getNotifContent(NOTIF_EVENT_END_REMINDER);
+          notifications.push({
+            id: NOTIF_EVENT_END_REMINDER,
+            title: c.title,
+            body: c.body,
+            schedule: { at, allowWhileIdle: true },
+          });
+        }
       }
     }
 
@@ -231,6 +277,8 @@ async function cancelAllNotifications(): Promise<void> {
         { id: NOTIF_STREAK_REMINDER },
         { id: NOTIF_MISSION_MORNING },
         { id: NOTIF_MISSION_EVENING },
+        { id: NOTIF_EVENT_START },
+        { id: NOTIF_EVENT_END_REMINDER },
       ],
     });
   } catch { /* ignore */ }

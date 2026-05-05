@@ -36,6 +36,7 @@ interface ActiveGameExitModalProps {
     onRegisteredAndProceed: () => void;
     /** 콤보 배율 (서버 안티치트 검증용) */
     comboMultiplier?: number;
+    comboCount?: number;
 }
 
 export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
@@ -57,6 +58,7 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
     onSessionNameLocked,
     onRegisteredAndProceed,
     comboMultiplier,
+    comboCount,
 }) => {
     const { t } = useTranslation();
     useBodyScrollLock(open);
@@ -137,6 +139,7 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
                 levelBadge: levelBadgeId,
                 isIntermediate: false,
                 comboMultiplier,
+                comboCount,
             });
             setIsSubmitting(false);
             if (eventResult.success) {
@@ -166,7 +169,8 @@ export const ActiveGameExitModal: React.FC<ActiveGameExitModalProps> = ({
             moves,
             getAnalyticsInstallId(),
             undefined,
-            comboMultiplier
+            comboMultiplier,
+            comboCount
         );
 
         setIsSubmitting(false);

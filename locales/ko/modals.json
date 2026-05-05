@@ -37,6 +37,7 @@
     "title": "Leaderboard",
     "modeTabs": {
       "normal": "일반 모드",
+      "combo": "콤보",
       "weeklyEvent": "주간 이벤트"
     },
     "tabs": {
@@ -46,7 +47,8 @@
     "empty": "아직 등록된 랭킹이 없습니다.\n첫 주인공이 되어보세요!",
     "error": "랭킹을 불러오는데 실패했습니다.",
     "offline": "오프라인 상태입니다. 네트워크 연결 후 최신 랭킹이 업데이트됩니다.",
-    "cached": "최근 저장된 랭킹을 표시하고 있습니다."
+    "cached": "최근 저장된 랭킹을 표시하고 있습니다.",
+    "comboCount": "연속"
   },
   "nameInput": {
     "title": "{{difficulty}}×{{difficulty}} 게임 시작",

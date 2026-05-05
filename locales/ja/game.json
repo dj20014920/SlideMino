@@ -52,8 +52,7 @@
     "skin": "スキン",
     "skinDescription": "コレクション",
     "missionLocked": "ゲーム{{count}}回クリアで解放",
-    "calendarLocked": "レベル{{level}}達成で解放",
-    "weeklyEventLocked": "ゲーム{{count}}回クリアで解放"
+    "calendarLocked": "レベル{{level}}達成で解放"
   },
   "rewardAd": {
     "watchButton": "チャージ",
@@ -92,7 +91,14 @@
     "rankingTitle": "ランキング",
     "rankingHint": "スコアは自動保存されます。ランキング画面で自分の記録やイベント順位を確認できます。",
     "rankingAction": "ランキングを見る",
-    "later": "あとで"
+    "later": "あとで",
+    "openFeature": "開く",
+    "tapToContinue": "タップで次へ",
+    "sequential": {
+      "leaderboard": "ランキングを確認してウィークリーイベントに挑戦しよう",
+      "dailyActivities": "ミッション、出席、レベルアップで成長しよう",
+      "gameResume": "▶ボタンで保存したゲームを続けてプレイできます"
+    }
   },
   "tutorial": {
     "swipeBack": "右にスワイプして戻る",
@@ -151,6 +157,9 @@
     "remainingInline": "残り{{remaining}}回",
     "separateSessionTitle": "通常ゲームとは別で進行します",
     "separateSessionBody": "ウィークリーイベントを始めても通常ゲームの進行はそのまま残ります。通常ゲームとイベントゲームは別々に保存されるので、あとからそれぞれ続きから遊べます。",
+    "newEventBanner": "新しい%name%！通常ゲームはそのまま残ります",
+    "rewardBanner": "先週のイベント報酬があります！タップして確認",
+    "bannerDismiss": "閉じる",
     "time": {
       "ended": "終了",
       "dayShort": "日",

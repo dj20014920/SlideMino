@@ -329,6 +329,9 @@ export async function resetSeasonIfNeeded(env: Env, now: Date = new Date()): Pro
   statements.push(
     env.DB.prepare('DELETE FROM ranking_member_best')
   );
+  statements.push(
+    env.DB.prepare('DELETE FROM combo_rankings')
+  );
 
   // 원자적 실행: 하나라도 실패하면 전체 롤백
   await env.DB.batch(statements);

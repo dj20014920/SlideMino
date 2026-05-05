@@ -3,6 +3,14 @@
  * Defense in Depth - Layer 3: Input Validation
  */
 
+/** Validation error class */
+class ValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ValidationError';
+  }
+}
+
 /** 허용 가능한 난이도 목록 (보드 크기) */
 const VALID_DIFFICULTIES = ['4', '5', '7', '8', '10'] as const;
 type Difficulty = typeof VALID_DIFFICULTIES[number];
@@ -157,6 +165,22 @@ export function validateMoves(moves: unknown): { valid: boolean; value?: number;
   }
 
   return { valid: true, value: moves };
+}
+
+/**
+ * 콤보 횟수 검증
+ * - 음이 아닌 정수
+ * - 합리적인 범위 (0 ~ 1000)
+ */
+export function validateComboCount(raw: unknown): number {
+  if (typeof raw !== 'number' || !Number.isFinite(raw) || raw < 0) {
+    throw new ValidationError(`Invalid combo count: ${String(raw)}`);
+  }
+  const n = Math.round(raw);
+  if (n > 1000) {
+    throw new ValidationError(`Combo count too large: ${n}`);
+  }
+  return n;
 }
 
 /**

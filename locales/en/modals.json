@@ -37,6 +37,7 @@
     "title": "Leaderboard",
     "modeTabs": {
       "normal": "Normal Mode",
+      "combo": "Combo",
       "weeklyEvent": "Weekly Event"
     },
     "tabs": {
@@ -46,7 +47,8 @@
     "empty": "No rankings yet.\nBe the first champion!",
     "error": "Failed to load leaderboard.",
     "offline": "You are offline. The leaderboard will refresh when you reconnect.",
-    "cached": "Showing the most recently saved leaderboard."
+    "cached": "Showing the most recently saved leaderboard.",
+    "comboCount": "combo"
   },
   "nameInput": {
     "title": "Start {{difficulty}}×{{difficulty}} Game",

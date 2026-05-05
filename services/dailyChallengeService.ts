@@ -174,6 +174,7 @@ export async function submitDailyChallengeScore(
   score: number,
   moves: number,
   duration: number,
+  comboCount?: number,
 ): Promise<DailyChallengeSubmitResult> {
   if (!isOnline()) return { success: false, error: 'offline' };
 
@@ -189,6 +190,7 @@ export async function submitDailyChallengeScore(
         moves,
         duration,
         installId,
+        comboCount: comboCount ?? 0,
       }),
     });
 

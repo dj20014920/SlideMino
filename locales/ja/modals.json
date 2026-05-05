@@ -37,6 +37,7 @@
     "title": "Leaderboard",
     "modeTabs": {
       "normal": "通常モード",
+      "combo": "コンボ",
       "weeklyEvent": "週間イベント"
     },
     "tabs": {
@@ -46,7 +47,8 @@
     "empty": "まだランキングがありません。\n最初のチャンピオンになりましょう！",
     "error": "ランキングの読み込みに失敗しました。",
     "offline": "オフラインです。再接続後にランキングが更新されます。",
-    "cached": "最新の保存済みランキングを表示しています。"
+    "cached": "最新の保存済みランキングを表示しています。",
+    "comboCount": "連続"
   },
   "nameInput": {
     "title": "{{difficulty}}×{{difficulty}} ゲーム開始",

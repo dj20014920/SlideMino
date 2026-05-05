@@ -31,11 +31,11 @@ import { Board, type BoardHandle, type ReviveDestroyEffect } from './components/
 import { Slot } from './components/Slot';
 import { BlockCustomizationModal } from './components/BlockCustomizationModal';
 import { SkinModal } from './components/SkinModal';
-import { Undo2, Home, RotateCw, Move, Palette, Lock, Trophy, HelpCircle, RotateCcw } from 'lucide-react';
+import { Undo2, Home, RotateCw, Move, Palette, Lock, Trophy, HelpCircle, RotateCcw, X } from 'lucide-react';
 
 import { GameOverModal } from './components/GameOverModal';
 import { GameModeTutorial } from './components/GameModeTutorial';
-import { GameOnboardingOverlay } from './components/GameOnboardingOverlay';
+import { SequentialOnboardingOverlay } from './components/SequentialOnboardingOverlay';
 import { LeaderboardModal } from './components/LeaderboardModal';
 import { NameInputModal } from './components/NameInputModal';
 import { ActiveGameExitModal, type ActiveGameExitContext } from './components/ActiveGameExitModal';
@@ -164,6 +164,13 @@ import {
   hasActiveEventGame,
   initEventScoreSync,
   submitEventScore,
+  hasParticipatedInCurrentEvent,
+  hasParticipatedInPreviousEvent,
+  hasClaimedEventReward,
+  isCurrentEventBannerDismissed,
+  dismissCurrentEventBanner,
+  isRewardBannerDismissed,
+  dismissRewardBanner,
   type WeeklyEventRule,
   EVENT_RULES,
 } from './services/weeklyEventService';
@@ -175,16 +182,15 @@ import {
   getHighestLevelBadgeForLevel,
 } from './services/xpLevelService';
 import { getCalendarItems } from './services/calendarService';
+import { markScoreOnboardingStepSeen } from './services/onboardingService';
 import {
-  recordGameCompleted as recordOnboardingGame,
-  checkLevelUnlocks,
-  isFeatureUnlocked,
-  markFeatureNotified,
-  shouldShowOnboardingForScore,
-  markScoreOnboardingStepSeen,
-  type FeatureId,
-  type ScoreOnboardingStep,
-} from './services/onboardingService';
+  startSequentialOnboarding,
+  getCurrentSequentialStep,
+  advanceSequentialStep,
+  isSequentialOnboardingCompleted,
+  SEQUENTIAL_STEPS,
+  type SequentialStep,
+} from './services/sequentialOnboardingService';
 import { XpLevelModal } from './components/XpLevelModal';
 import { CalendarModal } from './components/CalendarModal';
 import { rescheduleNotifications } from './services/notificationService';
@@ -943,14 +949,6 @@ const App: React.FC = () => {
       refreshXpUI();
       showComboMessage(`⬆️ Lv.${info.level}! ${info.fragments > 0 ? `+${info.fragments} ✦` : ''}`, 3000);
 
-      // 온보딩: 레벨업 시 새로운 기능 해금 체크
-      const newlyUnlocked = checkLevelUnlocks();
-      newlyUnlocked.forEach(featureId => {
-        setTimeout(() => {
-          showComboMessage(`🔓 ${t(`common:xp.featureUnlocked.${featureId}` as any)}`, 3000);
-          markFeatureNotified(featureId as FeatureId);
-        }, 3500);
-      });
     });
 
     return () => { unsubXp(); unsubLevelUp(); };
@@ -1047,6 +1045,7 @@ const App: React.FC = () => {
   const [isComboActive, setIsComboActive] = useState(false);
   const comboMultiplierRef = useRef(1.0);
   const maxComboMultiplierRef = useRef(1.0);
+  const maxComboCountRef = useRef(0);
   const comboTimerRef = useRef<number | null>(null);
 
   const COMBO_MULTIPLIERS = [1.0, 1.0, 1.2, 1.5, 2.0, 3.0];
@@ -1094,6 +1093,9 @@ const App: React.FC = () => {
         comboMultiplierRef.current = getComboMultiplier(next);
         if (comboMultiplierRef.current > maxComboMultiplierRef.current) {
           maxComboMultiplierRef.current = comboMultiplierRef.current;
+        }
+        if (next > maxComboCountRef.current) {
+          maxComboCountRef.current = next;
         }
         startComboTimer();
       }
@@ -1184,6 +1186,12 @@ const App: React.FC = () => {
   // ── 최초 50점 스킨 보상 ──
   const [showFirstSkinRewardModal, setShowFirstSkinRewardModal] = useState(false);
   const [skinModalFreeDraw, setSkinModalFreeDraw] = useState(false);
+
+  // 순차 온보딩 상태
+  const [seqOnboardingStep, setSeqOnboardingStep] = useState<SequentialStep | null>(null);
+  const [seqOnboardingIndex, setSeqOnboardingIndex] = useState(0);
+  const [isSeqOnboardingVisible, setIsSeqOnboardingVisible] = useState(false);
+  const [pendingSeqStep, setPendingSeqStep] = useState<SequentialStep | null>(null);
   const firstSkinRewardTriggeredRef = useRef(false);
   const isFirstSkinRewardInputBlocked = showFirstSkinRewardModal;
 
@@ -1271,10 +1279,7 @@ const App: React.FC = () => {
   const [activeOnboardingStep, setActiveOnboardingStep] = useState<MenuOnboardingStep>('none');
   const skinFeatureAutoSkipRetryTimerRef = useRef<number | null>(null);
 
-  // 점수 기반 온보딩 오버레이 상태
-  const [onboardingOverlayStep, setOnboardingOverlayStep] = useState<ScoreOnboardingStep | null>(null);
-  const [isOnboardingOverlayVisible, setIsOnboardingOverlayVisible] = useState(false);
-
+  
   // Help Modal
   const [showHelpModal, setShowHelpModal] = useState(false);
 
@@ -1430,66 +1435,7 @@ const App: React.FC = () => {
     }, SKIN_TARGET_POLICY.deferredRetryIntervalMs);
   }, [refreshMenuOnboardingStep]);
 
-  // 점수 기반 온보딩 오버레이 닫기 핸들러
-  const handleDismissOnboardingOverlay = useCallback(() => {
-    if (onboardingOverlayStep) {
-      markScoreOnboardingStepSeen(onboardingOverlayStep);
-    }
-    setIsOnboardingOverlayVisible(false);
-    setOnboardingOverlayStep(null);
-  }, [onboardingOverlayStep]);
-
-  const handleOpenOnboardingFeature = useCallback(() => {
-    const step = onboardingOverlayStep;
-    if (!step) return;
-
-    markScoreOnboardingStepSeen(step);
-    setIsOnboardingOverlayVisible(false);
-    setOnboardingOverlayStep(null);
-
-    if (step === 'skin') {
-      openSkinModal();
-      return;
-    }
-    if (step === 'weekly_event') {
-      openWeeklyEventModal();
-      return;
-    }
-    openLeaderboardModal();
-  }, [onboardingOverlayStep, openLeaderboardModal, openSkinModal, openWeeklyEventModal]);
-
-  const isScoreOnboardingSuppressed = useMemo(() => (
-    activeOnboardingStep !== 'none' ||
-    isMenuTutorialSuppressed({
-      isNameInputOpen,
-      isCustomizationOpen,
-      isSkinOpen,
-      isLeaderboardOpen,
-      isStreakInfoOpen,
-      isSeasonRewardOpen,
-      isMissionModalOpen,
-      isXpModalOpen,
-      isCalendarOpen,
-      isWeeklyEventModalOpen,
-      isActiveGameExitModalOpen,
-      showFirstSkinRewardModal,
-    })
-  ), [
-    activeOnboardingStep,
-    isActiveGameExitModalOpen,
-    isCalendarOpen,
-    isCustomizationOpen,
-    isLeaderboardOpen,
-    isMissionModalOpen,
-    isNameInputOpen,
-    isSeasonRewardOpen,
-    isSkinOpen,
-    isStreakInfoOpen,
-    isWeeklyEventModalOpen,
-    isXpModalOpen,
-    showFirstSkinRewardModal,
-  ]);
-
+  
   // 🆕 Reward Ad State
   const [isAdReady, setIsAdReady] = useState(false);
   const [isReviveAdReady, setIsReviveAdReady] = useState(false);
@@ -2238,6 +2184,7 @@ const App: React.FC = () => {
     setGameOverReason(null);
     resetComboState();
     maxComboMultiplierRef.current = 1.0;
+    maxComboCountRef.current = 0;
     setGameState(GameState.MENU);
   }, [gameMode, resetEventTimer, resetComboState]);
 
@@ -2496,6 +2443,7 @@ const App: React.FC = () => {
     clearComboMessageQueue();
     resetComboState();
     maxComboMultiplierRef.current = 1.0;
+    maxComboCountRef.current = 0;
     setCanSkipSlide(false);
     // Undo 초기화
     setLastSnapshot(null);
@@ -2611,6 +2559,7 @@ const App: React.FC = () => {
       clearComboMessageQueue();
       resetComboState();
       maxComboMultiplierRef.current = 1.0;
+      maxComboCountRef.current = 0;
       setCanSkipSlide(false);
       setLastSnapshot(null);
       // 복기 모드 초기화
@@ -2715,6 +2664,7 @@ const App: React.FC = () => {
     clearComboMessageQueue();
     resetComboState();
     maxComboMultiplierRef.current = 1.0;
+    maxComboCountRef.current = 0;
     setCanSkipSlide(false);
     setLastSnapshot(null);
     // 복기 모드 초기화
@@ -2811,6 +2761,7 @@ const App: React.FC = () => {
     clearComboMessageQueue();
     resetComboState();
     maxComboMultiplierRef.current = 1.0;
+    maxComboCountRef.current = 0;
     setCanSkipSlide(false);
     setLastSnapshot(null);
     // 복기 모드 초기화
@@ -2964,22 +2915,6 @@ const App: React.FC = () => {
 
         // 출석 XP 지급
         grantXpStreak(result.currentStreak);
-        // 온보딩: 게임 완료 기록
-        const newFeatures = recordOnboardingGame();
-        newFeatures.forEach(f => {
-          setTimeout(() => {
-            showComboMessage(`🔓 ${t(`common:xp.featureUnlocked.${f}` as any)}`, 3000);
-            markFeatureNotified(f as FeatureId);
-          }, 6000);
-        });
-
-        // 프리즈 지급 안내
-        if (result.freezeGranted) {
-          setTimeout(() => {
-            showComboMessage(String(t('common:streak.freezeGranted', { count: loadStreakData().freezeCount } as any)), 2500);
-          }, 3200);
-        }
-      } else if (result.alreadyAttended) {
         attendanceToastShownRef.current = true;
       }
     }
@@ -2999,40 +2934,6 @@ const App: React.FC = () => {
     setShowFirstSkinRewardModal(true);
   }, [gameMode, gameState, score]);
 
-  // ── 점수 기반 온보딩 오버레이 트리거 ──
-  useEffect(() => {
-    if (gameState !== GameState.PLAYING) return;
-    const step = shouldShowOnboardingForScore(score);
-    if (!step) return;
-
-    // skin 단계는 skinRewardModal로 처리되므로, 즉시 seen 처리 후 다음 단계로 진행
-    if (step === 'skin') {
-      markScoreOnboardingStepSeen('skin');
-      const nextStep = shouldShowOnboardingForScore(score);
-      if (!nextStep || nextStep === 'skin') return;
-      setOnboardingOverlayStep((prev) => prev ?? nextStep);
-      return;
-    }
-
-    setOnboardingOverlayStep((prev) => prev ?? step);
-  }, [score, gameState]);
-
-  useEffect(() => {
-    const shouldShowScoreOnboarding =
-      gameState === GameState.MENU &&
-      onboardingOverlayStep !== null &&
-      !isScoreOnboardingSuppressed;
-
-    setIsOnboardingOverlayVisible(shouldShowScoreOnboarding);
-  }, [gameState, isScoreOnboardingSuppressed, onboardingOverlayStep]);
-
-  // ── 게임오버 시 온보딩 오버레이 자동 닫기 ──
-  useEffect(() => {
-    if (gameState === GameState.GAME_OVER && isOnboardingOverlayVisible) {
-      setIsOnboardingOverlayVisible(false);
-      // onboardingOverlayStep 유지 → MENU 복귀 시 표시됨
-    }
-  }, [gameState, isOnboardingOverlayVisible]);
 
   useEffect(() => {
     if (!showFirstSkinRewardModal) return;
@@ -3055,6 +2956,64 @@ const App: React.FC = () => {
     trackAnalyticsEvent({ name: 'first_skin_reward_later' });
     setShowFirstSkinRewardModal(false);
   }, []);
+
+  // ── 순차 온보딩: MENU 상태에서 pending step 확인 ──
+  useEffect(() => {
+    if (gameState !== GameState.MENU) {
+      setIsSeqOnboardingVisible(false);
+      return;
+    }
+    const currentStep = getCurrentSequentialStep();
+    if (!currentStep) {
+      setIsSeqOnboardingVisible(false);
+      setSeqOnboardingStep(null);
+      return;
+    }
+    setSeqOnboardingStep(currentStep);
+    setSeqOnboardingIndex(SEQUENTIAL_STEPS.indexOf(currentStep));
+    setIsSeqOnboardingVisible(true);
+  }, [gameState]);
+
+  const handleSeqOnboardingAdvance = useCallback(() => {
+    const nextStep = advanceSequentialStep();
+    if (!nextStep) {
+      // 완료
+      setSeqOnboardingStep(null);
+      setIsSeqOnboardingVisible(false);
+      return;
+    }
+    setSeqOnboardingStep(nextStep);
+    setSeqOnboardingIndex(SEQUENTIAL_STEPS.indexOf(nextStep));
+  }, []);
+
+  /** CTA "지금 열기" 버튼 탭 → 온보딩 advance + 해당 모달 열기 */
+  const handleSeqOpenFeature = useCallback((step: SequentialStep) => {
+    setIsSeqOnboardingVisible(false);
+    setPendingSeqStep(null);
+    const nextStep = advanceSequentialStep();
+    if (nextStep) {
+      setSeqOnboardingStep(nextStep);
+      setSeqOnboardingIndex(SEQUENTIAL_STEPS.indexOf(nextStep));
+      setPendingSeqStep(nextStep);
+    } else {
+      setSeqOnboardingStep(null);
+    }
+    if (step === 'leaderboard') {
+      openLeaderboardModal();
+    } else if (step === 'daily_activities') {
+      openMissionModal();
+    }
+    // game_resume: 설명만 제공, 별도 모달 없음
+  }, [openLeaderboardModal, openMissionModal, advanceSequentialStep]);
+
+  /** CTA로 연 모달이 닫히면 다음 온보딩 단계 재개 */
+  useEffect(() => {
+    const anyCtaModalOpen = isLeaderboardOpen || isMissionModalOpen;
+    if (!anyCtaModalOpen && pendingSeqStep && gameState === GameState.MENU) {
+      setIsSeqOnboardingVisible(true);
+      setPendingSeqStep(null);
+    }
+  }, [isLeaderboardOpen, isMissionModalOpen, pendingSeqStep, gameState]);
 
   // ── 최초 50점 돌파 → 무료 스킨 뽑기권 → 게임 저장 + 랭킹 반영 + 스킨탭 이동 ──
   const handleGoToSkinDraw = useCallback(() => {
@@ -3110,7 +3069,8 @@ const App: React.FC = () => {
           moveCountRef.current,
           getAnalyticsInstallId(),
           undefined,
-          maxComboMultiplierRef.current
+          maxComboMultiplierRef.current,
+          maxComboCountRef.current
         );
       } catch (e) {
         // 오프라인 큐 실패 시 콘솔 경고 (재시도는 rankingService 내부 처리)
@@ -4498,6 +4458,7 @@ const App: React.FC = () => {
           isIntermediate: true,
           isProgress: true,
           comboMultiplier: maxComboMultiplierRef.current,
+          comboCount: maxComboCountRef.current,
         });
         succeeded = Boolean(eventResult.success);
       } else {
@@ -4509,7 +4470,8 @@ const App: React.FC = () => {
           getCurrentActiveDurationSeconds(),
           moveCountRef.current,
           getAnalyticsInstallId(),
-          maxComboMultiplierRef.current
+          maxComboMultiplierRef.current,
+          maxComboCountRef.current
         );
         succeeded = Boolean(submitResult.success);
       }
@@ -4770,28 +4732,21 @@ const App: React.FC = () => {
 
     const currentLang = normalizeLanguage(i18n.resolvedLanguage ?? i18n.language);
 
-    const weeklyEventUnlocked = isFeatureUnlocked('weekly_event');
     const premiumWeeklyEventButton = (
       <div className={`w-full h-[52px] mb-3 ${premiumMenuRowContainerClassName}`}>
         <div className="flex h-full">
           <button
             id="weekly-event-btn"
             data-tutorial-anchor="weekly-event-btn"
-            onClick={() => {
-              if (weeklyEventUnlocked) {
-                openWeeklyEventModal();
-              } else {
-                showComboMessage(`🔒 ${String(t('game:actions.weeklyEventLocked', { count: 10 } as any))}`, 2000);
-              }
-            }}
+            onClick={openWeeklyEventModal}
             className={`h-full flex-1 text-left font-bold px-4 flex items-center justify-between ${premiumMenuRowPrimaryButtonClassName}`}
           >
-            <span>{weeklyEventUnlocked ? '🎯 ' : '🔒 '}{t('game:weeklyEvent.menuButton')}</span>
-            <span className={`text-sm font-normal ${weeklyEventUnlocked ? '' : premiumMutedTextClassForMenu}`}>
-              {weeklyEventUnlocked ? t('game:weeklyEvent.menuTag') : String(t('game:actions.weeklyEventLocked', { count: 10 } as any))}
+            <span>🎯 {t('game:weeklyEvent.menuButton')}</span>
+            <span className={`text-sm font-normal ${premiumMutedTextClassForMenu}`}>
+              {t('game:weeklyEvent.menuTag')}
             </span>
           </button>
-          {weeklyEventUnlocked && hasActiveEventGame() && (
+          {hasActiveEventGame() && (
             <button
               type="button"
               onClick={(e) => {
@@ -4843,6 +4798,7 @@ const App: React.FC = () => {
                       const saved = loadGameState();
                       if (saved) restoreSavedGame(saved);
                     }}
+                    id="continue-btn"
                     className={premiumMenuRowContinueButtonClassName}
                     aria-label={t('game:difficulties.continue')}
                     title={t('game:difficulties.continue')}
@@ -4872,21 +4828,21 @@ const App: React.FC = () => {
             </button>
           </div>
 
-          {isFeatureUnlocked('streak') && (
-            <div className={`relative w-full h-[52px] ${premiumMenuRowContainerClassName}`}>
+          <div className={`relative w-full h-[52px] ${premiumMenuRowContainerClassName}`}>
               <button
                 className={`w-full h-full text-left font-bold px-4 flex items-center ${premiumMenuRowPrimaryButtonClassName}`}
                 onClick={openStreakInfoModal}
+                data-tutorial-anchor="streak-btn"
               >
                 {todayAttended ? '🔥' : '🔥'} {t('common:streak.title')} ({streakCount})
               </button>
             </div>
-          )}
 
           <div className={`relative w-full h-[52px] ${premiumMenuRowContainerClassName}`}>
             <button
               className={`w-full h-full text-left font-bold px-4 flex items-center ${premiumMenuRowPrimaryButtonClassName}`}
               onClick={openXpModal}
+              data-tutorial-anchor="level-indicator"
             >
               ⭐ Lv.{xpLevel} ({xpPercent}%)
             </button>
@@ -4930,7 +4886,7 @@ const App: React.FC = () => {
           {isLoading && <LoadingScreen key="loading-screen-menu" />}
         </AnimatePresence>
 
-        {DAILY_CHALLENGE_ENABLED && isFeatureUnlocked('daily_challenge') && (
+        {DAILY_CHALLENGE_ENABLED && (
             <div className="relative w-full">
               <button
                 onClick={startDailyChallenge}
@@ -4976,50 +4932,34 @@ const App: React.FC = () => {
             </div>
             )}
 
-        {/* 주간 이벤트 버튼 — 항상 표시, 잠금 시 비활성 UI */}
-        {(() => {
-          const weeklyEventUnlocked = isFeatureUnlocked('weekly_event');
-          return (
+        {/* 주간 이벤트 버튼 */}
             <div className="relative w-full">
               <button
                 id="weekly-event-btn"
                 data-tutorial-anchor="weekly-event-btn"
-                onClick={() => {
-                  if (weeklyEventUnlocked) {
-                    openWeeklyEventModal();
-                  } else {
-                    showComboMessage(`🔒 ${String(t('game:actions.weeklyEventLocked', { count: 10 } as any))}`, 2000);
-                  }
-                }}
+                onClick={openWeeklyEventModal}
                 className={`
               relative group w-full py-4 px-6 rounded-2xl ${premiumMenuButtonClassName}
-              ${weeklyEventUnlocked
-                    ? 'bg-gradient-to-br from-purple-500 via-pink-500 to-rose-500'
-                    : 'bg-gradient-to-br from-gray-400 via-gray-500 to-gray-600'
-                  }
-              border ${weeklyEventUnlocked ? 'border-purple-400/30' : 'border-gray-400/30'}
-              shadow-lg ${weeklyEventUnlocked ? 'shadow-purple-900/20' : 'shadow-gray-900/20'}
-              ${weeklyEventUnlocked
-                    ? 'hover:shadow-xl hover:shadow-purple-600/30 hover:-translate-y-0.5 active:translate-y-0 active:shadow-md'
-                    : 'cursor-default'
-                  }
+              bg-gradient-to-br from-purple-500 via-pink-500 to-rose-500
+              border border-purple-400/30
+              shadow-lg shadow-purple-900/20
+              hover:shadow-xl hover:shadow-purple-600/30 hover:-translate-y-0.5 active:translate-y-0 active:shadow-md
               transition-all duration-200 ease-out
               text-white font-semibold text-lg
-              ${weeklyEventUnlocked && hasActiveEventGame() ? 'pr-14' : ''}
-              ${!weeklyEventUnlocked ? 'opacity-60' : ''}
+              ${hasActiveEventGame() ? 'pr-14' : ''}
             `}
               >
                 <span className="flex items-center justify-between">
                   <span className="flex items-center gap-2">
-                    <span>{weeklyEventUnlocked ? '🎯' : '🔒'}</span>
+                    <span>🎯</span>
                     <span>{t('game:weeklyEvent.menuButton')}</span>
                   </span>
-                  <span className={`${isPremiumUiThemeActive ? premiumMutedTextClassName : weeklyEventUnlocked ? 'text-purple-200/70' : 'text-gray-200/70'} font-normal text-sm`}>
-                    {weeklyEventUnlocked ? t('game:weeklyEvent.menuTag') : String(t('game:actions.weeklyEventLocked', { count: 10 } as any))}
+                  <span className={`${isPremiumUiThemeActive ? premiumMutedTextClassName : 'text-purple-200/70'} font-normal text-sm`}>
+                    {t('game:weeklyEvent.menuTag')}
                   </span>
                 </span>
               </button>
-              {weeklyEventUnlocked && hasActiveEventGame() && (
+              {hasActiveEventGame() && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -5036,8 +4976,6 @@ const App: React.FC = () => {
                 </button>
               )}
             </div>
-          );
-        })()}
 
         {([
           { size: 4 as BoardSize, label: t('game:difficulties.expert'), sizeLabel: t('game:boardSizes.4x4'), gradient: 'from-red-600 via-red-700 to-red-900', border: 'border-red-400/30', shadow: 'shadow-red-900/20', hoverShadow: 'hover:shadow-red-600/30', mutedColor: 'text-red-200/70' },
@@ -5074,6 +5012,7 @@ const App: React.FC = () => {
               </button>
               {hasResume && (
                 <button
+                  id="continue-btn"
                   onClick={(e) => {
                     e.stopPropagation();
                     const saved = loadGameState();
@@ -5096,6 +5035,7 @@ const App: React.FC = () => {
         {/* XP/레벨 버튼 */}
         <button
           onClick={openXpModal}
+          data-tutorial-anchor="level-indicator"
           className={`
           relative group w-full py-3.5 px-6 rounded-2xl ${premiumMenuButtonClassName}
           bg-white/60 backdrop-blur-sm
@@ -5118,6 +5058,28 @@ const App: React.FC = () => {
             {xpPercent}%
           </span>
         </button>
+
+        {/* 출석/스트릭 버튼 (비프리미엄) */}
+        {!isPremiumUiThemeActive && (
+          <button
+            onClick={openStreakInfoModal}
+            data-tutorial-anchor="streak-btn"
+            className={`
+              w-full py-3.5 px-6 rounded-2xl ${premiumMenuButtonClassName}
+              bg-white/40 backdrop-blur-sm
+              border border-white/30
+              text-gray-700 hover:text-gray-900
+              hover:bg-white/60 hover:-translate-y-0.5
+              active:translate-y-0 active:shadow-sm
+              transition-all duration-200 ease-out
+              shadow-sm
+              text-sm font-semibold
+              flex items-center justify-center gap-2
+            `}
+          >
+            🔥 {t('common:streak.title')} ({streakCount})
+          </button>
+        )}
 
         {!isPremiumUiThemeActive && <LanguageSwitcher />}
 
@@ -5225,6 +5187,52 @@ const App: React.FC = () => {
                   </fieldset>
                   {premiumUtilityButtons}
                 </div>
+
+                {/* 주간이벤트 배너 (프리미엄) */}
+                {!hasParticipatedInCurrentEvent() && !isCurrentEventBannerDismissed() && (
+                  <div
+                    onClick={() => { openWeeklyEventModal(); }}
+                    className="relative mt-3 mx-1 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 p-2.5 text-white shadow-md cursor-pointer active:scale-[0.98] transition-transform"
+                  >
+                    <button
+                      onClick={(e) => { e.stopPropagation(); dismissCurrentEventBanner(); }}
+                      className="absolute top-1 right-1 p-1 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+                      aria-label={t('game:weeklyEvent.bannerDismiss')}
+                    >
+                      <X size={14} />
+                    </button>
+                    <div className="flex items-start gap-2 pr-5 relative">
+                      <span className="text-base shrink-0">🎯</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold leading-tight">{t('game:weeklyEvent.newEventBanner' as any, { name: t(`game:weeklyEvent.events.${(getCurrentEvent() as any).eventType}.name` as any) })}</p>
+                        <p className="text-[10px] text-white/80 mt-0.5 leading-relaxed">
+                          {t('game:weeklyEvent.separateSessionTitle')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {isNativeApp() && hasParticipatedInPreviousEvent() && !hasClaimedEventReward() && !isRewardBannerDismissed() && (
+                  <div
+                    onClick={() => { openWeeklyEventModal(); }}
+                    className="relative mt-3 mx-1 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 p-2.5 text-white shadow-md cursor-pointer active:scale-[0.98] transition-transform"
+                  >
+                    <button
+                      onClick={(e) => { e.stopPropagation(); dismissRewardBanner(); }}
+                      className="absolute top-1 right-1 p-1 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+                      aria-label={t('game:weeklyEvent.bannerDismiss')}
+                    >
+                      <X size={14} />
+                    </button>
+                    <div className="flex items-start gap-2 pr-5 relative">
+                      <span className="text-base shrink-0">🎁</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold leading-tight">{t('game:weeklyEvent.rewardBanner')}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="mt-3 flex justify-center">
                   <AppDownloadBanner isPremiumUiThemeActive={true} />
                 </div>
@@ -5233,6 +5241,54 @@ const App: React.FC = () => {
           ) : (
             <div className="flex flex-col gap-4 w-full max-w-xs animate-slide-up">
               {menuActionButtons}
+
+              {/* 주간이벤트 배너: 새 이벤트 시작 + 미참여 */}
+              {!hasParticipatedInCurrentEvent() && !isCurrentEventBannerDismissed() && (
+                <div
+                  onClick={() => { openWeeklyEventModal(); }}
+                  className="relative w-full rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 p-3 text-white shadow-md cursor-pointer active:scale-[0.98] transition-transform"
+                >
+                  <button
+                    onClick={(e) => { e.stopPropagation(); dismissCurrentEventBanner(); }}
+                    className="absolute top-1 right-1 p-1 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+                    aria-label={t('game:weeklyEvent.bannerDismiss')}
+                  >
+                    <X size={14} />
+                  </button>
+                  <div className="flex items-start gap-2 pr-5">
+                    <span className="text-lg shrink-0">🎯</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold leading-tight">{t('game:weeklyEvent.newEventBanner' as any, { name: t(`game:weeklyEvent.events.${(getCurrentEvent() as any).eventType}.name` as any) })}</p>
+                      <p className="text-xs text-white/80 mt-0.5 leading-relaxed">
+                        {t('game:weeklyEvent.separateSessionTitle')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 주간이벤트 배너: 이전 주 보상 미수령 */}
+              {isNativeApp() && hasParticipatedInPreviousEvent() && !hasClaimedEventReward() && !isRewardBannerDismissed() && (
+                <div
+                  onClick={() => { openWeeklyEventModal(); }}
+                  className="relative w-full rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 p-3 text-white shadow-md cursor-pointer active:scale-[0.98] transition-transform"
+                >
+                  <button
+                    onClick={(e) => { e.stopPropagation(); dismissRewardBanner(); }}
+                    className="absolute top-1 right-1 p-1 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+                    aria-label={t('game:weeklyEvent.bannerDismiss')}
+                  >
+                    <X size={14} />
+                  </button>
+                  <div className="flex items-start gap-2 pr-5">
+                    <span className="text-lg shrink-0">🎁</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold leading-tight">{t('game:weeklyEvent.rewardBanner')}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <AppDownloadBanner isPremiumUiThemeActive={false} />
             </div>
           )}
@@ -5293,8 +5349,6 @@ const App: React.FC = () => {
               showCustomization={!isNativeApp()}
               customizationLocked={!customizationGate.allowed}
               customizationLockReason={customizationGate.reasonKey ? t(customizationGate.reasonKey as any) : t('game:actions.locked')}
-              missionUnlocked={isFeatureUnlocked('daily_mission')}
-              calendarUnlocked={isFeatureUnlocked('calendar')}
               dailyMissionCompleted={dailyMissionCompleted}
               calendarPendingCount={getCalendarItems().filter(i => !i.isCompleted).length}
               skinBadge={!isFirstScoreSkinRewardClaimed()}
@@ -5319,6 +5373,19 @@ const App: React.FC = () => {
               setIsSkinOpen(false);
               // 모달 닫힐 때 무료 뽑기 상태 리셋 (재진입 시 pending 상태 기반으로 다시 활성화)
               setSkinModalFreeDraw(false);
+              // 스킨 모달 닫힘 → 순차 온보딩 시작 (아직 완료되지 않은 경우)
+              if (!isSequentialOnboardingCompleted()) {
+                startSequentialOnboarding();
+                // gameState가 이미 MENU면 useEffect(gameState)가 재실행되지 않으므로 직접 상태 업데이트
+                if (gameState === GameState.MENU) {
+                  const cur = getCurrentSequentialStep();
+                  if (cur) {
+                    setSeqOnboardingStep(cur);
+                    setSeqOnboardingIndex(SEQUENTIAL_STEPS.indexOf(cur));
+                    setIsSeqOnboardingVisible(true);
+                  }
+                }
+              }
             }}
             freeDraw={skinModalFreeDraw}
             onFreeDrawUsed={(consumed) => {
@@ -5373,8 +5440,9 @@ const App: React.FC = () => {
               onProceedWithoutRegister={handleActiveGameExitProceedWithoutRegister}
               onSessionNameLocked={handleActiveGameExitNameLocked}
               onRegisteredAndProceed={handleActiveGameExitRegisteredAndProceed}
-              comboMultiplier={maxComboMultiplierRef.current}
-            />
+comboMultiplier={maxComboMultiplierRef.current}
+            comboCount={maxComboCountRef.current}
+          />
           )}
 
           <GameModeTutorial
@@ -5389,11 +5457,13 @@ const App: React.FC = () => {
             onComplete={refreshMenuOnboardingStep}
             onSkip={handleSkinFeatureTutorialSkip}
           />
-          <GameOnboardingOverlay
-            step={onboardingOverlayStep}
-            visible={isOnboardingOverlayVisible && gameState === GameState.MENU}
-            onDismiss={handleDismissOnboardingOverlay}
-            onOpenFeature={handleOpenOnboardingFeature}
+          <SequentialOnboardingOverlay
+            step={seqOnboardingStep}
+            visible={isSeqOnboardingVisible && gameState === GameState.MENU}
+            onAdvance={handleSeqOnboardingAdvance}
+            onOpenFeature={handleSeqOpenFeature}
+            index={seqOnboardingIndex}
+            total={3}
           />
 
           <StreakInfoModal

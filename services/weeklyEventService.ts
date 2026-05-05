@@ -432,8 +432,9 @@ interface PendingEventScore {
   attemptNumber: number;
   levelBadge?: string;
   isIntermediate?: boolean;
-  isProgress?: boolean;
+isProgress?: boolean;
   comboMultiplier?: number;
+  comboCount?: number;
   updatedAt: number;
 }
 
@@ -511,6 +512,7 @@ function mergePendingEventScore(
     attemptNumber: incoming.attemptNumber,
     levelBadge: incoming.levelBadge ?? existing.levelBadge,
     comboMultiplier: incoming.comboMultiplier ?? existing.comboMultiplier,
+    comboCount: Math.max(existing.comboCount ?? 0, incoming.comboCount ?? 0),
     isIntermediate: existing.isIntermediate && incoming.isIntermediate,
     isProgress: (existing.isProgress === true && existing.isIntermediate === true)
       && (incoming.isProgress === true && incoming.isIntermediate === true),
@@ -655,6 +657,7 @@ async function postEventScore(params: {
   isIntermediate?: boolean;
   isProgress?: boolean;
   comboMultiplier?: number;
+  comboCount?: number;
 }): Promise<EventSubmitResult> {
   try {
     const installId = getAnalyticsInstallId();
@@ -668,6 +671,7 @@ async function postEventScore(params: {
         installId,
         ...scoreParams,
         comboMultiplier: params.comboMultiplier ?? 1.0,
+        comboCount: params.comboCount ?? 0,
         ...(isIntermediate ? { isIntermediate: true } : {}),
         ...(isProgress ? { isProgress: true } : {}),
       }),
@@ -708,6 +712,7 @@ async function runFlushPendingEventScores(): Promise<void> {
       isIntermediate: item.isIntermediate,
       isProgress: item.isProgress,
       comboMultiplier: item.comboMultiplier,
+      comboCount: item.comboCount,
     });
 
     if (result.success) {
@@ -949,8 +954,9 @@ export async function submitEventScore(params: {
   attemptNumber: number;
   levelBadge?: string;
   isIntermediate?: boolean;
-  isProgress?: boolean;
+isProgress?: boolean;
   comboMultiplier?: number;
+  comboCount?: number;
 }): Promise<EventSubmitResult> {
   const current = getCurrentEvent();
   const isIntermediate = params.isIntermediate === true;
@@ -968,6 +974,7 @@ export async function submitEventScore(params: {
     isIntermediate,
     isProgress: params.isProgress === true,
     comboMultiplier: params.comboMultiplier ?? 1.0,
+    comboCount: params.comboCount ?? 0,
   };
 
   if (!isOnline()) {
@@ -1084,4 +1091,50 @@ export function formatTimerMmSs(ms: number): string {
   const m = Math.floor(totalSec / 60);
   const s = totalSec % 60;
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+// ============================================
+// 메뉴 이벤트 배너 dismiss 상태 관리
+// ============================================
+
+const EVENT_BANNER_DISMISSED_KEY = 'slidemino_event_banner_dismissed_v1';
+const EVENT_REWARD_BANNER_DISMISSED_KEY = 'slidemino_event_reward_banner_dismissed_v1';
+
+/** 현재 주간이벤트 배너가 dismiss되었는지 확인 */
+export function isCurrentEventBannerDismissed(): boolean {
+  try {
+    const current = getCurrentEvent();
+    const raw = localStorage.getItem(EVENT_BANNER_DISMISSED_KEY);
+    return raw === current.eventId;
+  } catch { return false; }
+}
+
+/** 현재 주간이벤트 배너를 dismiss */
+export function dismissCurrentEventBanner(): void {
+  try {
+    const current = getCurrentEvent();
+    localStorage.setItem(EVENT_BANNER_DISMISSED_KEY, current.eventId);
+  } catch { /* ignore */ }
+}
+
+/** 보상 배너가 dismiss되었는지 확인 (이전 주 이벤트 ID 기준) */
+export function isRewardBannerDismissed(): boolean {
+  try {
+    const prev = getPreviousEvent();
+    const raw = localStorage.getItem(EVENT_REWARD_BANNER_DISMISSED_KEY);
+    return raw === prev.eventId;
+  } catch { return false; }
+}
+
+/** 보상 배너를 dismiss */
+export function dismissRewardBanner(): void {
+  try {
+    const prev = getPreviousEvent();
+    localStorage.setItem(EVENT_REWARD_BANNER_DISMISSED_KEY, prev.eventId);
+  } catch { /* ignore */ }
+}
+
+/** 현재 주간이벤트에 참여했는지 확인 (도전 횟수 1 이상) */
+export function hasParticipatedInCurrentEvent(): boolean {
+  return getLocalAttemptCount() > 0;
 }

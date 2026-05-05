@@ -8,7 +8,6 @@ import { submitEventScore, incrementLocalAttemptCount } from '../services/weekly
 import { addFragments } from '../services/skinService';
 import { shareGameResult, type ShareCardOptions, type ShareResult } from '../services/shareCardService';
 import { gameEventBus } from '../services/gameEventBus';
-import { isFeatureUnlocked } from '../services/onboardingService';
 import { getHighestLevelBadgeForLevel, loadXpData } from '../services/xpLevelService';
 import { PLAYER_NAME_MAX_LENGTH, normalizePlayerName, validatePlayerName } from '../utils/playerName';
 import type { GameMode, BoardSize, GameOverDiagnosis } from '../types';
@@ -46,6 +45,7 @@ interface GameOverModalProps {
     gameOverReason?: GameOverDiagnosis | null;
     /** 콤보 배율 (서버 안티치트 검증용) */
     comboMultiplier?: number;
+    comboCount?: number;
 }
 
 export const GameOverModal: React.FC<GameOverModalProps> = ({
@@ -74,6 +74,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
     onSessionNameLocked,
     gameOverReason,
     comboMultiplier,
+    comboCount,
 }) => {
     const { t } = useTranslation();
     useBodyScrollLock(true);
@@ -205,6 +206,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                 attemptNumber: eventAttemptNumber ?? 1,
                 levelBadge: levelBadgeId,
                 comboMultiplier,
+                comboCount,
             });
             setIsSubmitting(false);
             if (eventResult.success) {
@@ -245,7 +247,8 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
             moves,
             getAnalyticsInstallId(),
             levelBadgeId,
-            comboMultiplier
+            comboMultiplier,
+            comboCount
         );
         setIsSubmitting(false);
         if (result.success) {
@@ -377,7 +380,6 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                             )}
 
                             {/* 공유 버튼 (점수 아래) */}
-                            {isFeatureUnlocked('share_card') && (
                                 <button
                                     onClick={handleShare}
                                     disabled={isSharing}
@@ -396,7 +398,6 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                                     <Share2 size={16} />
                                     {isSharing ? t('common:share.sharing') : t('common:share.button')}
                                 </button>
-                            )}
 
                             {/* 공유 토스트 */}
                             {shareToast && (
@@ -636,7 +637,6 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                             </div>
 
                             {/* 공유 버튼 (강조) */}
-                            {isFeatureUnlocked('share_card') && (
                                 <button
                                     onClick={handleShare}
                                     disabled={isSharing}
@@ -657,7 +657,6 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                                         {isSharing ? t('common:share.sharing') : t('common:share.brag')}
                                     </span>
                                 </button>
-                            )}
 
                             {shareToast && (
                                 <p className="text-xs text-green-600 font-medium animate-fade-in">{shareToast}</p>

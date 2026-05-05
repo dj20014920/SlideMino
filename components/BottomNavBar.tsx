@@ -80,8 +80,6 @@ export interface BottomNavBarProps {
   showCustomization: boolean;
   customizationLocked: boolean;
   customizationLockReason: string;
-  missionUnlocked: boolean;
-  calendarUnlocked: boolean;
   dailyMissionCompleted: number;
   calendarPendingCount: number;
   skinBadge?: boolean;
@@ -111,8 +109,6 @@ interface NavItem {
 export const BottomNavBar: React.FC<BottomNavBarProps> = ({
   showSkin,
   showCustomization,
-  missionUnlocked,
-  calendarUnlocked,
   customizationLocked,
   customizationLockReason,
   dailyMissionCompleted,
@@ -173,20 +169,18 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
       icon: <ClipboardList size={20} />,
       label: t('game:missions.title'),
       onPress: onMissionPress,
-      badge: missionUnlocked && dailyMissionCompleted < 3 ? `${dailyMissionCompleted}/3` : undefined,
+      badge: dailyMissionCompleted < 3 ? `${dailyMissionCompleted}/3` : undefined,
       visible: true,
-      locked: !missionUnlocked,
-      lockMessage: String(t('game:actions.missionLocked', { count: 3 } as any)),
+      locked: false,
     },
     {
       id: 'calendar',
       icon: <Calendar size={20} />,
       label: t('common:calendar.title'),
       onPress: onCalendarPress,
-      badge: calendarUnlocked && calendarPendingCount > 0 ? calendarPendingCount : undefined,
+      badge: calendarPendingCount > 0 ? calendarPendingCount : undefined,
       visible: true,
-      locked: !calendarUnlocked,
-      lockMessage: String(t('game:actions.calendarLocked', { level: 5 } as any)),
+      locked: false,
     },
   ].filter(item => item.visible);
 
@@ -259,9 +253,11 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
               data-tutorial-anchor={
                 item.id === 'skin'
                   ? 'menu-skin-btn'
-                  : item.id === 'leaderboard'
-                    ? 'leaderboard-btn'
-                    : undefined
+                  : item.id === 'mission'
+                    ? 'mission-nav-btn'
+                    : item.id === 'leaderboard'
+                      ? 'leaderboard-btn'
+                      : undefined
               }
               onClick={item.locked ? () => showLockToast(item.lockMessage!) : item.onPress}
               className={`
@@ -335,9 +331,11 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
             data-tutorial-anchor={
               item.id === 'skin'
                 ? 'menu-skin-btn'
-                : item.id === 'leaderboard'
-                  ? 'leaderboard-btn'
-                  : undefined
+                : item.id === 'mission'
+                  ? 'mission-nav-btn'
+                  : item.id === 'leaderboard'
+                    ? 'leaderboard-btn'
+                    : undefined
             }
             onClick={item.locked ? () => showLockToast(item.lockMessage!) : item.onPress}
             className={`

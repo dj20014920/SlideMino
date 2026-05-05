@@ -12,10 +12,12 @@ import {
   validateDuration,
   validateMoves,
   validateGameConsistency,
+  validateComboCount,
 } from '../../utils/validation';
 import { hashInstallId } from '../../utils/hash';
 import { checkRateLimit, getClientIp } from '../../utils/rateLimit';
 import { buildCorsHeaders, createJsonResponse, isCrossSiteMutation, isTrustedRequestOrigin } from '../../utils/cors';
+import { getSeasonBoundaries } from '../../utils/seasonReset';
 
 interface Env {
   DB: D1Database;
@@ -96,6 +98,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // 안티치트: 게임 일관성 검증 (난이도 5 고정)
     const rawCombo = typeof data.comboMultiplier === 'number' && Number.isFinite(data.comboMultiplier) && data.comboMultiplier >= 1 ? data.comboMultiplier : 1;
     const comboMultiplier = Math.max(1, Math.min(3, rawCombo)); // 1~3 clamp
+    const comboCount = validateComboCount(data.comboCount ?? 0);
     const consistency = validateGameConsistency(score, '5', duration, moves, undefined, comboMultiplier);
     if (!consistency.valid) {
       console.log(`[DailyChallenge] anti-cheat blocked: ${consistency.error}`);
@@ -145,6 +148,24 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           challengeDate, installIdHash,
           score, score, moves, score, moves, duration
         ),
+        ...(comboCount > 0 || comboMultiplier > 1.0
+          ? [
+            env.DB.prepare(
+              `INSERT INTO combo_rankings (season_id, install_id_hash, name, best_combo_multiplier, best_combo_count, best_score, game_mode, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT(season_id, install_id_hash) DO UPDATE SET
+                 name = excluded.name,
+                 best_combo_multiplier = excluded.best_combo_multiplier,
+                 best_combo_count = excluded.best_combo_count,
+                 best_score = excluded.best_score,
+                 game_mode = excluded.game_mode,
+                 updated_at = excluded.updated_at
+               WHERE excluded.best_combo_multiplier > combo_rankings.best_combo_multiplier
+                  OR (excluded.best_combo_multiplier = combo_rankings.best_combo_multiplier AND excluded.best_combo_count > combo_rankings.best_combo_count)
+                  OR (excluded.best_combo_multiplier = combo_rankings.best_combo_multiplier AND excluded.best_combo_count = combo_rankings.best_combo_count AND excluded.best_score > combo_rankings.best_score)`
+            ).bind(getSeasonBoundaries(new Date(now)).seasonId, installIdHash, name, comboMultiplier, comboCount, score, 'daily_challenge', now),
+          ]
+          : []),
       ]);
 
       // 유저의 현재 최고 기록 조회

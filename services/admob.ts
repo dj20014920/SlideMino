@@ -110,7 +110,7 @@ const ensureStarted = async (): Promise<void> => {
 
 export const getAdMobRequestPolicy = async (): Promise<AdMobRequestPolicy> => ({
   shouldUseTestAds:
-    (import.meta.env.MODE !== 'production' && normalizeBoolEnv(import.meta.env.VITE_ADMOB_TEST_ADS))
+    normalizeBoolEnv(import.meta.env.VITE_ADMOB_TEST_ADS)
     || (await isVirtualDevice()),
 });
 

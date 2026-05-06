@@ -104,7 +104,7 @@ export function isSequentialOnboardingCompleted(): boolean {
   return loadData().completed;
 }
 
-/** 순차 온보딩 시작 */
+/** 순차 온보딩 시작 (스킨 모달 닫힘 시 호출) */
 export function startSequentialOnboarding(): void {
   const data = loadData();
   if (data.completed || data.started) return;

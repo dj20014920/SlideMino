@@ -401,8 +401,8 @@ export function isBlockRefreshRewardInterstitialAdSupported(): boolean {
  */
 export function isBannerAdSupported(): boolean {
   if (SCREENSHOT_MODE) return false;
-  // 모든 플랫폼에서 배너 광고 지원
-  return CURRENT_AD_PLATFORM !== 'none';
+  if (CURRENT_AD_PLATFORM === 'none') return false;
+  return isConfiguredAdUnitId(getBannerAdId());
 }
 
 /**

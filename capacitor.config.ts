@@ -26,9 +26,8 @@ const config: CapacitorConfig = {
       launchAutoHide: true,
       showSpinner: false
     },
-    StatusBar: {
-      style: 'DARK',
-      backgroundColor: '#fafafa'
+    SystemBars: {
+      style: 'DARK'
     },
     Keyboard: {
       resize: 'body',
@@ -44,7 +43,7 @@ const config: CapacitorConfig = {
     contentInset: 'never'
   },
   android: {
-    backgroundColor: '#fafafa'
+    backgroundColor: '#00000000'
   }
 };
 

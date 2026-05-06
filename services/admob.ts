@@ -22,6 +22,12 @@ const normalizeCanRequestAds = (info: AdmobConsentInfo | null | undefined): bool
   return info.canRequestAds ?? true;
 };
 
+const normalizeBoolEnv = (value?: string): boolean => {
+  if (typeof value !== 'string') return false;
+  const normalized = value.trim().toLowerCase();
+  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
+};
+
 const publishConsentState = (nextCanRequestAds: boolean): void => {
   if (typeof window === 'undefined') return;
   window.dispatchEvent(new CustomEvent(AD_MOB_CONSENT_UPDATED_EVENT, {
@@ -103,7 +109,9 @@ const ensureStarted = async (): Promise<void> => {
 };
 
 export const getAdMobRequestPolicy = async (): Promise<AdMobRequestPolicy> => ({
-  shouldUseTestAds: false,
+  shouldUseTestAds:
+    (import.meta.env.MODE !== 'production' && normalizeBoolEnv(import.meta.env.VITE_ADMOB_TEST_ADS))
+    || (await isVirtualDevice()),
 });
 
 export const ensureAdMobReady = async (): Promise<boolean> => {

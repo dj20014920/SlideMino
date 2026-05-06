@@ -12,13 +12,24 @@ index f0ee0c9..c589cb9 100644
      }
      lintOptions {
 diff --git a/node_modules/@capacitor-community/admob/android/src/main/java/com/getcapacitor/community/admob/banner/BannerExecutor.java b/node_modules/@capacitor-community/admob/android/src/main/java/com/getcapacitor/community/admob/banner/BannerExecutor.java
-index c629139..a1dd138 100644
+index c629139..bfa52ba 100644
 --- a/node_modules/@capacitor-community/admob/android/src/main/java/com/getcapacitor/community/admob/banner/BannerExecutor.java
 +++ b/node_modules/@capacitor-community/admob/android/src/main/java/com/getcapacitor/community/admob/banner/BannerExecutor.java
-@@ -90,58 +90,40 @@ public class BannerExecutor extends Executor {
+@@ -48,6 +48,10 @@ public class BannerExecutor extends Executor {
+     }
+
+     public void showBanner(final PluginCall call) {
++        activitySupplier.get().runOnUiThread(() -> showBannerOnUiThread(call));
++    }
++
++    private void showBannerOnUiThread(final PluginCall call) {
+         final AdOptions adOptions = AdOptions.getFactory().createBannerOptions(call);
+         float density = contextSupplier.get().getResources().getDisplayMetrics().density;
+
+@@ -90,62 +94,45 @@ public class BannerExecutor extends Executor {
                  CoordinatorLayout.LayoutParams.WRAP_CONTENT
              );
- 
+
 -            // TODO: Make an enum like the AdSizeEnum?
 -            switch (adOptions.position) {
 -                case "TOP_CENTER":
@@ -37,7 +48,7 @@ index c629139..a1dd138 100644
 +            int horizontalMarginPx = calculateHorizontalMarginPx(adOptions, density, defaultWidthPixels, realWidthPixels, fullscreen);
 +
 +            applyBannerLayoutMargins(mAdViewLayoutParams, adOptions.position, horizontalMarginPx, densityMargin, 0, 0, 0, 0);
- 
+
              // set Safe Area only for Android 15+
              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
                  View rootView = activitySupplier.get().getWindow().getDecorView();
@@ -64,15 +75,15 @@ index c629139..a1dd138 100644
 +                        safeInsets.right,
 +                        safeInsets.bottom
 +                    );
- 
+
                      mAdViewLayout.setLayoutParams(mAdViewLayoutParams);
                      return insets;
                  });
 +                rootView.requestApplyInsets();
              }
- 
+
              mAdViewLayout.setLayoutParams(mAdViewLayoutParams);
- 
+
 -            int densityMargin = (int) (adOptions.margin * density);
 -
 -            // Center Banner Ads
@@ -93,12 +104,36 @@ index c629139..a1dd138 100644
 -            }
 -
              createNewAdView(adOptions);
- 
+
              call.resolve();
-@@ -231,6 +213,69 @@ public class BannerExecutor extends Executor {
+         } catch (Exception ex) {
++            removeCurrentAdViewFromHierarchy();
+             call.reject(ex.getLocalizedMessage(), ex);
+         }
+     }
+@@ -231,6 +218,88 @@ public class BannerExecutor extends Executor {
              });
      }
- 
+
++    private void removeCurrentAdViewFromHierarchy() {
++        if (mAdView == null) {
++            return;
++        }
++
++        try {
++            if (mAdViewLayout != null) {
++                mViewGroup.removeView(mAdViewLayout);
++                mAdViewLayout.removeView(mAdView);
++            }
++            mAdView.destroy();
++        } catch (Exception ignored) {
++            // Cleanup is best-effort after a failed view construction path.
++        } finally {
++            mAdView = null;
++            mAdViewLayout = null;
++        }
++    }
++
 +    private void applyBannerLayoutGravity(CoordinatorLayout.LayoutParams layoutParams, String position) {
 +        switch (position) {
 +            case "TOP_CENTER":

@@ -157,11 +157,15 @@ export class RewardInterstitialAdService {
     RewardInterstitialAdService.hasSharedAdMobListeners = true;
 
     AdMob.addListener(RewardInterstitialAdPluginEvents.Loaded, (info: AdLoadInfo) => {
-      RewardInterstitialAdService.activeService?.handleLoaded(info);
+      const service = RewardInterstitialAdService.findServiceByAdUnitId(info.adUnitId);
+      if (!service) return;
+      service.handleLoaded(info);
     });
 
     AdMob.addListener(RewardInterstitialAdPluginEvents.FailedToLoad, (error) => {
-      RewardInterstitialAdService.activeService?.handleFailedToLoad(error);
+      // prepareRewardInterstitialAd() rejects on load failure, so each service handles
+      // its own failed load in loadAdMobAd(). The shared event has no adUnitId.
+      console.error('[RewardInterstitialAdService] AdMob 보상형 전면 광고 로드 실패 이벤트:', error);
     });
 
     AdMob.addListener(RewardInterstitialAdPluginEvents.Showed, () => {
@@ -181,15 +185,30 @@ export class RewardInterstitialAdService {
     });
   }
 
-  private activateForAdMobEvents(): void {
-    RewardInterstitialAdService.activeService = this;
-    RewardInterstitialAdService.services.forEach((service) => {
-      if (service === this) return;
-      service.invalidatePreparedAdState();
+  private static findServiceByAdUnitId(adUnitId: string): RewardInterstitialAdService | null {
+    for (const service of RewardInterstitialAdService.services) {
+      if (service.adUnitId === adUnitId) return service;
+    }
+    return null;
+  }
+
+  private static activateServiceForAdMobEvents(service: RewardInterstitialAdService): void {
+    RewardInterstitialAdService.activeService = service;
+  }
+
+  private static markPreparedAdService(service: RewardInterstitialAdService): void {
+    RewardInterstitialAdService.services.forEach((registeredService) => {
+      if (registeredService === service) return;
+      registeredService.invalidatePreparedAdState();
     });
   }
 
+  private activateForAdMobEvents(): void {
+    RewardInterstitialAdService.activateServiceForAdMobEvents(this);
+  }
+
   private invalidatePreparedAdState(): void {
+    if (RewardInterstitialAdService.activeService === this && this.isProcessingShow) return;
     this.loadStatus = 'not_loaded';
     this.showStatus = 'idle';
     this.isProcessingShow = false;
@@ -198,6 +217,8 @@ export class RewardInterstitialAdService {
   }
 
   private handleLoaded(info: AdLoadInfo): void {
+    if (info.adUnitId !== this.adUnitId) return;
+    if (this.loadStatus === 'loaded') return;
     this.loadStatus = 'loaded';
     this.loadRetryBackoff.reset();
     console.log(`[${this.logTag}] AdMob 보상형 전면 광고 로드 완료:`, info);
@@ -218,6 +239,9 @@ export class RewardInterstitialAdService {
     this.loadStatus = 'failed';
     this.isProcessingShow = false;
     this.rewardIssuedForCurrentShow = false;
+    if (RewardInterstitialAdService.activeService === this) {
+      RewardInterstitialAdService.activeService = null;
+    }
     this.scheduleLoadRetry();
 
     if (this.admobCallbacks) {
@@ -237,6 +261,9 @@ export class RewardInterstitialAdService {
     this.showStatus = 'closed';
     this.isProcessingShow = false;
     this.rewardIssuedForCurrentShow = false;
+    if (RewardInterstitialAdService.activeService === this) {
+      RewardInterstitialAdService.activeService = null;
+    }
 
     if (this.admobCallbacks) {
       this.admobCallbacks.onAdClosed();
@@ -309,7 +336,6 @@ export class RewardInterstitialAdService {
   }
 
   private async loadAdMobAd(): Promise<void> {
-    this.activateForAdMobEvents();
     this.loadStatus = 'loading';
 
     const canRequest = await ensureAdMobReady();
@@ -321,7 +347,15 @@ export class RewardInterstitialAdService {
     const options: RewardInterstitialAdOptions = { adId: this.adUnitId };
 
     try {
-      await AdMob.prepareRewardInterstitialAd(options);
+      const info = await AdMob.prepareRewardInterstitialAd(options);
+      if (info.adUnitId !== this.adUnitId) {
+        this.loadStatus = 'failed';
+        console.error(`[${this.logTag}] AdMob 보상형 전면 광고 로드 mismatch:`, info.adUnitId, this.adUnitId);
+        this.scheduleLoadRetry();
+        return;
+      }
+      RewardInterstitialAdService.markPreparedAdService(this);
+      this.handleLoaded(info);
     } catch (error) {
       this.loadStatus = 'failed';
       console.error(`[${this.logTag}] AdMob 보상형 전면 광고 로드 실패:`, error);
@@ -458,6 +492,9 @@ export class RewardInterstitialAdService {
       this.isProcessingShow = false;
       this.rewardIssuedForCurrentShow = false;
       this.admobCallbacks = null;
+      if (RewardInterstitialAdService.activeService === this) {
+        RewardInterstitialAdService.activeService = null;
+      }
       this.scheduleLoadRetry();
       callbacks.onError(error as Error);
     }

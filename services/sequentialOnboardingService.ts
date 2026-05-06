@@ -51,12 +51,14 @@ export const SEQUENTIAL_STEP_CONFIG: Record<SequentialStep, SequentialStepConfig
 
 interface SequentialOnboardingData {
   version: 1;
+  started: boolean;
   completed: boolean;
   stepIndex: number;
 }
 
 const DEFAULT_DATA: SequentialOnboardingData = {
   version: 1,
+  started: false,
   completed: false,
   stepIndex: 0,
 };
@@ -71,9 +73,14 @@ function loadData(): SequentialOnboardingData {
     // 현재는 v1만 존재하므로 버전 불일치 시 초기화로 충분.
     // 향후 v2+ 스키마 변경 시 버전별 마이그레이션 함수를 추가해야 함.
     if (!parsed || parsed.version !== 1) return { ...DEFAULT_DATA };
+    const completed = typeof parsed.completed === 'boolean' ? parsed.completed : false;
     return {
       version: 1,
-      completed: typeof parsed.completed === 'boolean' ? parsed.completed : false,
+      started:
+        typeof parsed.started === 'boolean'
+          ? parsed.started
+          : completed || (typeof parsed.stepIndex === 'number' && parsed.stepIndex > 0),
+      completed,
       stepIndex:
         typeof parsed.stepIndex === 'number'
           ? Math.max(0, Math.min(parsed.stepIndex, SEQUENTIAL_STEPS.length))
@@ -97,17 +104,17 @@ export function isSequentialOnboardingCompleted(): boolean {
   return loadData().completed;
 }
 
-/** 순차 온보딩 시작 (스킨 모달 닫힘 시 호출) */
+/** 순차 온보딩 시작 */
 export function startSequentialOnboarding(): void {
   const data = loadData();
-  if (data.completed || data.stepIndex > 0) return;
-  saveData({ version: 1, completed: false, stepIndex: 0 });
+  if (data.completed || data.started) return;
+  saveData({ version: 1, started: true, completed: false, stepIndex: 0 });
 }
 
 /** 현재 표시할 단계. null이면 완료 */
 export function getCurrentSequentialStep(): SequentialStep | null {
   const data = loadData();
-  if (data.completed) return null;
+  if (!data.started || data.completed) return null;
   if (data.stepIndex < 0 || data.stepIndex >= SEQUENTIAL_STEPS.length) return null;
   return SEQUENTIAL_STEPS[data.stepIndex];
 }
@@ -115,13 +122,13 @@ export function getCurrentSequentialStep(): SequentialStep | null {
 /** 다음 단계로 진행. 완료 시 null 반환 */
 export function advanceSequentialStep(): SequentialStep | null {
   const data = loadData();
-  if (data.completed) return null;
+  if (!data.started || data.completed) return null;
   const nextIndex = data.stepIndex + 1;
   if (nextIndex >= SEQUENTIAL_STEPS.length) {
-    saveData({ ...data, completed: true, stepIndex: SEQUENTIAL_STEPS.length });
+    saveData({ ...data, started: true, completed: true, stepIndex: SEQUENTIAL_STEPS.length });
     return null;
   }
-  const newData = { ...data, stepIndex: nextIndex };
+  const newData = { ...data, started: true, stepIndex: nextIndex };
   saveData(newData);
   return SEQUENTIAL_STEPS[nextIndex];
 }

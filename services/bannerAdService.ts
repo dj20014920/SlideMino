@@ -7,8 +7,8 @@
 
 import { GoogleAdMob } from '@apps-in-toss/web-framework';
 import { AdMob, BannerAdPosition, BannerAdSize, BannerAdOptions, BannerAdPluginEvents } from '@capacitor-community/admob';
-import { getBannerAdId, isBannerAdSupported, CURRENT_AD_PLATFORM } from './adConfig';
-import { AD_MOB_CONSENT_UPDATED_EVENT, ensureAdMobReady } from './admob';
+import { ADMOB_TEST_AD_IDS, getBannerAdId, isBannerAdSupported, CURRENT_AD_PLATFORM } from './adConfig';
+import { AD_MOB_CONSENT_UPDATED_EVENT, ensureAdMobReady, getAdMobRequestPolicy } from './admob';
 import { RetryBackoffScheduler } from './adResilience';
 import { trackAnalyticsEvent } from './analyticsService';
 
@@ -191,8 +191,14 @@ class BannerAdService {
   private async showAdMobBanner(bottomMarginPx: number): Promise<void> {
     console.log('[BannerAdService] AdMob 배너 표시 시작');
 
+    const requestPolicy = await getAdMobRequestPolicy();
+    const effectiveAdId = requestPolicy.shouldUseTestAds
+      ? this.getAdMobTestBannerAdId()
+      : this.adUnitId;
+
     const options: BannerAdOptions = {
-      adId: this.adUnitId,
+      adId: effectiveAdId,
+      isTesting: requestPolicy.shouldUseTestAds,
       adSize: BannerAdSize.BANNER, // 표준 배너 (320x50)
       position: BannerAdPosition.BOTTOM_CENTER, // 하단 중앙 고정
       margin: bottomMarginPx,
@@ -205,7 +211,7 @@ class BannerAdService {
       if (!this.hasTrackedAdMobImpressionForCurrentBanner) {
         trackAnalyticsEvent({
           name: 'ad_banner_impression',
-          meta: { source: 'admob-show-fallback' },
+          meta: { source: 'admob-show-fallback', testAds: requestPolicy.shouldUseTestAds },
         });
         this.hasTrackedAdMobImpressionForCurrentBanner = true;
       }
@@ -215,6 +221,11 @@ class BannerAdService {
       console.error('[BannerAdService] AdMob 배너 표시 실패:', error);
       throw error;
     }
+  }
+
+  private getAdMobTestBannerAdId(): string {
+    if (CURRENT_AD_PLATFORM === 'admob-ios') return ADMOB_TEST_AD_IDS.IOS.BANNER;
+    return ADMOB_TEST_AD_IDS.ANDROID.BANNER;
   }
 
   private setupAdMobBannerListeners(): void {
@@ -411,8 +422,9 @@ class BannerAdService {
         this.cleanupFn?.();
         this.cleanupFn = null;
       } else if (CURRENT_AD_PLATFORM === 'admob-ios' || CURRENT_AD_PLATFORM === 'admob-android') {
-        // AdMob: hideBanner API 호출
-        await AdMob.hideBanner();
+        // AdMob Android keeps the hidden view around after hideBanner().
+        // Recreate instead, so menu/game margin changes cannot leave the banner GONE.
+        await AdMob.removeBanner();
       }
 
       console.log('[BannerAdService] 배너 숨김 완료');

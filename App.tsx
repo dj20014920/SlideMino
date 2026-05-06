@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { LoadingScreen } from './components/LoadingScreen';
 import { useTranslation } from 'react-i18next';
 import { SplashScreen } from '@capacitor/splash-screen';
+import { SystemBars, SystemBarsStyle } from '@capacitor/core';
 import {
   GameState,
   Grid,
@@ -87,7 +88,7 @@ import {
   type SavedGameState,
 } from './services/gameStorage';
 import { rankingService, type LiveRankEstimate } from './services/rankingService';
-import { getCurrentRoute, onRouteChange, updatePageMeta, type Route } from './utils/routing';
+import { getCurrentRoute, navigateTo, onRouteChange, updatePageMeta, type Route } from './utils/routing';
 import { isNativeApp, isAppIntoS, isAndroidApp, isLikelyIOSInAppBrowser } from './utils/platform';
 import { normalizeLanguage, LANGUAGE_CONFIGS, type SupportedLanguage } from './i18n/constants';
 import { saveLanguageOverride } from './utils/deviceLanguage';
@@ -189,6 +190,7 @@ import {
   getCurrentSequentialStep,
   advanceSequentialStep,
   isSequentialOnboardingCompleted,
+  resetSequentialOnboarding,
   SEQUENTIAL_STEPS,
   type SequentialStep,
 } from './services/sequentialOnboardingService';
@@ -407,6 +409,7 @@ const VIEWPORT_HEIGHT_DROP_GUARD_RATIO = 0.18;
 const VIEWPORT_HEIGHT_DROP_GUARD_MAX_WIDTH_SHIFT_PX = 24;
 const VIEWPORT_HEIGHT_DROP_GUARD_REAPPLY_DELAY_MS = 80;
 const CHROME_SPIKE_GUARD_STEP_PX = 36;
+const LIGHT_SYSTEM_BAR_CONTENT_FAMILIES = new Set(['explore_galaxy', 'pixelblast_void', 'neon_cortex']);
 
 const getStableGameFooterReservePx = (nativeSafeBottomPx: number): number => (
   STABLE_BANNER_RESERVE_PX + Math.max(0, Math.round(nativeSafeBottomPx))
@@ -798,6 +801,43 @@ const App: React.FC = () => {
       setMenuBottomNavHeight(getEstimatedBottomNavHeight(isPremiumUiThemeActive, premiumNavHeightPx));
     }
   }, [isPremiumUiThemeActive, isNative, premiumNavHeightPx]);
+
+  const nativeSystemBarsStyle = useMemo(() => (
+    LIGHT_SYSTEM_BAR_CONTENT_FAMILIES.has(premiumSkinRuntime.family)
+      ? SystemBarsStyle.Dark
+      : SystemBarsStyle.Light
+  ), [premiumSkinRuntime.family]);
+
+  useEffect(() => {
+    if (!isNative) return;
+
+    let isDisposed = false;
+    const applySystemBarsStyle = () => {
+      SystemBars.show({})
+        .then(() => SystemBars.setStyle({ style: nativeSystemBarsStyle }))
+        .catch(() => {
+          // SystemBars can be unavailable in web previews or old shells.
+        });
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      applySystemBarsStyle();
+    };
+
+    applySystemBarsStyle();
+    const timerIds = VIEWPORT_RECOVERY_DELAYS_MS.map((delayMs) => window.setTimeout(() => {
+      if (!isDisposed) applySystemBarsStyle();
+    }, delayMs));
+
+    window.addEventListener(APP_RESUME_EVENT, applySystemBarsStyle);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      isDisposed = true;
+      timerIds.forEach((id) => window.clearTimeout(id));
+      window.removeEventListener(APP_RESUME_EVENT, applySystemBarsStyle);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isNative, nativeSystemBarsStyle]);
 
   useEffect(() => {
     if (!isNative || typeof window === 'undefined') return;
@@ -1427,6 +1467,42 @@ const App: React.FC = () => {
     isXpModalOpen,
     showFirstSkinRewardModal,
   ]);
+
+  const showCurrentSequentialOnboardingStep = useCallback(() => {
+    const currentStep = getCurrentSequentialStep();
+    if (!currentStep) {
+      setSeqOnboardingStep(null);
+      setIsSeqOnboardingVisible(false);
+      return false;
+    }
+
+    setSeqOnboardingStep(currentStep);
+    setSeqOnboardingIndex(SEQUENTIAL_STEPS.indexOf(currentStep));
+    setIsSeqOnboardingVisible(true);
+    return true;
+  }, []);
+
+  const hasSeenSkinFeatureTutorial = useCallback(() => {
+    try {
+      return Boolean(localStorage.getItem(ONBOARDING_STORAGE_KEYS.skinFeatureTutorialSeen));
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const startSequentialOnboardingAfterSkinTutorial = useCallback(() => {
+    if (gameState !== GameState.MENU) return;
+    if (!hasSeenSkinFeatureTutorial()) return;
+    if (isSequentialOnboardingCompleted()) return;
+
+    startSequentialOnboarding();
+    showCurrentSequentialOnboardingStep();
+  }, [gameState, hasSeenSkinFeatureTutorial, showCurrentSequentialOnboardingStep]);
+
+  const handleSkinFeatureTutorialComplete = useCallback(() => {
+    refreshMenuOnboardingStep();
+    startSequentialOnboardingAfterSkinTutorial();
+  }, [refreshMenuOnboardingStep, startSequentialOnboardingAfterSkinTutorial]);
 
   const handleSkinFeatureTutorialSkip = useCallback(() => {
     setActiveOnboardingStep('none');
@@ -2240,79 +2316,179 @@ const App: React.FC = () => {
     setActiveGameRankingSnapshot(null);
   }, [activeGameExitContext]);
 
-  useEffect(() => {
-    const handleEscapeKey = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-
-      if (isActiveGameExitModalOpen) {
-        handleActiveGameExitCancel();
-        return;
-      }
-      if (isNameInputOpen) {
-        closeNameInputModal();
-        return;
-      }
-      if (showHelpModal) {
-        setShowHelpModal(false);
-        return;
-      }
-      if (isWeeklyEventModalOpen) {
-        setIsWeeklyEventModalOpen(false);
-        return;
-      }
-      if (isCalendarOpen) {
-        setIsCalendarOpen(false);
-        return;
-      }
-      if (isXpModalOpen) {
-        setIsXpModalOpen(false);
-        return;
-      }
-      if (isMissionModalOpen) {
-        setIsMissionModalOpen(false);
-        return;
-      }
-      if (isSeasonRewardOpen) {
-        setIsSeasonRewardOpen(false);
-        return;
-      }
-      if (isStreakInfoOpen) {
-        setIsStreakInfoOpen(false);
-        return;
-      }
-      if (isLeaderboardOpen) {
-        setIsLeaderboardOpen(false);
-        return;
-      }
-      if (isSkinOpen) {
-        setIsSkinOpen(false);
-        return;
-      }
-      if (isCustomizationOpen) {
-        setIsCustomizationOpen(false);
-      }
-    };
-
-    window.addEventListener('keydown', handleEscapeKey);
-    return () => {
-      window.removeEventListener('keydown', handleEscapeKey);
-    };
+  const closeTopOverlay = useCallback((): boolean => {
+    if (isActiveGameExitModalOpen) {
+      handleActiveGameExitCancel();
+      return true;
+    }
+    if (showFirstSkinRewardModal) {
+      setShowFirstSkinRewardModal(false);
+      return true;
+    }
+    if (activeOnboardingStep === 'menu-skin-feature') {
+      handleSkinFeatureTutorialSkip();
+      return true;
+    }
+    if (activeOnboardingStep === 'menu-game-mode') {
+      setActiveOnboardingStep('none');
+      return true;
+    }
+    if (isSeqOnboardingVisible && activeOnboardingStep === 'none') {
+      setIsSeqOnboardingVisible(false);
+      return true;
+    }
+    if (isNameInputOpen) {
+      closeNameInputModal();
+      return true;
+    }
+    if (showHelpModal) {
+      setShowHelpModal(false);
+      return true;
+    }
+    if (isWeeklyEventModalOpen) {
+      setIsWeeklyEventModalOpen(false);
+      return true;
+    }
+    if (isCalendarOpen) {
+      setIsCalendarOpen(false);
+      return true;
+    }
+    if (isXpModalOpen) {
+      setIsXpModalOpen(false);
+      return true;
+    }
+    if (isMissionModalOpen) {
+      setIsMissionModalOpen(false);
+      return true;
+    }
+    if (isSeasonRewardOpen) {
+      setIsSeasonRewardOpen(false);
+      return true;
+    }
+    if (isStreakInfoOpen) {
+      setIsStreakInfoOpen(false);
+      return true;
+    }
+    if (isLeaderboardOpen) {
+      setIsLeaderboardOpen(false);
+      return true;
+    }
+    if (isSkinOpen) {
+      setIsSkinOpen(false);
+      return true;
+    }
+    if (isCustomizationOpen) {
+      setIsCustomizationOpen(false);
+      return true;
+    }
+    return false;
   }, [
+    activeOnboardingStep,
+    closeNameInputModal,
     handleActiveGameExitCancel,
+    handleSkinFeatureTutorialSkip,
     isActiveGameExitModalOpen,
     isCalendarOpen,
     isCustomizationOpen,
     isLeaderboardOpen,
     isMissionModalOpen,
     isNameInputOpen,
+    isSeqOnboardingVisible,
     isSeasonRewardOpen,
     isSkinOpen,
     isStreakInfoOpen,
     isWeeklyEventModalOpen,
     isXpModalOpen,
-    closeNameInputModal,
+    showFirstSkinRewardModal,
     showHelpModal,
   ]);
+
+  useEffect(() => {
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      closeTopOverlay();
+    };
+
+    window.addEventListener('keydown', handleEscapeKey);
+    return () => {
+      window.removeEventListener('keydown', handleEscapeKey);
+    };
+  }, [closeTopOverlay]);
+
+  const handleNativeBackButton = useCallback((fallback?: () => void) => {
+    if (nativeUpdateRequirement) return;
+
+    if (closeTopOverlay()) return;
+
+    if (currentRoute !== '/') {
+      navigateTo('/');
+      return;
+    }
+
+    if (gameState === GameState.PLAYING) {
+      handleHomeButtonClick();
+      return;
+    }
+
+    if (gameState === GameState.GAME_OVER) {
+      if (isReviewMode) {
+        handleExitReviewMode();
+        return;
+      }
+      handleGameOverClose();
+      return;
+    }
+
+    fallback?.();
+  }, [
+    closeTopOverlay,
+    currentRoute,
+    gameState,
+    handleExitReviewMode,
+    handleGameOverClose,
+    handleHomeButtonClick,
+    isReviewMode,
+    nativeUpdateRequirement,
+  ]);
+
+  const nativeBackButtonHandlerRef = useRef(handleNativeBackButton);
+
+  useEffect(() => {
+    nativeBackButtonHandlerRef.current = handleNativeBackButton;
+  }, [handleNativeBackButton]);
+
+  useEffect(() => {
+    if (!isAndroidApp()) return;
+
+    let isDisposed = false;
+    let listenerHandle: { remove: () => Promise<void> } | null = null;
+
+    void import('@capacitor/app').then(({ App: CapacitorApp }) => {
+      if (isDisposed) return;
+      CapacitorApp.addListener('backButton', () => {
+        nativeBackButtonHandlerRef.current(() => {
+          void CapacitorApp.minimizeApp();
+        });
+      }).then((handle) => {
+        if (isDisposed) {
+          void handle.remove();
+          return;
+        }
+        listenerHandle = handle;
+      }).catch(() => {
+        // ignore
+      });
+    }).catch(() => {
+      // ignore — web environment
+    });
+
+    return () => {
+      isDisposed = true;
+      if (listenerHandle) {
+        void listenerHandle.remove();
+      }
+    };
+  }, []);
 
   const handleActiveGameExitProceedWithoutRegister = useCallback(() => {
     const context = activeGameExitContext;
@@ -4706,6 +4882,10 @@ const App: React.FC = () => {
 
     const handleReplayTutorial = () => {
       clearOnboardingProgress();
+      resetSequentialOnboarding();
+      setSeqOnboardingStep(null);
+      setSeqOnboardingIndex(0);
+      setIsSeqOnboardingVisible(false);
       setTutorialResetKey(prev => prev + 1);
       setTutorialStep(1);
       const btn = document.getElementById('replay-tutorial-btn');
@@ -5365,19 +5545,7 @@ const App: React.FC = () => {
               setIsSkinOpen(false);
               // 모달 닫힐 때 무료 뽑기 상태 리셋 (재진입 시 pending 상태 기반으로 다시 활성화)
               setSkinModalFreeDraw(false);
-              // 스킨 모달 닫힘 → 순차 온보딩 시작 (아직 완료되지 않은 경우)
-              if (!isSequentialOnboardingCompleted()) {
-                startSequentialOnboarding();
-                // gameState가 이미 MENU면 useEffect(gameState)가 재실행되지 않으므로 직접 상태 업데이트
-                if (gameState === GameState.MENU) {
-                  const cur = getCurrentSequentialStep();
-                  if (cur) {
-                    setSeqOnboardingStep(cur);
-                    setSeqOnboardingIndex(SEQUENTIAL_STEPS.indexOf(cur));
-                    setIsSeqOnboardingVisible(true);
-                  }
-                }
-              }
+              startSequentialOnboardingAfterSkinTutorial();
             }}
             freeDraw={skinModalFreeDraw}
             onFreeDrawUsed={(consumed) => {
@@ -5446,12 +5614,17 @@ comboMultiplier={maxComboMultiplierRef.current}
           />
           <SkinFeatureTutorial
             isEnabled={activeOnboardingStep === 'menu-skin-feature' && !shouldSuppressGameModeTutorial}
-            onComplete={refreshMenuOnboardingStep}
+            onComplete={handleSkinFeatureTutorialComplete}
             onSkip={handleSkinFeatureTutorialSkip}
           />
           <SequentialOnboardingOverlay
             step={seqOnboardingStep}
-            visible={isSeqOnboardingVisible && gameState === GameState.MENU}
+            visible={
+              isSeqOnboardingVisible
+              && gameState === GameState.MENU
+              && activeOnboardingStep === 'none'
+              && !shouldSuppressGameModeTutorial
+            }
             onAdvance={handleSeqOnboardingAdvance}
             onOpenFeature={handleSeqOpenFeature}
             index={seqOnboardingIndex}

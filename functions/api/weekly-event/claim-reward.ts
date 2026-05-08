@@ -10,23 +10,17 @@
  */
 
 import { hashInstallId } from '../../utils/hash';
-import { checkRateLimit, getClientIp } from '../../utils/rateLimit';
+import { checkConfiguredRateLimit, getClientIp, RATE_LIMITS } from '../../utils/rateLimit';
 import { buildCorsHeaders, createJsonResponse, isCrossSiteMutation, isTrustedRequestOrigin } from '../../utils/cors';
 import { getPreviousEventId, REWARD_FRAGMENTS } from '../../utils/eventSchedule';
 import { ensureWeeklyEventSchema } from '../../utils/weeklyEventSchema';
+import { isNativeAppRequest } from '../../utils/platform';
 
 interface Env {
   DB: D1Database;
   ANALYTICS_HASH_SALT?: string;
 }
 
-
-/** User-Agent 기반 네이티브 앱 판정 (season-rewards/claim.ts와 동일 로직) */
-function isNativeAppRequest(request: Request): boolean {
-  const ua = (request.headers.get('User-Agent') ?? '').toLowerCase();
-  return ua.includes('capacitor') || ua.includes('slidemino')
-    || (ua.includes('mobile') && (ua.includes('wv') || ua.includes('crosswalk')));
-}
 
 function jsonResponse(body: Record<string, unknown>, status: number, headers: Record<string, string>): Response {
   return new Response(JSON.stringify(body), {
@@ -53,7 +47,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
     // Rate limiting (30 req / 60s)
     const clientIP = getClientIp(request);
-    const { allowed } = await checkRateLimit(env.DB, `event-claim:${clientIP}`, 30, 60);
+    const { allowed } = await checkConfiguredRateLimit(env.DB, `event-claim:${clientIP}`, RATE_LIMITS.WEEKLY_EVENT_CLAIM);
     if (!allowed) {
       return jsonResponse({ success: false, error: 'Too many requests' }, 429, corsHeaders);
     }
@@ -74,6 +68,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const installId = typeof data.installId === 'string'
       && data.installId.length >= 8
       && data.installId.length <= 128
+      && /^[\x20-\x7E]+$/.test(data.installId)
       ? data.installId : null;
     if (!installId) {
       return jsonResponse({ success: false, error: 'Invalid installId' }, 400, corsHeaders);
@@ -89,14 +84,26 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // 서버가 독립적으로 이전 주 이벤트 ID 계산 (클라이언트 입력을 신뢰하지 않음)
     const prevEventId = getPreviousEventId();
 
-    // 1. 이미 수령했는지 확인 (멱등성: 중복 요청 시 안전하게 처리)
-    // score/moves/duration도 함께 조회 — 순위 계산에 재사용 (correlated subquery 제거)
-    const existing = await env.DB.prepare(
+    // 1. 트랜잭션: SELECT + UPDATE (레이스 방지)
+    const now = Date.now();
+    const selectStmt = env.DB.prepare(
       `SELECT score, moves, duration, reward_claimed_at FROM event_rankings
        WHERE event_id = ? AND install_id_hash = ?`
-    ).bind(prevEventId, installIdHash).first<{ score: number; moves: number; duration: number; reward_claimed_at: number | null }>();
+    ).bind(prevEventId, installIdHash);
 
-    if (!existing) {
+    const updateStmt = env.DB.prepare(
+      `UPDATE event_rankings
+       SET reward_claimed_at = ?
+       WHERE event_id = ? AND install_id_hash = ? AND reward_claimed_at IS NULL`
+    ).bind(now, prevEventId, installIdHash);
+
+    const [selectResult, updateResult] = await env.DB.batch([selectStmt, updateStmt]);
+
+    // SELECT 결과 확인
+    const existingRow = selectResult.results?.[0] as
+      { score: number; moves: number; duration: number; reward_claimed_at: number | null } | undefined;
+
+    if (!existingRow) {
       // 이전 이벤트에 참여 기록 없음
       return jsonResponse({
         success: false,
@@ -105,7 +112,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }, 404, corsHeaders);
     }
 
-    if (existing.reward_claimed_at !== null) {
+    if (existingRow.reward_claimed_at !== null) {
       // 이미 수령 완료 — 에러가 아닌 멱등 성공으로 처리
       return jsonResponse({
         success: true,
@@ -123,9 +130,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
            OR (score = ? AND moves = ? AND duration < ?))`
     ).bind(
       prevEventId,
-      existing.score,
-      existing.score, existing.moves,
-      existing.score, existing.moves, existing.duration,
+      existingRow.score,
+      existingRow.score, existingRow.moves,
+      existingRow.score, existingRow.moves, existingRow.duration,
     ).first<{ rank: number }>();
 
     const rank = rankResult?.rank ?? 999;
@@ -140,16 +147,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       fragments = REWARD_FRAGMENTS.PARTICIPATION;
     }
 
-    // 4. 수령 처리 (원자적 UPDATE — reward_claimed_at IS NULL 조건으로 동시 요청 차단)
-    const now = Date.now();
-    const updateResult = await env.DB.prepare(
-      `UPDATE event_rankings
-       SET reward_claimed_at = ?
-       WHERE event_id = ? AND install_id_hash = ? AND reward_claimed_at IS NULL`
-    ).bind(now, prevEventId, installIdHash).run();
-
+    // UPDATE 결과 확인: 동시 요청으로 이미 수령됨
     if (!updateResult.meta?.changes) {
-      // 동시 요청으로 이미 수령됨
       return jsonResponse({
         success: true,
         fragments: 0,

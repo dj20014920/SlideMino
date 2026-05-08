@@ -97,7 +97,8 @@
     "sequential": {
       "leaderboard": "Check rankings and try weekly events",
       "dailyActivities": "Complete missions, check attendance, and level up",
-      "gameResume": "Use the ▶ button to resume your game"
+      "gameResume": "Use the ▶ button to resume your game",
+      "weeklyEvent": "Weekly event progress is saved separately, so your normal game stays safe"
     }
   },
   "tutorial": {
@@ -157,7 +158,8 @@
     "remainingInline": "{{remaining}} left",
     "separateSessionTitle": "Weekly event progress is separate",
     "separateSessionBody": "Starting the weekly event will not overwrite your normal game. Normal games and weekly event games are saved separately, so you can come back to each one later.",
-    "newEventBanner": "New %name%! Your normal game is safe",
+    "newEventBanner": "This week's event: {{name}}",
+    "newEventBannerSub": "Tap to challenge the event rankings",
     "rewardBanner": "Last week's event reward is waiting! Tap to check",
     "bannerDismiss": "Dismiss",
     "time": {

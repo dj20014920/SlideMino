@@ -16,7 +16,7 @@ import {
   validateComboCount,
 } from '../../utils/validation';
 import { hashInstallId } from '../../utils/hash';
-import { checkRateLimit, getClientIp } from '../../utils/rateLimit';
+import { checkConfiguredRateLimit, getClientIp, RATE_LIMITS } from '../../utils/rateLimit';
 import { buildCorsHeaders, createJsonResponse, isCrossSiteMutation, isTrustedRequestOrigin } from '../../utils/cors';
 import { getCurrentEventId } from '../../utils/eventSchedule';
 import { ensureWeeklyEventSchema } from '../../utils/weeklyEventSchema';
@@ -76,6 +76,10 @@ type EventBestRow = {
   duration: number;
 };
 
+type EventAttemptInsertRow = {
+  attempt_number: number;
+};
+
 const fetchStoredBestForEvent = async (
   env: Env,
   eventId: string,
@@ -111,6 +115,42 @@ const fetchRankAndTotalForEvent = async (
   };
 };
 
+const insertEventAttempt = async (
+  env: Env,
+  eventId: string,
+  installIdHash: string,
+  score: number,
+  moves: number,
+  duration: number,
+  now: number,
+): Promise<number | null> => {
+  const row = await env.DB.prepare(
+    `INSERT OR IGNORE INTO event_attempts (
+       event_id, install_id_hash, attempt_number, score, moves, duration, started_at, submitted_at
+     )
+     SELECT ?, ?, COALESCE(MAX(attempt_number), 0) + 1, ?, ?, ?, ?, ?
+     FROM event_attempts
+     WHERE event_id = ? AND install_id_hash = ?
+     HAVING COUNT(*) < 3 AND COALESCE(MAX(attempt_number), 0) < 3
+     RETURNING attempt_number`
+  ).bind(
+    eventId,
+    installIdHash,
+    score,
+    moves,
+    duration,
+    now - (duration * 1000),
+    now,
+    eventId,
+    installIdHash
+  ).first<EventAttemptInsertRow>();
+
+  const attemptNumber = Number(row?.attempt_number ?? 0);
+  return Number.isInteger(attemptNumber) && attemptNumber >= 1 && attemptNumber <= 3
+    ? attemptNumber
+    : null;
+};
+
 export const onRequestOptions: PagesFunction<Env> = async (context) => {
   return new Response(null, {
     status: 204,
@@ -130,7 +170,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     // Rate limiting
     const clientIP = getClientIp(request);
-    const { allowed } = await checkRateLimit(env.DB, `event-submit:${clientIP}`, 30, 60);
+    const { allowed } = await checkConfiguredRateLimit(env.DB, `event-submit:${clientIP}`, RATE_LIMITS.WEEKLY_EVENT_SUBMIT);
     if (!allowed) {
       return errorResponse('Too many requests', 429, corsHeaders);
     }
@@ -284,10 +324,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
                    best_score = excluded.best_score,
                    game_mode = excluded.game_mode,
                    updated_at = excluded.updated_at
-                 WHERE excluded.best_combo_multiplier > combo_rankings.best_combo_multiplier
-                    OR (excluded.best_combo_multiplier = combo_rankings.best_combo_multiplier AND excluded.best_combo_count > combo_rankings.best_combo_count)
-                    OR (excluded.best_combo_multiplier = combo_rankings.best_combo_multiplier AND excluded.best_combo_count = combo_rankings.best_combo_count AND excluded.best_score > combo_rankings.best_score)`
-              ).bind(getSeasonBoundaries(new Date(now)).seasonId, installIdHash, name, comboMultiplier, comboCount, score, 'weekly_event', now),
+                  WHERE excluded.best_combo_count > combo_rankings.best_combo_count
+                     OR (excluded.best_combo_count = combo_rankings.best_combo_count AND excluded.best_combo_multiplier > combo_rankings.best_combo_multiplier)
+                     OR (excluded.best_combo_count = combo_rankings.best_combo_count AND excluded.best_combo_multiplier = combo_rankings.best_combo_multiplier AND excluded.best_score > combo_rankings.best_score)`
+               ).bind(getSeasonBoundaries(new Date(now)).seasonId, installIdHash, name, comboMultiplier, comboCount, score, 'weekly_event', now),
             ]
             : []),
         ]);
@@ -338,18 +378,23 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       return errorResponse('Maximum attempts reached (3/3)', 403, corsHeaders);
     }
 
-    // 실제 attempt_number 서버 결정 (클라이언트 값 무시)
-    const serverAttemptNumber = currentCount + 1;
-
     try {
-      // 도전 기록 저장 (INSERT OR IGNORE: 동시 요청으로 인한 UNIQUE 충돌 방지)
-      const insertResult = await env.DB.prepare(
-        `INSERT OR IGNORE INTO event_attempts (event_id, install_id_hash, attempt_number, score, moves, duration, started_at, submitted_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-      ).bind(eventId, installIdHash, serverAttemptNumber, score, moves, duration, now - (duration * 1000), now).run();
+      // 실제 attempt_number는 DB가 현재 커밋된 시도 수를 기준으로 원자적으로 결정한다.
+      let serverAttemptNumber = await insertEventAttempt(env, eventId, installIdHash, score, moves, duration, now);
+      if (serverAttemptNumber === null) {
+        serverAttemptNumber = await insertEventAttempt(env, eventId, installIdHash, score, moves, duration, now);
+      }
 
-      // INSERT OR IGNORE로 인해 실제 삽입이 안 된 경우 (동시 요청 충돌)
-      if (!insertResult.meta?.changes) {
+      if (serverAttemptNumber === null) {
+        const latestCountResult = await env.DB.prepare(
+          `SELECT COUNT(*) as count FROM event_attempts
+           WHERE event_id = ? AND install_id_hash = ?`
+        ).bind(eventId, installIdHash).first();
+        const latestCount = (latestCountResult as { count: number } | null)?.count ?? currentCount;
+        if (latestCount >= 3) {
+          return errorResponse('Maximum attempts reached (3/3)', 403, corsHeaders);
+        }
+
         const best = await fetchStoredBestForEvent(env, eventId, installIdHash);
         if (!best) {
           return errorResponse('Concurrent submission detected, please retry', 409, corsHeaders);
@@ -360,7 +405,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           rank,
           total,
           bestScore: best.score,
-          attemptNumber: currentCount + 1,
+          attemptNumber: Math.max(1, latestCount),
         }), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -411,10 +456,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
                  best_score = excluded.best_score,
                  game_mode = excluded.game_mode,
                  updated_at = excluded.updated_at
-               WHERE excluded.best_combo_multiplier > combo_rankings.best_combo_multiplier
-                  OR (excluded.best_combo_multiplier = combo_rankings.best_combo_multiplier AND excluded.best_combo_count > combo_rankings.best_combo_count)
-                  OR (excluded.best_combo_multiplier = combo_rankings.best_combo_multiplier AND excluded.best_combo_count = combo_rankings.best_combo_count AND excluded.best_score > combo_rankings.best_score)`
-            ).bind(getSeasonBoundaries(new Date(now)).seasonId, installIdHash, name, comboMultiplier, comboCount, score, 'weekly_event', now),
+                WHERE excluded.best_combo_count > combo_rankings.best_combo_count
+                   OR (excluded.best_combo_count = combo_rankings.best_combo_count AND excluded.best_combo_multiplier > combo_rankings.best_combo_multiplier)
+                   OR (excluded.best_combo_count = combo_rankings.best_combo_count AND excluded.best_combo_multiplier = combo_rankings.best_combo_multiplier AND excluded.best_score > combo_rankings.best_score)`
+             ).bind(getSeasonBoundaries(new Date(now)).seasonId, installIdHash, name, comboMultiplier, comboCount, score, 'weekly_event', now),
           ]
           : []),
       ]);

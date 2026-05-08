@@ -4,7 +4,7 @@
  */
 
 import { getSeasonBoundaries, resetSeasonIfNeeded } from '../utils/seasonReset';
-import { checkRateLimit, getClientIp } from '../utils/rateLimit';
+import { checkConfiguredRateLimit, getClientIp, RATE_LIMITS } from '../utils/rateLimit';
 import { validateDifficulty, validateScore } from '../utils/validation';
 import { buildCorsHeaders } from '../utils/cors';
 
@@ -215,7 +215,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         return errorResponse('Too many requests. Please try again later.', 429, corsHeaders);
       }
     } else {
-      const { allowed } = await checkRateLimit(env.DB, `rankings:${clientIP}`, 120, 60);
+      const { allowed } = await checkConfiguredRateLimit(env.DB, `rankings:${clientIP}`, RATE_LIMITS.RANKINGS_READ);
       if (!allowed) {
         return errorResponse('Too many requests. Please try again later.', 429, corsHeaders);
       }
@@ -227,21 +227,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const mode = requestUrl.searchParams.get('mode');
     const boardTab = normalizeBoardTab(requestUrl.searchParams.get('tab'));
     const { seasonId, seasonStartMs, seasonEndMs } = getSeasonBoundaries(new Date());
-
-    await env.DB.prepare(
-      `CREATE TABLE IF NOT EXISTS ranking_member_best (
-         id INTEGER PRIMARY KEY AUTOINCREMENT,
-         season_id TEXT NOT NULL,
-         board_size TEXT NOT NULL,
-         member_key TEXT NOT NULL,
-         name TEXT NOT NULL,
-         best_score INTEGER NOT NULL DEFAULT 0,
-         session_id TEXT NOT NULL,
-         install_id_hash TEXT,
-         platform TEXT,
-         updated_at INTEGER NOT NULL
-       )`
-    ).run();
 
     // mode=live: 현재 점수 기준 실시간 순위 계산 (게임 중 헤더 표시용)
     if (mode === 'live') {

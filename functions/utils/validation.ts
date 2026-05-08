@@ -34,18 +34,12 @@ const MAX_SCORE_PER_SECOND: Record<Difficulty, number> = {
 };
 
 /**
- * XSS 방지: HTML 특수 문자 이스케이프 및 위험한 문자 제거
+ * 저장 전 정제: 출력 컨텍스트별 이스케이프는 렌더링 계층에서 처리한다.
  */
 export function sanitizeString(input: string): string {
   return input
     .replace(/\0/g, '') // NULL byte 제거
-    .replace(/[\x00-\x1F\x7F]/g, '') // 제어 문자 제거 (탭, 개행 등 포함)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;')
-    .replace(/\//g, '&#x2F;');
+    .replace(/[\x00-\x1F\x7F]/g, ''); // 제어 문자 제거 (탭, 개행 등 포함)
 }
 
 /**

@@ -97,7 +97,8 @@
     "sequential": {
       "leaderboard": "ランキングを確認してウィークリーイベントに挑戦しよう",
       "dailyActivities": "ミッション、出席、レベルアップで成長しよう",
-      "gameResume": "▶ボタンで保存したゲームを続けてプレイできます"
+      "gameResume": "▶ボタンで保存したゲームを続けてプレイできます",
+      "weeklyEvent": "ウィークリーイベントは通常ゲームとは別に保存されます。毎週変わるルールに挑戦しましょう"
     }
   },
   "tutorial": {
@@ -157,7 +158,8 @@
     "remainingInline": "残り{{remaining}}回",
     "separateSessionTitle": "通常ゲームとは別で進行します",
     "separateSessionBody": "ウィークリーイベントを始めても通常ゲームの進行はそのまま残ります。通常ゲームとイベントゲームは別々に保存されるので、あとからそれぞれ続きから遊べます。",
-    "newEventBanner": "新しい%name%！通常ゲームはそのまま残ります",
+    "newEventBanner": "今週のイベント：{{name}}",
+    "newEventBannerSub": "タップしてイベントランキングに挑戦",
     "rewardBanner": "先週のイベント報酬があります！タップして確認",
     "bannerDismiss": "閉じる",
     "time": {

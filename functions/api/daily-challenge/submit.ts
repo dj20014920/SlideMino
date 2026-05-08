@@ -15,7 +15,7 @@ import {
   validateComboCount,
 } from '../../utils/validation';
 import { hashInstallId } from '../../utils/hash';
-import { checkRateLimit, getClientIp } from '../../utils/rateLimit';
+import { checkConfiguredRateLimit, getClientIp, RATE_LIMITS } from '../../utils/rateLimit';
 import { buildCorsHeaders, createJsonResponse, isCrossSiteMutation, isTrustedRequestOrigin } from '../../utils/cors';
 import { getSeasonBoundaries } from '../../utils/seasonReset';
 import { ensureComboRankingsSchema } from '../../utils/comboRankingsSchema';
@@ -66,7 +66,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     // Rate limiting
     const clientIP = getClientIp(request);
-    const { allowed } = await checkRateLimit(env.DB, `daily-submit:${clientIP}`, 60, 60);
+    const { allowed } = await checkConfiguredRateLimit(env.DB, `daily-submit:${clientIP}`, RATE_LIMITS.DAILY_SUBMIT);
     if (!allowed) {
       return errorResponse('Too many requests', 429, corsHeaders);
     }
@@ -163,10 +163,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
                  best_score = excluded.best_score,
                  game_mode = excluded.game_mode,
                  updated_at = excluded.updated_at
-               WHERE excluded.best_combo_multiplier > combo_rankings.best_combo_multiplier
-                  OR (excluded.best_combo_multiplier = combo_rankings.best_combo_multiplier AND excluded.best_combo_count > combo_rankings.best_combo_count)
-                  OR (excluded.best_combo_multiplier = combo_rankings.best_combo_multiplier AND excluded.best_combo_count = combo_rankings.best_combo_count AND excluded.best_score > combo_rankings.best_score)`
-            ).bind(getSeasonBoundaries(new Date(now)).seasonId, installIdHash, name, comboMultiplier, comboCount, score, 'daily_challenge', now),
+                WHERE excluded.best_combo_count > combo_rankings.best_combo_count
+                   OR (excluded.best_combo_count = combo_rankings.best_combo_count AND excluded.best_combo_multiplier > combo_rankings.best_combo_multiplier)
+                   OR (excluded.best_combo_count = combo_rankings.best_combo_count AND excluded.best_combo_multiplier = combo_rankings.best_combo_multiplier AND excluded.best_score > combo_rankings.best_score)`
+             ).bind(getSeasonBoundaries(new Date(now)).seasonId, installIdHash, name, comboMultiplier, comboCount, score, 'daily_challenge', now),
           ]
           : []),
       ]);

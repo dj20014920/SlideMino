@@ -65,6 +65,7 @@ android/*.jks
 android/*.keystore
 android/keystore/
 *.apk
+*.aab
 *.aar
 
 # iOS
@@ -167,3 +168,4 @@ oh-my-githubcopilot/
 onboarding-weekly-overlay.png
 
 .github/
+.gstack/

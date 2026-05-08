@@ -246,8 +246,8 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
       const result = await claimEventRewardFromServer();
       if (result.success) {
         setRewardClaimed(true);
-        if (!result.alreadyClaimed && result.fragments > 0 && isNativeApp()) {
-          // 서버가 결정한 조각 수만큼 지급
+        if (!result.alreadyClaimed && result.fragments >= 0 && isNativeApp()) {
+          // 서버가 결정한 조각 수만큼 지급 (0이면 addFragments 내부에서 무시)
           addFragments(result.fragments, 'weekly_event_reward');
         }
       } else {

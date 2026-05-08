@@ -1504,6 +1504,10 @@ const App: React.FC = () => {
     startSequentialOnboardingAfterSkinTutorial();
   }, [refreshMenuOnboardingStep, startSequentialOnboardingAfterSkinTutorial]);
 
+  useEffect(() => {
+    startSequentialOnboardingAfterSkinTutorial();
+  }, [startSequentialOnboardingAfterSkinTutorial]);
+
   const handleSkinFeatureTutorialSkip = useCallback(() => {
     setActiveOnboardingStep('none');
 
@@ -1907,6 +1911,12 @@ const App: React.FC = () => {
     const restoredMaxScore = typeof saved.maxScoreThisRun === 'number' && Number.isFinite(saved.maxScoreThisRun)
       ? Math.max(0, Math.floor(saved.maxScoreThisRun), saved.score)
       : Math.max(0, saved.score);
+    const restoredMaxComboMultiplier = typeof saved.maxComboMultiplier === 'number' && Number.isFinite(saved.maxComboMultiplier)
+      ? Math.max(1.0, Math.min(3.0, saved.maxComboMultiplier))
+      : 1.0;
+    const restoredMaxComboCount = typeof saved.maxComboCount === 'number' && Number.isFinite(saved.maxComboCount)
+      ? Math.max(0, Math.floor(saved.maxComboCount))
+      : 0;
 
     setGameState(saved.gameState);
     setGrid(saved.grid);
@@ -1914,6 +1924,8 @@ const App: React.FC = () => {
     setScore(saved.score);
     maxScoreThisRunRef.current = restoredMaxScore;
     setMaxScoreThisRun(restoredMaxScore);
+    maxComboMultiplierRef.current = restoredMaxComboMultiplier;
+    maxComboCountRef.current = restoredMaxComboCount;
     setPhase(saved.phase);
     setBoardSize(saved.boardSize);
     // 구버전 저장 데이터 정규화: 이어하기/자동복원 모두 동일한 규칙 적용.
@@ -2011,6 +2023,8 @@ const App: React.FC = () => {
       moveCount: moveCountRef.current,
       startedAt: gameStartTimeRef.current,
       activeDurationMs, maxScoreThisRun,
+      maxComboMultiplier: maxComboMultiplierRef.current,
+      maxComboCount: maxComboCountRef.current,
       playerName,
       sessionLockedPlayerName: sessionLockedPlayerName ?? undefined,
       gameMode,
@@ -2032,6 +2046,8 @@ const App: React.FC = () => {
           eventType: eventRuleRef.current.type,
           grid, slots, score, phase, boardSize,
           moveCount: moveCountRef.current,
+          maxComboMultiplier: maxComboMultiplierRef.current,
+          maxComboCount: maxComboCountRef.current,
           eventPlayedMs: getCurrentEventPlayedMs(),
           attemptNumber: eventAttemptNumberRef.current,
           sessionId: sessionIdRef.current,
@@ -2934,8 +2950,12 @@ const App: React.FC = () => {
     setGameState(GameState.PLAYING);
     clearComboMessageQueue();
     resetComboState();
-    maxComboMultiplierRef.current = 1.0;
-    maxComboCountRef.current = 0;
+    maxComboMultiplierRef.current = typeof saved.maxComboMultiplier === 'number' && Number.isFinite(saved.maxComboMultiplier)
+      ? Math.max(1.0, Math.min(3.0, saved.maxComboMultiplier))
+      : 1.0;
+    maxComboCountRef.current = typeof saved.maxComboCount === 'number' && Number.isFinite(saved.maxComboCount)
+      ? Math.max(0, Math.floor(saved.maxComboCount))
+      : 0;
     setCanSkipSlide(false);
     setLastSnapshot(null);
     // 복기 모드 초기화
@@ -3176,9 +3196,11 @@ const App: React.FC = () => {
       openLeaderboardModal();
     } else if (step === 'daily_activities') {
       openMissionModal();
+    } else if (step === 'weekly_event') {
+      openWeeklyEventModal();
     }
     // game_resume: 설명만 제공, 별도 모달 없음
-  }, [openLeaderboardModal, openMissionModal, advanceSequentialStep]);
+  }, [openLeaderboardModal, openMissionModal, openWeeklyEventModal, advanceSequentialStep]);
 
   /** CTA로 연 모달이 닫히면 다음 온보딩 단계 재개 */
   useEffect(() => {
@@ -3218,6 +3240,8 @@ const App: React.FC = () => {
       startedAt: gameStartTimeRef.current ?? Date.now(),
       activeDurationMs: getCurrentActiveDurationMs(),
       maxScoreThisRun,
+      maxComboMultiplier: maxComboMultiplierRef.current,
+      maxComboCount: maxComboCountRef.current,
       sessionId: sessionIdRef.current,
       playerName: playerName || rankingService.getSavedName() || '',
       sessionLockedPlayerName: sessionLockedPlayerName ?? undefined,
@@ -4903,6 +4927,13 @@ const App: React.FC = () => {
     };
 
     const currentLang = normalizeLanguage(i18n.resolvedLanguage ?? i18n.language);
+    const currentWeeklyEvent = getCurrentEvent();
+    const currentWeeklyEventName = t(`game:weeklyEvent.events.${currentWeeklyEvent.eventType}.name` as any);
+    const currentEventBannerTitle = t('game:weeklyEvent.newEventBanner' as any, { name: currentWeeklyEventName });
+    const shouldShowCurrentEventBanner =
+      isSequentialOnboardingCompleted() &&
+      !hasParticipatedInCurrentEvent() &&
+      !isCurrentEventBannerDismissed();
 
     const premiumWeeklyEventButton = (
       <div className={`w-full h-[52px] mb-3 ${premiumMenuRowContainerClassName}`}>
@@ -5361,7 +5392,7 @@ const App: React.FC = () => {
                 </div>
 
                 {/* 주간이벤트 배너 (프리미엄) */}
-                {!hasParticipatedInCurrentEvent() && !isCurrentEventBannerDismissed() && (
+                {shouldShowCurrentEventBanner && (
                   <div
                     onClick={() => { openWeeklyEventModal(); }}
                     className="relative mt-3 mx-1 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 p-2.5 text-white shadow-md cursor-pointer active:scale-[0.98] transition-transform"
@@ -5376,9 +5407,9 @@ const App: React.FC = () => {
                     <div className="flex items-start gap-2 pr-5 relative">
                       <span className="text-base shrink-0">🎯</span>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold leading-tight">{t('game:weeklyEvent.newEventBanner' as any, { name: t(`game:weeklyEvent.events.${(getCurrentEvent() as any).eventType}.name` as any) })}</p>
+                        <p className="text-xs font-semibold leading-tight">{currentEventBannerTitle}</p>
                         <p className="text-[10px] text-white/80 mt-0.5 leading-relaxed">
-                          {t('game:weeklyEvent.separateSessionTitle')}
+                          {t('game:weeklyEvent.newEventBannerSub' as any)}
                         </p>
                       </div>
                     </div>
@@ -5415,7 +5446,7 @@ const App: React.FC = () => {
               {menuActionButtons}
 
               {/* 주간이벤트 배너: 새 이벤트 시작 + 미참여 */}
-              {!hasParticipatedInCurrentEvent() && !isCurrentEventBannerDismissed() && (
+              {shouldShowCurrentEventBanner && (
                 <div
                   onClick={() => { openWeeklyEventModal(); }}
                   className="relative w-full rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 p-3 text-white shadow-md cursor-pointer active:scale-[0.98] transition-transform"
@@ -5430,9 +5461,9 @@ const App: React.FC = () => {
                   <div className="flex items-start gap-2 pr-5">
                     <span className="text-lg shrink-0">🎯</span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold leading-tight">{t('game:weeklyEvent.newEventBanner' as any, { name: t(`game:weeklyEvent.events.${(getCurrentEvent() as any).eventType}.name` as any) })}</p>
+                      <p className="text-sm font-semibold leading-tight">{currentEventBannerTitle}</p>
                       <p className="text-xs text-white/80 mt-0.5 leading-relaxed">
-                        {t('game:weeklyEvent.separateSessionTitle')}
+                        {t('game:weeklyEvent.newEventBannerSub' as any)}
                       </p>
                     </div>
                   </div>
@@ -5600,9 +5631,9 @@ const App: React.FC = () => {
               onProceedWithoutRegister={handleActiveGameExitProceedWithoutRegister}
               onSessionNameLocked={handleActiveGameExitNameLocked}
               onRegisteredAndProceed={handleActiveGameExitRegisteredAndProceed}
-comboMultiplier={maxComboMultiplierRef.current}
-            comboCount={maxComboCountRef.current}
-          />
+              comboMultiplier={maxComboMultiplierRef.current}
+              comboCount={maxComboCountRef.current}
+            />
           )}
 
           <GameModeTutorial
@@ -5628,7 +5659,7 @@ comboMultiplier={maxComboMultiplierRef.current}
             onAdvance={handleSeqOnboardingAdvance}
             onOpenFeature={handleSeqOpenFeature}
             index={seqOnboardingIndex}
-            total={3}
+            total={SEQUENTIAL_STEPS.length}
           />
 
           <StreakInfoModal
@@ -6412,6 +6443,7 @@ comboMultiplier={maxComboMultiplierRef.current}
             onSessionNameLocked={handleActiveGameExitNameLocked}
             onRegisteredAndProceed={handleActiveGameExitRegisteredAndProceed}
             comboMultiplier={maxComboMultiplierRef.current}
+            comboCount={maxComboCountRef.current}
           />
         )}
       </div>

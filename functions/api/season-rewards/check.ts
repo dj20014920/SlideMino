@@ -5,7 +5,7 @@
 
 import { hashInstallId } from '../../utils/hash';
 import { getSeasonBoundaries, resetSeasonIfNeeded } from '../../utils/seasonReset';
-import { checkRateLimit, getClientIp } from '../../utils/rateLimit';
+import { checkConfiguredRateLimit, getClientIp, RATE_LIMITS } from '../../utils/rateLimit';
 import { buildCorsHeaders } from '../../utils/cors';
 
 interface Env {
@@ -27,7 +27,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   try {
     // Rate limiting
     const clientIP = getClientIp(request);
-    const { allowed } = await checkRateLimit(env.DB, `season-check:${clientIP}`, 60, 60);
+    const { allowed } = await checkConfiguredRateLimit(env.DB, `season-check:${clientIP}`, RATE_LIMITS.SEASON_REWARD_CHECK);
     if (!allowed) {
       return new Response(JSON.stringify({ error: 'Too many requests' }), {
         status: 429,

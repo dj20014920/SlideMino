@@ -4,8 +4,9 @@
  */
 
 import { hashInstallId } from '../../utils/hash';
-import { checkRateLimit, getClientIp } from '../../utils/rateLimit';
+import { checkConfiguredRateLimit, getClientIp, RATE_LIMITS } from '../../utils/rateLimit';
 import { buildCorsHeaders, createJsonResponse, isCrossSiteMutation, isTrustedRequestOrigin } from '../../utils/cors';
+import { isNativeAppRequest } from '../../utils/platform';
 
 interface Env {
   DB: D1Database;
@@ -16,14 +17,6 @@ interface ClaimRequest {
   installId?: unknown;
   seasonId?: unknown;
   difficulty?: unknown;
-}
-
-/** User-Agent 기반 네이티브 앱 여부 판정 (클라이언트 입력을 신뢰하지 않음) */
-function isNativeAppRequest(request: Request): boolean {
-  const ua = (request.headers.get('User-Agent') ?? '').toLowerCase();
-  // Capacitor/iOS WebView 또는 Android WebView에서 오는 요청만 네이티브로 인정
-  return ua.includes('capacitor') || ua.includes('slidemino')
-    || (ua.includes('mobile') && (ua.includes('wv') || ua.includes('crosswalk')));
 }
 
 export const onRequestOptions: PagesFunction<Env> = async (context) => {
@@ -44,7 +37,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
     // Rate limiting
     const clientIP = getClientIp(request);
-    const { allowed } = await checkRateLimit(env.DB, `season-claim:${clientIP}`, 30, 60);
+    const { allowed } = await checkConfiguredRateLimit(env.DB, `season-claim:${clientIP}`, RATE_LIMITS.SEASON_REWARD_CLAIM);
     if (!allowed) {
       return new Response(JSON.stringify({ error: 'Too many requests' }), {
         status: 429,
@@ -64,6 +57,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     // 입력 검증
     if (typeof data.installId !== 'string' || data.installId.length < 8) {
+      return new Response(JSON.stringify({ error: 'Invalid installId' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    // printable ASCII + escape sequence 차단
+    if (!/^[\x20-\x7E]+$/.test(data.installId)) {
       return new Response(JSON.stringify({ error: 'Invalid installId' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -100,8 +100,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     const now = Date.now();
 
-    // 보상 수령 처리 (미수령 + 미만료만)
-    const result = await env.DB.prepare(
+    // 트랜잭션: SELECT 선검증 + 조건부 UPDATE (레이스 방지)
+    const selectStmt = env.DB.prepare(
+      `SELECT claimed_at FROM season_rewards
+       WHERE season_id = ? AND difficulty = ? AND install_id_hash = ?`
+    ).bind(data.seasonId, data.difficulty, installHash);
+
+    const updateStmt = env.DB.prepare(
       `UPDATE season_rewards
        SET claimed_at = ?
        WHERE season_id = ?
@@ -109,10 +114,24 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
          AND install_id_hash = ?
          AND claimed_at IS NULL
          AND expires_at > ?`
-    ).bind(now, data.seasonId, data.difficulty, installHash, now).run();
+    ).bind(now, data.seasonId, data.difficulty, installHash, now);
 
-    if (!result.meta.changes || result.meta.changes === 0) {
-      // 이미 수령했거나 만료됨 — 에러가 아닌 성공으로 처리 (멱등성)
+    const [selectResult, updateResult] = await env.DB.batch([selectStmt, updateStmt]);
+
+    // SELECT 결과 확인: 이미 수령된 경우
+    const rows = selectResult.results as { claimed_at: number | null }[] | undefined;
+    if (rows && rows.length > 0 && rows[0].claimed_at !== null) {
+      return new Response(
+        JSON.stringify({ success: true, fragmentAmount: 0, alreadyClaimed: true }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    // UPDATE 결과 확인: 동시 요청으로 인한 레이스
+    if (!updateResult.meta.changes || updateResult.meta.changes === 0) {
       return new Response(
         JSON.stringify({ success: true, fragmentAmount: 0, alreadyClaimed: true }),
         {

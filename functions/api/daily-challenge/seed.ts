@@ -8,7 +8,7 @@
 
 import { sha256Hex } from '../../utils/hash';
 import { buildCorsHeaders } from '../../utils/cors';
-import { checkRateLimit, getClientIp } from '../../utils/rateLimit';
+import { checkConfiguredRateLimit, getClientIp, RATE_LIMITS } from '../../utils/rateLimit';
 
 interface Env {
   DB: D1Database;
@@ -62,7 +62,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   try {
     // Rate limiting
     const clientIP = getClientIp(request);
-    const { allowed } = await checkRateLimit(env.DB, `daily-seed:${clientIP}`, 60, 60);
+    const { allowed } = await checkConfiguredRateLimit(env.DB, `daily-seed:${clientIP}`, RATE_LIMITS.DAILY_SEED);
     if (!allowed) {
       return new Response(JSON.stringify({ error: 'Too many requests' }), {
         status: 429,

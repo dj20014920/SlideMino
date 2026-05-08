@@ -316,6 +316,8 @@ export interface EventGameSaveData {
   phase: string;
   boardSize: BoardSize;
   moveCount: number;
+  maxComboMultiplier?: number;
+  maxComboCount?: number;
   /** 이벤트 타이머: 누적 플레이 시간(ms) */
   eventPlayedMs: number;
   /** 현재 도전 회차 (1, 2, 3) */
@@ -432,7 +434,7 @@ interface PendingEventScore {
   attemptNumber: number;
   levelBadge?: string;
   isIntermediate?: boolean;
-isProgress?: boolean;
+  isProgress?: boolean;
   comboMultiplier?: number;
   comboCount?: number;
   updatedAt: number;
@@ -511,7 +513,7 @@ function mergePendingEventScore(
     duration: best.duration,
     attemptNumber: incoming.attemptNumber,
     levelBadge: incoming.levelBadge ?? existing.levelBadge,
-    comboMultiplier: incoming.comboMultiplier ?? existing.comboMultiplier,
+    comboMultiplier: Math.max(existing.comboMultiplier ?? 1.0, incoming.comboMultiplier ?? 1.0),
     comboCount: Math.max(existing.comboCount ?? 0, incoming.comboCount ?? 0),
     isIntermediate: existing.isIntermediate && incoming.isIntermediate,
     isProgress: (existing.isProgress === true && existing.isIntermediate === true)
@@ -954,7 +956,7 @@ export async function submitEventScore(params: {
   attemptNumber: number;
   levelBadge?: string;
   isIntermediate?: boolean;
-isProgress?: boolean;
+  isProgress?: boolean;
   comboMultiplier?: number;
   comboCount?: number;
 }): Promise<EventSubmitResult> {

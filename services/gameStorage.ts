@@ -51,6 +51,8 @@ export interface SavedGameState {
     startedAt?: number;
     activeDurationMs?: number;
     maxScoreThisRun?: number;
+    maxComboMultiplier?: number;
+    maxComboCount?: number;
     playerName?: string;
     sessionLockedPlayerName?: string;
     /** 게임 모드 (미지정 시 'normal') */
@@ -115,6 +117,12 @@ const parseSavedGameState = (raw: string | null): SavedGameState | null => {
         : Math.max(0, savedAt - startedAt);
     const maxScoreThisRun = typeof parsed.maxScoreThisRun === 'number' && Number.isFinite(parsed.maxScoreThisRun)
         ? Math.max(0, Math.floor(parsed.maxScoreThisRun))
+        : undefined;
+    const maxComboMultiplier = typeof parsed.maxComboMultiplier === 'number' && Number.isFinite(parsed.maxComboMultiplier)
+        ? Math.max(1, Math.min(3, parsed.maxComboMultiplier))
+        : undefined;
+    const maxComboCount = typeof parsed.maxComboCount === 'number' && Number.isFinite(parsed.maxComboCount)
+        ? Math.max(0, Math.floor(parsed.maxComboCount))
         : undefined;
     const playerName = typeof parsed.playerName === 'string' ? parsed.playerName : undefined;
     const sessionLockedPlayerName = typeof parsed.sessionLockedPlayerName === 'string'
@@ -184,6 +192,8 @@ const parseSavedGameState = (raw: string | null): SavedGameState | null => {
         startedAt,
         activeDurationMs,
         maxScoreThisRun,
+        maxComboMultiplier,
+        maxComboCount,
         playerName,
         sessionLockedPlayerName,
         hasUsedRevive,

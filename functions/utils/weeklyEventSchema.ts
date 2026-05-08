@@ -43,11 +43,11 @@ export async function ensureWeeklyEventSchema(env: EventSchemaEnv): Promise<void
     ),
     env.DB.prepare(
       `CREATE TABLE IF NOT EXISTS event_ranking_badges (
-         id INTEGER PRIMARY KEY AUTOINCREMENT,
          event_id TEXT NOT NULL,
          install_id_hash TEXT NOT NULL,
          level_badge TEXT NOT NULL,
-         updated_at INTEGER NOT NULL
+         updated_at INTEGER NOT NULL,
+         PRIMARY KEY (event_id, install_id_hash)
        )`
     ),
   ]);

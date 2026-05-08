@@ -97,7 +97,8 @@
     "sequential": {
       "leaderboard": "랭킹을 확인하고 주간이벤트에 도전하세요",
       "dailyActivities": "미션, 출석체크, 레벨업으로 성장하세요",
-      "gameResume": "▶ 버튼으로 저장된 게임을 이어할 수 있어요"
+      "gameResume": "▶ 버튼으로 저장된 게임을 이어할 수 있어요",
+      "weeklyEvent": "주간 이벤트는 일반 게임과 따로 저장돼요. 매주 바뀌는 규칙에 도전하세요"
     }
   },
   "tutorial": {
@@ -157,7 +158,8 @@
     "remainingInline": "남은 {{remaining}}회",
     "separateSessionTitle": "일반 게임과 따로 진행돼요",
     "separateSessionBody": "주간 이벤트를 시작해도 일반 게임은 그대로 남아 있어요. 일반 게임과 이벤트 게임이 따로 저장돼서, 두 모드를 각각 이어서 플레이할 수 있어요.",
-    "newEventBanner": "새로운 %이름%! 일반 게임은 안전하게 보관돼요",
+    "newEventBanner": "이번 주 이벤트: {{name}}",
+    "newEventBannerSub": "탭해서 이벤트 랭킹에 도전하세요",
     "rewardBanner": "지난 주 이벤트 보상이 있어요! 탭하여 확인하세요",
     "bannerDismiss": "닫기",
     "time": {

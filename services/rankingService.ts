@@ -249,6 +249,7 @@ const mergePendingScore = (
         installId: incoming.installId ?? existing.installId,
         platform: incoming.platform ?? existing.platform,
         levelBadge: incoming.levelBadge ?? existing.levelBadge,
+        comboMultiplier: Math.max(existing.comboMultiplier ?? 1.0, incoming.comboMultiplier ?? 1.0),
         comboCount: Math.max(existing.comboCount ?? 0, incoming.comboCount ?? 0),
         mode: existingMode === 'final' || incomingMode === 'final' ? 'final' : 'progress',
         updatedAt: Date.now(),

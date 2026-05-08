@@ -142,28 +142,7 @@ function getPreviousSeasonBoundaries(now: Date): {
  * rankings GET/POST 시 매번 호출됨
  */
 export async function resetSeasonIfNeeded(env: Env, now: Date = new Date()): Promise<void> {
-  const { seasonStartMs } = getSeasonBoundaries(now);
-
   await ensureRankingMemberBestConflictTarget(env);
-
-  const [legacyLast, memberBestLast] = await Promise.all([
-    env.DB.prepare(
-      'SELECT MAX(updated_at) AS last_updated FROM rankings'
-    ).first<{ last_updated: number | null }>(),
-    env.DB.prepare(
-      'SELECT MAX(updated_at) AS last_updated FROM ranking_member_best'
-    ).first<{ last_updated: number | null }>(),
-  ]);
-
-  const latestUpdatedAt = Math.max(
-    Number(legacyLast?.last_updated ?? 0),
-    Number(memberBestLast?.last_updated ?? 0)
-  );
-
-  // 데이터 없거나, 현재 시즌 시작 이후 데이터면 리셋 불필요
-  if (!latestUpdatedAt || latestUpdatedAt >= seasonStartMs) {
-    return;
-  }
 
   // 이전 시즌 정보
   const prevSeason = getPreviousSeasonBoundaries(now);
@@ -322,15 +301,15 @@ export async function resetSeasonIfNeeded(env: Env, now: Date = new Date()): Pro
     );
   }
 
-  // 4) 랭킹 삭제 (아카이브 + 보상 생성 후)
+  // 4) 직전 시즌 랭킹 삭제 (아카이브 + 보상 생성 후)
   statements.push(
-    env.DB.prepare('DELETE FROM rankings')
+    env.DB.prepare('DELETE FROM rankings WHERE updated_at <= ?').bind(prevSeason.seasonEndMs)
   );
   statements.push(
-    env.DB.prepare('DELETE FROM ranking_member_best')
+    env.DB.prepare('DELETE FROM ranking_member_best WHERE season_id = ?').bind(seasonId)
   );
   statements.push(
-    env.DB.prepare('DELETE FROM combo_rankings')
+    env.DB.prepare('DELETE FROM combo_rankings WHERE season_id = ?').bind(seasonId)
   );
 
   // 원자적 실행: 하나라도 실패하면 전체 롤백

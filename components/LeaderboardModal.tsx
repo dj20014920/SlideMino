@@ -606,9 +606,9 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ open, onClos
                       </div>
                       <div className="text-right">
                         <div className="text-lg font-bold text-purple-600 tabular-nums">
-                          {comboEntry.score.toLocaleString()}
+                          {comboEntry.comboCount.toLocaleString()}{t('modals:leaderboard.comboCount')}
                         </div>
-                        <div className="text-xs text-gray-400">{t('common:labels.pts')}</div>
+                        <div className="text-xs text-gray-400">{t('modals:leaderboard.modeTabs.combo')}</div>
                       </div>
                     </div>
                   );

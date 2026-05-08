@@ -4,7 +4,7 @@
  */
 
 import { getSeasonBoundaries, resetSeasonIfNeeded } from '../utils/seasonReset';
-import { checkRateLimit, getClientIp } from '../utils/rateLimit';
+import { checkConfiguredRateLimit, getClientIp, RATE_LIMITS } from '../utils/rateLimit';
 import { buildCorsHeaders } from '../utils/cors';
 
 interface Env {
@@ -64,7 +64,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         return errorResponse('Too many requests. Please try again later.', 429, corsHeaders);
       }
     } else {
-      const { allowed } = await checkRateLimit(env.DB, `combo-rankings:${clientIP}`, 30, 60);
+      const { allowed } = await checkConfiguredRateLimit(env.DB, `combo-rankings:${clientIP}`, RATE_LIMITS.COMBO_RANKINGS_READ);
       if (!allowed) {
         return errorResponse('Too many requests. Please try again later.', 429, corsHeaders);
       }
@@ -83,7 +83,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       const query = `SELECT install_id_hash, name, best_combo_multiplier, best_combo_count, best_score, game_mode, updated_at
 FROM combo_rankings
 WHERE season_id = ?1
-ORDER BY best_combo_multiplier DESC, best_combo_count DESC, best_score DESC, updated_at ASC
+ORDER BY best_combo_count DESC, best_combo_multiplier DESC, best_score DESC, updated_at ASC
 LIMIT 100`;
 
       const { results } = await env.DB.prepare(query).bind(seasonParam).all<ComboRankingRow>();

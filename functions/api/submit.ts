@@ -16,7 +16,7 @@ import {
 } from '../utils/validation';
 import { getSeasonBoundaries, resetSeasonIfNeeded } from '../utils/seasonReset';
 import { hashInstallId } from '../utils/hash';
-import { checkRateLimit, getClientIp } from '../utils/rateLimit';
+import { checkConfiguredRateLimit, getClientIp, RATE_LIMITS } from '../utils/rateLimit';
 import { buildCorsHeaders, createJsonResponse, isCrossSiteMutation, isTrustedRequestOrigin } from '../utils/cors';
 import { ensureComboRankingsSchema } from '../utils/comboRankingsSchema';
 
@@ -113,7 +113,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         return errorResponse('Too many requests. Please try again later.', 429, corsHeaders);
       }
     } else {
-      const { allowed } = await checkRateLimit(env.DB, `submit:${clientIP}`, 120, 60);
+      const { allowed } = await checkConfiguredRateLimit(env.DB, `submit:${clientIP}`, RATE_LIMITS.SCORE_SUBMIT);
       if (!allowed) {
         return errorResponse('Too many requests. Please try again later.', 429, corsHeaders);
       }
@@ -203,35 +203,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         ? 'ios'
         : 'web';
 
-    // ========== 데이터베이스 저장 (D1 batch: UNIQUE 제약 없이 원자적 동작) ==========
-    // D1 batch()는 단일 트랜잭션으로 실행되어 레이스 컨디션을 방지한다.
-    // UPSERT(ON CONFLICT)를 사용하지 않아 session_id UNIQUE 인덱스가 없어도 동작한다.
+    // ========== 데이터베이스 저장 (D1 batch) ==========
+    // rankings는 session_id 기준 INSERT/UPDATE, 집계 테이블은 명시적 UNIQUE 기준 UPSERT로 갱신한다.
     try {
       const now = Date.now();
       const seasonId = getSeasonBoundaries(new Date(now)).seasonId;
       const memberKey = toMemberKey(installIdHash, sessionId);
 
       await ensureComboRankingsSchema(env);
-
-      await env.DB.prepare(
-        `CREATE TABLE IF NOT EXISTS ranking_member_best (
-           id INTEGER PRIMARY KEY AUTOINCREMENT,
-           season_id TEXT NOT NULL,
-           board_size TEXT NOT NULL,
-           member_key TEXT NOT NULL,
-           name TEXT NOT NULL,
-           best_score INTEGER NOT NULL DEFAULT 0,
-           session_id TEXT NOT NULL,
-           install_id_hash TEXT,
-           platform TEXT,
-           updated_at INTEGER NOT NULL
-         )`
-      ).run();
-
-      await env.DB.prepare(
-        `CREATE UNIQUE INDEX IF NOT EXISTS idx_ranking_member_best_uniq
-         ON ranking_member_best (season_id, board_size, member_key)`
-      ).run();
 
       // 중간 저장 지원 (원자적):
       //   1) session_id 미존재 → INSERT (WHERE NOT EXISTS로 중복 방지)
@@ -270,7 +249,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
              updated_at = excluded.updated_at
            WHERE excluded.best_score > ranking_member_best.best_score`
         ).bind(seasonId, difficulty, memberKey, sanitizedName, score, sessionId, installIdHash, platform, now),
-        ...(comboCount > 0 || comboMultiplier > 1.0
+        ...(installIdHash && (comboCount > 0 || comboMultiplier > 1.0)
           ? [
             env.DB.prepare(
               `INSERT INTO combo_rankings (season_id, install_id_hash, name, best_combo_multiplier, best_combo_count, best_score, game_mode, updated_at)
@@ -282,9 +261,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
                  best_score = excluded.best_score,
                  game_mode = excluded.game_mode,
                  updated_at = excluded.updated_at
-               WHERE excluded.best_combo_multiplier > combo_rankings.best_combo_multiplier
-                  OR (excluded.best_combo_multiplier = combo_rankings.best_combo_multiplier AND excluded.best_combo_count > combo_rankings.best_combo_count)
-                  OR (excluded.best_combo_multiplier = combo_rankings.best_combo_multiplier AND excluded.best_combo_count = combo_rankings.best_combo_count AND excluded.best_score > combo_rankings.best_score)`
+                WHERE excluded.best_combo_count > combo_rankings.best_combo_count
+                   OR (excluded.best_combo_count = combo_rankings.best_combo_count AND excluded.best_combo_multiplier > combo_rankings.best_combo_multiplier)
+                   OR (excluded.best_combo_count = combo_rankings.best_combo_count AND excluded.best_combo_multiplier = combo_rankings.best_combo_multiplier AND excluded.best_score > combo_rankings.best_score)`
             ).bind(seasonId, installIdHash, sanitizedName, comboMultiplier, comboCount, score, 'normal', now),
           ]
           : []),

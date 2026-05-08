@@ -167,6 +167,18 @@ npx wrangler d1 execute slidemino-db --local --file=./schema.sql
 npx wrangler d1 execute slidemino-db --remote --file=./schema.sql
 ```
 
+#### D1 Schema Strategy
+
+- `schema.sql` is the canonical idempotent bootstrap schema for fresh local and remote D1 databases.
+- `migrate.sql` is kept idempotent for existing databases, while API runtime guards such as `ensureWeeklyEventSchema()` and `ensureComboRankingsSchema()` repair small backward-compatible gaps with `CREATE TABLE IF NOT EXISTS`, index creation, and safe cleanup.
+- D1 does not enforce a separate migration runner in this repo yet. For incompatible schema changes, add an explicit migration note and verify both fresh `schema.sql` setup and existing-database runtime guards.
+
+#### Anonymous Install Identity Model
+
+- Rankings, rewards, gifts, and analytics use a client-created install id hashed with `ANALYTICS_HASH_SALT`.
+- This is an anonymous continuity model, not user authentication. Reinstalling the app can create a new install id, and the server cannot prove physical device ownership from the install id alone.
+- Never expose `ANALYTICS_HASH_SALT`; rotating it changes derived hashes and should be treated as an identity migration.
+
 #### Deploy with Wrangler
 
 ```bash

@@ -145,6 +145,7 @@ export async function claimSeasonReward(
     const data = await response.json() as {
       success?: boolean;
       fragmentAmount?: number;
+      alreadyClaimed?: boolean;
     };
 
     const fragments = data.fragmentAmount ?? 0;

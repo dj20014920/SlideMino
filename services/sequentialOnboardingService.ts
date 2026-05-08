@@ -13,7 +13,8 @@ const STORAGE_KEY = 'slidemino.seq_onboarding.v1';
 export type SequentialStep =
   | 'leaderboard'
   | 'daily_activities'
-  | 'game_resume';
+  | 'game_resume'
+  | 'weekly_event';
 
 /** 단계별 타겟 셀렉터와 텍스트 키 */
 export interface SequentialStepConfig {
@@ -27,6 +28,7 @@ export const SEQUENTIAL_STEPS: SequentialStep[] = [
   'leaderboard',
   'daily_activities',
   'game_resume',
+  'weekly_event',
 ];
 
 export const SEQUENTIAL_STEP_CONFIG: Record<SequentialStep, SequentialStepConfig> = {
@@ -44,6 +46,11 @@ export const SEQUENTIAL_STEP_CONFIG: Record<SequentialStep, SequentialStepConfig
     selector: '#continue-btn',
     textKey: 'game:onboarding.sequential.gameResume',
     fallbackText: 'Use the ▶ button to resume your game',
+  },
+  weekly_event: {
+    selector: '#weekly-event-btn, [data-tutorial-anchor="weekly-event-btn"]',
+    textKey: 'game:onboarding.sequential.weeklyEvent',
+    fallbackText: 'Weekly events use separate progress, so your normal game stays safe',
   },
 };
 

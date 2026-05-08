@@ -4,7 +4,7 @@
  */
 import { hashInstallId } from '../../utils/hash';
 import { buildCorsHeaders } from '../../utils/cors';
-import { checkRateLimit, getClientIp } from '../../utils/rateLimit';
+import { checkConfiguredRateLimit, getClientIp, RATE_LIMITS } from '../../utils/rateLimit';
 import { ensureWeeklyEventSchema } from '../../utils/weeklyEventSchema';
 
 interface Env {
@@ -25,7 +25,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   try {
     const clientIP = getClientIp(request);
-    const { allowed } = await checkRateLimit(env.DB, `event-attempts:${clientIP}`, 120, 60);
+    const { allowed } = await checkConfiguredRateLimit(env.DB, `event-attempts:${clientIP}`, RATE_LIMITS.WEEKLY_EVENT_ATTEMPTS);
     if (!allowed) {
       return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
         status: 429,

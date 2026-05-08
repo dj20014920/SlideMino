@@ -7,7 +7,7 @@
  */
 
 import { hashInstallId } from '../../utils/hash';
-import { checkRateLimit, getClientIp } from '../../utils/rateLimit';
+import { checkConfiguredRateLimit, getClientIp, RATE_LIMITS } from '../../utils/rateLimit';
 import { buildCorsHeaders } from '../../utils/cors';
 import { getPreviousEventId, REWARD_FRAGMENTS } from '../../utils/eventSchedule';
 import { ensureWeeklyEventSchema } from '../../utils/weeklyEventSchema';
@@ -38,7 +38,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   try {
     // Rate limiting (60 req / 60s)
     const clientIP = getClientIp(request);
-    const { allowed } = await checkRateLimit(env.DB, `event-reward-status:${clientIP}`, 60, 60);
+    const { allowed } = await checkConfiguredRateLimit(env.DB, `event-reward-status:${clientIP}`, RATE_LIMITS.WEEKLY_EVENT_REWARD_STATUS);
     if (!allowed) {
       return jsonResponse({ error: 'Too many requests' }, 429, corsHeaders);
     }

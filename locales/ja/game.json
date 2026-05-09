@@ -222,6 +222,13 @@
       }
     }
   },
+  "dailyLaunch": {
+    "title": "今日の最初のプレイ！",
+    "description": "ブロック スライドへようこそ！\n今日は何をしますか？",
+    "goToSkinDraw": "スキンを引く",
+    "continueGame": "ゲームを続ける",
+    "goToMissions": "ミッションを確認"
+  },
   "missions": {
     "title": "ミッション",
     "daily": "デイリー",

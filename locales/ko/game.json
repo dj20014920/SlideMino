@@ -222,6 +222,13 @@
       }
     }
   },
+  "dailyLaunch": {
+    "title": "오늘의 첫 플레이!",
+    "description": "블록 슬라이드에 오신 것을 환영합니다!\n오늘은 무엇을 하시겠어요?",
+    "goToSkinDraw": "스킨 뽑으러 가기",
+    "continueGame": "게임 이어하기",
+    "goToMissions": "미션 확인하기"
+  },
   "missions": {
     "title": "미션",
     "daily": "일일 미션",

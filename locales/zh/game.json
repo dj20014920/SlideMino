@@ -222,6 +222,13 @@
       }
     }
   },
+  "dailyLaunch": {
+    "title": "今日首次游玩！",
+    "description": "欢迎来到方块滑动！\n今天想做什么？",
+    "goToSkinDraw": "抽取皮肤",
+    "continueGame": "继续游戏",
+    "goToMissions": "查看任务"
+  },
   "missions": {
     "title": "任务",
     "daily": "每日",

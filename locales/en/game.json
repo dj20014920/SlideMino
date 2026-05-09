@@ -222,6 +222,13 @@
       }
     }
   },
+  "dailyLaunch": {
+    "title": "First Play Today!",
+    "description": "Welcome to Block Slide!\nWhat would you like to do today?",
+    "goToSkinDraw": "Draw a Skin",
+    "continueGame": "Continue Game",
+    "goToMissions": "Check Missions"
+  },
   "missions": {
     "title": "Missions",
     "daily": "Daily",

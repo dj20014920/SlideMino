@@ -30,6 +30,7 @@ type SkinModalProps = {
   onClose: () => void;
   freeDraw?: boolean;
   onFreeDrawUsed?: (consumed: boolean) => void;
+  autoDraw?: boolean;
 };
 
 type SkinSectionKey = 'premium' | 'neon' | 'liquid' | 'mesh' | 'normal';
@@ -112,7 +113,7 @@ const SkinPreviewTile = React.memo<{ value: number; skin: { id?: string; hex: st
   }
 );
 
-export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModalProps) {
+export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }: SkinModalProps) {
   const { t, i18n } = useTranslation();
   useBodyScrollLock(open);
   const {
@@ -418,6 +419,7 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
   // 모달 닫힐 때 무료 뽑기 상태 리셋
   useEffect(() => {
     if (!open) {
+      autoDrawTriggeredRef.current = false;
       freeDrawAutoAttemptedRef.current = false;
       freeDrawInFlightRef.current = false;
       cancelPendingTooltipMeasurement();
@@ -501,6 +503,23 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed }: SkinModal
       },
     });
   }, [skinSettings, addSkin, addFragments]);
+
+  // autoDraw: 모달 열릴 때 자동으로 광고 시청 후 스킨 뽑기 실행
+  // freeDraw가 활성화된 경우(첫 스킨 보상 미수령)에는 autoDraw를 건너뛴다
+  const autoDrawTriggeredRef = useRef(false);
+  useEffect(() => {
+    if (!open || !autoDraw || autoDrawTriggeredRef.current) return;
+    if (freeDraw) return;
+    autoDrawTriggeredRef.current = true;
+
+    const timer = setTimeout(() => {
+      handleDraw();
+    }, 800);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [open, autoDraw, handleDraw]);
 
   // 조각으로 스킨 교환
   const [isPurchasing, setIsPurchasing] = useState(false);

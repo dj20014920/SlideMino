@@ -152,6 +152,27 @@ import {
   generateChallengeSlots,
 } from './services/dailyChallengeService';
 import { WeeklyEventModal } from './components/WeeklyEventModal';
+import DailyLaunchModal, { isFirstLaunchToday, hasEverPlayed, markEverPlayed } from './components/DailyLaunchModal';
+
+// ── 시즌 보상 "이미 확인함" 로컬 플래그 (앱 재시작 시 중복 표시 방지) ──
+const SEEN_SEASON_REWARDS_KEY = 'slidemino_seen_season_rewards';
+
+function markSeasonRewardsSeen(rewards: { season_id: string; difficulty: string }[]): void {
+  try {
+    const seen = new Set(JSON.parse(localStorage.getItem(SEEN_SEASON_REWARDS_KEY) || '[]') as string[]);
+    rewards.forEach(r => seen.add(`${r.season_id}:${r.difficulty}`));
+    localStorage.setItem(SEEN_SEASON_REWARDS_KEY, JSON.stringify([...seen]));
+  } catch { /* ignore */ }
+}
+
+function hasUnseenSeasonRewards(rewards: { season_id: string; difficulty: string }[]): boolean {
+  try {
+    const seen = new Set(JSON.parse(localStorage.getItem(SEEN_SEASON_REWARDS_KEY) || '[]') as string[]);
+    return rewards.some(r => !seen.has(`${r.season_id}:${r.difficulty}`));
+  } catch {
+    return true; // 안전하게 표시
+  }
+}
 import {
   getCurrentEvent,
   generateEventPiece,
@@ -774,6 +795,9 @@ const App: React.FC = () => {
   const premiumRadioGroupClassName = premiumUiObjects.extended.windows.radioGroupClassName;
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
   const [gameOverReason, setGameOverReason] = useState<GameOverDiagnosis | null>(null);
+  const [seasonCheckSeq, setSeasonCheckSeq] = useState(0);
+  const [isSeasonRewardOpen, setIsSeasonRewardOpen] = useState(false);
+  const [seasonRewards, setSeasonRewards] = useState<SeasonReward[]>([]);
   const premiumNavHeightPx = premiumUiObjects.extended.navigation.navHeightPx;
   const [menuBottomNavHeight, setMenuBottomNavHeight] = useState<number>(() =>
     isNative ? getEstimatedBottomNavHeight(isPremiumUiThemeActive, premiumNavHeightPx) : 0
@@ -900,9 +924,14 @@ const App: React.FC = () => {
     checkSeasonRewards().then(result => {
       if (result.rewards.length > 0) {
         setSeasonRewards(result.rewards);
-        openSeasonRewardModal();
+        // 아직 확인하지 않은 보상이 있을 때만 모달 표시
+        if (hasUnseenSeasonRewards(result.rewards)) {
+          openSeasonRewardModal();
+        }
       }
+      setSeasonCheckSeq(1);
     }).catch(() => {
+      setSeasonCheckSeq(1);
       // 오프라인 등 실패 시 무시
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1010,6 +1039,17 @@ const App: React.FC = () => {
     }, 1200);
     return () => clearTimeout(timer);
   }, []);
+
+  // 데일리 첫 실행 모달: 시즌 보상 확인 후 → 시즌 모달 닫힌 후 → 로딩 완료 + MENU + 오늘 첫 실행 + 1회 플레이 이후
+  useEffect(() => {
+    if (isLoading) return;
+    if (gameState !== GameState.MENU) return;
+    if (seasonCheckSeq === 0) return;
+    if (isSeasonRewardOpen) return;
+    if (isFirstLaunchToday() && hasEverPlayed()) {
+      setIsDailyLaunchModalOpen(true);
+    }
+  }, [isLoading, gameState, seasonCheckSeq, isSeasonRewardOpen]);
 
   useEffect(() => {
     if (!isNative || isAppIntoSBuild) {
@@ -1245,8 +1285,7 @@ const App: React.FC = () => {
 
   // 스트릭 + 시즌 보상 상태
   const [isStreakInfoOpen, setIsStreakInfoOpen] = useState(false);
-  const [isSeasonRewardOpen, setIsSeasonRewardOpen] = useState(false);
-  const [seasonRewards, setSeasonRewards] = useState<SeasonReward[]>([]);
+
   const [streakCount, setStreakCount] = useState(() => loadStreakData().currentStreak);
   const [todayAttended, setTodayAttended] = useState(() => isTodayAttended());
   const attendanceToastShownRef = useRef(false);
@@ -1254,6 +1293,8 @@ const App: React.FC = () => {
 
   // ===== 미션 시스템 상태 =====
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false);
+  const [isDailyLaunchModalOpen, setIsDailyLaunchModalOpen] = useState(false);
+  const [skinModalAutoDraw, setSkinModalAutoDraw] = useState(false);
   const [dailyMissionCompleted, setDailyMissionCompleted] = useState(() => getDailyCompletedCount());
   const missionProgressThrottleRef = useRef(0);
   const missionRescheduleDebounceRef = useRef<number | null>(null);
@@ -1995,14 +2036,12 @@ const App: React.FC = () => {
     }
   }, [startEventTimer, resetEventTimer]);
 
-  // 앱 시작 시 저장된 게임 복원
+  // 앱 시작 시 저장된 게임 확인만 (자동 복원하지 않음)
+  // "게임 이어하기" 버튼을 통해 수동 복원 (DailyLaunchModal 또는 메뉴 continue 버튼)
   useEffect(() => {
-    const saved = loadGameState();
-    if (saved) {
-      // 저장된 복구 상태(진행중/게임오버)가 있으면 즉시 복원
-      restoreSavedGame(saved);
-    }
-  }, [restoreSavedGame]);
+    // 저장된 게임 데이터는 localStorage에 유지됨
+    // restoreSavedGame은 사용자 액션 시에만 호출
+  }, []);
 
   const persistRecoverableGameState = useCallback(() => {
     if (gameState !== GameState.PLAYING && gameState !== GameState.GAME_OVER) return;
@@ -2583,6 +2622,7 @@ const App: React.FC = () => {
   };
 
   function startGame(size: BoardSize, sessionName?: string) {
+    markEverPlayed();
     // 새 게임 시작 시 이전 게임 복구 데이터는 폐기한다.
     clearGameState();
     // 일반 모드로 리셋
@@ -2805,6 +2845,7 @@ const App: React.FC = () => {
   // --- 주간 이벤트 시작 ---
 
   function startWeeklyEvent(sessionName?: string) {
+    markEverPlayed();
     const current = getCurrentEvent();
     const rule = current.rule;
     const localAttempts = getLocalAttemptCount();
@@ -2909,6 +2950,7 @@ const App: React.FC = () => {
   }
 
   function continueWeeklyEvent() {
+    markEverPlayed();
     const saved = loadEventGameState();
     if (!saved) return;
 
@@ -3150,6 +3192,32 @@ const App: React.FC = () => {
     trackAnalyticsEvent({ name: 'first_skin_reward_later' });
     setShowFirstSkinRewardModal(false);
   }, []);
+
+  // ── 데일리 첫 실행 모달 핸들러 ──
+  const handleDailyLaunchSkinDraw = useCallback(() => {
+    setIsDailyLaunchModalOpen(false);
+    setSkinModalAutoDraw(true);
+    openSkinModal();
+  }, [openSkinModal]);
+
+  const handleDailyLaunchContinueGame = useCallback(() => {
+    setIsDailyLaunchModalOpen(false);
+    setIsSeasonRewardOpen(false);
+    // 주간 이벤트 우선, 없으면 일반 게임
+    if (hasActiveEventGame()) {
+      continueWeeklyEvent();
+    } else {
+      const saved = loadGameState();
+      if (saved) {
+        restoreSavedGame(saved);
+      }
+    }
+  }, [continueWeeklyEvent, restoreSavedGame]);
+
+  const handleDailyLaunchMissions = useCallback(() => {
+    setIsDailyLaunchModalOpen(false);
+    openMissionModal();
+  }, [openMissionModal]);
 
   // ── 순차 온보딩: MENU 상태에서 pending step 확인 ──
   useEffect(() => {
@@ -5574,11 +5642,13 @@ const App: React.FC = () => {
             open={isSkinOpen}
             onClose={() => {
               setIsSkinOpen(false);
+              setSkinModalAutoDraw(false);
               // 모달 닫힐 때 무료 뽑기 상태 리셋 (재진입 시 pending 상태 기반으로 다시 활성화)
               setSkinModalFreeDraw(false);
               startSequentialOnboardingAfterSkinTutorial();
             }}
             freeDraw={skinModalFreeDraw}
+            autoDraw={skinModalAutoDraw}
             onFreeDrawUsed={(consumed) => {
               const shouldConsumeFirstReward = !isFirstScoreSkinRewardClaimed();
               if (shouldConsumeFirstReward) {
@@ -5596,6 +5666,24 @@ const App: React.FC = () => {
               }
               setSkinModalFreeDraw(false);
             }}
+          />
+
+          <DailyLaunchModal
+            open={isDailyLaunchModalOpen}
+            onClose={() => setIsDailyLaunchModalOpen(false)}
+            onGoToSkinDraw={handleDailyLaunchSkinDraw}
+            onContinueGame={handleDailyLaunchContinueGame}
+            onGoToMissions={handleDailyLaunchMissions}
+            hasActiveGame={hasActiveEventGame() || getActiveNormalGameBoardSize() !== null}
+            isPremiumUiThemeActive={isPremiumUiThemeActive}
+            premiumWindowClassName={premiumWindowClassName}
+            premiumWindowBodyClassName={premiumWindowBodyClassName}
+            premiumTitleBarClassName={premiumTitleBarClassName}
+            premiumTitleBarTextClassName={premiumTitleBarTextClassName}
+            premiumTitleBarControlsClassName={premiumTitleBarControlsClassName}
+            premiumModalWindowClassName={premiumModalWindowClassName}
+            premiumPillButtonClassName={premiumPillButtonClassName}
+            premiumGameButtonClassName={premiumGameButtonClassName}
           />
 
           <LeaderboardModal
@@ -5670,12 +5758,16 @@ const App: React.FC = () => {
           <SeasonRewardModal
             open={isSeasonRewardOpen}
             rewards={seasonRewards}
-            onClose={() => setIsSeasonRewardOpen(false)}
+            onClose={() => {
+              setIsSeasonRewardOpen(false);
+              markSeasonRewardsSeen(seasonRewards);
+            }}
             onClaimAll={async () => {
               const total = await claimAllSeasonRewards(seasonRewards);
               if (total > 0) {
                 showComboMessage(String(t('common:season.rewardClaimed' as any)), 2500);
               }
+              markSeasonRewardsSeen(seasonRewards);
               setSeasonRewards([]);
               setIsSeasonRewardOpen(false);
               return total;

@@ -100,27 +100,23 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     const now = Date.now();
 
-    // 트랜잭션: SELECT 선검증 + 조건부 UPDATE (레이스 방지)
-    const selectStmt = env.DB.prepare(
-      `SELECT claimed_at FROM season_rewards
-       WHERE season_id = ? AND difficulty = ? AND install_id_hash = ?`
-    ).bind(data.seasonId, data.difficulty, installHash);
-
-    const updateStmt = env.DB.prepare(
+    // 단일 UPDATE RETURNING 쿼리: 조건부 수령 + 조각 수 반환을 원자적으로 처리
+    // - claimed_at IS NULL 조건으로 미수령 보상만 수령
+    // - RETURNING fragment_amount로 추가 SELECT 불필요
+    // - batch/트랜잭션 없이 단일 쿼리로 race condition 완벽 방어
+    const result = await env.DB.prepare(
       `UPDATE season_rewards
        SET claimed_at = ?
        WHERE season_id = ?
          AND difficulty = ?
          AND install_id_hash = ?
          AND claimed_at IS NULL
-         AND expires_at > ?`
-    ).bind(now, data.seasonId, data.difficulty, installHash, now);
+         AND expires_at > ?
+       RETURNING fragment_amount`
+    ).bind(now, data.seasonId, data.difficulty, installHash, now).first<{ fragment_amount: number }>();
 
-    const [selectResult, updateResult] = await env.DB.batch([selectStmt, updateStmt]);
-
-    // SELECT 결과 확인: 이미 수령된 경우
-    const rows = selectResult.results as { claimed_at: number | null }[] | undefined;
-    if (rows && rows.length > 0 && rows[0].claimed_at !== null) {
+    if (!result) {
+      // 이미 수령되었거나 조건 불일치 → fragment 0
       return new Response(
         JSON.stringify({ success: true, fragmentAmount: 0, alreadyClaimed: true }),
         {
@@ -129,28 +125,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         }
       );
     }
-
-    // UPDATE 결과 확인: 동시 요청으로 인한 레이스
-    if (!updateResult.meta.changes || updateResult.meta.changes === 0) {
-      return new Response(
-        JSON.stringify({ success: true, fragmentAmount: 0, alreadyClaimed: true }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
-    // 수령한 보상의 조각 수 조회
-    const reward = await env.DB.prepare(
-      `SELECT fragment_amount FROM season_rewards
-       WHERE season_id = ? AND difficulty = ? AND install_id_hash = ?`
-    ).bind(data.seasonId, data.difficulty, installHash).first<{ fragment_amount: number }>();
 
     return new Response(
       JSON.stringify({
         success: true,
-        fragmentAmount: reward?.fragment_amount ?? 0,
+        fragmentAmount: result.fragment_amount,
         alreadyClaimed: false,
       }),
       {

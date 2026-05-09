@@ -175,7 +175,8 @@
     "top2": "🥈 2nd",
     "top3": "🥉 3rd",
     "participant": "Participation",
-    "difficulty": "{{size}}×{{size}}"
+    "difficulty": "{{size}}×{{size}}",
+    "rewardConfirm": "Confirm"
   },
   "badges": {
     "newbie": "Newbie 🌱",

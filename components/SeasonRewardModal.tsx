@@ -1,11 +1,11 @@
 /**
- * 시즌 보상 수령 모달
- * - 앱 시작 시 미수령 보상이 있으면 표시
- * - 난이도별 보상 목록 + 일괄 수령 버튼
+ * 시즌 보상 알림 모달
+ * - 시즌 종료 후 랭킹 보상이 자동 지급되었음을 알림
+ * - 난이도별 보상 목록 + 확인 버튼
  * - 웹 유저는 앱 설치 유도 메시지
  */
 
-import React, { useState } from 'react';
+import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Gift } from 'lucide-react';
 import { isNativeApp } from '../utils/platform';
@@ -16,7 +16,6 @@ import type { SeasonReward } from '../services/seasonService';
 interface SeasonRewardModalProps {
   open: boolean;
   rewards: SeasonReward[];
-  onClaimAll: () => Promise<number>;
   onClose: () => void;
 }
 
@@ -30,15 +29,15 @@ const REWARD_LABEL_MAP: Record<string, string> = {
 export const SeasonRewardModal: React.FC<SeasonRewardModalProps> = ({
   open,
   rewards,
-  onClaimAll,
   onClose,
 }) => {
   const { t } = useTranslation('common');
   useBodyScrollLock(open);
-  const [claiming, setClaiming] = useState(false);
-  const [claimed, setClaimed] = useState(false);
-  const [totalClaimed, setTotalClaimed] = useState(0);
   const { isPremiumUiThemeActive, premiumUiObjects } = useBlockCustomization();
+  const totalFragments = useMemo(
+    () => rewards.reduce((sum, r) => sum + r.fragment_amount, 0),
+    [rewards]
+  );
   const premiumUiModalOverlayClassName = premiumUiObjects.modalOverlayClassName;
   const premiumUiWindowClassName = premiumUiObjects.windowClassName;
   const premiumUiWindowBodyClassName = premiumUiObjects.windowBodyClassName;
@@ -51,15 +50,6 @@ export const SeasonRewardModal: React.FC<SeasonRewardModalProps> = ({
   const isPremiumUi = Boolean(isPremiumUiThemeActive);
 
   if (!open || rewards.length === 0) return null;
-
-  const handleClaim = async () => {
-    if (claiming || claimed) return;
-    setClaiming(true);
-    const total = await onClaimAll();
-    setTotalClaimed(total);
-    setClaimed(true);
-    setClaiming(false);
-  };
 
   const isWeb = !isNativeApp();
 
@@ -119,28 +109,21 @@ export const SeasonRewardModal: React.FC<SeasonRewardModalProps> = ({
             </div>
           )}
 
-          {/* 수령 버튼 (네이티브만) */}
-          {!isWeb && !claimed && (
+          {/* 수령 완료 + 확인 버튼 */}
+          <div className="text-center pt-2">
+            <p className="text-lg font-bold text-emerald-600 mb-1">{t('common:season.rewardClaimed')}</p>
+            <p className="text-sm text-gray-500 mb-4">
+              {String(t('common:season.rewardFragments', { count: totalFragments } as any))}
+            </p>
             <button
-              onClick={handleClaim}
-              disabled={claiming}
+              onClick={onClose}
               className={isPremiumUi
-                ? `w-full py-2 px-3 ${premiumUiMenuButtonClassName} text-sm font-semibold disabled:opacity-70`
-                : 'w-full py-3 bg-gradient-to-r from-amber-400 to-yellow-400 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all disabled:opacity-50'}
+                ? `w-full py-2 px-3 ${premiumUiMenuButtonClassName} text-sm font-semibold`
+                : 'w-full py-3 bg-gradient-to-r from-amber-400 to-yellow-400 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all'}
             >
-              {claiming ? '...' : t('common:season.rewardClaimAll')}
+              {t('common:season.rewardConfirm', '확인')}
             </button>
-          )}
-
-          {/* 수령 완료 */}
-          {claimed && (
-            <div className="text-center py-3">
-              <p className="text-lg font-bold text-emerald-600">{t('common:season.rewardClaimed')}</p>
-              <p className="text-sm text-gray-500">
-                {String(t('common:season.rewardFragments', { count: totalClaimed } as any))}
-              </p>
-            </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

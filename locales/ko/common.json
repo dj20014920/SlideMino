@@ -175,7 +175,8 @@
     "top2": "🥈 2위",
     "top3": "🥉 3위",
     "participant": "참여 보상",
-    "difficulty": "{{size}}×{{size}}"
+    "difficulty": "{{size}}×{{size}}",
+    "rewardConfirm": "확인"
   },
   "badges": {
     "newbie": "뉴비 🌱",

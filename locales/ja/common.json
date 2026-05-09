@@ -175,7 +175,8 @@
     "top2": "🥈 2位",
     "top3": "🥉 3位",
     "participant": "参加報酬",
-    "difficulty": "{{size}}×{{size}}"
+    "difficulty": "{{size}}×{{size}}",
+    "rewardConfirm": "確認"
   },
   "badges": {
     "newbie": "ニュービー 🌱",

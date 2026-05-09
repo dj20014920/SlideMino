@@ -161,19 +161,11 @@ export async function claimSeasonReward(
   }
 }
 
-// 동일 세션 내 중복 수령 방지 Set (세션 ID = season_id:d难度)
-const claimedInSession = new Set<string>();
-
 /** 모든 미수령 보상을 일괄 수령 */
 export async function claimAllSeasonRewards(rewards: SeasonReward[]): Promise<number> {
   let totalFragments = 0;
   for (const reward of rewards) {
-    const key = `${reward.season_id}:d${reward.difficulty}`;
-    if (claimedInSession.has(key)) continue;
     const result = await claimSeasonReward(reward.season_id, reward.difficulty);
-    if (result.fragmentAmount > 0 || result.success) {
-      claimedInSession.add(key);
-    }
     totalFragments += result.fragmentAmount;
   }
   return totalFragments;

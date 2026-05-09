@@ -921,12 +921,16 @@ const App: React.FC = () => {
     }
 
     // 2) 시즌 보상 체크 (네이티브 앱에서만 의미 있지만, 웹에서도 안내 표시)
-    checkSeasonRewards().then(result => {
+    checkSeasonRewards().then(async result => {
       if (result.rewards.length > 0) {
-        setSeasonRewards(result.rewards);
-        // 아직 확인하지 않은 보상이 있을 때만 모달 표시
+        // 아직 확인하지 않은 보상이 있을 때만 진행
         if (hasUnseenSeasonRewards(result.rewards)) {
+          // 자동 수령 (서버에 claimed_at 기록 + 로컬 fragment 추가)
+          await claimAllSeasonRewards(result.rewards);
+          setSeasonRewards(result.rewards);
           openSeasonRewardModal();
+        } else {
+          setSeasonRewards(result.rewards);
         }
       }
       setSeasonCheckSeq(1);
@@ -5761,16 +5765,6 @@ const App: React.FC = () => {
             onClose={() => {
               setIsSeasonRewardOpen(false);
               markSeasonRewardsSeen(seasonRewards);
-            }}
-            onClaimAll={async () => {
-              const total = await claimAllSeasonRewards(seasonRewards);
-              if (total > 0) {
-                showComboMessage(String(t('common:season.rewardClaimed' as any)), 2500);
-              }
-              markSeasonRewardsSeen(seasonRewards);
-              setSeasonRewards([]);
-              setIsSeasonRewardOpen(false);
-              return total;
             }}
           />
 

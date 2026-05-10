@@ -6150,7 +6150,8 @@ const App: React.FC = () => {
             maxWidth: `${gameLayoutProfile.columnWidthPx}px`,
             gap: `${gameLayoutProfile.mainGapPx}px`,
             paddingTop: `${gameLayoutProfile.mainTopPaddingPx}px`,
-            paddingBottom: `${gameLayoutProfile.mainBottomPaddingPx}px`
+            paddingBottom: `${gameLayoutProfile.mainBottomPaddingPx}px`,
+            boxSizing: 'border-box'
           }}
         >
 

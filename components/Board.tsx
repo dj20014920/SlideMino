@@ -953,7 +953,11 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
       const pitchPx = cellPx + BOARD_CELL_GAP_PX;
       const posPx = Array.from({ length: size }, (_, idx) => idx * pitchPx);
       const offsetX = Math.max(0, (innerWidth - inner) / 2);
-      const offsetY = Math.max(0, (innerHeight - inner) / 2);
+      // Grid viewport should always be square (aspect-ratio: 1/1).
+      // If innerHeight > innerWidth, it's a browser/environment bug
+      // (e.g., WKWebView height:100% resolution issue). Force offsetY=0
+      // to prevent the grid from being shifted downward.
+      const offsetY = 0;
 
       setLayout((prev) => {
         if (
@@ -1075,7 +1079,8 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
       <div
         ref={gridViewportRef}
         data-board-grid-viewport="true"
-        className={`relative w-full h-full ${useGalaxyPhaseSyncClass ? 'explore-galaxy-phase-sync' : ''}`}
+        className={`relative w-full ${useGalaxyPhaseSyncClass ? 'explore-galaxy-phase-sync' : ''}`}
+        style={{ aspectRatio: '1 / 1' }}
       >
         <style>{`
           @keyframes reviveBreakFade {

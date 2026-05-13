@@ -35,7 +35,7 @@ import {
   type CurrentEventInfo,
   type EventRankingEntry,
 } from '../services/weeklyEventService';
-import { addFragments } from '../services/skinService';
+import { addFragmentsPersisted } from '../services/skinService';
 import { isNativeApp } from '../utils/platform';
 import { weeklyEventAttemptAdService } from '../services/weeklyEventAttemptAdService';
 import { getLevelBadgeById } from '../services/xpLevelService';
@@ -246,9 +246,9 @@ export const WeeklyEventModal: React.FC<WeeklyEventModalProps> = ({
       const result = await claimEventRewardFromServer();
       if (result.success) {
         setRewardClaimed(true);
-        if (!result.alreadyClaimed && result.fragments >= 0 && isNativeApp()) {
-          // 서버가 결정한 조각 수만큼 지급 (0이면 addFragments 내부에서 무시)
-          addFragments(result.fragments, 'weekly_event_reward');
+        if (!result.alreadyClaimed && result.fragments > 0 && isNativeApp()) {
+          // 서버가 결정한 조각 수만큼 저장 성공 기준으로 지급
+          addFragmentsPersisted(result.fragments, 'weekly_event_reward');
         }
       } else {
         // 서버 에러 / 네트워크 오류 — 재시도 가능하도록 에러 메시지 표시

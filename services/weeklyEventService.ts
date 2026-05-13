@@ -922,7 +922,7 @@ export interface EventClaimResult {
 /**
  * 서버에 이전 주 이벤트 참여 보상 수령을 요청한다.
  * 서버가 참여 여부·순위·중복 여부를 모두 검증하고, 지급할 조각 수를 결정한다.
- * 클라이언트는 서버 응답의 fragments 값만큼 addFragments()를 호출한다.
+ * 클라이언트는 서버 응답의 fragments 값만큼 로컬 스킨 설정에 영속 반영한다.
  */
 export async function claimEventRewardFromServer(): Promise<EventClaimResult> {
   try {

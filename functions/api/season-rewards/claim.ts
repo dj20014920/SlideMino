@@ -82,7 +82,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // 웹 유저는 스킨 조각 보상 수령 불가 (서버측 UA 기반 판정 — 클라이언트 입력 불신)
+    // 웹 유저는 스킨 조각 보상 수령 불가 (서버측 Origin/UA 기반 판정 — 클라이언트 입력 불신)
     if (!isNativeAppRequest(request)) {
       return new Response(JSON.stringify({ error: 'Web users cannot claim skin fragment rewards' }), {
         status: 403,

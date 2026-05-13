@@ -3,7 +3,7 @@ import type { PremiumUiThemeId } from '../../types';
 import { resolveActiveSkinModule } from './registry';
 import type { SkinModuleFeatures } from './contracts';
 
-type RuntimeFamilyId = 'default' | 'win98' | 'explore_galaxy' | 'pixelblast_void' | 'neon_cortex';
+type RuntimeFamilyId = 'default' | 'win98' | 'explore_galaxy' | 'pixelblast_void';
 type DeepPartial<T> = {
   [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
 };
@@ -60,7 +60,7 @@ export type PremiumSkinRuntimeProfile = {
   context: {
     enableGalaxyDragRepulsion: boolean;
   };
-  backgroundMode: 'none' | 'galaxy' | 'pixelblast' | 'neon_cortex';
+  backgroundMode: 'none' | 'galaxy' | 'pixelblast';
 };
 
 const DEFAULT_PIXELBLAST_PREVIEW_STYLE: CSSProperties = {
@@ -115,23 +115,6 @@ const DEFAULT_RUNTIME_PROFILE: PremiumSkinRuntimeProfile = {
 const RUNTIME_OVERRIDES: Record<RuntimeFamilyId, DeepPartial<PremiumSkinRuntimeProfile>> = {
   default: {},
   win98: {},
-  neon_cortex: {
-    family: 'neon_cortex',
-    app: {
-      slotVisibility: {
-        idleClassName: 'opacity-100',
-        swipeClassName: 'opacity-60 saturate-150 blur-[0.5px]',
-        animatingClassName: 'opacity-50 saturate-200',
-      },
-    },
-    board: {
-      ghost: {
-        validStyle: { backgroundColor: 'rgba(0, 229, 255, 0.12)', borderColor: 'rgba(0, 229, 255, 0.5)' },
-        invalidStyle: { backgroundColor: 'rgba(255, 0, 64, 0.12)', borderColor: 'rgba(255, 0, 64, 0.5)' },
-      },
-    },
-    backgroundMode: 'neon_cortex',
-  },
   explore_galaxy: {
     family: 'explore_galaxy',
     board: {
@@ -176,9 +159,7 @@ const resolveRuntimeFamily = (
 ): RuntimeFamilyId => {
   if (themeId === 'retro_windows_98') return 'win98';
   if (themeId === 'explore_galaxy') return 'explore_galaxy';
-  if (themeId === 'neon_cortex') return 'neon_cortex';
   if (themeId === 'pixelblast_void') return 'pixelblast_void';
-  if (skinId === 'skin_digital_neon_cortex') return 'neon_cortex';
   if (skinId === 'skin_digital_pixelblast_void') return 'pixelblast_void';
   if (skinId === 'skin_digital_explore_galaxy') return 'explore_galaxy';
   if (skinId === 'skin_digital_win98') return 'win98';

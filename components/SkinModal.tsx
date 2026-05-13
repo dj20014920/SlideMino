@@ -35,16 +35,14 @@ type SkinModalProps = {
 
 type SkinSectionKey = 'premium' | 'neon' | 'liquid' | 'mesh' | 'normal';
 const EXPLORE_GALAXY_SKIN_ID = 'skin_digital_explore_galaxy';
-const NEON_CORTEX_SKIN_ID = 'skin_digital_neon_cortex';
 const PIXELBLAST_SKIN_ID = 'skin_digital_pixelblast_void';
 const SKIN_SWATCH_GRID_CLASS_NAME = 'grid grid-cols-6 gap-2.5';
 const SKIN_TUTORIAL_ANCHOR_INSET_PX = 1;
 const getSkinItemTargetId = (skinId: string): string => `skin-item-${skinId}`;
 let drawButtonGuideShownInSession = false;
 
-const getThemeMaskVariant = (skinId?: string | null): 'neon' | 'pixelblast' | null => {
+const getThemeMaskVariant = (skinId?: string | null): 'pixelblast' | null => {
   if (!skinId) return null;
-  if (skinId === NEON_CORTEX_SKIN_ID) return 'neon';
   if (skinId === PIXELBLAST_SKIN_ID) return 'pixelblast';
   return null;
 };

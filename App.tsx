@@ -430,7 +430,7 @@ const VIEWPORT_HEIGHT_DROP_GUARD_RATIO = 0.18;
 const VIEWPORT_HEIGHT_DROP_GUARD_MAX_WIDTH_SHIFT_PX = 24;
 const VIEWPORT_HEIGHT_DROP_GUARD_REAPPLY_DELAY_MS = 80;
 const CHROME_SPIKE_GUARD_STEP_PX = 36;
-const LIGHT_SYSTEM_BAR_CONTENT_FAMILIES = new Set(['explore_galaxy', 'pixelblast_void', 'neon_cortex']);
+const LIGHT_SYSTEM_BAR_CONTENT_FAMILIES = new Set(['explore_galaxy', 'pixelblast_void']);
 
 const getStableGameFooterReservePx = (nativeSafeBottomPx: number): number => (
   STABLE_BANNER_RESERVE_PX + Math.max(0, Math.round(nativeSafeBottomPx))

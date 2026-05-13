@@ -19,7 +19,6 @@ const NAME_LABELS: Record<
     retroWindows98: string;
     mineralMarble: string;
     watercolor: string;
-    neonCortex: string;
     pixelBlast: string;
     exploreGalaxy: string;
   }
@@ -31,7 +30,6 @@ const NAME_LABELS: Record<
     retroWindows98: '레트로 윈도우 98',
     mineralMarble: '미네랄 마블',
     watercolor: '워터컬러',
-    neonCortex: '네온 코텍스',
     pixelBlast: '픽셀 블라스트',
     exploreGalaxy: '은하 탐험',
   },
@@ -42,7 +40,6 @@ const NAME_LABELS: Record<
     retroWindows98: 'Retro Windows 98',
     mineralMarble: 'Mineral Marble',
     watercolor: 'Watercolor',
-    neonCortex: 'Neon Cortex',
     pixelBlast: 'Pixel Blast',
     exploreGalaxy: 'Explore Galaxy',
   },
@@ -53,7 +50,6 @@ const NAME_LABELS: Record<
     retroWindows98: 'レトロ Windows 98',
     mineralMarble: 'ミネラルマーブル',
     watercolor: 'ウォーターカラー',
-    neonCortex: 'ネオンコーテックス',
     pixelBlast: 'ピクセルブラスト',
     exploreGalaxy: 'ギャラクシー探検',
   },
@@ -64,7 +60,6 @@ const NAME_LABELS: Record<
     retroWindows98: '复古 Windows 98',
     mineralMarble: '矿物大理石',
     watercolor: '水彩',
-    neonCortex: '霓虹皮层',
     pixelBlast: '像素爆炸',
     exploreGalaxy: '银河探索',
   },
@@ -111,7 +106,6 @@ export const getSkinFallbackDisplayName = (skin: SkinNameInput, locale?: string)
   if (basicIdx !== null) return `${labels.basicColor} ${to2(basicIdx)}`;
 
   if (skin.id === 'skin_digital_win98') return labels.retroWindows98;
-  if (skin.id === 'skin_digital_neon_cortex') return labels.neonCortex;
   if (skin.id === 'skin_digital_pixelblast_void') return labels.pixelBlast;
   if (skin.id === 'skin_digital_explore_galaxy') return labels.exploreGalaxy;
   if (skin.id === 'skin_material_marble') return labels.mineralMarble;

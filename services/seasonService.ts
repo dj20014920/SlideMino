@@ -8,7 +8,7 @@
 import { getApiUrl } from '../utils/apiUrl';
 import { KST_OFFSET_MS } from '../config/constants';
 import { getAnalyticsInstallId } from './analyticsService';
-import { addFragments } from './skinService';
+import { addFragmentsPersisted } from './skinService';
 import { updateServerTimeOffset, getServerAdjustedNow } from './serverTimeService';
 
 // ====== 시즌 보상 타입 ======
@@ -150,9 +150,9 @@ export async function claimSeasonReward(
 
     const fragments = data.fragmentAmount ?? 0;
 
-    // 로컬 스킨 설정에 조각 추가 (이벤트 버스 → Context)
+    // 로컬 스킨 설정에 조각 추가 (저장 성공 후 이벤트 버스 → Context)
     if (fragments > 0) {
-      addFragments(fragments, 'seasonReward');
+      addFragmentsPersisted(fragments, 'seasonReward');
     }
 
     return { success: true, fragmentAmount: fragments };

@@ -65,6 +65,7 @@ interface PendingScore {
     mode?: 'final' | 'progress';
     comboMultiplier?: number;
     comboCount?: number;
+    rulesVersion?: string;
 }
 
 interface PendingScoreQueueEnvelopeV2 {
@@ -75,6 +76,7 @@ interface PendingScoreQueueEnvelopeV2 {
 const STORAGE_KEY_NAME = 'slidemino_player_name';
 const STORAGE_KEY_QUEUE = 'slidemino_pending_scores_v1';
 const PENDING_SCORE_QUEUE_VERSION = 2;
+const SCORE_RULES_VERSION = 'obstacles_v1';
 const LEADERBOARD_ERROR_LOG_COOLDOWN_MS = 60_000;
 // 기본값은 false(오프라인 큐 활성화). 필요 시 빌드 플래그로만 실시간 전용 모드 활성화.
 const REALTIME_RANKING_ONLY = import.meta.env.VITE_REALTIME_RANKING_ONLY === 'true';
@@ -183,6 +185,9 @@ const sanitizePendingScore = (sessionId: string, raw: unknown): PendingScore | n
         comboCount: typeof raw.comboCount === 'number' && Number.isFinite(raw.comboCount) && raw.comboCount >= 0
             ? Math.round(raw.comboCount)
             : 0,
+        rulesVersion: typeof raw.rulesVersion === 'string' && raw.rulesVersion.length > 0
+            ? raw.rulesVersion
+            : SCORE_RULES_VERSION,
     };
 };
 
@@ -251,6 +256,7 @@ const mergePendingScore = (
         levelBadge: incoming.levelBadge ?? existing.levelBadge,
         comboMultiplier: Math.max(existing.comboMultiplier ?? 1.0, incoming.comboMultiplier ?? 1.0),
         comboCount: Math.max(existing.comboCount ?? 0, incoming.comboCount ?? 0),
+        rulesVersion: incoming.rulesVersion ?? existing.rulesVersion ?? SCORE_RULES_VERSION,
         mode: existingMode === 'final' || incomingMode === 'final' ? 'final' : 'progress',
         updatedAt: Date.now(),
     };
@@ -399,7 +405,8 @@ const buildPayload = (
     levelBadge?: string,
     mode: 'final' | 'progress' = 'final',
     comboMultiplier?: number,
-    comboCount?: number
+    comboCount?: number,
+    rulesVersion = SCORE_RULES_VERSION
 ): Omit<PendingScore, 'updatedAt'> => {
     return {
         sessionId,
@@ -415,6 +422,7 @@ const buildPayload = (
         mode,
         comboMultiplier: comboMultiplier ?? 1.0,
         comboCount: comboCount ?? 0,
+        rulesVersion,
     };
 };
 

@@ -10,8 +10,8 @@ import React, {
   useImperativeHandle,
   forwardRef
 } from 'react';
-import { Grid, Piece, Phase, Tile, MergingTile } from '../types';
-import { canPlacePiece } from '../services/gameLogic';
+import { Grid, ObstacleState, Piece, Phase, Tile, MergingTile, PortalEndpoint } from '../types';
+import { canPlacePieceWithObstacles } from '../services/obstacleEngine';
 import { getTileColor, getTileNumberLayout, getSlideAnimationDurationMs, BOARD_CELL_GAP_PX } from '../constants';
 import { useBlockCustomization } from '../context/BlockCustomizationContext';
 import EvervaultTileOverlay from './EvervaultTileOverlay';
@@ -52,7 +52,16 @@ interface BoardProps {
   reviveDestroyEffects?: ReviveDestroyEffect[];
   mergedNumberBurstTileIds?: ReadonlySet<string>;
   mergedNumberBurstByTileId?: Readonly<Record<string, number>>;
+  obstacleState?: ObstacleState;
 }
+
+const EMPTY_OBSTACLE_STATE: ObstacleState = {
+  rulesVersion: 'obstacles_v1',
+  cellObstacles: [],
+  frozenTiles: [],
+  portal: null,
+  spawnMissStreak: 0,
+};
 
 const BackgroundGrid = React.memo<{
   size: number;
@@ -506,6 +515,191 @@ const GhostOverlay = React.memo<{
   );
 });
 
+const CONTAINER_ARROW_BY_DIRECTION: Record<string, string> = {
+  UP: '↑',
+  RIGHT: '→',
+  DOWN: '↓',
+  LEFT: '←',
+};
+
+const getPortalEntryKey = (kind: 'in' | 'out', endpoint: PortalEndpoint): string =>
+  `portal-${kind}-${endpoint.side}-${endpoint.index}`;
+
+const getObstacleVisualKeys = (state: ObstacleState): Set<string> => {
+  const keys = new Set<string>();
+  for (const obstacle of state.cellObstacles) keys.add(`cell-${obstacle.id}`);
+  for (const frozen of state.frozenTiles) keys.add(`ice-${frozen.tileId}`);
+  if (state.portal) {
+    keys.add(getPortalEntryKey('in', state.portal.in));
+    keys.add(getPortalEntryKey('out', state.portal.out));
+  }
+  return keys;
+};
+
+const getPortalMarkerStyle = (
+  endpoint: PortalEndpoint,
+  layout: GridLayout,
+  size: number
+): React.CSSProperties => {
+  const markerSize = Math.max(18, layout.cellPx * 0.42);
+  const outsideGap = Math.max(4, layout.cellPx * 0.12);
+  let x = 0;
+  let y = 0;
+
+  if (endpoint.side === 'LEFT') {
+    x = -markerSize - outsideGap;
+    y = layout.posPx[endpoint.index] + (layout.cellPx - markerSize) / 2;
+  } else if (endpoint.side === 'RIGHT') {
+    x = layout.posPx[size - 1] + layout.cellPx + outsideGap;
+    y = layout.posPx[endpoint.index] + (layout.cellPx - markerSize) / 2;
+  } else if (endpoint.side === 'TOP') {
+    x = layout.posPx[endpoint.index] + (layout.cellPx - markerSize) / 2;
+    y = -markerSize - outsideGap;
+  } else {
+    x = layout.posPx[endpoint.index] + (layout.cellPx - markerSize) / 2;
+    y = layout.posPx[size - 1] + layout.cellPx + outsideGap;
+  }
+
+  return {
+    width: `${markerSize}px`,
+    height: `${markerSize}px`,
+    transform: `translate3d(${x}px, ${y}px, 0)`,
+  };
+};
+
+const ObstacleLayer = React.memo<{
+  grid: Grid;
+  obstacleState: ObstacleState;
+  layout: GridLayout;
+}>(({ grid, obstacleState, layout }) => {
+  const [impactKeys, setImpactKeys] = useState<Set<string>>(() => new Set());
+  const previousVisualKeysRef = useRef<Set<string> | null>(null);
+
+  useEffect(() => {
+    const currentKeys = getObstacleVisualKeys(obstacleState);
+    const previousKeys = previousVisualKeysRef.current;
+    previousVisualKeysRef.current = currentKeys;
+
+    if (!previousKeys) return;
+
+    const enteringKeys = [...currentKeys].filter((key) => !previousKeys.has(key));
+    if (enteringKeys.length === 0) return;
+
+    setImpactKeys(new Set(enteringKeys));
+    const timer = window.setTimeout(() => {
+      setImpactKeys(new Set());
+    }, 680);
+    return () => window.clearTimeout(timer);
+  }, [obstacleState]);
+
+  if (layout.cellPx <= 0) return null;
+
+  const frozenPositions = new Map<string, { x: number; y: number }>();
+  grid.forEach((row, y) => {
+    row.forEach((tile, x) => {
+      if (tile) frozenPositions.set(tile.id, { x, y });
+    });
+  });
+
+  return (
+    <div className="absolute inset-0 z-[25] pointer-events-none overflow-visible" aria-hidden="true">
+      {obstacleState.cellObstacles.map((obstacle) => {
+        const transform = `translate3d(${layout.posPx[obstacle.x]}px, ${layout.posPx[obstacle.y]}px, 0)`;
+        const entryKey = `cell-${obstacle.id}`;
+        const isEntering = impactKeys.has(entryKey);
+        const label = obstacle.kind === 'concrete'
+          ? String(obstacle.hp)
+          : obstacle.kind === 'percent'
+            ? '%'
+            : CONTAINER_ARROW_BY_DIRECTION[obstacle.direction] ?? '?';
+        const className = obstacle.kind === 'concrete'
+          ? 'bg-slate-600 text-white border-slate-300/70 shadow-[inset_0_2px_0_rgba(255,255,255,0.22),0_8px_16px_rgba(15,23,42,0.24)]'
+          : obstacle.kind === 'percent'
+            ? 'bg-rose-500 text-white border-rose-100/80 shadow-[0_0_18px_rgba(244,63,94,0.28)]'
+            : 'bg-emerald-500 text-white border-emerald-100/80 shadow-[0_0_18px_rgba(16,185,129,0.28)]';
+
+        return (
+          <div
+            key={obstacle.id}
+            className="absolute"
+            style={{
+              left: 0,
+              top: 0,
+              width: `${layout.cellPx}px`,
+              height: `${layout.cellPx}px`,
+              transform,
+            }}
+          >
+            <div className={`relative flex h-full w-full items-center justify-center rounded-xl border-2 text-sm font-black ${className} ${isEntering ? 'obstacle-drop-impact' : ''}`}>
+              {isEntering && (
+                <span className="obstacle-impact-ring absolute inset-[-7px] rounded-2xl border-2 border-white/80" />
+              )}
+              <span className="relative z-10">{label}</span>
+            </div>
+          </div>
+        );
+      })}
+
+      {obstacleState.frozenTiles.map((frozen) => {
+        const pos = frozenPositions.get(frozen.tileId);
+        if (!pos) return null;
+        const transform = `translate3d(${layout.posPx[pos.x]}px, ${layout.posPx[pos.y]}px, 0)`;
+        const entryKey = `ice-${frozen.tileId}`;
+        const isEntering = impactKeys.has(entryKey);
+        return (
+          <div
+            key={`ice-${frozen.tileId}`}
+            className="absolute"
+            style={{
+              left: 0,
+              top: 0,
+              width: `${layout.cellPx}px`,
+              height: `${layout.cellPx}px`,
+              transform,
+            }}
+          >
+            <div className={`relative h-full w-full rounded-xl border-2 border-cyan-100/90 bg-cyan-200/20 shadow-[inset_0_0_18px_rgba(207,250,254,0.75),0_0_18px_rgba(34,211,238,0.3)] ${isEntering ? 'obstacle-drop-impact' : ''}`}>
+              {isEntering && (
+                <span className="obstacle-impact-ring absolute inset-[-7px] rounded-2xl border-2 border-cyan-100/85" />
+              )}
+              <span className="absolute right-1 top-1 rounded-full bg-cyan-950/70 px-1 text-[10px] font-bold text-white">
+                {frozen.remainingSwipes}
+              </span>
+            </div>
+          </div>
+        );
+      })}
+
+      {obstacleState.portal && (
+        <>
+          <div
+            className="absolute"
+            style={{ left: 0, top: 0, ...getPortalMarkerStyle(obstacleState.portal.in, layout, grid.length) }}
+          >
+            <div className={`relative flex h-full w-full items-center justify-center rounded-full border-2 border-sky-100 bg-sky-500 text-[9px] font-black text-white shadow-[0_0_18px_rgba(14,165,233,0.48)] ${impactKeys.has(getPortalEntryKey('in', obstacleState.portal.in)) ? 'obstacle-drop-impact' : ''}`}>
+              {impactKeys.has(getPortalEntryKey('in', obstacleState.portal.in)) && (
+                <span className="obstacle-impact-ring absolute inset-[-7px] rounded-full border-2 border-sky-100/85" />
+              )}
+              <span className="relative z-10">IN</span>
+            </div>
+          </div>
+          <div
+            className="absolute"
+            style={{ left: 0, top: 0, ...getPortalMarkerStyle(obstacleState.portal.out, layout, grid.length) }}
+          >
+            <div className={`relative flex h-full w-full items-center justify-center rounded-full border-2 border-amber-100 bg-amber-500 text-[9px] font-black text-white shadow-[0_0_18px_rgba(245,158,11,0.48)] ${impactKeys.has(getPortalEntryKey('out', obstacleState.portal.out)) ? 'obstacle-drop-impact' : ''}`}>
+              {impactKeys.has(getPortalEntryKey('out', obstacleState.portal.out)) && (
+                <span className="obstacle-impact-ring absolute inset-[-7px] rounded-full border-2 border-amber-100/85" />
+              )}
+              <span className="relative z-10">OUT</span>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+});
+
 export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Board({
   grid,
   activePiece,
@@ -522,6 +716,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
   reviveDestroyEffects = EMPTY_REVIVE_DESTROY_EFFECTS,
   mergedNumberBurstTileIds,
   mergedNumberBurstByTileId,
+  obstacleState = EMPTY_OBSTACLE_STATE,
 }, ref) {
   const baseBoardPx = 420;
   const resolvedScale = boardScale ?? 1;
@@ -1016,13 +1211,13 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
     if (readonly || !activePiece || !hoverLocation) return null;
 
     const { x, y } = hoverLocation;
-    const isValid = canPlacePiece(grid, activePiece, x, y);
+    const isValid = canPlacePieceWithObstacles(grid, obstacleState, activePiece, x, y);
 
     return {
       cells: activePiece.cells.map(c => ({ x: x + c.x, y: y + c.y })),
       isValid
     };
-  }, [readonly, grid, activePiece, hoverLocation]);
+  }, [readonly, grid, obstacleState, activePiece, hoverLocation]);
 
   // Phase별 보드 테두리 스타일
   const boardBorderStyle = isPremiumUiThemeActive
@@ -1040,7 +1235,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
         className={`
         relative ${premiumUiBoardPaddingClassName} ${isPremiumUiThemeActive ? premiumUiBoardShellClassName : ''}
         ${isPremiumUiThemeActive ? '' : 'bg-white/40'}
-        ${isPremiumUiThemeActive ? '' : 'rounded-3xl'} select-none overflow-hidden
+        ${isPremiumUiThemeActive ? '' : 'rounded-3xl'} select-none overflow-visible
         shadow-lg transition-shadow duration-200 ease-out
         ${boardBorderStyle}
         ${readonly ? 'pointer-events-none' : ''}
@@ -1092,6 +1287,55 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
             40% { opacity: 0.8; transform: scale(1.02); }
             100% { opacity: 0; transform: scale(1); }
           }
+          @keyframes obstacleDropImpact {
+            0% {
+              opacity: 0;
+              transform: translate3d(0, -44px, 0) scale(0.9);
+              filter: brightness(1.18) saturate(1.08);
+            }
+            58% {
+              opacity: 1;
+              transform: translate3d(0, 5px, 0) scale(1.05, 0.9);
+              filter: brightness(1.08) saturate(1.04);
+            }
+            76% {
+              transform: translate3d(0, -3px, 0) scale(0.98, 1.04);
+            }
+            100% {
+              opacity: 1;
+              transform: translate3d(0, 0, 0) scale(1);
+              filter: brightness(1) saturate(1);
+            }
+          }
+          @keyframes obstacleImpactRing {
+            0% {
+              opacity: 0.75;
+              transform: scale(0.7);
+            }
+            70% {
+              opacity: 0;
+              transform: scale(1.48);
+            }
+            100% {
+              opacity: 0;
+              transform: scale(1.55);
+            }
+          }
+          .obstacle-drop-impact {
+            animation: obstacleDropImpact 560ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
+            transform-origin: center bottom;
+            will-change: transform, opacity, filter;
+          }
+          .obstacle-impact-ring {
+            animation: obstacleImpactRing 560ms ease-out both;
+            will-change: transform, opacity;
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .obstacle-drop-impact,
+            .obstacle-impact-ring {
+              animation: none;
+            }
+          }
         `}</style>
 
         <div
@@ -1136,7 +1380,14 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
             premiumUiTileNumberClassName={premiumUiTileNumberClassName}
           />
 
-          {/* 4. Revive Destroy FX */}
+          {/* 4. Obstacles and portals */}
+          <ObstacleLayer
+            grid={grid}
+            obstacleState={obstacleState}
+            layout={layout}
+          />
+
+          {/* 5. Revive Destroy FX */}
           <ReviveDestroyLayer
             effects={reviveDestroyEffects}
             layout={layout}
@@ -1146,7 +1397,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
             premiumUiTileNumberClassName={premiumUiTileNumberClassName}
           />
 
-          {/* 5. Ghost Overlay */}
+          {/* 6. Ghost Overlay */}
           {ghostCells && (
             <GhostOverlay
               size={size}

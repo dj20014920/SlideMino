@@ -13,6 +13,9 @@ import {
   ShapeType,
   MergingTile,
   GameMode,
+  ObstacleFeature,
+  ObstacleState,
+  Direction,
   type GameOverDiagnosis,
 } from './types';
 import {
@@ -20,14 +23,25 @@ import {
   generateRandomPiece,
   generateRefreshedSlotPieces,
   getRotatedCells,
-  canPlacePiece,
   placePieceOnGrid,
-  getTurnActionAvailability,
-  slideGrid,
-  hasPossibleMoves,
   diagnoseGameOver,
   type MergedTile,
 } from './services/gameLogic';
+import {
+  buildPlacementGridWithObstacles,
+  canPlacePieceWithObstacles,
+  cloneObstacleState,
+  createEmptyObstacleState,
+  getMaxTileValue,
+  getObstacleSpawnChanceBreakdown,
+  getObstacleStage,
+  getTurnActionAvailabilityWithObstacles,
+  getUnlockedObstacleFeatures,
+  hasPossibleMovesWithObstacles,
+  OBSTACLE_RULES_VERSION,
+  rollObstacleSpawn,
+  slideGridWithObstacles,
+} from './services/obstacleEngine';
 import { Board, type BoardHandle, type ReviveDestroyEffect } from './components/Board';
 import { Slot } from './components/Slot';
 import { BlockCustomizationModal } from './components/BlockCustomizationModal';
@@ -263,6 +277,8 @@ interface GameSnapshot {
   score: number;
   phase: Phase;
   canSkipSlide: boolean;
+  obstacleState: ObstacleState;
+  unlockedObstacleFeatures: ObstacleFeature[];
 }
 
 const REVIVE_DESTROY_COUNT_BY_BOARD_SIZE: Record<BoardSize, number> = {
@@ -306,7 +322,93 @@ const cloneGameSnapshot = (snapshot: GameSnapshot): GameSnapshot => ({
   score: snapshot.score,
   phase: snapshot.phase,
   canSkipSlide: snapshot.canSkipSlide,
+  obstacleState: cloneObstacleState(snapshot.obstacleState),
+  unlockedObstacleFeatures: [...snapshot.unlockedObstacleFeatures],
 });
+
+const OBSTACLE_UNLOCK_COPY: Record<ObstacleFeature, {
+  title: string;
+  summary: string;
+  role: string;
+  clear: string;
+  chanceNote: string;
+}> = {
+  concrete: {
+    title: '콘크리트 블럭이 열렸어요',
+    summary: '부딪히면 길을 막고, 세 번 맞으면 사라져요.',
+    role: '빈칸에 고정 벽처럼 생겨서 숫자 이동을 막아요.',
+    clear: '충돌이 생긴 스와이프마다 내구도가 1 줄고, 0이 되면 깨져요.',
+    chanceNote: '스와이프 뒤 빈칸에 생겨요.',
+  },
+  percent: {
+    title: '% 블럭이 열렸어요',
+    summary: '처음 닿은 숫자를 절반으로 줄이고 사라져요.',
+    role: '부딪힌 숫자만 낮추고, 이미 얻은 점수는 줄이지 않아요.',
+    clear: '한 번 발동하면 바로 사라져요.',
+    chanceNote: '스와이프 뒤 빈칸에 생겨요.',
+  },
+  ice: {
+    title: '얼음 블럭이 열렸어요',
+    summary: '방금 합쳐진 숫자가 3번의 스와이프 동안 멈춰요.',
+    role: '병합된 숫자 위에 바로 얼음이 생겨서 벽처럼 막아요.',
+    clear: '성공한 스와이프를 3번 하면 다시 움직여요.',
+    chanceNote: '병합이 있는 스와이프에서 생겨요.',
+  },
+  portal: {
+    title: '외곽 포탈이 열렸어요',
+    summary: 'IN으로 빠진 숫자가 OUT에서 차례대로 나와요.',
+    role: '보드 밖 가장자리에 IN과 OUT이 한 쌍으로 생겨요.',
+    clear: '포탈은 새 쌍이 더 생기지 않고, 큐에 든 숫자는 안전하게 남아요.',
+    chanceNote: '스와이프 뒤 외곽에 생겨요.',
+  },
+  container: {
+    title: '컨테이너 블럭이 열렸어요',
+    summary: '닿은 숫자를 화살표 방향으로 다시 보내요.',
+    role: '충돌한 숫자들을 순서대로 정해진 방향에 착지시켜요.',
+    clear: '모든 숫자를 안전하게 보낼 수 있을 때만 발동하고 사라져요.',
+    chanceNote: '스와이프 뒤 빈칸에 생겨요.',
+  },
+};
+
+const formatObstacleChance = (chance: number): string => {
+  if (chance <= 0) return '0%';
+  if (chance < 1) return '1% 미만';
+  if (chance < 10) return `${Math.round(chance * 10) / 10}%`;
+  return `${Math.round(chance)}%`;
+};
+
+const ObstacleExampleBlock = ({ feature }: { feature: ObstacleFeature }) => {
+  if (feature === 'portal') {
+    return (
+      <div className="flex h-16 w-16 flex-col items-center justify-center gap-1 rounded-2xl border border-violet-200 bg-violet-50 text-[11px] font-black text-violet-700 shadow-inner">
+        <span className="rounded-full bg-violet-600 px-2 py-0.5 text-white">IN</span>
+        <span className="rounded-full border border-violet-300 bg-white px-2 py-0.5">OUT</span>
+      </div>
+    );
+  }
+
+  const classNameByFeature: Record<Exclude<ObstacleFeature, 'portal'>, string> = {
+    concrete: 'border-slate-500 bg-slate-700 text-white',
+    percent: 'border-rose-300 bg-rose-100 text-rose-700',
+    ice: 'border-cyan-300 bg-cyan-100 text-cyan-800',
+    container: 'border-emerald-300 bg-emerald-100 text-emerald-800',
+  };
+  const labelByFeature: Record<Exclude<ObstacleFeature, 'portal'>, string> = {
+    concrete: '3',
+    percent: '%',
+    ice: '8',
+    container: '→',
+  };
+
+  return (
+    <div className={`relative flex h-16 w-16 items-center justify-center rounded-2xl border-2 text-2xl font-black shadow-inner ${classNameByFeature[feature]}`}>
+      <span className="relative z-10">{labelByFeature[feature]}</span>
+      {feature === 'ice' && (
+        <span className="absolute inset-1 rounded-xl border border-white/70 bg-white/35" />
+      )}
+    </div>
+  );
+};
 
 const countOccupiedTiles = (targetGrid: Grid): number =>
   targetGrid.reduce((sum, row) => {
@@ -1121,6 +1223,10 @@ const App: React.FC = () => {
   }, [isOpeningUpdateStore]);
 
   const [grid, setGrid] = useState<Grid>(createEmptyGrid(8));
+  const [obstacleState, setObstacleState] = useState<ObstacleState>(() => createEmptyObstacleState());
+  const [unlockedObstacleFeatures, setUnlockedObstacleFeatures] = useState<ObstacleFeature[]>([]);
+  const [obstacleUnlockQueue, setObstacleUnlockQueue] = useState<ObstacleFeature[]>([]);
+  const [showObstacleUnlockDetails, setShowObstacleUnlockDetails] = useState(false);
   const [slots, setSlots] = useState<(Piece | null)[]>([null, null, null]);
   const [score, setScore] = useState(0);
   const [maxScoreThisRun, setMaxScoreThisRun] = useState(0);
@@ -1286,6 +1392,23 @@ const App: React.FC = () => {
   const [pendingSeqStep, setPendingSeqStep] = useState<SequentialStep | null>(null);
   const firstSkinRewardTriggeredRef = useRef(false);
   const isFirstSkinRewardInputBlocked = showFirstSkinRewardModal;
+  const activeObstacleUnlock = obstacleUnlockQueue[0] ?? null;
+  const isObstacleUnlockModalOpen = activeObstacleUnlock !== null;
+  const isGameplayInputBlocked = isFirstSkinRewardInputBlocked || isObstacleUnlockModalOpen;
+  const activeObstacleUnlockChance = useMemo(() => {
+    if (!activeObstacleUnlock) return null;
+    return getObstacleSpawnChanceBreakdown({
+      boardSize,
+      score,
+      maxTile: getMaxTileValue(grid),
+      obstacleState,
+      feature: activeObstacleUnlock,
+    });
+  }, [activeObstacleUnlock, boardSize, grid, obstacleState, score]);
+
+  useEffect(() => {
+    setShowObstacleUnlockDetails(false);
+  }, [activeObstacleUnlock]);
 
   // 스트릭 + 시즌 보상 상태
   const [isStreakInfoOpen, setIsStreakInfoOpen] = useState(false);
@@ -1656,6 +1779,7 @@ const App: React.FC = () => {
   const maxScoreThisRunRef = useRef<number>(maxScoreThisRun);
   const boardSizeRef = useRef<BoardSize>(boardSize);
   const gameModeRef = useRef<GameMode>(gameMode);
+  const unlockedObstacleFeaturesRef = useRef<ObstacleFeature[]>(unlockedObstacleFeatures);
   const gameStateRef = useRef<GameState>(gameState);
   const previousGameStateRef = useRef<GameState>(gameState);
 
@@ -1674,6 +1798,10 @@ const App: React.FC = () => {
   useEffect(() => {
     gameModeRef.current = gameMode;
   }, [gameMode]);
+
+  useEffect(() => {
+    unlockedObstacleFeaturesRef.current = unlockedObstacleFeatures;
+  }, [unlockedObstacleFeatures]);
 
   useEffect(() => {
     gameStateRef.current = gameState;
@@ -1963,8 +2091,26 @@ const App: React.FC = () => {
       ? Math.max(0, Math.floor(saved.maxComboCount))
       : 0;
 
+    const restoredObstacleState = cloneObstacleState(saved.obstacleState ?? createEmptyObstacleState());
+    const restoredObstacleStage = getObstacleStage({
+      score: saved.score,
+      maxTile: getMaxTileValue(saved.grid),
+    });
+    const savedUnlockedObstacleFeatures = [...(saved.unlockedObstacleFeatures ?? [])];
+    const legacyObstacleUnlocks = (saved.gameMode ?? 'normal') === 'normal' && saved.obstacleRulesVersion !== OBSTACLE_RULES_VERSION
+      ? getUnlockedObstacleFeatures(restoredObstacleStage).filter((feature) => !savedUnlockedObstacleFeatures.includes(feature))
+      : [];
+    if (legacyObstacleUnlocks.length > 0) {
+      restoredObstacleState.spawnMissStreak = Math.max(restoredObstacleState.spawnMissStreak, Math.min(restoredObstacleStage, 8));
+    }
+    const restoredUnlockedObstacleFeatures = [...savedUnlockedObstacleFeatures, ...legacyObstacleUnlocks];
+    unlockedObstacleFeaturesRef.current = restoredUnlockedObstacleFeatures;
+
     setGameState(saved.gameState);
     setGrid(saved.grid);
+    setObstacleState(restoredObstacleState);
+    setUnlockedObstacleFeatures(restoredUnlockedObstacleFeatures);
+    setObstacleUnlockQueue(legacyObstacleUnlocks);
     setSlots(saved.slots);
     setScore(saved.score);
     maxScoreThisRunRef.current = restoredMaxScore;
@@ -1975,7 +2121,13 @@ const App: React.FC = () => {
     setBoardSize(saved.boardSize);
     // 구버전 저장 데이터 정규화: 이어하기/자동복원 모두 동일한 규칙 적용.
     setCanSkipSlide(false);
-    const restoredSnapshot = saved.lastSnapshot ? cloneGameSnapshot(saved.lastSnapshot) : null;
+    const restoredSnapshot = saved.lastSnapshot ? cloneGameSnapshot({
+      ...saved.lastSnapshot,
+      obstacleState: cloneObstacleState(saved.lastSnapshot.obstacleState ?? restoredObstacleState),
+      unlockedObstacleFeatures: [
+        ...(saved.lastSnapshot.unlockedObstacleFeatures ?? restoredUnlockedObstacleFeatures),
+      ],
+    }) : null;
     setLastSnapshot(restoredSnapshot);
     setUndoRemaining(saved.undoRemaining);
     setBlockRefreshRemaining(saved.blockRefreshRemaining ?? INITIAL_BLOCK_REFRESH_AMOUNT);
@@ -2058,6 +2210,9 @@ const App: React.FC = () => {
     // 모드별 독립 세이브 슬롯에 저장
     const commonState = {
       gameState, grid, slots, score, phase, boardSize, canSkipSlide,
+      obstacleState,
+      unlockedObstacleFeatures,
+      obstacleRulesVersion: OBSTACLE_RULES_VERSION,
       undoRemaining, blockRefreshRemaining, showBlockRefreshAdButton,
       lastSnapshot,
       hasUsedRevive: hasUsedReviveThisRun,
@@ -2114,6 +2269,8 @@ const App: React.FC = () => {
     phase,
     boardSize,
     canSkipSlide,
+    obstacleState,
+    unlockedObstacleFeatures,
     undoRemaining,
     blockRefreshRemaining,
     showBlockRefreshAdButton,
@@ -2662,6 +2819,9 @@ const App: React.FC = () => {
 
     setBoardSize(size);
     setGrid(createEmptyGrid(size));
+    setObstacleState(createEmptyObstacleState());
+    setUnlockedObstacleFeatures([]);
+    setObstacleUnlockQueue([]);
     setSlots([generateRandomPiece(), generateRandomPiece(), generateRandomPiece()]);
     setScore(0);
     maxScoreThisRunRef.current = 0;
@@ -2778,6 +2938,9 @@ const App: React.FC = () => {
 
       setBoardSize(challengeSize);
       setGrid(createEmptyGrid(challengeSize));
+      setObstacleState(createEmptyObstacleState());
+      setUnlockedObstacleFeatures([]);
+      setObstacleUnlockQueue([]);
       setSlots(initialSlots);
       setScore(0);
       maxScoreThisRunRef.current = 0;
@@ -2884,6 +3047,9 @@ const App: React.FC = () => {
 
     setBoardSize(eventSize);
     setGrid(createEmptyGrid(eventSize));
+    setObstacleState(createEmptyObstacleState());
+    setUnlockedObstacleFeatures([]);
+    setObstacleUnlockQueue([]);
     setSlots(initialSlots);
     setScore(0);
     maxScoreThisRunRef.current = 0;
@@ -2982,6 +3148,9 @@ const App: React.FC = () => {
 
     setBoardSize(saved.boardSize);
     setGrid(saved.grid);
+    setObstacleState(createEmptyObstacleState());
+    setUnlockedObstacleFeatures([]);
+    setObstacleUnlockQueue([]);
     setSlots(saved.slots);
     setScore(saved.score);
     maxScoreThisRunRef.current = saved.score;
@@ -3061,7 +3230,9 @@ const App: React.FC = () => {
       slots: slots.map(p => p ? { ...p, cells: [...p.cells] } : null),
       score,
       phase,
-      canSkipSlide
+      canSkipSlide,
+      obstacleState: cloneObstacleState(obstacleState),
+      unlockedObstacleFeatures: [...unlockedObstacleFeatures],
     };
     // Undo용 단일 스냅샷 유지
     setLastSnapshot(snapshot);
@@ -3073,7 +3244,7 @@ const App: React.FC = () => {
       }
       return next;
     });
-  }, [grid, slots, score, phase, canSkipSlide]);
+  }, [grid, slots, score, phase, canSkipSlide, obstacleState, unlockedObstacleFeatures]);
 
   const clearComboMessageQueue = useCallback(() => {
     if (comboMessageTimeoutRef.current) {
@@ -3300,6 +3471,9 @@ const App: React.FC = () => {
       phase,
       boardSize,
       canSkipSlide,
+      obstacleState,
+      unlockedObstacleFeatures,
+      obstacleRulesVersion: OBSTACLE_RULES_VERSION,
       undoRemaining,
       blockRefreshRemaining,
       showBlockRefreshAdButton,
@@ -3360,6 +3534,7 @@ const App: React.FC = () => {
   }, [
     grid, slots, score, phase, boardSize,
     canSkipSlide,
+    obstacleState, unlockedObstacleFeatures,
     undoRemaining, blockRefreshRemaining, showBlockRefreshAdButton,
     lastSnapshot,
     hasUsedReviveThisRun,
@@ -3502,6 +3677,9 @@ const App: React.FC = () => {
     setScore(lastSnapshot.score);
     setPhase(lastSnapshot.phase);
     setCanSkipSlide(lastSnapshot.canSkipSlide);
+    setObstacleState(cloneObstacleState(lastSnapshot.obstacleState));
+    setUnlockedObstacleFeatures([...lastSnapshot.unlockedObstacleFeatures]);
+    setObstacleUnlockQueue([]);
 
     // 사용 횟수 차감 및 스냅샷 초기화 (연속 Undo 방지)
     setUndoRemaining(prev => prev - 1);
@@ -3979,7 +4157,7 @@ const App: React.FC = () => {
 
   // Memoized callback to prevent Slot re-renders
   const handlePointerDown = useCallback((e: React.PointerEvent, piece: Piece, index: number) => {
-    if (isFirstSkinRewardInputBlocked) return;
+    if (isGameplayInputBlocked) return;
     if (draggingPiece) return;
     if (isReviveSelectionMode) return;
     const isSlidePhaseButSkippable = phase === Phase.SLIDE && canSkipSlide;
@@ -4011,7 +4189,7 @@ const App: React.FC = () => {
     applyDragOverlayTransform(e.clientX, e.clientY);
 
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
-  }, [phase, canSkipSlide, draggingPiece, isReviveSelectionMode, readBoardMetrics, applyDragOverlayTransform, isFirstSkinRewardInputBlocked]);
+  }, [phase, canSkipSlide, draggingPiece, isReviveSelectionMode, readBoardMetrics, applyDragOverlayTransform, isGameplayInputBlocked]);
 
   // RAF 기반으로 포인터 이벤트를 1프레임에 1번으로 합쳐서(코얼레싱) 렌더/연산 폭주를 방지
   const rafIdRef = useRef<number | null>(null);
@@ -4138,7 +4316,7 @@ const App: React.FC = () => {
   };
 
   const handleSwipeStart = (e: React.PointerEvent) => {
-    if (isFirstSkinRewardInputBlocked) return;
+    if (isGameplayInputBlocked) return;
     // 슬라이드는 보드 영역에서만 시작하지 않고 전체 화면 허용
     // 단, 버튼 등 상호작용 요소 위에서는 스와이프 시작 방지
     if (isReviveSelectionMode) return;
@@ -4155,7 +4333,7 @@ const App: React.FC = () => {
   };
 
   const handleScreenPointerDown = (e: React.PointerEvent) => {
-    if (isFirstSkinRewardInputBlocked) return;
+    if (isGameplayInputBlocked) return;
     if (isReviveSelectionMode) return;
 
     if (draggingPiece) {
@@ -4188,7 +4366,7 @@ const App: React.FC = () => {
       );
 
       if (hover && boardRef.current) {
-        if (canPlacePiece(grid, draggingPiece, hover.x, hover.y)) {
+        if (canPlacePieceWithObstacles(grid, obstacleState, draggingPiece, hover.x, hover.y)) {
           // Undo를 위해 현재 상태 저장 (배치 전)
           saveSnapshot();
 
@@ -4225,7 +4403,7 @@ const App: React.FC = () => {
           }
           setSlots(newSlots);
 
-          if (hasPossibleMoves(newGrid)) {
+          if (hasPossibleMovesWithObstacles(newGrid, obstacleState)) {
             setPhase(Phase.SLIDE);
           } else {
             setPhase(Phase.PLACE);
@@ -4278,7 +4456,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isFirstSkinRewardInputBlocked) return;
+      if (isGameplayInputBlocked) return;
       if (e.key === 'r' || e.key === 'R') {
         if (draggingPiece) rotateActivePiece();
       }
@@ -4314,11 +4492,49 @@ const App: React.FC = () => {
     draggingPiece,
     rotateActivePiece,
     isReviveSelectionMode,
-    isFirstSkinRewardInputBlocked,
+    isGameplayInputBlocked,
   ]);
 
-  const executeSlide = (dir: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT') => {
-    if (isFirstSkinRewardInputBlocked) return;
+  const queueNewObstacleUnlocks = useCallback((scoreValue: number, maxTileValue: number) => {
+    if (gameModeRef.current !== 'normal') return;
+    const stage = getObstacleStage({ score: scoreValue, maxTile: maxTileValue });
+    const eligibleFeatures = getUnlockedObstacleFeatures(stage);
+    const current = new Set(unlockedObstacleFeaturesRef.current);
+    const newlyUnlocked = eligibleFeatures.filter((feature) => !current.has(feature));
+    if (newlyUnlocked.length === 0) return;
+
+    const nextUnlocked = [...unlockedObstacleFeaturesRef.current, ...newlyUnlocked];
+    unlockedObstacleFeaturesRef.current = nextUnlocked;
+    setUnlockedObstacleFeatures(nextUnlocked);
+    setObstacleUnlockQueue((prev) => [...prev, ...newlyUnlocked]);
+  }, []);
+
+  const finalizeObstacleStateAfterSlide = useCallback((
+    baseGrid: Grid,
+    baseObstacleState: ObstacleState,
+    slideMergedTiles: Array<{ id: string }>,
+    scoreAfterSlide: number
+  ): ObstacleState => {
+    const clonedState = cloneObstacleState(baseObstacleState);
+    if (gameModeRef.current !== 'normal') return clonedState;
+
+    const maxTile = getMaxTileValue(baseGrid);
+    queueNewObstacleUnlocks(scoreAfterSlide, maxTile);
+    const rollResult = rollObstacleSpawn({
+      grid: baseGrid,
+      slots,
+      obstacleState: clonedState,
+      boardSize: boardSizeRef.current,
+      score: scoreAfterSlide,
+      maxTile,
+      mergedTileIds: slideMergedTiles.map((tile) => tile.id),
+      disableRotation: false,
+    });
+    return rollResult.obstacleState;
+  }, [queueNewObstacleUnlocks, slots]);
+
+  const executeSlide = (dir: Direction) => {
+    if (isGameplayInputBlocked) return;
     if (slideLockRef.current) return; // Double check
 
     const {
@@ -4327,12 +4543,13 @@ const App: React.FC = () => {
       moved,
       mergingTiles: newMergingTiles,
       mergedTiles,
-      maxDistance
-    } = slideGrid(grid, dir);
+      maxDistance,
+      obstacleState: newObstacleState,
+    } = slideGridWithObstacles(grid, obstacleState, dir);
 
     if (!moved) {
       // 예외 상태 안전장치: SLIDE 단계에서 어떤 방향도 불가능하면 PLACE로 복귀시킨다.
-      if (!hasPossibleMoves(grid)) {
+      if (!hasPossibleMovesWithObstacles(grid, obstacleState)) {
         finishSlideTurn();
       }
       return;
@@ -4384,6 +4601,7 @@ const App: React.FC = () => {
     // Undo를 위해 현재 상태 저장 (슬라이드 전)
     saveSnapshot();
     const lockMs = getSlideAnimationDurationMs(maxDistance) + SLIDE_UNLOCK_BUFFER_MS;
+    let pendingObstacleState = cloneObstacleState(newObstacleState);
 
     // Lock Input
     slideLockRef.current = true;
@@ -4414,6 +4632,7 @@ const App: React.FC = () => {
     }
 
     setGrid(newGrid);
+    setObstacleState(pendingObstacleState);
 
     // Post-animation 상태 변경을 스태거링하여 한 프레임에 몰리는 글리치 방지
     // Step 1 (lockMs): 병합 고스트 타일 제거 (위에서 이미 설정됨)
@@ -4460,7 +4679,10 @@ const App: React.FC = () => {
         const MAX_SCORE = 1_000_000;
         finalScore = Math.min(finalScore, MAX_SCORE - scoreRef.current);
         if (finalScore < 0) finalScore = 0;
+        const scoreAfterSlide = scoreRef.current + finalScore;
         setScore(prev => prev + finalScore);
+        pendingObstacleState = finalizeObstacleStateAfterSlide(newGrid, pendingObstacleState, mergedTiles, scoreAfterSlide);
+        setObstacleState(pendingObstacleState);
 
         // 1024 블럭이 새로 만들어질 때마다 스킨 조각 1개씩 지급
         // Undo 파밍 방지: 보드 위 실제 1024+ 타일 총 개수와 이미 보상 지급된 수를 비교
@@ -4489,6 +4711,11 @@ const App: React.FC = () => {
       setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
       unlockTimeoutRef.current = null;
 
+      if (scoreAdded <= 0) {
+        pendingObstacleState = finalizeObstacleStateAfterSlide(newGrid, pendingObstacleState, mergedTiles, scoreRef.current);
+        setObstacleState(pendingObstacleState);
+      }
+
       if (scoreAdded > 0) {
         // 새 규칙: 머지가 발생했다면 이번 턴은 계속 스와이프만 가능
         setPhase(Phase.SLIDE);
@@ -4515,7 +4742,12 @@ const App: React.FC = () => {
     // state가 아직 반영되지 않은 중간 렌더에서도 게임오버 판정을 방지
     if (isReviveSelectionMode || isReviveSelectionModeRef.current) return;
 
-    const availability = getTurnActionAvailability(grid, slots, eventRuleRef.current?.disableRotation ?? false);
+    const availability = getTurnActionAvailabilityWithObstacles(
+      grid,
+      slots,
+      obstacleState,
+      eventRuleRef.current?.disableRotation ?? false
+    );
 
     if (phase === Phase.SLIDE && !availability.canSwipe) {
       finishSlideTurn();
@@ -4542,6 +4774,8 @@ const App: React.FC = () => {
           score,
           phase,
           canSkipSlide,
+          obstacleState: cloneObstacleState(obstacleState),
+          unlockedObstacleFeatures: [...unlockedObstacleFeatures],
         };
         const next = [...prev, finalSnapshot];
         if (next.length > MAX_SNAPSHOTS) {
@@ -4549,7 +4783,11 @@ const App: React.FC = () => {
         }
         return next;
       });
-      const diagnosis = diagnoseGameOver(grid, slots, eventRuleRef.current?.disableRotation ?? false);
+      const diagnosis = diagnoseGameOver(
+        buildPlacementGridWithObstacles(grid, obstacleState),
+        slots,
+        eventRuleRef.current?.disableRotation ?? false
+      );
       setGameOverReason(diagnosis);
       setGameState(GameState.GAME_OVER);
       // 이벤트 버스: 게임 오버 (activePlayDuration 사용 — 일시정지 시간 제외)
@@ -4566,7 +4804,7 @@ const App: React.FC = () => {
       });
       if (score > highScore) setHighScore(score);
     }
-  }, [phase, grid, slots, gameState, score, highScore, isAnimating, finishSlideTurn, isReviveSelectionMode, pauseEventTimer]);
+  }, [phase, grid, slots, gameState, score, highScore, isAnimating, finishSlideTurn, isReviveSelectionMode, pauseEventTimer, obstacleState, unlockedObstacleFeatures]);
 
   const refreshLiveRankEstimate = useCallback(async (force = false) => {
     if (gameStateRef.current !== GameState.PLAYING) return;
@@ -6182,6 +6420,7 @@ const App: React.FC = () => {
                     ref={boardHandleRef}
                     htmlId="game-board"
                     grid={grid}
+                    obstacleState={obstacleState}
                     phase={phase}
                     activePiece={draggingPiece}
                     boardRef={boardRef}
@@ -6208,6 +6447,7 @@ const App: React.FC = () => {
                   ref={boardHandleRef}
                   htmlId="game-board"
                   grid={grid}
+                  obstacleState={obstacleState}
                   phase={phase}
                   activePiece={draggingPiece}
                   boardRef={boardRef}
@@ -6341,6 +6581,57 @@ const App: React.FC = () => {
           </>
         )}
         <HelpModal isOpen={showHelpModal} onClose={() => setShowHelpModal(false)} />
+        {activeObstacleUnlock && (
+          <div className="fixed inset-0 z-[10020] flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm">
+            <div className="relative w-full max-w-sm rounded-2xl border border-white/70 bg-white p-5 text-gray-900 shadow-2xl">
+              <button
+                type="button"
+                className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-gray-600 transition active:scale-95"
+                aria-label="방해요소 자세히 보기"
+                onClick={() => setShowObstacleUnlockDetails((prev) => !prev)}
+              >
+                <HelpCircle size={17} />
+              </button>
+              <div className="mb-2 pr-10 text-xs font-bold text-rose-500">
+                새 방해요소가 열렸어요
+              </div>
+              <div className="flex items-center gap-4 pr-8">
+                <ObstacleExampleBlock feature={activeObstacleUnlock} />
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-lg font-black leading-tight">
+                    {OBSTACLE_UNLOCK_COPY[activeObstacleUnlock].title}
+                  </h2>
+                  <p className="mt-2 text-sm font-semibold leading-snug text-gray-700">
+                    {OBSTACLE_UNLOCK_COPY[activeObstacleUnlock].summary}
+                  </p>
+                </div>
+              </div>
+              {showObstacleUnlockDetails && (
+                <div className="mt-4 space-y-2 rounded-2xl border border-gray-100 bg-gray-50 p-3 text-xs font-semibold leading-5 text-gray-700">
+                  <p>{OBSTACLE_UNLOCK_COPY[activeObstacleUnlock].role}</p>
+                  <p>{OBSTACLE_UNLOCK_COPY[activeObstacleUnlock].clear}</p>
+                  <p>
+                    지금 점수 기준으로 이 요소는 약 {formatObstacleChance(activeObstacleUnlockChance?.featureChance ?? 0)}로 떠요.
+                  </p>
+                  <p>{OBSTACLE_UNLOCK_COPY[activeObstacleUnlock].chanceNote} 안 뜨면 다음 스와이프에서 확률이 조금 올라가요.</p>
+                  {(activeObstacleUnlockChance?.activeObstacleCount ?? 0) >= 2 && (
+                    <p>방해요소가 2개 있으면 새로 생기지 않아요.</p>
+                  )}
+                </div>
+              )}
+              <button
+                type="button"
+                className="mt-4 w-full rounded-xl bg-gray-900 px-4 py-3 text-sm font-bold text-white shadow-sm transition active:scale-[0.99]"
+                onClick={() => {
+                  setShowObstacleUnlockDetails(false);
+                  setObstacleUnlockQueue((prev) => prev.slice(1));
+                }}
+              >
+                알겠어요
+              </button>
+            </div>
+          </div>
+        )}
 
         {/*
           In-game ad lane
@@ -6437,6 +6728,7 @@ const App: React.FC = () => {
                 <Board
                   htmlId="review-board"
                   grid={snapshotHistory[reviewIndex].grid}
+                  obstacleState={snapshotHistory[reviewIndex].obstacleState}
                   phase={snapshotHistory[reviewIndex].phase}
                   activePiece={null}
                   boardRef={boardRef}

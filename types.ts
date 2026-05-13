@@ -66,6 +66,62 @@ export enum Phase {
 }
 
 export type BoardSize = 4 | 5 | 7 | 8 | 10;
+export type Direction = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
+
+export type ObstacleFeature = 'concrete' | 'percent' | 'ice' | 'portal' | 'container';
+export type ObstacleRulesVersion = 'obstacles_v1';
+export type PortalSide = 'TOP' | 'RIGHT' | 'BOTTOM' | 'LEFT';
+
+export interface PortalEndpoint {
+  side: PortalSide;
+  index: number;
+  x: number;
+  y: number;
+}
+
+export interface ConcreteObstacle {
+  id: string;
+  kind: 'concrete';
+  x: number;
+  y: number;
+  hp: number;
+}
+
+export interface PercentObstacle {
+  id: string;
+  kind: 'percent';
+  x: number;
+  y: number;
+}
+
+export interface ContainerObstacle {
+  id: string;
+  kind: 'container';
+  x: number;
+  y: number;
+  direction: Direction;
+}
+
+export type CellObstacle = ConcreteObstacle | PercentObstacle | ContainerObstacle;
+
+export interface FrozenTileState {
+  tileId: string;
+  remainingSwipes: number;
+}
+
+export interface PortalState {
+  in: PortalEndpoint;
+  out: PortalEndpoint;
+  queue: Tile[];
+}
+
+export interface ObstacleState {
+  rulesVersion: ObstacleRulesVersion;
+  cellObstacles: CellObstacle[];
+  frozenTiles: FrozenTileState[];
+  portal: PortalState | null;
+  spawnMissStreak: number;
+}
 
 export interface GameSettings {
   boardSize: BoardSize;

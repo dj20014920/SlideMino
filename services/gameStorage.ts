@@ -7,9 +7,14 @@
  * - 앱을 껐다 켜도, 홈화면에 갔다 와도 게임 이어하기 가능
  */
 
-import { Grid, Piece, Phase, BoardSize, GameState, GameMode } from '../types';
+import { Grid, Piece, Phase, BoardSize, GameState, GameMode, ObstacleFeature, ObstacleState } from '../types';
 import { INITIAL_BLOCK_REFRESH_AMOUNT, INITIAL_UNDO_AMOUNT } from '../constants';
-import { getTurnActionAvailability } from './gameLogic';
+import {
+    cloneObstacleState,
+    createEmptyObstacleState,
+    getTurnActionAvailabilityWithObstacles,
+    OBSTACLE_RULES_VERSION,
+} from './obstacleEngine';
 
 // 로컬 스토리지 키 — 모드별 독립 슬롯
 const GAME_STATE_STORAGE_KEY = 'slidemino_game_state_v1';
@@ -24,6 +29,8 @@ export interface StoredUndoSnapshot {
     score: number;
     phase: Phase;
     canSkipSlide: boolean;
+    obstacleState?: ObstacleState;
+    unlockedObstacleFeatures?: ObstacleFeature[];
 }
 
 /**
@@ -38,6 +45,9 @@ export interface SavedGameState {
     phase: Phase;
     boardSize: BoardSize;
     canSkipSlide: boolean;
+    obstacleState?: ObstacleState;
+    unlockedObstacleFeatures?: ObstacleFeature[];
+    obstacleRulesVersion?: string;
     undoRemaining: number;
     blockRefreshRemaining?: number;
     showBlockRefreshAdButton?: boolean;
@@ -107,6 +117,18 @@ const parseSavedGameState = (raw: string | null): SavedGameState | null => {
         return null;
     }
 
+    const normalizeObstacleFeatures = (value: unknown): ObstacleFeature[] => (
+        Array.isArray(value)
+            ? value.filter((feature): feature is ObstacleFeature => (
+                feature === 'concrete' ||
+                feature === 'percent' ||
+                feature === 'ice' ||
+                feature === 'portal' ||
+                feature === 'container'
+            ))
+            : []
+    );
+
     const sessionId = typeof parsed.sessionId === 'string' ? parsed.sessionId : undefined;
     const moveCount = typeof parsed.moveCount === 'number' ? parsed.moveCount : undefined;
     const savedAt = typeof parsed.savedAt === 'number' ? parsed.savedAt : Date.now();
@@ -147,7 +169,11 @@ const parseSavedGameState = (raw: string | null): SavedGameState | null => {
             typeof snapshot.score === 'number' &&
             typeof snapshot.phase === 'string' &&
             typeof snapshot.canSkipSlide === 'boolean'
-            ? snapshot
+            ? {
+                ...snapshot,
+                obstacleState: cloneObstacleState(snapshot.obstacleState ?? createEmptyObstacleState()),
+                unlockedObstacleFeatures: normalizeObstacleFeatures(snapshot.unlockedObstacleFeatures),
+            }
             : null;
     const undoRemaining = typeof parsed.undoRemaining === 'number'
         ? Math.max(0, Math.min(99, Math.floor(parsed.undoRemaining)))
@@ -158,6 +184,11 @@ const parseSavedGameState = (raw: string | null): SavedGameState | null => {
     const showBlockRefreshAdButton = typeof parsed.showBlockRefreshAdButton === 'boolean'
         ? parsed.showBlockRefreshAdButton
         : false;
+    const obstacleState = cloneObstacleState(parsed.obstacleState ?? createEmptyObstacleState());
+    const unlockedObstacleFeatures = normalizeObstacleFeatures(parsed.unlockedObstacleFeatures);
+    const obstacleRulesVersion = typeof parsed.obstacleRulesVersion === 'string'
+        ? parsed.obstacleRulesVersion
+        : undefined;
 
     // 데일리 챌린지 / 주간 이벤트 모드 필드
     const gm = parsed.gameMode;
@@ -201,6 +232,9 @@ const parseSavedGameState = (raw: string | null): SavedGameState | null => {
         reviveBreakRemaining,
         revivePendingTileId,
         lastSnapshot,
+        obstacleState,
+        unlockedObstacleFeatures,
+        obstacleRulesVersion,
         undoRemaining,
         blockRefreshRemaining,
         showBlockRefreshAdButton,
@@ -282,7 +316,12 @@ export function hasActiveGame(): boolean {
 
 const isResumableSavedState = (saved: SavedGameState, disableRotation = false): boolean => {
     if (saved.gameState !== GameState.PLAYING) return false;
-    const availability = getTurnActionAvailability(saved.grid, saved.slots, disableRotation);
+    const availability = getTurnActionAvailabilityWithObstacles(
+        saved.grid,
+        saved.slots,
+        cloneObstacleState(saved.obstacleState ?? createEmptyObstacleState()),
+        disableRotation
+    );
     if (saved.phase === Phase.PLACE) {
         return !availability.isGameOver;
     }

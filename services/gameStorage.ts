@@ -7,7 +7,7 @@
  * - 앱을 껐다 켜도, 홈화면에 갔다 와도 게임 이어하기 가능
  */
 
-import { Grid, Piece, Phase, BoardSize, GameState, GameMode, ObstacleFeature, ObstacleState } from '../types';
+import { Grid, Piece, Phase, BoardSize, GameState, GameMode, ObstacleFeature, ObstacleState, Tile } from '../types';
 import { INITIAL_BLOCK_REFRESH_AMOUNT, INITIAL_UNDO_AMOUNT } from '../constants';
 import {
     cloneObstacleState,
@@ -189,6 +189,25 @@ const parseSavedGameState = (raw: string | null): SavedGameState | null => {
     const obstacleRulesVersion = typeof parsed.obstacleRulesVersion === 'string'
         ? parsed.obstacleRulesVersion
         : undefined;
+
+    // 버전 불일치 시 obstacleState 정규화: 오래된 저장 데이터의 비정상 상태 방어
+    if (obstacleRulesVersion !== OBSTACLE_RULES_VERSION) {
+        // frozenTiles: 그리드에 존재하지 않는 타일 참조 제거
+        const validTileIds = new Set(
+            (parsed.grid as (Tile | null)[][]).flat().filter((t): t is Tile => t !== null).map((t) => t.id)
+        );
+        if (obstacleState.frozenTiles.length > 0) {
+            obstacleState.frozenTiles = obstacleState.frozenTiles.filter(
+                (frozen) => validTileIds.has(frozen.tileId)
+            );
+        }
+        // portal queue: 비정상 항목 정리
+        if (obstacleState.portal) {
+            obstacleState.portal.queue = obstacleState.portal.queue.filter(
+                (tile): tile is Tile => tile !== null && typeof tile.id === 'string'
+            );
+        }
+    }
 
     // 데일리 챌린지 / 주간 이벤트 모드 필드
     const gm = parsed.gameMode;

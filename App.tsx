@@ -12,6 +12,7 @@ import {
   BoardSize,
   ShapeType,
   MergingTile,
+  PortalReleaseAnimation,
   GameMode,
   ObstacleFeature,
   ObstacleState,
@@ -245,6 +246,7 @@ import {
 
 const EMPTY_TILE_VALUE_OVERRIDES: Record<string, number> = {};
 const EMPTY_MERGING_TILES: MergingTile[] = [];
+const EMPTY_PORTAL_RELEASE_ANIMATIONS: PortalReleaseAnimation[] = [];
 const EMPTY_TILE_ID_SET: ReadonlySet<string> = new Set<string>();
 const EMPTY_TILE_BURST_MAP: Readonly<Record<string, number>> = Object.freeze({});
 const DRAG_OVERLAY_SCALE = 0.65;
@@ -1488,6 +1490,7 @@ const App: React.FC = () => {
 
   // Merging tiles for animation (tiles being absorbed)
   const [mergingTiles, setMergingTiles] = useState<MergingTile[]>(EMPTY_MERGING_TILES);
+  const [portalReleaseAnimations, setPortalReleaseAnimations] = useState<PortalReleaseAnimation[]>(EMPTY_PORTAL_RELEASE_ANIMATIONS);
 
   // Tutorial State: 0=Off, 1=Drag, 2=Swipe
   const [tutorialStep, setTutorialStep] = useState<number>(0);
@@ -1765,6 +1768,7 @@ const App: React.FC = () => {
   const executeSlideRef = useRef<((dir: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT') => void) | null>(null);
   const isReviveSelectionModeRef = useRef(false); // 부활 선택 모드 동기 가드 (state보다 먼저 반영)
   const mergeClearTimeoutRef = useRef<number | null>(null);
+  const portalReleaseClearTimeoutRef = useRef<number | null>(null);
   const mergeFinalizeTimeoutRef = useRef<number | null>(null);
   const mergedNumberBurstClearTimeoutRef = useRef<number | null>(null);
   const unlockTimeoutRef = useRef<number | null>(null);
@@ -1780,6 +1784,7 @@ const App: React.FC = () => {
   const boardSizeRef = useRef<BoardSize>(boardSize);
   const gameModeRef = useRef<GameMode>(gameMode);
   const unlockedObstacleFeaturesRef = useRef<ObstacleFeature[]>(unlockedObstacleFeatures);
+  const pendingObstacleMergedTileIdsRef = useRef<string[]>([]);
   const gameStateRef = useRef<GameState>(gameState);
   const previousGameStateRef = useRef<GameState>(gameState);
 
@@ -2105,6 +2110,15 @@ const App: React.FC = () => {
     }
     const restoredUnlockedObstacleFeatures = [...savedUnlockedObstacleFeatures, ...legacyObstacleUnlocks];
     unlockedObstacleFeaturesRef.current = restoredUnlockedObstacleFeatures;
+    pendingObstacleMergedTileIdsRef.current = [];
+    if (mergeClearTimeoutRef.current) {
+      window.clearTimeout(mergeClearTimeoutRef.current);
+      mergeClearTimeoutRef.current = null;
+    }
+    if (portalReleaseClearTimeoutRef.current) {
+      window.clearTimeout(portalReleaseClearTimeoutRef.current);
+      portalReleaseClearTimeoutRef.current = null;
+    }
 
     setGameState(saved.gameState);
     setGrid(saved.grid);
@@ -2115,6 +2129,9 @@ const App: React.FC = () => {
     setScore(saved.score);
     maxScoreThisRunRef.current = restoredMaxScore;
     setMaxScoreThisRun(restoredMaxScore);
+    setMergingTiles(EMPTY_MERGING_TILES);
+    setPortalReleaseAnimations(EMPTY_PORTAL_RELEASE_ANIMATIONS);
+    setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
     maxComboMultiplierRef.current = restoredMaxComboMultiplier;
     maxComboCountRef.current = restoredMaxComboCount;
     setPhase(saved.phase);
@@ -2798,6 +2815,10 @@ const App: React.FC = () => {
       window.clearTimeout(mergeClearTimeoutRef.current);
       mergeClearTimeoutRef.current = null;
     }
+    if (portalReleaseClearTimeoutRef.current) {
+      window.clearTimeout(portalReleaseClearTimeoutRef.current);
+      portalReleaseClearTimeoutRef.current = null;
+    }
     if (mergeFinalizeTimeoutRef.current) {
       window.clearTimeout(mergeFinalizeTimeoutRef.current);
       mergeFinalizeTimeoutRef.current = null;
@@ -2820,6 +2841,7 @@ const App: React.FC = () => {
     setBoardSize(size);
     setGrid(createEmptyGrid(size));
     setObstacleState(createEmptyObstacleState());
+    pendingObstacleMergedTileIdsRef.current = [];
     setUnlockedObstacleFeatures([]);
     setObstacleUnlockQueue([]);
     setSlots([generateRandomPiece(), generateRandomPiece(), generateRandomPiece()]);
@@ -2827,6 +2849,7 @@ const App: React.FC = () => {
     maxScoreThisRunRef.current = 0;
     setMaxScoreThisRun(0);
     setMergingTiles(EMPTY_MERGING_TILES);
+    setPortalReleaseAnimations(EMPTY_PORTAL_RELEASE_ANIMATIONS);
     setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
     setMergedNumberBurstTileIds(EMPTY_TILE_ID_SET);
     setMergedNumberBurstByTileId(EMPTY_TILE_BURST_MAP);
@@ -2920,6 +2943,7 @@ const App: React.FC = () => {
       clearDailyChallengeState();
       resetEventTimer();
       if (mergeClearTimeoutRef.current) { window.clearTimeout(mergeClearTimeoutRef.current); mergeClearTimeoutRef.current = null; }
+      if (portalReleaseClearTimeoutRef.current) { window.clearTimeout(portalReleaseClearTimeoutRef.current); portalReleaseClearTimeoutRef.current = null; }
       if (mergeFinalizeTimeoutRef.current) { window.clearTimeout(mergeFinalizeTimeoutRef.current); mergeFinalizeTimeoutRef.current = null; }
       if (mergedNumberBurstClearTimeoutRef.current) { window.clearTimeout(mergedNumberBurstClearTimeoutRef.current); mergedNumberBurstClearTimeoutRef.current = null; }
       if (unlockTimeoutRef.current) { window.clearTimeout(unlockTimeoutRef.current); unlockTimeoutRef.current = null; }
@@ -2939,6 +2963,7 @@ const App: React.FC = () => {
       setBoardSize(challengeSize);
       setGrid(createEmptyGrid(challengeSize));
       setObstacleState(createEmptyObstacleState());
+      pendingObstacleMergedTileIdsRef.current = [];
       setUnlockedObstacleFeatures([]);
       setObstacleUnlockQueue([]);
       setSlots(initialSlots);
@@ -2946,6 +2971,7 @@ const App: React.FC = () => {
       maxScoreThisRunRef.current = 0;
       setMaxScoreThisRun(0);
       setMergingTiles(EMPTY_MERGING_TILES);
+      setPortalReleaseAnimations(EMPTY_PORTAL_RELEASE_ANIMATIONS);
       setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
       setMergedNumberBurstTileIds(EMPTY_TILE_ID_SET);
       setMergedNumberBurstByTileId(EMPTY_TILE_BURST_MAP);
@@ -3022,6 +3048,7 @@ const App: React.FC = () => {
     // 이벤트 세이브만 정리 (일반/챌린지 세이브 보존)
     clearEventGameState();
     if (mergeClearTimeoutRef.current) { window.clearTimeout(mergeClearTimeoutRef.current); mergeClearTimeoutRef.current = null; }
+    if (portalReleaseClearTimeoutRef.current) { window.clearTimeout(portalReleaseClearTimeoutRef.current); portalReleaseClearTimeoutRef.current = null; }
     if (mergeFinalizeTimeoutRef.current) { window.clearTimeout(mergeFinalizeTimeoutRef.current); mergeFinalizeTimeoutRef.current = null; }
     if (mergedNumberBurstClearTimeoutRef.current) { window.clearTimeout(mergedNumberBurstClearTimeoutRef.current); mergedNumberBurstClearTimeoutRef.current = null; }
     if (unlockTimeoutRef.current) { window.clearTimeout(unlockTimeoutRef.current); unlockTimeoutRef.current = null; }
@@ -3048,6 +3075,7 @@ const App: React.FC = () => {
     setBoardSize(eventSize);
     setGrid(createEmptyGrid(eventSize));
     setObstacleState(createEmptyObstacleState());
+    pendingObstacleMergedTileIdsRef.current = [];
     setUnlockedObstacleFeatures([]);
     setObstacleUnlockQueue([]);
     setSlots(initialSlots);
@@ -3055,6 +3083,7 @@ const App: React.FC = () => {
     maxScoreThisRunRef.current = 0;
     setMaxScoreThisRun(0);
     setMergingTiles(EMPTY_MERGING_TILES);
+    setPortalReleaseAnimations(EMPTY_PORTAL_RELEASE_ANIMATIONS);
     setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
     setMergedNumberBurstTileIds(EMPTY_TILE_ID_SET);
     setMergedNumberBurstByTileId(EMPTY_TILE_BURST_MAP);
@@ -3130,6 +3159,7 @@ const App: React.FC = () => {
 
     // 이벤트 이어하기: 다른 모드 세이브는 건드리지 않음
     if (mergeClearTimeoutRef.current) { window.clearTimeout(mergeClearTimeoutRef.current); mergeClearTimeoutRef.current = null; }
+    if (portalReleaseClearTimeoutRef.current) { window.clearTimeout(portalReleaseClearTimeoutRef.current); portalReleaseClearTimeoutRef.current = null; }
     if (mergeFinalizeTimeoutRef.current) { window.clearTimeout(mergeFinalizeTimeoutRef.current); mergeFinalizeTimeoutRef.current = null; }
     if (mergedNumberBurstClearTimeoutRef.current) { window.clearTimeout(mergedNumberBurstClearTimeoutRef.current); mergedNumberBurstClearTimeoutRef.current = null; }
     if (unlockTimeoutRef.current) { window.clearTimeout(unlockTimeoutRef.current); unlockTimeoutRef.current = null; }
@@ -3149,6 +3179,7 @@ const App: React.FC = () => {
     setBoardSize(saved.boardSize);
     setGrid(saved.grid);
     setObstacleState(createEmptyObstacleState());
+    pendingObstacleMergedTileIdsRef.current = [];
     setUnlockedObstacleFeatures([]);
     setObstacleUnlockQueue([]);
     setSlots(saved.slots);
@@ -3156,6 +3187,7 @@ const App: React.FC = () => {
     maxScoreThisRunRef.current = saved.score;
     setMaxScoreThisRun(saved.score);
     setMergingTiles(EMPTY_MERGING_TILES);
+    setPortalReleaseAnimations(EMPTY_PORTAL_RELEASE_ANIMATIONS);
     setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
     setMergedNumberBurstTileIds(EMPTY_TILE_ID_SET);
     setMergedNumberBurstByTileId(EMPTY_TILE_BURST_MAP);
@@ -3678,6 +3710,7 @@ const App: React.FC = () => {
     setPhase(lastSnapshot.phase);
     setCanSkipSlide(lastSnapshot.canSkipSlide);
     setObstacleState(cloneObstacleState(lastSnapshot.obstacleState));
+    pendingObstacleMergedTileIdsRef.current = [];
     setUnlockedObstacleFeatures([...lastSnapshot.unlockedObstacleFeatures]);
     setObstacleUnlockQueue([]);
 
@@ -3695,6 +3728,7 @@ const App: React.FC = () => {
 
     // 애니메이션 관련 상태 정리
     setMergingTiles(EMPTY_MERGING_TILES);
+    setPortalReleaseAnimations(EMPTY_PORTAL_RELEASE_ANIMATIONS);
     setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
     setMergedNumberBurstTileIds(EMPTY_TILE_ID_SET);
     setMergedNumberBurstByTileId(EMPTY_TILE_BURST_MAP);
@@ -3827,6 +3861,10 @@ const App: React.FC = () => {
           window.clearTimeout(mergeClearTimeoutRef.current);
           mergeClearTimeoutRef.current = null;
         }
+        if (portalReleaseClearTimeoutRef.current) {
+          window.clearTimeout(portalReleaseClearTimeoutRef.current);
+          portalReleaseClearTimeoutRef.current = null;
+        }
         if (mergeFinalizeTimeoutRef.current) {
           window.clearTimeout(mergeFinalizeTimeoutRef.current);
           mergeFinalizeTimeoutRef.current = null;
@@ -3841,6 +3879,7 @@ const App: React.FC = () => {
         }
 
         setMergingTiles(EMPTY_MERGING_TILES);
+        setPortalReleaseAnimations(EMPTY_PORTAL_RELEASE_ANIMATIONS);
         setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
         setMergedNumberBurstTileIds(EMPTY_TILE_ID_SET);
         setMergedNumberBurstByTileId(EMPTY_TILE_BURST_MAP);
@@ -4039,6 +4078,7 @@ const App: React.FC = () => {
   useEffect(() => {
     return () => {
       if (mergeClearTimeoutRef.current) window.clearTimeout(mergeClearTimeoutRef.current);
+      if (portalReleaseClearTimeoutRef.current) window.clearTimeout(portalReleaseClearTimeoutRef.current);
       if (mergeFinalizeTimeoutRef.current) window.clearTimeout(mergeFinalizeTimeoutRef.current);
       if (mergedNumberBurstClearTimeoutRef.current) window.clearTimeout(mergedNumberBurstClearTimeoutRef.current);
       if (unlockTimeoutRef.current) window.clearTimeout(unlockTimeoutRef.current);
@@ -4509,10 +4549,18 @@ const App: React.FC = () => {
     setObstacleUnlockQueue((prev) => [...prev, ...newlyUnlocked]);
   }, []);
 
-  const finalizeObstacleStateAfterSlide = useCallback((
+  const queueObstacleUnlocksAfterSlide = useCallback((
+    baseGrid: Grid,
+    scoreAfterSlide: number
+  ): void => {
+    if (gameModeRef.current !== 'normal') return;
+    queueNewObstacleUnlocks(scoreAfterSlide, getMaxTileValue(baseGrid));
+  }, [queueNewObstacleUnlocks]);
+
+  const rollObstacleStateBeforePlace = useCallback((
     baseGrid: Grid,
     baseObstacleState: ObstacleState,
-    slideMergedTiles: Array<{ id: string }>,
+    slideMergedTileIds: string[],
     scoreAfterSlide: number
   ): ObstacleState => {
     const clonedState = cloneObstacleState(baseObstacleState);
@@ -4520,6 +4568,10 @@ const App: React.FC = () => {
 
     const maxTile = getMaxTileValue(baseGrid);
     queueNewObstacleUnlocks(scoreAfterSlide, maxTile);
+    const liveTileIds = new Set(
+      baseGrid.flatMap((row) => row.flatMap((tile) => (tile ? [tile.id] : [])))
+    );
+    const mergedTileIds = [...new Set(slideMergedTileIds)].filter((tileId) => liveTileIds.has(tileId));
     const rollResult = rollObstacleSpawn({
       grid: baseGrid,
       slots,
@@ -4527,7 +4579,7 @@ const App: React.FC = () => {
       boardSize: boardSizeRef.current,
       score: scoreAfterSlide,
       maxTile,
-      mergedTileIds: slideMergedTiles.map((tile) => tile.id),
+      mergedTileIds,
       disableRotation: false,
     });
     return rollResult.obstacleState;
@@ -4543,6 +4595,7 @@ const App: React.FC = () => {
       moved,
       mergingTiles: newMergingTiles,
       mergedTiles,
+      portalReleaseAnimations: newPortalReleaseAnimations,
       maxDistance,
       obstacleState: newObstacleState,
     } = slideGridWithObstacles(grid, obstacleState, dir);
@@ -4550,6 +4603,14 @@ const App: React.FC = () => {
     if (!moved) {
       // 예외 상태 안전장치: SLIDE 단계에서 어떤 방향도 불가능하면 PLACE로 복귀시킨다.
       if (!hasPossibleMovesWithObstacles(grid, obstacleState)) {
+        const mergedIdsForRoll = pendingObstacleMergedTileIdsRef.current;
+        pendingObstacleMergedTileIdsRef.current = [];
+        const newObsState = rollObstacleStateBeforePlace(
+          grid, obstacleState, mergedIdsForRoll, scoreRef.current
+        );
+        if (newObsState !== obstacleState) {
+          setObstacleState(newObsState);
+        }
         finishSlideTurn();
       }
       return;
@@ -4602,6 +4663,12 @@ const App: React.FC = () => {
     saveSnapshot();
     const lockMs = getSlideAnimationDurationMs(maxDistance) + SLIDE_UNLOCK_BUFFER_MS;
     let pendingObstacleState = cloneObstacleState(newObstacleState);
+    if (mergedTiles.length > 0) {
+      pendingObstacleMergedTileIdsRef.current = [
+        ...pendingObstacleMergedTileIdsRef.current,
+        ...mergedTiles.map((tile) => tile.id),
+      ];
+    }
 
     // Lock Input
     slideLockRef.current = true;
@@ -4629,6 +4696,20 @@ const App: React.FC = () => {
       }, lockMs);
     } else {
       setMergingTiles(EMPTY_MERGING_TILES);
+    }
+
+    if (portalReleaseClearTimeoutRef.current) {
+      window.clearTimeout(portalReleaseClearTimeoutRef.current);
+      portalReleaseClearTimeoutRef.current = null;
+    }
+    if (newPortalReleaseAnimations.length > 0) {
+      setPortalReleaseAnimations(newPortalReleaseAnimations);
+      portalReleaseClearTimeoutRef.current = window.setTimeout(() => {
+        setPortalReleaseAnimations(EMPTY_PORTAL_RELEASE_ANIMATIONS);
+        portalReleaseClearTimeoutRef.current = null;
+      }, lockMs);
+    } else {
+      setPortalReleaseAnimations(EMPTY_PORTAL_RELEASE_ANIMATIONS);
     }
 
     setGrid(newGrid);
@@ -4681,8 +4762,7 @@ const App: React.FC = () => {
         if (finalScore < 0) finalScore = 0;
         const scoreAfterSlide = scoreRef.current + finalScore;
         setScore(prev => prev + finalScore);
-        pendingObstacleState = finalizeObstacleStateAfterSlide(newGrid, pendingObstacleState, mergedTiles, scoreAfterSlide);
-        setObstacleState(pendingObstacleState);
+        queueObstacleUnlocksAfterSlide(newGrid, scoreAfterSlide);
 
         // 1024 블럭이 새로 만들어질 때마다 스킨 조각 1개씩 지급
         // Undo 파밍 방지: 보드 위 실제 1024+ 타일 총 개수와 이미 보상 지급된 수를 비교
@@ -4712,7 +4792,14 @@ const App: React.FC = () => {
       unlockTimeoutRef.current = null;
 
       if (scoreAdded <= 0) {
-        pendingObstacleState = finalizeObstacleStateAfterSlide(newGrid, pendingObstacleState, mergedTiles, scoreRef.current);
+        const mergedTileIdsForObstacleRoll = pendingObstacleMergedTileIdsRef.current;
+        pendingObstacleMergedTileIdsRef.current = [];
+        pendingObstacleState = rollObstacleStateBeforePlace(
+          newGrid,
+          pendingObstacleState,
+          mergedTileIdsForObstacleRoll,
+          scoreRef.current
+        );
         setObstacleState(pendingObstacleState);
       }
 
@@ -4750,6 +4837,7 @@ const App: React.FC = () => {
     );
 
     if (phase === Phase.SLIDE && !availability.canSwipe) {
+      pendingObstacleMergedTileIdsRef.current = [];
       finishSlideTurn();
       return;
     }
@@ -6425,6 +6513,7 @@ const App: React.FC = () => {
                     activePiece={draggingPiece}
                     boardRef={boardRef}
                     mergingTiles={mergingTiles}
+                    portalReleaseAnimations={portalReleaseAnimations}
                     valueOverrides={tileValueOverrides}
                     boardScale={boardScale}
                     reviveSelectionEnabled={isReviveSelectionMode}
@@ -6452,6 +6541,7 @@ const App: React.FC = () => {
                   activePiece={draggingPiece}
                   boardRef={boardRef}
                   mergingTiles={mergingTiles}
+                  portalReleaseAnimations={portalReleaseAnimations}
                   valueOverrides={tileValueOverrides}
                   boardScale={boardScale}
                   reviveSelectionEnabled={isReviveSelectionMode}

@@ -9,6 +9,7 @@ import {
   ObstacleState,
   Piece,
   PortalEndpoint,
+  PortalReleaseAnimation,
   PortalSide,
   Tile,
 } from '../types';
@@ -79,7 +80,9 @@ export interface ObstacleSlideResult {
   moved: boolean;
   mergingTiles: MergingTile[];
   mergedTiles: MergedTile[];
+  portalReleaseAnimations: PortalReleaseAnimation[];
   maxDistance: number;
+  portalReleasedTileIds: Set<string>;
 }
 
 export interface ApplyObstacleSpawnParams {
@@ -134,18 +137,35 @@ export const createEmptyObstacleState = (): ObstacleState => ({
 
 export const cloneObstacleState = (state: ObstacleState | null | undefined): ObstacleState => {
   if (!state) return createEmptyObstacleState();
+  const source = state as Partial<ObstacleState>;
+  const rawPortal = source.portal;
+  const hasPortal = Boolean(rawPortal?.in && rawPortal?.out);
+  const rawMissStreak = source.spawnMissStreak;
   return {
     rulesVersion: OBSTACLE_RULES_VERSION,
-    cellObstacles: state.cellObstacles.map((obstacle) => ({ ...obstacle })),
-    frozenTiles: state.frozenTiles.map((frozen) => ({ ...frozen })),
-    portal: state.portal
+    cellObstacles: Array.isArray(source.cellObstacles)
+      ? source.cellObstacles.map((obstacle) => {
+          const cloned = { ...obstacle };
+          if (cloned.kind === 'concrete' && (typeof cloned.hp !== 'number' || !Number.isFinite(cloned.hp))) {
+            cloned.hp = CONCRETE_START_HP;
+          }
+          return cloned;
+        })
+      : [],
+    frozenTiles: Array.isArray(source.frozenTiles)
+      ? source.frozenTiles.map((frozen) => ({ ...frozen }))
+      : [],
+    portal: rawPortal && hasPortal
       ? {
-          in: { ...state.portal.in },
-          out: { ...state.portal.out },
-          queue: state.portal.queue.map(cloneTile),
+          in: { ...rawPortal.in },
+          out: { ...rawPortal.out },
+          queue: Array.isArray(rawPortal.queue) ? rawPortal.queue.map(cloneTile) : [],
         }
       : null,
-    spawnMissStreak: Math.max(0, Math.floor(state.spawnMissStreak ?? 0)),
+    spawnMissStreak:
+      typeof rawMissStreak === 'number' && Number.isFinite(rawMissStreak)
+        ? Math.min(100, Math.max(0, Math.floor(rawMissStreak)))
+        : 0,
   };
 };
 
@@ -196,8 +216,9 @@ export const getObstacleWeights = (stage: number): Partial<Record<ObstacleFeatur
 };
 
 export const getActiveObstacleCount = (state: ObstacleState | null | undefined): number => {
-  const cloned = cloneObstacleState(state);
-  return cloned.cellObstacles.length + cloned.frozenTiles.length + (cloned.portal ? 1 : 0);
+  if (!state) return 0;
+  return (state.cellObstacles?.length ?? 0) + (state.portal ? 1 : 0);
+  // frozenTiles는 별도 슬롯으로 관리 (얼음이 다른 장애물 스폰을 막지 않도록)
 };
 
 export const getUnlockedObstacleFeatures = (stage: number): ObstacleFeature[] => {
@@ -325,33 +346,18 @@ const isMatchingPortalExit = (
   return portal.in.index === x;
 };
 
-const getPortalReleaseCells = (
-  grid: Grid,
-  state: ObstacleState,
-  endpoint: PortalEndpoint
-): Array<{ x: number; y: number }> => {
-  const size = grid.length;
-  const obstacleMap = buildCellObstacleMap(state);
-  const cells: Array<{ x: number; y: number }> = [];
-  const candidates: Array<{ x: number; y: number }> = [];
+const getPortalInwardDelta = (endpoint: PortalEndpoint): { dx: number; dy: number } => {
+  if (endpoint.side === 'LEFT') return { dx: 1, dy: 0 };
+  if (endpoint.side === 'RIGHT') return { dx: -1, dy: 0 };
+  if (endpoint.side === 'TOP') return { dx: 0, dy: 1 };
+  return { dx: 0, dy: -1 };
+};
 
-  if (endpoint.side === 'LEFT') {
-    for (let x = 0; x < size; x += 1) candidates.push({ x, y: endpoint.index });
-  } else if (endpoint.side === 'RIGHT') {
-    for (let x = size - 1; x >= 0; x -= 1) candidates.push({ x, y: endpoint.index });
-  } else if (endpoint.side === 'TOP') {
-    for (let y = 0; y < size; y += 1) candidates.push({ x: endpoint.index, y });
-  } else {
-    for (let y = size - 1; y >= 0; y -= 1) candidates.push({ x: endpoint.index, y });
-  }
-
-  for (const candidate of candidates) {
-    if (!isInside(size, candidate.x, candidate.y)) break;
-    if (grid[candidate.y][candidate.x]) break;
-    if (obstacleMap.has(cellKey(candidate.x, candidate.y))) break;
-    cells.push(candidate);
-  }
-  return cells;
+const getPortalEntryCell = (size: number, endpoint: PortalEndpoint): { x: number; y: number } => {
+  if (endpoint.side === 'LEFT') return { x: 0, y: endpoint.index };
+  if (endpoint.side === 'RIGHT') return { x: size - 1, y: endpoint.index };
+  if (endpoint.side === 'TOP') return { x: endpoint.index, y: 0 };
+  return { x: endpoint.index, y: size - 1 };
 };
 
 const decrementFrozenTiles = (grid: Grid, frozenTiles: FrozenTileState[]): FrozenTileState[] => {
@@ -367,7 +373,8 @@ const collectContainerImpacts = (
   state: ObstacleState,
   container: Extract<CellObstacle, { kind: 'container' }>,
   direction: Direction,
-  frozenIds: ReadonlySet<string>
+  frozenIds: ReadonlySet<string>,
+  lockedTileIds: ReadonlySet<string>
 ): Tile[] => {
   const obstacleMap = buildCellObstacleMap(state);
   const impacted: Tile[] = [];
@@ -390,6 +397,7 @@ const collectContainerImpacts = (
     if (obstacle && obstacle.id !== container.id) break;
     const tile = grid[pos.y][pos.x];
     if (!tile) continue;
+    if (lockedTileIds.has(tile.id)) break;
     if (frozenIds.has(tile.id)) break;
     impacted.push(tile);
   }
@@ -424,6 +432,7 @@ const applyContainersBeforeSlide = (
   mergingTiles: MergingTile[];
   mergedTiles: MergedTile[];
   maxDistance: number;
+  partiallyConsumedContainerIds: Set<string>;
 } => {
   let nextGrid = grid;
   let nextState = state;
@@ -433,34 +442,50 @@ const applyContainersBeforeSlide = (
   const lockedTileIds = new Set<string>();
   const mergingTiles: MergingTile[] = [];
   const mergedTiles: MergedTile[] = [];
+  const partiallyConsumedContainerIds = new Set<string>();
 
   for (const obstacle of state.cellObstacles) {
     if (obstacle.kind !== 'container') continue;
-    const impacted = collectContainerImpacts(nextGrid, nextState, obstacle, direction, frozenIds);
+    const impacted = collectContainerImpacts(nextGrid, nextState, obstacle, direction, frozenIds, lockedTileIds);
     if (impacted.length === 0) continue;
 
-    const targets = getRedirectTargets(nextGrid.length, obstacle, impacted.length);
-    if (targets.length !== impacted.length) continue;
-
     const obstacleMap = buildCellObstacleMap(nextState);
-    const impactedIds = new Set(impacted.map((tile) => tile.id));
-    const gridWithoutImpacted = nextGrid.map((row) => row.map((tile) => (tile && impactedIds.has(tile.id) ? null : tile)));
-    const plannedMergeTargets = new Set<string>();
-    const canRedirect = targets.every((target, index) => {
-      if (obstacleMap.has(cellKey(target.x, target.y))) return false;
-      const targetTile = gridWithoutImpacted[target.y][target.x];
-      if (!targetTile) return true;
-      if (frozenIds.has(targetTile.id)) return false;
-      if (plannedMergeTargets.has(targetTile.id)) return false;
-      const impactedTile = impacted[index];
-      if (!impactedTile || impactedTile.value !== targetTile.value) return false;
-      plannedMergeTargets.add(targetTile.id);
-      return true;
-    });
-    if (!canRedirect) continue;
+    const allTargets = getRedirectTargets(nextGrid.length, obstacle, impacted.length);
+    let redirectCount = 0;
+    let targets: Array<{ x: number; y: number }> = [];
+    let gridWithoutRedirected: Grid | null = null;
 
-    nextGrid = gridWithoutImpacted;
-    impacted.forEach((tile, index) => {
+    for (let count = Math.min(impacted.length, allTargets.length); count > 0; count -= 1) {
+      const redirected = impacted.slice(0, count);
+      const redirectedIds = new Set(redirected.map((tile) => tile.id));
+      const heldIds = new Set(impacted.slice(count).map((tile) => tile.id));
+      const candidateGrid = nextGrid.map((row) => row.map((tile) => (tile && redirectedIds.has(tile.id) ? null : tile)));
+      const candidateTargets = allTargets.slice(0, count);
+      const plannedMergeTargets = new Set<string>();
+      const canRedirect = candidateTargets.every((target, index) => {
+        if (obstacleMap.has(cellKey(target.x, target.y))) return false;
+        const targetTile = candidateGrid[target.y][target.x];
+        if (!targetTile) return true;
+        if (heldIds.has(targetTile.id)) return false;
+        if (frozenIds.has(targetTile.id)) return false;
+        if (plannedMergeTargets.has(targetTile.id)) return false;
+        const redirectedTile = redirected[index];
+        if (!redirectedTile || redirectedTile.value !== targetTile.value) return false;
+        plannedMergeTargets.add(targetTile.id);
+        return true;
+      });
+      if (canRedirect) {
+        redirectCount = count;
+        targets = candidateTargets;
+        gridWithoutRedirected = candidateGrid;
+        break;
+      }
+    }
+    if (redirectCount === 0 || !gridWithoutRedirected) continue;
+
+    const redirected = impacted.slice(0, redirectCount);
+    nextGrid = gridWithoutRedirected;
+    redirected.forEach((tile, index) => {
       const target = targets[index];
       const targetTile = nextGrid[target.y][target.x];
       const original = originalPositions.get(tile.id) ?? { x: obstacle.x, y: obstacle.y };
@@ -489,14 +514,33 @@ const applyContainersBeforeSlide = (
         maxDistance = Math.max(maxDistance, Math.abs(target.x - original.x) + Math.abs(target.y - original.y));
       }
     });
-    nextState = {
-      ...nextState,
-      cellObstacles: nextState.cellObstacles.filter((candidate) => candidate.id !== obstacle.id),
-    };
+    // 컨테이너 제거 규칙:
+    // - 완전 소비(redirectCount === impacted.length): applyContainersBeforeSlide 내에서 즉시 제거
+    // - 부분 소비(redirectCount < impacted.length): partiallyConsumedContainerIds에 추가 후
+    //   slideGridWithObstacles 메인 함수에서 제거 (포탈 릴리스 이후)
+    // 두 경우 모두 컨테이너는 한 번 발동하면 소비된다.
+    if (redirectCount === impacted.length) {
+      nextState = {
+        ...nextState,
+        cellObstacles: nextState.cellObstacles.filter((candidate) => candidate.id !== obstacle.id),
+      };
+    } else {
+      partiallyConsumedContainerIds.add(obstacle.id);
+    }
     moved = true;
   }
 
-  return { grid: nextGrid, state: nextState, moved, lockedTileIds, score, mergingTiles, mergedTiles, maxDistance };
+  return {
+    grid: nextGrid,
+    state: nextState,
+    moved,
+    lockedTileIds,
+    score,
+    mergingTiles,
+    mergedTiles,
+    maxDistance,
+    partiallyConsumedContainerIds,
+  };
 };
 
 export const slideGridWithObstacles = (
@@ -512,8 +556,10 @@ export const slideGridWithObstacles = (
   let maxDistance = 0;
   const mergingTiles: MergingTile[] = [];
   const mergedTiles: MergedTile[] = [];
+  const portalReleaseAnimations: PortalReleaseAnimation[] = [];
   const mergedTargetIds = new Set<string>();
   const noMergeTileIds = new Set<string>();
+  const portalReleasedTileIds = new Set<string>();
   const concreteCollisions = new Set<string>();
   const frozenIdsAtStart = new Set(state.frozenTiles.map((frozen) => frozen.tileId));
   const originalPositions = getTilePositions(newGrid);
@@ -522,6 +568,17 @@ export const slideGridWithObstacles = (
   const containerResult = applyContainersBeforeSlide(newGrid, state, direction, frozenIdsAtStart, originalPositions);
   newGrid = containerResult.grid;
   state = containerResult.state;
+
+  // 부분 소비된 컨테이너를 obstacleMap 빌드 전에 제거 (메인 슬라이드/포탈 릴리스에서 블로킹 방지)
+  if (containerResult.partiallyConsumedContainerIds.size > 0) {
+    state = {
+      ...state,
+      cellObstacles: state.cellObstacles.filter(
+        (obstacle) => !containerResult.partiallyConsumedContainerIds.has(obstacle.id)
+      ),
+    };
+  }
+
   moved = containerResult.moved;
   totalScore = Math.min(totalScore + containerResult.score, MAX_SCORE);
   maxDistance = Math.max(maxDistance, containerResult.maxDistance);
@@ -557,7 +614,7 @@ export const slideGridWithObstacles = (
       const nextY = currentY + delta.dy;
 
       if (!isInside(size, nextX, nextY)) {
-        if (isMatchingPortalExit(state.portal, direction, currentX, currentY)) {
+        if (isMatchingPortalExit(state.portal, direction, currentX, currentY) && !portalReleasedTileIds.has(tile.id)) {
           state = {
             ...state,
             portal: state.portal
@@ -646,6 +703,167 @@ export const slideGridWithObstacles = (
     }
   }
 
+  if (state.portal && portalQueueLengthAtStart > 0) {
+    const queuedBeforeSwipe = state.portal.queue.slice(0, portalQueueLengthAtStart);
+    const queuedDuringSwipe = state.portal.queue.slice(portalQueueLengthAtStart);
+    let releaseCount = 0;
+    const releaseDelta = getPortalInwardDelta(state.portal.out);
+    const releaseEntry = getPortalEntryCell(size, state.portal.out);
+
+    for (const queuedTile of queuedBeforeSwipe) {
+      if (
+        !isInside(size, releaseEntry.x, releaseEntry.y) ||
+        newGrid[releaseEntry.y][releaseEntry.x] ||
+        obstacleMap.has(cellKey(releaseEntry.x, releaseEntry.y))
+      ) {
+        break;
+      }
+
+      const releasedTile = cloneTile(queuedTile);
+      let currentX = releaseEntry.x;
+      let currentY = releaseEntry.y;
+      let released = false;
+
+      while (true) {
+        const nextX = currentX + releaseDelta.dx;
+        const nextY = currentY + releaseDelta.dy;
+
+        if (!isInside(size, nextX, nextY)) {
+          newGrid[currentY][currentX] = releasedTile;
+          portalReleasedTileIds.add(releasedTile.id);
+          portalReleaseAnimations.push({
+            id: releasedTile.id,
+            value: releasedTile.value,
+            fromX: releaseEntry.x,
+            fromY: releaseEntry.y,
+            toX: currentX,
+            toY: currentY,
+          });
+          moved = true;
+          maxDistance = Math.max(
+            maxDistance,
+            Math.abs(currentX - releaseEntry.x) + Math.abs(currentY - releaseEntry.y)
+          );
+          released = true;
+          break;
+        }
+
+        const obstacle = obstacleMap.get(cellKey(nextX, nextY));
+        if (obstacle) {
+          if (obstacle.kind === 'percent') {
+            const nextValue = releasedTile.value <= 1 ? 1 : Math.max(1, Math.floor(releasedTile.value / 2));
+            const halvedTile = { ...releasedTile, value: nextValue };
+            newGrid[nextY][nextX] = halvedTile;
+            portalReleasedTileIds.add(halvedTile.id);
+            portalReleaseAnimations.push({
+              id: halvedTile.id,
+              value: halvedTile.value,
+              fromX: releaseEntry.x,
+              fromY: releaseEntry.y,
+              toX: nextX,
+              toY: nextY,
+            });
+            obstacleMap.delete(cellKey(nextX, nextY));
+            state = {
+              ...state,
+              cellObstacles: state.cellObstacles.filter((candidate) => candidate.id !== obstacle.id),
+            };
+            noMergeTileIds.add(halvedTile.id);
+            moved = true;
+            maxDistance = Math.max(
+              maxDistance,
+              Math.abs(nextX - releaseEntry.x) + Math.abs(nextY - releaseEntry.y)
+            );
+          } else {
+            if (obstacle.kind === 'concrete') {
+              concreteCollisions.add(obstacle.id);
+            }
+            newGrid[currentY][currentX] = releasedTile;
+            portalReleasedTileIds.add(releasedTile.id);
+            portalReleaseAnimations.push({
+              id: releasedTile.id,
+              value: releasedTile.value,
+              fromX: releaseEntry.x,
+              fromY: releaseEntry.y,
+              toX: currentX,
+              toY: currentY,
+            });
+            moved = true;
+            maxDistance = Math.max(
+              maxDistance,
+              Math.abs(currentX - releaseEntry.x) + Math.abs(currentY - releaseEntry.y)
+            );
+          }
+          released = true;
+          break;
+        }
+
+        const nextTile = newGrid[nextY][nextX];
+        if (nextTile) {
+          const targetFrozen = frozenIdsAtStart.has(nextTile.id);
+          const canMerge =
+            !targetFrozen &&
+            !mergedTargetIds.has(nextTile.id) &&
+            !noMergeTileIds.has(nextTile.id) &&
+            nextTile.value === releasedTile.value;
+
+          if (canMerge) {
+            const newValue = Math.min(nextTile.value * 2, MAX_TILE_VALUE);
+            newGrid[nextY][nextX] = { ...nextTile, value: newValue };
+            portalReleasedTileIds.add(releasedTile.id);
+            mergedTargetIds.add(nextTile.id);
+            mergingTiles.push({
+              id: releasedTile.id,
+              value: releasedTile.value,
+              fromX: releaseEntry.x,
+              fromY: releaseEntry.y,
+              toX: nextX,
+              toY: nextY,
+            });
+            mergedTiles.push({
+              id: nextTile.id,
+              fromValue: nextTile.value,
+              toValue: newValue,
+            });
+            totalScore = Math.min(totalScore + newValue, MAX_SCORE);
+          } else {
+            newGrid[currentY][currentX] = releasedTile;
+            portalReleaseAnimations.push({
+              id: releasedTile.id,
+              value: releasedTile.value,
+              fromX: releaseEntry.x,
+              fromY: releaseEntry.y,
+              toX: currentX,
+              toY: currentY,
+            });
+          }
+          moved = true;
+          maxDistance = Math.max(
+            maxDistance,
+            Math.abs((canMerge ? nextX : currentX) - releaseEntry.x) +
+              Math.abs((canMerge ? nextY : currentY) - releaseEntry.y)
+          );
+          released = true;
+          break;
+        }
+
+        currentX = nextX;
+        currentY = nextY;
+      }
+
+      if (!released) break;
+      releaseCount += 1;
+    }
+
+    state = {
+      ...state,
+      portal: {
+        ...state.portal,
+        queue: [...queuedBeforeSwipe.slice(releaseCount), ...queuedDuringSwipe].map(cloneTile),
+      },
+    };
+  }
+
   if (concreteCollisions.size > 0) {
     state = {
       ...state,
@@ -655,25 +873,6 @@ export const slideGridWithObstacles = (
         moved = true;
         return nextHp > 0 ? [{ ...obstacle, hp: nextHp }] : [];
       }),
-    };
-  }
-
-  if (state.portal && portalQueueLengthAtStart > 0) {
-    const queuedBeforeSwipe = state.portal.queue.slice(0, portalQueueLengthAtStart);
-    const queuedDuringSwipe = state.portal.queue.slice(portalQueueLengthAtStart);
-    const releaseCells = getPortalReleaseCells(newGrid, state, state.portal.out);
-    const releaseCount = Math.min(releaseCells.length, queuedBeforeSwipe.length);
-    for (let index = 0; index < releaseCount; index += 1) {
-      const cell = releaseCells[index];
-      newGrid[cell.y][cell.x] = cloneTile(queuedBeforeSwipe[index]);
-      moved = true;
-    }
-    state = {
-      ...state,
-      portal: {
-        ...state.portal,
-        queue: [...queuedBeforeSwipe.slice(releaseCount), ...queuedDuringSwipe].map(cloneTile),
-      },
     };
   }
 
@@ -691,7 +890,9 @@ export const slideGridWithObstacles = (
     moved,
     mergingTiles,
     mergedTiles,
+    portalReleaseAnimations,
     maxDistance,
+    portalReleasedTileIds,
   };
 };
 

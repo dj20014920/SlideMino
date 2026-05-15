@@ -13,6 +13,15 @@ export interface MergingTile {
   toY: number;
 }
 
+export interface PortalReleaseAnimation {
+  id: string;
+  value: number;
+  fromX: number;
+  fromY: number;
+  toX: number;
+  toY: number;
+}
+
 export type Grid = (Tile | null)[][];
 
 export enum ShapeType {

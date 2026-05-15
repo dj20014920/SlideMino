@@ -54,4 +54,39 @@ describe('game storage obstacle migration', () => {
     expect(saved?.obstacleState?.spawnMissStreak).toBe(0);
     expect(saved?.unlockedObstacleFeatures).toEqual([]);
   });
+
+  it('normalizes partial obstacle state in persisted saves', () => {
+    const store = installLocalStorageStub();
+    store.set('slidemino_game_state_v1', JSON.stringify({
+      version: 1,
+      gameState: GameState.PLAYING,
+      grid: [
+        [{ id: 'tile-128', value: 128 }, null, null, null],
+        [null, null, null, null],
+        [null, null, null, null],
+        [null, null, null, null],
+      ],
+      slots: [{
+        id: 'piece-1',
+        type: ShapeType.O,
+        rotation: 0,
+        initialRotation: 0,
+        cells: [{ x: 0, y: 0 }],
+        value: 1,
+      }],
+      score: 700,
+      phase: Phase.PLACE,
+      boardSize: 4,
+      canSkipSlide: false,
+      undoRemaining: 3,
+      savedAt: Date.now(),
+      obstacleState: { rulesVersion: 'obstacles_v1' },
+    }));
+
+    const saved = loadGameState();
+
+    expect(saved?.obstacleState?.cellObstacles).toEqual([]);
+    expect(saved?.obstacleState?.frozenTiles).toEqual([]);
+    expect(saved?.obstacleState?.portal).toBeNull();
+  });
 });

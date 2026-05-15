@@ -10,7 +10,7 @@ import React, {
   useImperativeHandle,
   forwardRef
 } from 'react';
-import { Grid, ObstacleState, Piece, Phase, Tile, MergingTile, PortalEndpoint } from '../types';
+import { Grid, ObstacleState, Piece, Phase, Tile, MergingTile, PortalEndpoint, PortalState, PortalReleaseAnimation, ConcreteObstacle, ContainerObstacle, FrozenTileState } from '../types';
 import { canPlacePieceWithObstacles } from '../services/obstacleEngine';
 import { getTileColor, getTileNumberLayout, getSlideAnimationDurationMs, BOARD_CELL_GAP_PX } from '../constants';
 import { useBlockCustomization } from '../context/BlockCustomizationContext';
@@ -46,6 +46,7 @@ interface BoardProps {
   htmlId?: string;
   boardScale?: number;
   readonly?: boolean;
+  portalReleaseAnimations?: PortalReleaseAnimation[];
   reviveSelectionEnabled?: boolean;
   revivePendingTileId?: string | null;
   onReviveTileTap?: (tileId: string) => void;
@@ -123,6 +124,7 @@ type PendingMergeRipple = {
 const tileTransitionEase = 'cubic-bezier(0.25,0.1,0.25,1.0)';
 const reviveDestroyAnimation = 'reviveBreakFade 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards';
 const EMPTY_REVIVE_DESTROY_EFFECTS: ReviveDestroyEffect[] = [];
+const EMPTY_PORTAL_RELEASE_ANIMATIONS: PortalReleaseAnimation[] = [];
 
 const isCoarsePointerDevice = (): boolean => {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
@@ -174,6 +176,8 @@ const buildPixelBlastMergeEdgeGlowStyle = (
     filter: 'brightness(1.16)',
   };
 };
+
+
 
 const MergingTilesLayer = React.memo<{
   animatingMerges: (MergingTile & { currentX: number; currentY: number; distance: number })[];
@@ -235,6 +239,66 @@ const MergingTilesLayer = React.memo<{
   );
 });
 
+const PortalReleaseLayer = React.memo<{
+  releases: (PortalReleaseAnimation & { currentX: number; currentY: number; distance: number })[];
+  layout: GridLayout;
+  getResolvedAppearance: (value: number) => ResolvedTileAppearance;
+  isPremiumUiThemeActive: boolean;
+  premiumUiTileFaceClassName: string;
+  premiumUiTileNumberClassName: string;
+}>(({ releases, layout, getResolvedAppearance, isPremiumUiThemeActive, premiumUiTileFaceClassName, premiumUiTileNumberClassName }) => {
+  if (releases.length === 0) return null;
+
+  return (
+    <div className="absolute inset-0 z-[18] pointer-events-none">
+      {releases.map((release) => {
+        const duration = getSlideAnimationDurationMs(release.distance);
+        const transform = `translate3d(${layout.posPx[release.currentX]}px, ${layout.posPx[release.currentY]}px, 0)`;
+        const { text, fontPx } = getTileNumberLayout(release.value, layout.cellPx);
+        const appearance = getResolvedAppearance(release.value);
+        const isNeonBlock = appearance.className === 'skin-neon-block';
+        return (
+          <div
+            key={`portal-release-${release.id}`}
+            data-tile-id={release.id}
+            data-tile-kind="portal-release"
+            data-tile-distance={release.distance}
+            {...TILE_PREMIUM_UI_PRESERVE_ATTRS}
+            className={`
+              absolute ${isPremiumUiThemeActive ? premiumUiTileFaceClassName : (isNeonBlock ? '' : 'rounded-xl')} flex items-center justify-center
+              font-semibold ${isNeonBlock ? '' : 'overflow-hidden'} text-center
+              ${appearance.className}
+              ${isNeonBlock ? 'skin-neon-block--board' : ''}
+            `}
+            style={{
+              width: `${layout.cellPx}px`,
+              height: `${layout.cellPx}px`,
+              left: 0,
+              top: 0,
+              fontSize: `${fontPx}px`,
+              lineHeight: 1,
+              whiteSpace: 'pre-line',
+              ...(appearance.style ?? {}),
+              transform,
+              transition: duration
+                ? `transform ${duration}ms ${tileTransitionEase}`
+                : undefined,
+              willChange: duration ? 'transform' : undefined,
+            }}
+          >
+            <span
+              className={`${isPremiumUiThemeActive ? premiumUiTileNumberClassName : ''} ${isNeonBlock ? 'skin-neon-block-number' : ''}`}
+              style={TILE_NUMBER_INHERIT_STYLE}
+            >
+              {text}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+});
+
 const TilesLayer = React.memo<{
   tiles: (Tile & { x: number; y: number; distance: number })[];
   layout: GridLayout;
@@ -252,6 +316,7 @@ const TilesLayer = React.memo<{
   isPremiumUiThemeActive?: boolean;
   premiumUiTileFaceClassName: string;
   premiumUiTileNumberClassName: string;
+  hiddenTileIds?: ReadonlySet<string>;
 }>(({
   tiles,
   layout,
@@ -269,6 +334,7 @@ const TilesLayer = React.memo<{
   isPremiumUiThemeActive = false,
   premiumUiTileFaceClassName,
   premiumUiTileNumberClassName,
+  hiddenTileIds,
 }) => {
   const canSelectTiles = reviveSelectionEnabled && typeof onReviveTileTap === 'function';
 
@@ -280,6 +346,23 @@ const TilesLayer = React.memo<{
       `}
     >
       {tiles.map((tile) => {
+        if (hiddenTileIds?.has(tile.id)) {
+          return (
+            <div
+              key={tile.id}
+              data-tile-id={tile.id}
+              data-tile-kind="tile-hidden"
+              style={{
+                width: `${layout.cellPx}px`,
+                height: `${layout.cellPx}px`,
+                left: 0,
+                top: 0,
+                visibility: 'hidden',
+                position: 'absolute',
+              }}
+            />
+          );
+        }
         const duration = getSlideAnimationDurationMs(tile.distance);
         const displayValue = valueOverrides?.[tile.id] ?? tile.value;
         const transform = `translate3d(${layout.posPx[tile.x]}px, ${layout.posPx[tile.y]}px, 0)`;
@@ -522,6 +605,8 @@ const CONTAINER_ARROW_BY_DIRECTION: Record<string, string> = {
   LEFT: '←',
 };
 
+
+
 const getPortalEntryKey = (kind: 'in' | 'out', endpoint: PortalEndpoint): string =>
   `portal-${kind}-${endpoint.side}-${endpoint.index}`;
 
@@ -541,7 +626,7 @@ const getPortalMarkerStyle = (
   layout: GridLayout,
   size: number
 ): React.CSSProperties => {
-  const markerSize = Math.max(18, layout.cellPx * 0.42);
+  const markerSize = Math.max(22, layout.cellPx * 0.50);
   const outsideGap = Math.max(4, layout.cellPx * 0.12);
   let x = 0;
   let y = 0;
@@ -567,11 +652,203 @@ const getPortalMarkerStyle = (
   };
 };
 
+const PortalMarkers = React.memo<{
+  portal: PortalState;
+  gridSize: number;
+  layout: GridLayout;
+  impactKeys: ReadonlySet<string>;
+}>(({
+  portal,
+  gridSize,
+  layout,
+  impactKeys,
+}) => {
+  const inEntering = impactKeys.has(getPortalEntryKey('in', portal.in));
+  const outEntering = impactKeys.has(getPortalEntryKey('out', portal.out));
+
+  return (
+    <>
+      <div
+        className="absolute"
+        style={{ left: 0, top: 0, ...getPortalMarkerStyle(portal.in, layout, gridSize) }}
+      >
+        <div
+          data-tile-kind="obstacle"
+          data-obstacle-kind="portal-in"
+          {...TILE_PREMIUM_UI_PRESERVE_ATTRS}
+          className={`relative flex h-full w-full items-center justify-center rounded-full border-2 border-sky-200 bg-sky-500 text-white shadow-[0_0_18px_rgba(14,165,233,0.48)] text-[11px] font-black ${inEntering ? 'obstacle-drop-impact' : ''}`}
+        >
+          {inEntering && (
+            <span className="obstacle-impact-ring absolute inset-[-7px] rounded-full border-2 border-sky-100/85" />
+          )}
+          <span className="relative z-10 flex flex-col items-center leading-none">
+            <span>IN</span>
+            <span className="text-[10px]">▼</span>
+          </span>
+        </div>
+      </div>
+      <div
+        className="absolute"
+        style={{ left: 0, top: 0, ...getPortalMarkerStyle(portal.out, layout, gridSize) }}
+      >
+        <div
+          data-tile-kind="obstacle"
+          data-obstacle-kind="portal-out"
+          {...TILE_PREMIUM_UI_PRESERVE_ATTRS}
+          className={`relative flex h-full w-full items-center justify-center rounded-full border-2 border-amber-200 bg-amber-500 text-white shadow-[0_0_18px_rgba(245,158,11,0.48)] text-[11px] font-black ${outEntering ? 'obstacle-drop-impact' : ''}`}
+        >
+          {outEntering && (
+            <span className="obstacle-impact-ring absolute inset-[-7px] rounded-full border-2 border-amber-100/85" />
+          )}
+          <span className="relative z-10 flex flex-col items-center leading-none">
+            <span>OUT</span>
+            <span className="text-[10px]">▲</span>
+          </span>
+          {portal.queue.length > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-black text-white">
+              {portal.queue.length}
+            </span>
+          )}
+        </div>
+      </div>
+    </>
+  );
+});
+
+const LockIcon = React.memo(({ size }: { size: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }}>
+    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    <circle cx="12" cy="16" r="1.2" fill="white" stroke="none" />
+    <line x1="12" y1="17.5" x2="12" y2="19.5" stroke="white" strokeWidth="2" />
+  </svg>
+));
+
+const ShieldIcon = React.memo(({ size }: { size: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.4))' }}>
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    <path d="M9 12l2 2 4-4" strokeWidth="2.5" />
+  </svg>
+));
+
+/** obstacle 진입 애니메이션 지속시간 (CSS @keyframes와 일치해야 함) */
+const OBSTACLE_IMPACT_ANIMATION_MS = 560;
+/** CSS 애니메이션 종료 후 impactKeys를 유지하는 버퍼. 애니메이션이 완전히 끝난 후에 클리어 */
+const OBSTACLE_IMPACT_BUFFER_MS = 120;
+/** impactKeys 초기화 타이머 = 애니메이션 + 버퍼 */
+const OBSTACLE_IMPACT_CLEAR_MS = OBSTACLE_IMPACT_ANIMATION_MS + OBSTACLE_IMPACT_BUFFER_MS;
+
+const ConcreteObstacleCell = React.memo<{
+  obstacle: ConcreteObstacle;
+  layout: GridLayout;
+  isEntering: boolean;
+}>(({ obstacle, layout, isEntering }) => {
+  const hpSize = Math.max(18, layout.cellPx * 0.35);
+  const hpBgColor = obstacle.hp >= 3 ? 'bg-slate-800' : obstacle.hp === 2 ? 'bg-slate-600' : 'bg-slate-500';
+  const hpBorderColor = obstacle.hp <= 1 ? 'border-red-400/80' : obstacle.hp === 2 ? 'border-slate-300/50' : 'border-slate-400/60';
+  return (
+    <div
+      data-tile-kind="obstacle"
+      data-obstacle-kind="concrete"
+      {...TILE_PREMIUM_UI_PRESERVE_ATTRS}
+      className={`relative flex h-full w-full items-center justify-center rounded-xl border-2 ${hpBorderColor} ${hpBgColor} shadow-[inset_0_2px_0_rgba(255,255,255,0.12),0_6px_14px_rgba(15,23,42,0.35)] ${
+        isEntering ? 'obstacle-drop-impact' : ''
+      }`}
+    >
+      {isEntering && (
+        <span className="obstacle-impact-ring absolute inset-[-7px] rounded-2xl border-2 border-white/80" />
+      )}
+      <span className="font-black text-white drop-shadow-[0_2px_3px_rgba(0,0,0,0.5)] flex items-center gap-1" style={{ fontSize: `${hpSize}px` }}>
+        <ShieldIcon size={hpSize * 0.8} />
+        {obstacle.hp}
+      </span>
+    </div>
+  );
+});
+
+const PercentObstacleCell = React.memo<{
+  layout: GridLayout;
+  isEntering: boolean;
+}>(({ layout, isEntering }) => {
+  const pctSize = Math.max(18, layout.cellPx * 0.35);
+  return (
+    <div
+      data-tile-kind="obstacle"
+      data-obstacle-kind="percent"
+      {...TILE_PREMIUM_UI_PRESERVE_ATTRS}
+      className={`relative flex h-full w-full items-center justify-center rounded-xl border-2 border-rose-300/70 bg-rose-500 shadow-[0_0_18px_rgba(244,63,94,0.35)] ${
+        isEntering ? 'obstacle-drop-impact' : ''
+      }`}
+    >
+      {isEntering && (
+        <span className="obstacle-impact-ring absolute inset-[-7px] rounded-2xl border-2 border-white/80" />
+      )}
+      <span className="font-black text-white drop-shadow-[0_2px_3px_rgba(0,0,0,0.4)]" style={{ fontSize: `${pctSize}px` }}>
+        ÷2
+      </span>
+    </div>
+  );
+});
+
+const ContainerObstacleCell = React.memo<{
+  obstacle: ContainerObstacle;
+  layout: GridLayout;
+  isEntering: boolean;
+}>(({ obstacle, layout, isEntering }) => {
+  const arrowSize = Math.max(20, layout.cellPx * 0.4);
+  const arrow = CONTAINER_ARROW_BY_DIRECTION[obstacle.direction] ?? '?';
+  return (
+    <div
+      data-tile-kind="obstacle"
+      data-obstacle-kind="container"
+      {...TILE_PREMIUM_UI_PRESERVE_ATTRS}
+      className={`relative flex h-full w-full items-center justify-center rounded-xl border-2 border-emerald-300/60 bg-emerald-600 shadow-[inset_0_0_0_2px_rgba(255,255,255,0.1),0_6px_14px_rgba(4,120,87,0.3)] ${
+        isEntering ? 'obstacle-drop-impact' : ''
+      }`}
+    >
+      {isEntering && (
+        <span className="obstacle-impact-ring absolute inset-[-7px] rounded-2xl border-2 border-white/80" />
+      )}
+      <span className="font-black text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]" style={{ fontSize: `${arrowSize}px` }}>
+        {arrow}
+      </span>
+    </div>
+  );
+});
+
+const FrozenTileOverlay = React.memo<{
+  frozen: FrozenTileState;
+  pos: { x: number; y: number };
+  layout: GridLayout;
+  isEntering: boolean;
+}>(({ frozen, pos, layout, isEntering }) => {
+  const lockSize = Math.max(14, layout.cellPx * 0.35);
+  const countSize = Math.max(12, layout.cellPx * 0.18);
+  return (
+    <div className="absolute rounded-xl" style={{ left: 0, top: 0, width: `${layout.cellPx}px`, height: `${layout.cellPx}px`, transform: `translate3d(${layout.posPx[pos.x]}px, ${layout.posPx[pos.y]}px, 0)`, boxShadow: 'inset 0 0 12px rgba(255,255,255,0.25), 0 0 8px rgba(56,189,248,0.2)' }}>
+      <div className="absolute inset-0 rounded-xl bg-sky-950/35 z-10" />
+      <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-1">
+        <LockIcon size={lockSize} />
+        <span className="font-black text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.7)]" style={{ fontSize: `${countSize}px`, lineHeight: 1 }}>
+          {frozen.remainingSwipes}
+        </span>
+      </div>
+      {isEntering && (
+        <span className="obstacle-impact-ring absolute inset-[-7px] rounded-2xl border-2 border-white/60 z-30" />
+      )}
+    </div>
+  );
+});
+
 const ObstacleLayer = React.memo<{
   grid: Grid;
   obstacleState: ObstacleState;
   layout: GridLayout;
-}>(({ grid, obstacleState, layout }) => {
+}>(({
+  grid,
+  obstacleState,
+  layout,
+}) => {
   const [impactKeys, setImpactKeys] = useState<Set<string>>(() => new Set());
   const previousVisualKeysRef = useRef<Set<string> | null>(null);
 
@@ -588,7 +865,7 @@ const ObstacleLayer = React.memo<{
     setImpactKeys(new Set(enteringKeys));
     const timer = window.setTimeout(() => {
       setImpactKeys(new Set());
-    }, 680);
+    }, OBSTACLE_IMPACT_CLEAR_MS);
     return () => window.clearTimeout(timer);
   }, [obstacleState]);
 
@@ -607,35 +884,16 @@ const ObstacleLayer = React.memo<{
         const transform = `translate3d(${layout.posPx[obstacle.x]}px, ${layout.posPx[obstacle.y]}px, 0)`;
         const entryKey = `cell-${obstacle.id}`;
         const isEntering = impactKeys.has(entryKey);
-        const label = obstacle.kind === 'concrete'
-          ? String(obstacle.hp)
-          : obstacle.kind === 'percent'
-            ? '%'
-            : CONTAINER_ARROW_BY_DIRECTION[obstacle.direction] ?? '?';
-        const className = obstacle.kind === 'concrete'
-          ? 'bg-slate-600 text-white border-slate-300/70 shadow-[inset_0_2px_0_rgba(255,255,255,0.22),0_8px_16px_rgba(15,23,42,0.24)]'
-          : obstacle.kind === 'percent'
-            ? 'bg-rose-500 text-white border-rose-100/80 shadow-[0_0_18px_rgba(244,63,94,0.28)]'
-            : 'bg-emerald-500 text-white border-emerald-100/80 shadow-[0_0_18px_rgba(16,185,129,0.28)]';
 
         return (
-          <div
-            key={obstacle.id}
-            className="absolute"
-            style={{
-              left: 0,
-              top: 0,
-              width: `${layout.cellPx}px`,
-              height: `${layout.cellPx}px`,
-              transform,
-            }}
-          >
-            <div className={`relative flex h-full w-full items-center justify-center rounded-xl border-2 text-sm font-black ${className} ${isEntering ? 'obstacle-drop-impact' : ''}`}>
-              {isEntering && (
-                <span className="obstacle-impact-ring absolute inset-[-7px] rounded-2xl border-2 border-white/80" />
-              )}
-              <span className="relative z-10">{label}</span>
-            </div>
+          <div key={obstacle.id} className="absolute" style={{ left: 0, top: 0, width: `${layout.cellPx}px`, height: `${layout.cellPx}px`, transform }}>
+            {obstacle.kind === 'concrete' ? (
+              <ConcreteObstacleCell obstacle={obstacle} layout={layout} isEntering={isEntering} />
+            ) : obstacle.kind === 'percent' ? (
+              <PercentObstacleCell layout={layout} isEntering={isEntering} />
+            ) : (
+              <ContainerObstacleCell obstacle={obstacle} layout={layout} isEntering={isEntering} />
+            )}
           </div>
         );
       })}
@@ -643,58 +901,20 @@ const ObstacleLayer = React.memo<{
       {obstacleState.frozenTiles.map((frozen) => {
         const pos = frozenPositions.get(frozen.tileId);
         if (!pos) return null;
-        const transform = `translate3d(${layout.posPx[pos.x]}px, ${layout.posPx[pos.y]}px, 0)`;
         const entryKey = `ice-${frozen.tileId}`;
         const isEntering = impactKeys.has(entryKey);
         return (
-          <div
-            key={`ice-${frozen.tileId}`}
-            className="absolute"
-            style={{
-              left: 0,
-              top: 0,
-              width: `${layout.cellPx}px`,
-              height: `${layout.cellPx}px`,
-              transform,
-            }}
-          >
-            <div className={`relative h-full w-full rounded-xl border-2 border-cyan-100/90 bg-cyan-200/20 shadow-[inset_0_0_18px_rgba(207,250,254,0.75),0_0_18px_rgba(34,211,238,0.3)] ${isEntering ? 'obstacle-drop-impact' : ''}`}>
-              {isEntering && (
-                <span className="obstacle-impact-ring absolute inset-[-7px] rounded-2xl border-2 border-cyan-100/85" />
-              )}
-              <span className="absolute right-1 top-1 rounded-full bg-cyan-950/70 px-1 text-[10px] font-bold text-white">
-                {frozen.remainingSwipes}
-              </span>
-            </div>
-          </div>
+          <FrozenTileOverlay key={`ice-${frozen.tileId}`} frozen={frozen} pos={pos} layout={layout} isEntering={isEntering} />
         );
       })}
 
       {obstacleState.portal && (
-        <>
-          <div
-            className="absolute"
-            style={{ left: 0, top: 0, ...getPortalMarkerStyle(obstacleState.portal.in, layout, grid.length) }}
-          >
-            <div className={`relative flex h-full w-full items-center justify-center rounded-full border-2 border-sky-100 bg-sky-500 text-[9px] font-black text-white shadow-[0_0_18px_rgba(14,165,233,0.48)] ${impactKeys.has(getPortalEntryKey('in', obstacleState.portal.in)) ? 'obstacle-drop-impact' : ''}`}>
-              {impactKeys.has(getPortalEntryKey('in', obstacleState.portal.in)) && (
-                <span className="obstacle-impact-ring absolute inset-[-7px] rounded-full border-2 border-sky-100/85" />
-              )}
-              <span className="relative z-10">IN</span>
-            </div>
-          </div>
-          <div
-            className="absolute"
-            style={{ left: 0, top: 0, ...getPortalMarkerStyle(obstacleState.portal.out, layout, grid.length) }}
-          >
-            <div className={`relative flex h-full w-full items-center justify-center rounded-full border-2 border-amber-100 bg-amber-500 text-[9px] font-black text-white shadow-[0_0_18px_rgba(245,158,11,0.48)] ${impactKeys.has(getPortalEntryKey('out', obstacleState.portal.out)) ? 'obstacle-drop-impact' : ''}`}>
-              {impactKeys.has(getPortalEntryKey('out', obstacleState.portal.out)) && (
-                <span className="obstacle-impact-ring absolute inset-[-7px] rounded-full border-2 border-amber-100/85" />
-              )}
-              <span className="relative z-10">OUT</span>
-            </div>
-          </div>
-        </>
+        <PortalMarkers
+          portal={obstacleState.portal}
+          gridSize={grid.length}
+          layout={layout}
+          impactKeys={impactKeys}
+        />
       )}
     </div>
   );
@@ -710,6 +930,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
   htmlId,
   boardScale,
   readonly = false,
+  portalReleaseAnimations = EMPTY_PORTAL_RELEASE_ANIMATIONS,
   reviveSelectionEnabled = false,
   revivePendingTileId = null,
   onReviveTileTap,
@@ -775,6 +996,11 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
     currentY: number;
     distance: number;
   })[]>([]);
+  const [animatingPortalReleases, setAnimatingPortalReleases] = useState<(PortalReleaseAnimation & {
+    currentX: number;
+    currentY: number;
+    distance: number;
+  })[]>([]);
 
   // When new mergingTiles arrive, start animation sequence
   // useLayoutEffect: DOM에 시작 위치를 동기적으로 커밋 (paint 전)
@@ -811,6 +1037,37 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
       if (rafId !== null) cancelAnimationFrame(rafId);
     };
   }, [mergingTiles]);
+
+  useLayoutEffect(() => {
+    let rafId: number | null = null;
+
+    if (portalReleaseAnimations.length > 0) {
+      const startingReleases = portalReleaseAnimations.map((release) => {
+        const distance = Math.abs(release.toX - release.fromX) + Math.abs(release.toY - release.fromY);
+        return {
+          ...release,
+          currentX: release.fromX,
+          currentY: release.fromY,
+          distance,
+        };
+      });
+      setAnimatingPortalReleases(startingReleases);
+
+      rafId = requestAnimationFrame(() => {
+        setAnimatingPortalReleases((prev) => prev.map((release) => ({
+          ...release,
+          currentX: release.toX,
+          currentY: release.toY,
+        })));
+      });
+    } else {
+      setAnimatingPortalReleases([]);
+    }
+
+    return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
+  }, [portalReleaseAnimations]);
 
   // ── Evervault skin: detect active skin & track merge flash ──
   const { activeSkin, isPremiumUiThemeActive, premiumUiObjects, resolveTileAppearance, premiumSkinRuntime } = useBlockCustomization();
@@ -1201,6 +1458,11 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
     return { tiles, nextPositions };
   }, [grid]);
 
+  const portalReleaseAnimatingTileIds = useMemo<ReadonlySet<string>>(
+    () => new Set(animatingPortalReleases.map((release) => release.id)),
+    [animatingPortalReleases]
+  );
+
   // Commit next positions AFTER paint (StrictMode-safe)
   useLayoutEffect(() => {
     prevPositionsRef.current = nextPositions;
@@ -1235,7 +1497,8 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
         className={`
         relative ${premiumUiBoardPaddingClassName} ${isPremiumUiThemeActive ? premiumUiBoardShellClassName : ''}
         ${isPremiumUiThemeActive ? '' : 'bg-white/40'}
-        ${isPremiumUiThemeActive ? '' : 'rounded-3xl'} select-none overflow-visible
+        {/* !overflow-visible: 포탈 IN/OUT 마커가 보드 외곽에 위치하므로 필수. 프리미엄 스킨 CSS가 overflow-hidden을 선언해도 덮어쓰이지 않도록 !important 적용 */}
+        ${isPremiumUiThemeActive ? '' : 'rounded-3xl'} select-none !overflow-visible
         shadow-lg transition-shadow duration-200 ease-out
         ${boardBorderStyle}
         ${readonly ? 'pointer-events-none' : ''}
@@ -1322,11 +1585,13 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
             }
           }
           .obstacle-drop-impact {
+            /* OBSTACLE_IMPACT_ANIMATION_MS = 560ms */
             animation: obstacleDropImpact 560ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
             transform-origin: center bottom;
             will-change: transform, opacity, filter;
           }
           .obstacle-impact-ring {
+            /* OBSTACLE_IMPACT_ANIMATION_MS = 560ms */
             animation: obstacleImpactRing 560ms ease-out both;
             will-change: transform, opacity;
           }
@@ -1378,16 +1643,27 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
             isPremiumUiThemeActive={isPremiumUiThemeActive}
             premiumUiTileFaceClassName={premiumUiTileFaceClassName}
             premiumUiTileNumberClassName={premiumUiTileNumberClassName}
+            hiddenTileIds={portalReleaseAnimatingTileIds}
           />
 
-          {/* 4. Obstacles and portals */}
+          {/* 4. Portal release travel */}
+          <PortalReleaseLayer
+            releases={animatingPortalReleases}
+            layout={layout}
+            getResolvedAppearance={getResolvedAppearance}
+            isPremiumUiThemeActive={isPremiumUiThemeActive}
+            premiumUiTileFaceClassName={premiumUiTileFaceClassName}
+            premiumUiTileNumberClassName={premiumUiTileNumberClassName}
+          />
+
+          {/* 5. Obstacles and portals */}
           <ObstacleLayer
             grid={grid}
             obstacleState={obstacleState}
             layout={layout}
           />
 
-          {/* 5. Revive Destroy FX */}
+          {/* 6. Revive Destroy FX */}
           <ReviveDestroyLayer
             effects={reviveDestroyEffects}
             layout={layout}
@@ -1397,7 +1673,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
             premiumUiTileNumberClassName={premiumUiTileNumberClassName}
           />
 
-          {/* 6. Ghost Overlay */}
+          {/* 7. Ghost Overlay */}
           {ghostCells && (
             <GhostOverlay
               size={size}

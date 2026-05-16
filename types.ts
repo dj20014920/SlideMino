@@ -22,6 +22,24 @@ export interface PortalReleaseAnimation {
   toY: number;
 }
 
+/** 포탈 IN으로 타일이 빨려들어가는 애니메이션 */
+export interface PortalInAnimation {
+  id: string;
+  value: number;
+  x: number;  // 포탈 IN 진입 지점 x (보드 가장자리 셀)
+  y: number;  // 포탈 IN 진입 지점 y
+}
+
+/** 방해요소(컨테이너/포탈)가 막혔을 때 타일이 "펑!" 터지며 랜덤 위치로 날아가는 애니메이션 */
+export interface PopAnimation {
+  id: string;
+  value: number;
+  fromX: number;  // 출발 x (막힌 출구 위치)
+  fromY: number;  // 출발 y
+  toX: number;    // 도착 x (랜덤 빈 셀)
+  toY: number;    // 도착 y
+}
+
 export type Grid = (Tile | null)[][];
 
 export enum ShapeType {
@@ -122,6 +140,7 @@ export interface PortalState {
   in: PortalEndpoint;
   out: PortalEndpoint;
   queue: Tile[];
+  usageCount: number;  // 추가: IN+OUT 1쌍 = 1회, 5회 도달 시 포탈 소멸
 }
 
 export interface ObstacleState {

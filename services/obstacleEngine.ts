@@ -8,7 +8,9 @@ import {
   ObstacleFeature,
   ObstacleState,
   Piece,
+  PopAnimation,
   PortalEndpoint,
+  PortalInAnimation,
   PortalReleaseAnimation,
   PortalSide,
   Tile,
@@ -81,6 +83,8 @@ export interface ObstacleSlideResult {
   mergingTiles: MergingTile[];
   mergedTiles: MergedTile[];
   portalReleaseAnimations: PortalReleaseAnimation[];
+  portalInAnimations: PortalInAnimation[];   // 추가
+  popAnimations: PopAnimation[];             // 추가
   maxDistance: number;
   portalReleasedTileIds: Set<string>;
 }
@@ -160,6 +164,7 @@ export const cloneObstacleState = (state: ObstacleState | null | undefined): Obs
           in: { ...rawPortal.in },
           out: { ...rawPortal.out },
           queue: Array.isArray(rawPortal.queue) ? rawPortal.queue.map(cloneTile) : [],
+          usageCount: typeof rawPortal.usageCount === 'number' ? rawPortal.usageCount : 0,
         }
       : null,
     spawnMissStreak:
@@ -417,132 +422,6 @@ const getRedirectTargets = (
   })).filter((pos) => isInside(size, pos.x, pos.y));
 };
 
-const applyContainersBeforeSlide = (
-  grid: Grid,
-  state: ObstacleState,
-  direction: Direction,
-  frozenIds: ReadonlySet<string>,
-  originalPositions: ReadonlyMap<string, { x: number; y: number }>
-): {
-  grid: Grid;
-  state: ObstacleState;
-  moved: boolean;
-  lockedTileIds: Set<string>;
-  score: number;
-  mergingTiles: MergingTile[];
-  mergedTiles: MergedTile[];
-  maxDistance: number;
-  partiallyConsumedContainerIds: Set<string>;
-} => {
-  let nextGrid = grid;
-  let nextState = state;
-  let moved = false;
-  let score = 0;
-  let maxDistance = 0;
-  const lockedTileIds = new Set<string>();
-  const mergingTiles: MergingTile[] = [];
-  const mergedTiles: MergedTile[] = [];
-  const partiallyConsumedContainerIds = new Set<string>();
-
-  for (const obstacle of state.cellObstacles) {
-    if (obstacle.kind !== 'container') continue;
-    const impacted = collectContainerImpacts(nextGrid, nextState, obstacle, direction, frozenIds, lockedTileIds);
-    if (impacted.length === 0) continue;
-
-    const obstacleMap = buildCellObstacleMap(nextState);
-    const allTargets = getRedirectTargets(nextGrid.length, obstacle, impacted.length);
-    let redirectCount = 0;
-    let targets: Array<{ x: number; y: number }> = [];
-    let gridWithoutRedirected: Grid | null = null;
-
-    for (let count = Math.min(impacted.length, allTargets.length); count > 0; count -= 1) {
-      const redirected = impacted.slice(0, count);
-      const redirectedIds = new Set(redirected.map((tile) => tile.id));
-      const heldIds = new Set(impacted.slice(count).map((tile) => tile.id));
-      const candidateGrid = nextGrid.map((row) => row.map((tile) => (tile && redirectedIds.has(tile.id) ? null : tile)));
-      const candidateTargets = allTargets.slice(0, count);
-      const plannedMergeTargets = new Set<string>();
-      const canRedirect = candidateTargets.every((target, index) => {
-        if (obstacleMap.has(cellKey(target.x, target.y))) return false;
-        const targetTile = candidateGrid[target.y][target.x];
-        if (!targetTile) return true;
-        if (heldIds.has(targetTile.id)) return false;
-        if (frozenIds.has(targetTile.id)) return false;
-        if (plannedMergeTargets.has(targetTile.id)) return false;
-        const redirectedTile = redirected[index];
-        if (!redirectedTile || redirectedTile.value !== targetTile.value) return false;
-        plannedMergeTargets.add(targetTile.id);
-        return true;
-      });
-      if (canRedirect) {
-        redirectCount = count;
-        targets = candidateTargets;
-        gridWithoutRedirected = candidateGrid;
-        break;
-      }
-    }
-    if (redirectCount === 0 || !gridWithoutRedirected) continue;
-
-    const redirected = impacted.slice(0, redirectCount);
-    nextGrid = gridWithoutRedirected;
-    redirected.forEach((tile, index) => {
-      const target = targets[index];
-      const targetTile = nextGrid[target.y][target.x];
-      const original = originalPositions.get(tile.id) ?? { x: obstacle.x, y: obstacle.y };
-      if (targetTile && targetTile.value === tile.value && !frozenIds.has(targetTile.id)) {
-        const newValue = Math.min(targetTile.value * 2, MAX_TILE_VALUE);
-        nextGrid[target.y][target.x] = { ...targetTile, value: newValue };
-        score = Math.min(score + newValue, MAX_SCORE);
-        mergingTiles.push({
-          id: tile.id,
-          value: tile.value,
-          fromX: original.x,
-          fromY: original.y,
-          toX: target.x,
-          toY: target.y,
-        });
-        mergedTiles.push({
-          id: targetTile.id,
-          fromValue: targetTile.value,
-          toValue: newValue,
-        });
-        lockedTileIds.add(targetTile.id);
-        maxDistance = Math.max(maxDistance, Math.abs(target.x - original.x) + Math.abs(target.y - original.y));
-      } else {
-        nextGrid[target.y][target.x] = tile;
-        lockedTileIds.add(tile.id);
-        maxDistance = Math.max(maxDistance, Math.abs(target.x - original.x) + Math.abs(target.y - original.y));
-      }
-    });
-    // 컨테이너 제거 규칙:
-    // - 완전 소비(redirectCount === impacted.length): applyContainersBeforeSlide 내에서 즉시 제거
-    // - 부분 소비(redirectCount < impacted.length): partiallyConsumedContainerIds에 추가 후
-    //   slideGridWithObstacles 메인 함수에서 제거 (포탈 릴리스 이후)
-    // 두 경우 모두 컨테이너는 한 번 발동하면 소비된다.
-    if (redirectCount === impacted.length) {
-      nextState = {
-        ...nextState,
-        cellObstacles: nextState.cellObstacles.filter((candidate) => candidate.id !== obstacle.id),
-      };
-    } else {
-      partiallyConsumedContainerIds.add(obstacle.id);
-    }
-    moved = true;
-  }
-
-  return {
-    grid: nextGrid,
-    state: nextState,
-    moved,
-    lockedTileIds,
-    score,
-    mergingTiles,
-    mergedTiles,
-    maxDistance,
-    partiallyConsumedContainerIds,
-  };
-};
-
 export const slideGridWithObstacles = (
   grid: Grid,
   obstacleState: ObstacleState | null | undefined,
@@ -557,38 +436,25 @@ export const slideGridWithObstacles = (
   const mergingTiles: MergingTile[] = [];
   const mergedTiles: MergedTile[] = [];
   const portalReleaseAnimations: PortalReleaseAnimation[] = [];
+  const portalInAnimations: PortalInAnimation[] = [];
+  const popAnimations: PopAnimation[] = [];
   const mergedTargetIds = new Set<string>();
   const noMergeTileIds = new Set<string>();
   const portalReleasedTileIds = new Set<string>();
   const concreteCollisions = new Set<string>();
   const frozenIdsAtStart = new Set(state.frozenTiles.map((frozen) => frozen.tileId));
   const originalPositions = getTilePositions(newGrid);
-  const portalQueueLengthAtStart = state.portal?.queue.length ?? 0;
-
-  const containerResult = applyContainersBeforeSlide(newGrid, state, direction, frozenIdsAtStart, originalPositions);
-  newGrid = containerResult.grid;
-  state = containerResult.state;
-
-  // 부분 소비된 컨테이너를 obstacleMap 빌드 전에 제거 (메인 슬라이드/포탈 릴리스에서 블로킹 방지)
-  if (containerResult.partiallyConsumedContainerIds.size > 0) {
-    state = {
-      ...state,
-      cellObstacles: state.cellObstacles.filter(
-        (obstacle) => !containerResult.partiallyConsumedContainerIds.has(obstacle.id)
-      ),
-    };
-  }
-
-  moved = containerResult.moved;
-  totalScore = Math.min(totalScore + containerResult.score, MAX_SCORE);
-  maxDistance = Math.max(maxDistance, containerResult.maxDistance);
-  mergingTiles.push(...containerResult.mergingTiles);
-  mergedTiles.push(...containerResult.mergedTiles);
-  for (const tileId of containerResult.lockedTileIds) noMergeTileIds.add(tileId);
 
   const delta = DIRECTION_DELTAS[direction];
   const obstacleMap = buildCellObstacleMap(state);
   const coords = getScanCoordinates(size, direction);
+
+  // ── Phase 1 수집 큐 ──
+  const collectedTiles: Array<{
+    tile: Tile;
+    kind: 'portal' | 'container';
+    containerInfo?: { x: number; y: number; direction: Direction };
+  }> = [];
 
   const placeTile = (tile: Tile, x: number, y: number, originalX: number, originalY: number): void => {
     newGrid[y][x] = tile;
@@ -597,6 +463,9 @@ export const slideGridWithObstacles = (
     maxDistance = Math.max(maxDistance, distance);
   };
 
+  // ═══════════════════════════════════════════
+  // PHASE 1: 수집 (메인 슬라이드 + 컨테이너/포탈 IN)
+  // ═══════════════════════════════════════════
   for (const { x, y } of coords) {
     const tile = newGrid[y][x];
     if (!tile) continue;
@@ -614,16 +483,15 @@ export const slideGridWithObstacles = (
       const nextY = currentY + delta.dy;
 
       if (!isInside(size, nextX, nextY)) {
+        // ── 포탈 IN 체크 ──
         if (isMatchingPortalExit(state.portal, direction, currentX, currentY) && !portalReleasedTileIds.has(tile.id)) {
-          state = {
-            ...state,
-            portal: state.portal
-              ? {
-                  ...state.portal,
-                  queue: [...state.portal.queue, cloneTile(currentTile)],
-                }
-              : null,
-          };
+          collectedTiles.push({ tile: cloneTile(currentTile), kind: 'portal' });
+          portalInAnimations.push({
+            id: currentTile.id,
+            value: currentTile.value,
+            x: currentX,
+            y: currentY,
+          });
           moved = true;
           maxDistance = Math.max(maxDistance, Math.abs(currentX - original.x) + Math.abs(currentY - original.y) + 1);
           consumed = true;
@@ -652,6 +520,38 @@ export const slideGridWithObstacles = (
         }
         if (obstacle.kind === 'concrete') {
           concreteCollisions.add(obstacle.id);
+          placeTile(currentTile, currentX, currentY, original.x, original.y);
+          break;
+        }
+        if (obstacle.kind === 'container') {
+          // ── 컨테이너: 현재 타일 + 영향받는 모든 타일을 수집 ──
+          collectedTiles.push({
+            tile: cloneTile(currentTile),
+            kind: 'container',
+            containerInfo: { x: obstacle.x, y: obstacle.y, direction: obstacle.direction },
+          });
+          const impacted = collectContainerImpacts(newGrid, state, obstacle, direction, frozenIdsAtStart, new Set<string>());
+          for (const impactedTile of impacted) {
+            const ipos = originalPositions.get(impactedTile.id);
+            if (ipos && newGrid[ipos.y]?.[ipos.x]?.id === impactedTile.id) {
+              newGrid[ipos.y][ipos.x] = null;
+            }
+            collectedTiles.push({
+              tile: cloneTile(impactedTile),
+              kind: 'container',
+              containerInfo: { x: obstacle.x, y: obstacle.y, direction: obstacle.direction },
+            });
+          }
+          // 컨테이너 제거
+          state = {
+            ...state,
+            cellObstacles: state.cellObstacles.filter((candidate) => candidate.id !== obstacle.id),
+          };
+          obstacleMap.delete(cellKey(obstacle.x, obstacle.y));
+          moved = true;
+          maxDistance = Math.max(maxDistance, Math.abs(nextX - original.x) + Math.abs(nextY - original.y));
+          consumed = true;
+          break;
         }
         placeTile(currentTile, currentX, currentY, original.x, original.y);
         break;
@@ -703,23 +603,58 @@ export const slideGridWithObstacles = (
     }
   }
 
-  if (state.portal && portalQueueLengthAtStart > 0) {
-    const queuedBeforeSwipe = state.portal.queue.slice(0, portalQueueLengthAtStart);
-    const queuedDuringSwipe = state.portal.queue.slice(portalQueueLengthAtStart);
-    let releaseCount = 0;
-    const releaseDelta = getPortalInwardDelta(state.portal.out);
-    const releaseEntry = getPortalEntryCell(size, state.portal.out);
+  // ═══════════════════════════════════════════
+  // PHASE 2: 통합 FIFO 방출
+  // ═══════════════════════════════════════════
+  const existingPortalQueue = state.portal?.queue ?? [];
+  const emissionQueue: Array<{
+    tile: Tile;
+    kind: 'portal' | 'container';
+    containerInfo?: { x: number; y: number; direction: Direction };
+  }> = [
+    ...existingPortalQueue.map((t) => ({ tile: t, kind: 'portal' as const })),
+    ...collectedTiles,
+  ];
 
-    for (const queuedTile of queuedBeforeSwipe) {
+  const claimedCells = new Set<string>();
+  const containerEmitCount = new Map<string, number>();
+
+  for (const entry of emissionQueue) {
+    if (entry.kind === 'portal' && state.portal) {
+      // ── 포탈 방출 ──
+      const releaseDelta = getPortalInwardDelta(state.portal.out);
+      const releaseEntry = getPortalEntryCell(size, state.portal.out);
+      const entryKey = cellKey(releaseEntry.x, releaseEntry.y);
+
       if (
         !isInside(size, releaseEntry.x, releaseEntry.y) ||
-        newGrid[releaseEntry.y][releaseEntry.x] ||
-        obstacleMap.has(cellKey(releaseEntry.x, releaseEntry.y))
+        newGrid[releaseEntry.y]?.[releaseEntry.x] ||
+        obstacleMap.has(entryKey)
       ) {
-        break;
+        // POP! 랜덤 빈 셀로
+        const emptyCells = getEmptyInternalCells(newGrid, state);
+        if (emptyCells.length > 0) {
+          const rc = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+          newGrid[rc.y][rc.x] = cloneTile(entry.tile);
+          popAnimations.push({
+            id: entry.tile.id,
+            value: entry.tile.value,
+            fromX: releaseEntry.x,
+            fromY: releaseEntry.y,
+            toX: rc.x,
+            toY: rc.y,
+          });
+          moved = true;
+        }
+        state = {
+          ...state,
+          portal: { ...state.portal, usageCount: (state.portal.usageCount ?? 0) + 1 },
+        };
+        continue;
       }
 
-      const releasedTile = cloneTile(queuedTile);
+      // 정상 방출: inward 슬라이드
+      const releasedTile = cloneTile(entry.tile);
       let currentX = releaseEntry.x;
       let currentY = releaseEntry.y;
       let released = false;
@@ -851,19 +786,98 @@ export const slideGridWithObstacles = (
         currentY = nextY;
       }
 
-      if (!released) break;
-      releaseCount += 1;
-    }
+      if (released) {
+        claimedCells.add(entryKey);
+      }
+      state = {
+        ...state,
+        portal: { ...state.portal, usageCount: (state.portal.usageCount ?? 0) + 1 },
+      };
 
-    state = {
-      ...state,
-      portal: {
-        ...state.portal,
-        queue: [...queuedBeforeSwipe.slice(releaseCount), ...queuedDuringSwipe].map(cloneTile),
-      },
-    };
+    } else if (entry.kind === 'container' && entry.containerInfo) {
+      // ── 컨테이너 방출 (순차 타겟) ──
+      const { x: cx, y: cy, direction: containerDir } = entry.containerInfo;
+      const cDelta = DIRECTION_DELTAS[containerDir];
+      const containerKey = cellKey(cx, cy);
+      const emitIndex = containerEmitCount.get(containerKey) ?? 0;
+      containerEmitCount.set(containerKey, emitIndex + 1);
+      const targetX = cx + cDelta.dx * (emitIndex + 1);
+      const targetY = cy + cDelta.dy * (emitIndex + 1);
+
+      if (!isInside(size, targetX, targetY)) continue;
+
+      const targetKey = cellKey(targetX, targetY);
+      const targetTile = newGrid[targetY]?.[targetX];
+
+      // 병합 우선: 같은 값이면 merge
+      if (
+        targetTile &&
+        targetTile.value === entry.tile.value &&
+        !frozenIdsAtStart.has(targetTile.id) &&
+        !mergedTargetIds.has(targetTile.id)
+      ) {
+        const newValue = Math.min(targetTile.value * 2, MAX_TILE_VALUE);
+        newGrid[targetY][targetX] = { ...targetTile, value: newValue };
+        mergedTargetIds.add(targetTile.id);
+        totalScore = Math.min(totalScore + newValue, MAX_SCORE);
+        mergingTiles.push({
+          id: entry.tile.id,
+          value: entry.tile.value,
+          fromX: cx,
+          fromY: cy,
+          toX: targetX,
+          toY: targetY,
+        });
+        mergedTiles.push({
+          id: targetTile.id,
+          fromValue: targetTile.value,
+          toValue: newValue,
+        });
+        claimedCells.add(targetKey);
+        moved = true;
+        maxDistance = Math.max(maxDistance, Math.abs(targetX - cx) + Math.abs(targetY - cy));
+        continue;
+      }
+
+      // 막힘 → POP!
+      if (targetTile || claimedCells.has(targetKey) || obstacleMap.has(targetKey)) {
+        const emptyCells = getEmptyInternalCells(newGrid, state);
+        if (emptyCells.length > 0) {
+          const rc = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+          newGrid[rc.y][rc.x] = cloneTile(entry.tile);
+          popAnimations.push({
+            id: entry.tile.id,
+            value: entry.tile.value,
+            fromX: cx,
+            fromY: cy,
+            toX: rc.x,
+            toY: rc.y,
+          });
+          moved = true;
+        }
+        continue;
+      }
+
+      // 정상 배치
+      newGrid[targetY][targetX] = cloneTile(entry.tile);
+      claimedCells.add(targetKey);
+      moved = true;
+      maxDistance = Math.max(maxDistance, Math.abs(targetX - cx) + Math.abs(targetY - cy));
+    }
   }
 
+  // 포탈 큐 비우기 + usageCount 체크로 소멸
+  if (state.portal) {
+    state = {
+      ...state,
+      portal: { ...state.portal, queue: [] },
+    };
+    if (state.portal.usageCount >= 5) {
+      state = { ...state, portal: null };
+    }
+  }
+
+  // ── 콘크리트 손상 ──
   if (concreteCollisions.size > 0) {
     state = {
       ...state,
@@ -876,6 +890,7 @@ export const slideGridWithObstacles = (
     };
   }
 
+  // ── 얼음 감소 ──
   if (moved) {
     state = {
       ...state,
@@ -891,6 +906,8 @@ export const slideGridWithObstacles = (
     mergingTiles,
     mergedTiles,
     portalReleaseAnimations,
+    portalInAnimations,
+    popAnimations,
     maxDistance,
     portalReleasedTileIds,
   };
@@ -984,7 +1001,7 @@ export const applyObstacleSpawn = ({
     const portal = createRandomPortalPair(boardSize, rng);
     nextState = {
       ...state,
-      portal: { ...portal, queue: [] },
+      portal: { ...portal, queue: [], usageCount: 0 },
     };
     return { obstacleState: nextState, spawnedFeature: 'portal', chance: 0 };
   }

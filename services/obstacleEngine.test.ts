@@ -170,7 +170,7 @@ describe('obstacle slide engine', () => {
     expect(grid.flat().filter(Boolean).map((t) => t!.value).sort((a, b) => a - b)).toEqual([2, 2]);
   });
 
-  it('absorbs into an exterior IN portal and releases FIFO from OUT only on a later swipe', () => {
+  it('absorbs into an exterior IN portal and releases FIFO from OUT in the same swipe', () => {
     const grid = gridFromRows([
       [2, null, null, null],
       [4, null, null, null],
@@ -182,18 +182,17 @@ describe('obstacle slide engine', () => {
         in: { side: 'LEFT', index: 0, x: -1, y: 0 },
         out: { side: 'RIGHT', index: 1, x: 4, y: 1 },
         queue: [],
+        usageCount: 0,
       },
     });
 
-    const absorbed = slideGridWithObstacles(grid, state, 'LEFT');
+    const result = slideGridWithObstacles(grid, state, 'LEFT');
 
-    expect(absorbed.grid.flat().filter(Boolean).map((t) => t!.value)).toEqual([4]);
-    expect(absorbed.obstacleState.portal?.queue.map((t) => t.value)).toEqual([2]);
-
-    const released = slideGridWithObstacles(absorbed.grid, absorbed.obstacleState, 'UP');
-
-    expect(released.obstacleState.portal?.queue).toEqual([]);
-    expect(released.grid[1].map((cell) => cell?.value ?? null)).toEqual([2, null, null, null]);
+    // Tile 2 absorbed and released in same swipe; tile 4 stays at (0,1)
+    expect(result.grid.flat().filter(Boolean).map((t) => t!.value)).toEqual([4, 2]);
+    expect(result.obstacleState.portal?.queue).toEqual([]);
+    // Tile 2 released from OUT at (3,1), slides left to (1,1) (blocked by tile 4 at (0,1))
+    expect(result.grid[1].map((cell) => cell?.value ?? null)).toEqual([4, 2, null, null]);
   });
 
   it('continues a released portal tile inward until it hits the board edge', () => {
@@ -208,6 +207,7 @@ describe('obstacle slide engine', () => {
         in: { side: 'LEFT', index: 0, x: -1, y: 0 },
         out: { side: 'RIGHT', index: 1, x: 4, y: 1 },
         queue: [tile('queued-2', 2)],
+        usageCount: 0,
       },
     });
 
@@ -233,6 +233,7 @@ describe('obstacle slide engine', () => {
         in: { side: 'LEFT', index: 0, x: -1, y: 0 },
         out: { side: 'RIGHT', index: 1, x: 4, y: 1 },
         queue: [tile('queued-2', 2)],
+        usageCount: 0,
       },
     });
 
@@ -259,6 +260,7 @@ describe('obstacle slide engine', () => {
         in: { side: 'LEFT', index: 0, x: -1, y: 0 },
         out: { side: 'RIGHT', index: 1, x: 4, y: 1 },
         queue: [tile('queued-first', 2), tile('queued-second', 4)],
+        usageCount: 0,
       },
     });
 
@@ -270,6 +272,7 @@ describe('obstacle slide engine', () => {
       { id: 'queued-first', value: 2, fromX: 3, fromY: 1, toX: 0, toY: 1 },
       { id: 'queued-second', value: 4, fromX: 3, fromY: 1, toX: 1, toY: 1 },
     ]);
+    expect(result.popAnimations).toEqual([]);
   });
 
   it('stops a released portal tile before concrete and damages that concrete once', () => {
@@ -285,6 +288,7 @@ describe('obstacle slide engine', () => {
         in: { side: 'LEFT', index: 0, x: -1, y: 0 },
         out: { side: 'RIGHT', index: 1, x: 4, y: 1 },
         queue: [tile('queued-2', 2)],
+        usageCount: 0,
       },
     });
 
@@ -295,7 +299,7 @@ describe('obstacle slide engine', () => {
     expect(result.obstacleState.cellObstacles).toEqual([{ id: 'c1', kind: 'concrete', x: 1, y: 1, hp: 2 }]);
   });
 
-  it('does not release queued portal tiles when the OUT path is blocked', () => {
+  it('pops queued portal tiles when the OUT path is blocked', () => {
     const grid = gridFromRows([
       [null, null, null, null],
       [null, null, null, null],
@@ -308,16 +312,20 @@ describe('obstacle slide engine', () => {
         in: { side: 'LEFT', index: 0, x: -1, y: 0 },
         out: { side: 'RIGHT', index: 1, x: 4, y: 1 },
         queue: [tile('queued-2', 2)],
+        usageCount: 0,
       },
     });
 
     const result = slideGridWithObstacles(grid, state, 'UP');
 
-    expect(result.obstacleState.portal?.queue.map((t) => t.value)).toEqual([2]);
-    expect(result.grid[1][3]).toBeNull();
+    expect(result.obstacleState.portal?.queue).toEqual([]);
+    expect(result.popAnimations.length).toBe(1);
+    expect(result.popAnimations[0].id).toBe('queued-2');
+    // Tile should be somewhere on the grid
+    expect(result.grid.flat().filter(Boolean).length).toBe(1);
   });
 
-  it('fires a container only when every redirected tile has a safe landing', () => {
+  it('fires a container and redirects all impacted tiles in Phase 2', () => {
     const grid = gridFromRows([
       [2, null, 4, null],
       [null, null, null, null],
@@ -331,6 +339,7 @@ describe('obstacle slide engine', () => {
     const result = slideGridWithObstacles(grid, state, 'RIGHT');
 
     expect(result.obstacleState.cellObstacles).toEqual([]);
+    // Current tile (4) goes first, then impacted tile (2)
     expect(result.grid[1][3]?.value).toBe(4);
     expect(result.grid[2][3]?.value).toBe(2);
   });
@@ -365,7 +374,7 @@ describe('obstacle slide engine', () => {
     expect(result.grid[target.y][target.x]?.value).toBe(2);
   });
 
-  it('keeps a container alive when the first redirected landing cell is blocked by another obstacle', () => {
+  it('removes a container and pops tiles when the first redirected landing cell is blocked', () => {
     const grid = gridFromRows([
       [2, null, 4, null],
       [null, null, null, null],
@@ -381,15 +390,18 @@ describe('obstacle slide engine', () => {
 
     const result = slideGridWithObstacles(grid, state, 'RIGHT');
 
+    // Container is always removed; concrete stays
     expect(result.obstacleState.cellObstacles).toEqual([
-      { id: 'k1', kind: 'container', x: 3, y: 0, direction: 'DOWN' },
       { id: 'c1', kind: 'concrete', x: 3, y: 1, hp: 3 },
     ]);
-    expect(result.grid[1][3]).toBeNull();
-    expect(result.grid[2][3]).toBeNull();
+    // Tile 4 (current) pops because target (3,1) is blocked by concrete
+    expect(result.popAnimations.length).toBe(1);
+    expect(result.popAnimations[0].id).toBe('2,0-4');
+    // Tile 2 (impacted) placed at (3,2)
+    expect(result.grid[2][3]?.value).toBe(2);
   });
 
-  it('partially fires a container before a later redirected landing cell is blocked', () => {
+  it('pops a container tile when a later redirected landing cell is blocked', () => {
     const grid = gridFromRows([
       [2, null, 4, null],
       [null, null, null, null],
@@ -405,9 +417,13 @@ describe('obstacle slide engine', () => {
 
     const result = slideGridWithObstacles(grid, state, 'RIGHT');
 
+    // Container removed; concrete stays
     expect(result.obstacleState.cellObstacles).toEqual([{ id: 'c1', kind: 'concrete', x: 3, y: 2, hp: 3 }]);
-    expect(result.grid[0].map((cell) => cell?.value ?? null)).toEqual([null, null, null, 2]);
+    // Tile 4 (current) placed at (3,1) (first target is safe)
     expect(result.grid[1][3]?.value).toBe(4);
+    // Tile 2 (impacted) pops because target (3,2) is blocked by concrete
+    expect(result.popAnimations.length).toBe(1);
+    expect(result.popAnimations[0].id).toBe('0,0-2');
   });
 
   it('does not let a redirected container tile trigger another container in the same swipe', () => {
@@ -422,9 +438,11 @@ describe('obstacle slide engine', () => {
 
     const result = slideGridWithObstacles(grid, state, 'RIGHT');
 
+    // k1 removed (triggered), k2 stays (not triggered by Phase 2 placement)
     expect(result.obstacleState.cellObstacles).toEqual([
       { id: 'k2', kind: 'container', x: 3, y: 2, direction: 'DOWN' },
     ]);
+    // Tile placed at (2,2) in Phase 2 (k1's RIGHT target)
     expect(result.grid[2][2]?.value).toBe(2);
     expect(result.grid[3][3]).toBeNull();
   });
@@ -444,7 +462,9 @@ describe('obstacle slide engine', () => {
     const result = slideGridWithObstacles(grid, state, 'RIGHT');
 
     expect(result.obstacleState.cellObstacles).toEqual([]);
-    expect(result.grid[1].map((cell) => cell?.value ?? null)).toEqual([null, null, null, null, 2]);
+    // FIFO: current tile (16) first, then impacted (8, 4, 2)
+    // Targets: (4,2), (4,3), (4,4), (4,5=outside→skipped)
+    expect(result.grid[1].map((cell) => cell?.value ?? null)).toEqual([null, null, null, null, null]);
     expect(result.grid[2][4]?.value).toBe(16);
     expect(result.grid[3][4]?.value).toBe(8);
     expect(result.grid[4][4]?.value).toBe(4);
@@ -464,6 +484,7 @@ describe('obstacle slide engine', () => {
     const result = slideGridWithObstacles(grid, state, 'RIGHT');
 
     expect(result.obstacleState.cellObstacles).toEqual([]);
+    // Current tile (4) merges with existing tile 4 at (3,1) → 8
     expect(result.score).toBe(8);
     expect(result.grid[1][3]?.value).toBe(8);
     expect(result.mergedTiles).toEqual([
@@ -611,6 +632,7 @@ describe('obstacle spawning and placement', () => {
         in: { side: 'LEFT', index: 0, x: -1, y: 0 },
         out: { side: 'RIGHT', index: 0, x: 4, y: 0 },
         queue: [tile('q1', 2)],
+        usageCount: 0,
       },
       frozenTiles: [{ tileId: 't1', remainingSwipes: 2 }],
     });

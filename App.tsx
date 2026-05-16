@@ -12,6 +12,8 @@ import {
   BoardSize,
   ShapeType,
   MergingTile,
+  PortalInAnimation,
+  PopAnimation,
   PortalReleaseAnimation,
   GameMode,
   ObstacleFeature,
@@ -247,6 +249,8 @@ import {
 const EMPTY_TILE_VALUE_OVERRIDES: Record<string, number> = {};
 const EMPTY_MERGING_TILES: MergingTile[] = [];
 const EMPTY_PORTAL_RELEASE_ANIMATIONS: PortalReleaseAnimation[] = [];
+const EMPTY_PORTAL_IN_ANIMATIONS: PortalInAnimation[] = [];
+const EMPTY_POP_ANIMATIONS: PopAnimation[] = [];
 const EMPTY_TILE_ID_SET: ReadonlySet<string> = new Set<string>();
 const EMPTY_TILE_BURST_MAP: Readonly<Record<string, number>> = Object.freeze({});
 const DRAG_OVERLAY_SCALE = 0.65;
@@ -1491,6 +1495,8 @@ const App: React.FC = () => {
   // Merging tiles for animation (tiles being absorbed)
   const [mergingTiles, setMergingTiles] = useState<MergingTile[]>(EMPTY_MERGING_TILES);
   const [portalReleaseAnimations, setPortalReleaseAnimations] = useState<PortalReleaseAnimation[]>(EMPTY_PORTAL_RELEASE_ANIMATIONS);
+  const [portalInAnimations, setPortalInAnimations] = useState<PortalInAnimation[]>(EMPTY_PORTAL_IN_ANIMATIONS);
+  const [popAnimations, setPopAnimations] = useState<PopAnimation[]>(EMPTY_POP_ANIMATIONS);
 
   // Tutorial State: 0=Off, 1=Drag, 2=Swipe
   const [tutorialStep, setTutorialStep] = useState<number>(0);
@@ -1769,6 +1775,8 @@ const App: React.FC = () => {
   const isReviveSelectionModeRef = useRef(false); // 부활 선택 모드 동기 가드 (state보다 먼저 반영)
   const mergeClearTimeoutRef = useRef<number | null>(null);
   const portalReleaseClearTimeoutRef = useRef<number | null>(null);
+  const portalInClearTimeoutRef = useRef<number | null>(null);
+  const popClearTimeoutRef = useRef<number | null>(null);
   const mergeFinalizeTimeoutRef = useRef<number | null>(null);
   const mergedNumberBurstClearTimeoutRef = useRef<number | null>(null);
   const unlockTimeoutRef = useRef<number | null>(null);
@@ -2131,6 +2139,8 @@ const App: React.FC = () => {
     setMaxScoreThisRun(restoredMaxScore);
     setMergingTiles(EMPTY_MERGING_TILES);
     setPortalReleaseAnimations(EMPTY_PORTAL_RELEASE_ANIMATIONS);
+    setPortalInAnimations(EMPTY_PORTAL_IN_ANIMATIONS);
+    setPopAnimations(EMPTY_POP_ANIMATIONS);
     setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
     maxComboMultiplierRef.current = restoredMaxComboMultiplier;
     maxComboCountRef.current = restoredMaxComboCount;
@@ -2850,6 +2860,8 @@ const App: React.FC = () => {
     setMaxScoreThisRun(0);
     setMergingTiles(EMPTY_MERGING_TILES);
     setPortalReleaseAnimations(EMPTY_PORTAL_RELEASE_ANIMATIONS);
+    setPortalInAnimations(EMPTY_PORTAL_IN_ANIMATIONS);
+    setPopAnimations(EMPTY_POP_ANIMATIONS);
     setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
     setMergedNumberBurstTileIds(EMPTY_TILE_ID_SET);
     setMergedNumberBurstByTileId(EMPTY_TILE_BURST_MAP);
@@ -2972,6 +2984,8 @@ const App: React.FC = () => {
       setMaxScoreThisRun(0);
       setMergingTiles(EMPTY_MERGING_TILES);
       setPortalReleaseAnimations(EMPTY_PORTAL_RELEASE_ANIMATIONS);
+      setPortalInAnimations(EMPTY_PORTAL_IN_ANIMATIONS);
+      setPopAnimations(EMPTY_POP_ANIMATIONS);
       setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
       setMergedNumberBurstTileIds(EMPTY_TILE_ID_SET);
       setMergedNumberBurstByTileId(EMPTY_TILE_BURST_MAP);
@@ -3084,6 +3098,8 @@ const App: React.FC = () => {
     setMaxScoreThisRun(0);
     setMergingTiles(EMPTY_MERGING_TILES);
     setPortalReleaseAnimations(EMPTY_PORTAL_RELEASE_ANIMATIONS);
+    setPortalInAnimations(EMPTY_PORTAL_IN_ANIMATIONS);
+    setPopAnimations(EMPTY_POP_ANIMATIONS);
     setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
     setMergedNumberBurstTileIds(EMPTY_TILE_ID_SET);
     setMergedNumberBurstByTileId(EMPTY_TILE_BURST_MAP);
@@ -3188,6 +3204,8 @@ const App: React.FC = () => {
     setMaxScoreThisRun(saved.score);
     setMergingTiles(EMPTY_MERGING_TILES);
     setPortalReleaseAnimations(EMPTY_PORTAL_RELEASE_ANIMATIONS);
+    setPortalInAnimations(EMPTY_PORTAL_IN_ANIMATIONS);
+    setPopAnimations(EMPTY_POP_ANIMATIONS);
     setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
     setMergedNumberBurstTileIds(EMPTY_TILE_ID_SET);
     setMergedNumberBurstByTileId(EMPTY_TILE_BURST_MAP);
@@ -3729,6 +3747,8 @@ const App: React.FC = () => {
     // 애니메이션 관련 상태 정리
     setMergingTiles(EMPTY_MERGING_TILES);
     setPortalReleaseAnimations(EMPTY_PORTAL_RELEASE_ANIMATIONS);
+    setPortalInAnimations(EMPTY_PORTAL_IN_ANIMATIONS);
+    setPopAnimations(EMPTY_POP_ANIMATIONS);
     setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
     setMergedNumberBurstTileIds(EMPTY_TILE_ID_SET);
     setMergedNumberBurstByTileId(EMPTY_TILE_BURST_MAP);
@@ -3880,6 +3900,8 @@ const App: React.FC = () => {
 
         setMergingTiles(EMPTY_MERGING_TILES);
         setPortalReleaseAnimations(EMPTY_PORTAL_RELEASE_ANIMATIONS);
+        setPortalInAnimations(EMPTY_PORTAL_IN_ANIMATIONS);
+        setPopAnimations(EMPTY_POP_ANIMATIONS);
         setTileValueOverrides(EMPTY_TILE_VALUE_OVERRIDES);
         setMergedNumberBurstTileIds(EMPTY_TILE_ID_SET);
         setMergedNumberBurstByTileId(EMPTY_TILE_BURST_MAP);
@@ -4079,6 +4101,8 @@ const App: React.FC = () => {
     return () => {
       if (mergeClearTimeoutRef.current) window.clearTimeout(mergeClearTimeoutRef.current);
       if (portalReleaseClearTimeoutRef.current) window.clearTimeout(portalReleaseClearTimeoutRef.current);
+      if (portalInClearTimeoutRef.current) window.clearTimeout(portalInClearTimeoutRef.current);
+      if (popClearTimeoutRef.current) window.clearTimeout(popClearTimeoutRef.current);
       if (mergeFinalizeTimeoutRef.current) window.clearTimeout(mergeFinalizeTimeoutRef.current);
       if (mergedNumberBurstClearTimeoutRef.current) window.clearTimeout(mergedNumberBurstClearTimeoutRef.current);
       if (unlockTimeoutRef.current) window.clearTimeout(unlockTimeoutRef.current);
@@ -4596,6 +4620,8 @@ const App: React.FC = () => {
       mergingTiles: newMergingTiles,
       mergedTiles,
       portalReleaseAnimations: newPortalReleaseAnimations,
+      portalInAnimations: newPortalInAnimations,
+      popAnimations: newPopAnimations,
       maxDistance,
       obstacleState: newObstacleState,
     } = slideGridWithObstacles(grid, obstacleState, dir);
@@ -4710,6 +4736,36 @@ const App: React.FC = () => {
       }, lockMs);
     } else {
       setPortalReleaseAnimations(EMPTY_PORTAL_RELEASE_ANIMATIONS);
+    }
+
+    // Portal IN animations
+    if (portalInClearTimeoutRef.current) {
+      window.clearTimeout(portalInClearTimeoutRef.current);
+      portalInClearTimeoutRef.current = null;
+    }
+    if (newPortalInAnimations.length > 0) {
+      setPortalInAnimations(newPortalInAnimations);
+      portalInClearTimeoutRef.current = window.setTimeout(() => {
+        setPortalInAnimations(EMPTY_PORTAL_IN_ANIMATIONS);
+        portalInClearTimeoutRef.current = null;
+      }, lockMs);
+    } else {
+      setPortalInAnimations(EMPTY_PORTAL_IN_ANIMATIONS);
+    }
+
+    // Pop animations
+    if (popClearTimeoutRef.current) {
+      window.clearTimeout(popClearTimeoutRef.current);
+      popClearTimeoutRef.current = null;
+    }
+    if (newPopAnimations.length > 0) {
+      setPopAnimations(newPopAnimations);
+      popClearTimeoutRef.current = window.setTimeout(() => {
+        setPopAnimations(EMPTY_POP_ANIMATIONS);
+        popClearTimeoutRef.current = null;
+      }, lockMs + 100); // pop 애니메이션은 약간 더 길게
+    } else {
+      setPopAnimations(EMPTY_POP_ANIMATIONS);
     }
 
     setGrid(newGrid);
@@ -4837,9 +4893,14 @@ const App: React.FC = () => {
     );
 
     if (phase === Phase.SLIDE && !availability.canSwipe) {
-      pendingObstacleMergedTileIdsRef.current = [];
-      finishSlideTurn();
-      return;
+      // 병합 보너스 활성 상태에서는 방해블럭이 모든 이동을 막고 있어도
+      // 추가 스와이프 기회를 즉시 취소하지 않는다.
+      // 실제 스와이프 시도 시 executeSlide의 !moved 안전장치에서 처리된다.
+      if (pendingObstacleMergedTileIdsRef.current.length === 0) {
+        pendingObstacleMergedTileIdsRef.current = [];
+        finishSlideTurn();
+        return;
+      }
     }
 
     if (phase === Phase.PLACE && availability.isGameOver) {
@@ -6514,6 +6575,8 @@ const App: React.FC = () => {
                     boardRef={boardRef}
                     mergingTiles={mergingTiles}
                     portalReleaseAnimations={portalReleaseAnimations}
+                    portalInAnimations={portalInAnimations}
+                    popAnimations={popAnimations}
                     valueOverrides={tileValueOverrides}
                     boardScale={boardScale}
                     reviveSelectionEnabled={isReviveSelectionMode}
@@ -6542,6 +6605,8 @@ const App: React.FC = () => {
                   boardRef={boardRef}
                   mergingTiles={mergingTiles}
                   portalReleaseAnimations={portalReleaseAnimations}
+                  portalInAnimations={portalInAnimations}
+                  popAnimations={popAnimations}
                   valueOverrides={tileValueOverrides}
                   boardScale={boardScale}
                   reviveSelectionEnabled={isReviveSelectionMode}

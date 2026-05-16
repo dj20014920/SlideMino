@@ -10,10 +10,11 @@ import React, {
   useImperativeHandle,
   forwardRef
 } from 'react';
-import { Grid, ObstacleState, Piece, Phase, Tile, MergingTile, PortalEndpoint, PortalState, PortalReleaseAnimation, ConcreteObstacle, ContainerObstacle, FrozenTileState } from '../types';
+import { Grid, ObstacleState, Piece, Phase, Tile, MergingTile, PortalEndpoint, PortalState, PortalReleaseAnimation, PortalInAnimation, PopAnimation, ConcreteObstacle, ContainerObstacle, FrozenTileState } from '../types';
 import { canPlacePieceWithObstacles } from '../services/obstacleEngine';
 import { getTileColor, getTileNumberLayout, getSlideAnimationDurationMs, BOARD_CELL_GAP_PX } from '../constants';
 import { useBlockCustomization } from '../context/BlockCustomizationContext';
+import { motion } from 'framer-motion';
 import EvervaultTileOverlay from './EvervaultTileOverlay';
 import {
   clamp,
@@ -47,6 +48,8 @@ interface BoardProps {
   boardScale?: number;
   readonly?: boolean;
   portalReleaseAnimations?: PortalReleaseAnimation[];
+  portalInAnimations?: PortalInAnimation[];
+  popAnimations?: PopAnimation[];
   reviveSelectionEnabled?: boolean;
   revivePendingTileId?: string | null;
   onReviveTileTap?: (tileId: string) => void;
@@ -125,6 +128,8 @@ const tileTransitionEase = 'cubic-bezier(0.25,0.1,0.25,1.0)';
 const reviveDestroyAnimation = 'reviveBreakFade 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards';
 const EMPTY_REVIVE_DESTROY_EFFECTS: ReviveDestroyEffect[] = [];
 const EMPTY_PORTAL_RELEASE_ANIMATIONS: PortalReleaseAnimation[] = [];
+const EMPTY_PORTAL_IN_ANIMATIONS: PortalInAnimation[] = [];
+const EMPTY_POP_ANIMATIONS: PopAnimation[] = [];
 
 const isCoarsePointerDevice = (): boolean => {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
@@ -293,6 +298,142 @@ const PortalReleaseLayer = React.memo<{
               {text}
             </span>
           </div>
+        );
+      })}
+    </div>
+  );
+});
+
+const PortalInLayer = React.memo<{
+  animations: PortalInAnimation[];
+  layout: GridLayout;
+  getResolvedAppearance: (value: number) => ResolvedTileAppearance;
+  isPremiumUiThemeActive: boolean;
+  premiumUiTileFaceClassName: string;
+  premiumUiTileNumberClassName: string;
+}>(({ animations, layout, getResolvedAppearance, isPremiumUiThemeActive, premiumUiTileFaceClassName, premiumUiTileNumberClassName }) => {
+  if (animations.length === 0) return null;
+
+  return (
+    <div className="absolute inset-0 z-[17] pointer-events-none">
+      {animations.map((anim) => {
+        const px = layout.posPx[anim.x];
+        const py = layout.posPx[anim.y];
+        const appearance = getResolvedAppearance(anim.value);
+        const tileSize = layout.cellPx;
+
+        return (
+          <motion.div
+            key={`portal-in-${anim.id}`}
+            className={`absolute flex items-center justify-center font-bold overflow-hidden text-center ${premiumUiTileFaceClassName} ${appearance.className ?? ''}`}
+            {...TILE_PREMIUM_UI_PRESERVE_ATTRS}
+            style={{
+              width: tileSize,
+              height: tileSize,
+              left: px,
+              top: py,
+              backgroundColor: appearance.style?.backgroundColor,
+              color: appearance.style?.color,
+              fontSize: Math.round(tileSize * 0.38),
+              borderRadius: Math.round(tileSize * 0.18),
+              zIndex: 17,
+            }}
+            initial={{ scale: 1, opacity: 1 }}
+            animate={{ scale: 0.2, opacity: 0 }}
+            transition={{ duration: 0.25, ease: 'easeIn' }}
+          >
+            {anim.value}
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+});
+
+const PopLayer = React.memo<{
+  animations: PopAnimation[];
+  layout: GridLayout;
+  getResolvedAppearance: (value: number) => ResolvedTileAppearance;
+  isPremiumUiThemeActive: boolean;
+  premiumUiTileFaceClassName: string;
+  premiumUiTileNumberClassName: string;
+}>(({ animations, layout, getResolvedAppearance, isPremiumUiThemeActive, premiumUiTileFaceClassName, premiumUiTileNumberClassName }) => {
+  if (animations.length === 0) return null;
+
+  return (
+    <div className="absolute inset-0 z-[19] pointer-events-none">
+      {animations.map((anim) => {
+        const fromPx = layout.posPx[anim.fromX];
+        const fromPy = layout.posPx[anim.fromY];
+        const toPx = layout.posPx[anim.toX];
+        const toPy = layout.posPx[anim.toY];
+        const appearance = getResolvedAppearance(anim.value);
+        const tileSize = layout.cellPx;
+
+        return (
+          <React.Fragment key={`pop-${anim.id}`}>
+            {/* 파티클 버스트 (출구 위치) */}
+            {Array.from({ length: 6 }).map((_, i) => {
+              const angle = (i / 6) * Math.PI * 2;
+              const dist = tileSize * (0.5 + Math.random() * 0.8);
+              return (
+                <motion.div
+                  key={`pop-particle-${anim.id}-${i}`}
+                  className="absolute rounded-full"
+                  style={{
+                    width: 4,
+                    height: 4,
+                    left: fromPx + tileSize / 2 - 2,
+                    top: fromPy + tileSize / 2 - 2,
+                    backgroundColor: appearance.style?.backgroundColor,
+                    zIndex: 20,
+                  }}
+                  initial={{ opacity: 1, scale: 1, x: 0, y: 0 }}
+                  animate={{
+                    opacity: 0,
+                    scale: 0,
+                    x: Math.cos(angle) * dist,
+                    y: Math.sin(angle) * dist - tileSize * 0.3,
+                  }}
+                  transition={{ duration: 0.35, ease: 'easeOut' }}
+                />
+              );
+            })}
+            {/* 타일 포물선 비행 */}
+            <motion.div
+              className={`absolute flex items-center justify-center font-bold overflow-hidden text-center ${premiumUiTileFaceClassName} ${appearance.className ?? ''}`}
+              {...TILE_PREMIUM_UI_PRESERVE_ATTRS}
+              style={{
+                width: tileSize,
+                height: tileSize,
+                backgroundColor: appearance.style?.backgroundColor,
+                color: appearance.style?.color,
+                fontSize: Math.round(tileSize * 0.38),
+                borderRadius: Math.round(tileSize * 0.18),
+                zIndex: 19,
+              }}
+              initial={{
+                left: fromPx,
+                top: fromPy,
+                scale: 0.3,
+                opacity: 0,
+              }}
+              animate={{
+                left: toPx,
+                top: toPy,
+                scale: [0.3, 1.2, 0.9, 1.05, 1],
+                opacity: 1,
+              }}
+              transition={{
+                left: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1.0] },
+                top: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1.0] },
+                scale: { duration: 0.5, ease: 'easeOut', times: [0, 0.6, 0.75, 0.9, 1] },
+                opacity: { duration: 0.15 },
+              }}
+            >
+              {anim.value}
+            </motion.div>
+          </React.Fragment>
         );
       })}
     </div>
@@ -931,6 +1072,8 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
   boardScale,
   readonly = false,
   portalReleaseAnimations = EMPTY_PORTAL_RELEASE_ANIMATIONS,
+  portalInAnimations = EMPTY_PORTAL_IN_ANIMATIONS,
+  popAnimations = EMPTY_POP_ANIMATIONS,
   reviveSelectionEnabled = false,
   revivePendingTileId = null,
   onReviveTileTap,
@@ -1656,14 +1799,34 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
             premiumUiTileNumberClassName={premiumUiTileNumberClassName}
           />
 
-          {/* 5. Obstacles and portals */}
+          {/* 5. Portal IN absorption */}
+          <PortalInLayer
+            animations={portalInAnimations}
+            layout={layout}
+            getResolvedAppearance={getResolvedAppearance}
+            isPremiumUiThemeActive={isPremiumUiThemeActive}
+            premiumUiTileFaceClassName={premiumUiTileFaceClassName}
+            premiumUiTileNumberClassName={premiumUiTileNumberClassName}
+          />
+
+          {/* 6. Pop animations (blocked exits) */}
+          <PopLayer
+            animations={popAnimations}
+            layout={layout}
+            getResolvedAppearance={getResolvedAppearance}
+            isPremiumUiThemeActive={isPremiumUiThemeActive}
+            premiumUiTileFaceClassName={premiumUiTileFaceClassName}
+            premiumUiTileNumberClassName={premiumUiTileNumberClassName}
+          />
+
+          {/* 7. Obstacles and portals */}
           <ObstacleLayer
             grid={grid}
             obstacleState={obstacleState}
             layout={layout}
           />
 
-          {/* 6. Revive Destroy FX */}
+          {/* 9. Revive Destroy FX */}
           <ReviveDestroyLayer
             effects={reviveDestroyEffects}
             layout={layout}
@@ -1673,7 +1836,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
             premiumUiTileNumberClassName={premiumUiTileNumberClassName}
           />
 
-          {/* 7. Ghost Overlay */}
+          {/* 10. Ghost Overlay */}
           {ghostCells && (
             <GhostOverlay
               size={size}

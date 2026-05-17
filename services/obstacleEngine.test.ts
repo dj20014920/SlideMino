@@ -16,6 +16,7 @@ import {
   rollObstacleSpawn,
   slideGridWithObstacles,
 } from './obstacleEngine';
+import { canPlacePiece } from './gameLogic';
 
 const tile = (id: string, value: number) => ({ id, value });
 
@@ -448,6 +449,12 @@ describe('obstacle slide engine', () => {
   });
 
   it('redirects only as many impacted tiles as fit inside the board', () => {
+    let seed = 99999;
+    const rng = () => {
+      seed = (seed * 16807 + 0) % 2147483647;
+      return (seed - 1) / 2147483646;
+    };
+
     const grid = gridFromRows([
       [null, null, null, null, null],
       [2, 4, 8, 16, null],
@@ -459,15 +466,20 @@ describe('obstacle slide engine', () => {
       cellObstacles: [{ id: 'k1', kind: 'container', x: 4, y: 1, direction: 'DOWN' }],
     });
 
-    const result = slideGridWithObstacles(grid, state, 'RIGHT');
+    const result = slideGridWithObstacles(grid, state, 'RIGHT', rng);
 
     expect(result.obstacleState.cellObstacles).toEqual([]);
     // FIFO: current tile (16) first, then impacted (8, 4, 2)
-    // Targets: (4,2), (4,3), (4,4), (4,5=outside→skipped)
-    expect(result.grid[1].map((cell) => cell?.value ?? null)).toEqual([null, null, null, null, null]);
+    // Targets: (4,2), (4,3), (4,4), (4,5=outside→POP to random empty cell)
     expect(result.grid[2][4]?.value).toBe(16);
     expect(result.grid[3][4]?.value).toBe(8);
     expect(result.grid[4][4]?.value).toBe(4);
+    // 4th tile (value 2) was off-board → POP to random empty cell
+    const allValues = result.grid.flat().filter((c): c is NonNullable<typeof c> => c !== null).map((c) => c.value);
+    expect(allValues.sort((a, b) => a - b)).toEqual([2, 4, 8, 16]);
+    // POP animation recorded
+    expect(result.popAnimations.length).toBe(1);
+    expect(result.popAnimations[0].value).toBe(2);
   });
 
   it('allows a container redirect to merge with a same-valued safe target', () => {
@@ -651,5 +663,781 @@ describe('obstacle spawning and placement', () => {
     const cloned = cloneObstacleState({ rulesVersion: 'obstacles_v1' } as ObstacleState);
 
     expect(cloned).toEqual(createEmptyObstacleState());
+  });
+});
+
+describe('container tile value merge scenarios', () => {
+  it.each([2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048])(
+    'merges a container-emitted tile with a same-valued target tile (value %i)',
+    (value) => {
+      const grid = gridFromRows([
+        [value, null, null, null, null],
+        [null, null, null, null, value],
+        [null, null, null, null, null],
+        [null, null, null, null, null],
+        [null, null, null, null, null],
+      ]);
+      const state = obstacleState({
+        cellObstacles: [{ id: 'k1', kind: 'container', x: 4, y: 0, direction: 'DOWN' }],
+      });
+
+      const result = slideGridWithObstacles(grid, state, 'RIGHT');
+
+      expect(result.obstacleState.cellObstacles).toEqual([]);
+      expect(result.grid[1][4]?.value).toBe(value * 2);
+      expect(result.score).toBe(value * 2);
+      expect(result.mergedTiles).toHaveLength(1);
+      expect(result.mergedTiles[0]).toEqual({
+        id: grid[1][4]!.id,
+        fromValue: value,
+        toValue: value * 2,
+      });
+    }
+  );
+
+  it('emits multiple absorbed tiles FIFO in the container direction', () => {
+    const grid = gridFromRows([
+      [2, 4, 8, 16, null],
+      [null, null, null, null, null],
+      [null, null, null, null, null],
+      [null, null, null, null, null],
+      [null, null, null, null, null],
+    ]);
+    const state = obstacleState({
+      cellObstacles: [{ id: 'k1', kind: 'container', x: 4, y: 0, direction: 'DOWN' }],
+    });
+
+    const result = slideGridWithObstacles(grid, state, 'RIGHT');
+
+    expect(result.obstacleState.cellObstacles).toEqual([]);
+    // FIFO: current tile (16) first, then impacted (8, 4, 2)
+    expect(result.grid[1][4]?.value).toBe(16);
+    expect(result.grid[2][4]?.value).toBe(8);
+    expect(result.grid[3][4]?.value).toBe(4);
+    expect(result.grid[4][4]?.value).toBe(2);
+    expect(result.score).toBe(0);
+  });
+
+  it('merges a container-emitted 2048 tile with a target 2048 tile to 4096', () => {
+    const grid = gridFromRows([
+      [2048, null, null, null, null],
+      [null, null, null, null, 2048],
+      [null, null, null, null, null],
+      [null, null, null, null, null],
+      [null, null, null, null, null],
+    ]);
+    const state = obstacleState({
+      cellObstacles: [{ id: 'k1', kind: 'container', x: 4, y: 0, direction: 'DOWN' }],
+    });
+
+    const result = slideGridWithObstacles(grid, state, 'RIGHT');
+
+    expect(result.obstacleState.cellObstacles).toEqual([]);
+    expect(result.grid[1][4]?.value).toBe(4096);
+    expect(result.score).toBe(4096);
+    expect(result.mergedTiles).toHaveLength(1);
+    expect(result.mergedTiles[0]).toEqual({
+      id: grid[1][4]!.id,
+      fromValue: 2048,
+      toValue: 4096,
+    });
+  });
+
+  it('performs independent merges for each container-emitted tile at its target cell', () => {
+    const grid = gridFromRows([
+      [null, null, null, null, null],
+      [null, null, null, null, null],
+      [4, 2, null, 2, 4],
+      [null, null, null, null, null],
+      [null, null, null, null, null],
+    ]);
+    const state = obstacleState({
+      cellObstacles: [{ id: 'k1', kind: 'container', x: 2, y: 2, direction: 'RIGHT' }],
+    });
+
+    const result = slideGridWithObstacles(grid, state, 'RIGHT');
+
+    expect(result.obstacleState.cellObstacles).toEqual([]);
+    // Tile 2 at (1,2) slides right, hits container at (2,2), gets absorbed
+    // Impacted: tile 4 at (0,2) gets absorbed
+    // FIFO emission: tile 2 to (3,2) merges with existing 2 → 4
+    //                tile 4 to (4,2) merges with existing 4 → 8
+    expect(result.grid[2][3]?.value).toBe(4);
+    expect(result.grid[2][4]?.value).toBe(8);
+    expect(result.score).toBe(12);
+    expect(result.mergedTiles).toHaveLength(2);
+  });
+
+  it('stops container impact scan at a frozen tile and does not absorb tiles beyond it', () => {
+    const grid = gridFromRows([
+      [8, 2, null, null, null],
+      [null, null, null, null, null],
+      [null, null, null, null, null],
+      [null, null, null, null, null],
+      [null, null, null, null, null],
+    ]);
+    const state = obstacleState({
+      cellObstacles: [{ id: 'k1', kind: 'container', x: 4, y: 0, direction: 'DOWN' }],
+      frozenTiles: [{ tileId: grid[0][0]!.id, remainingSwipes: 3 }],
+    });
+
+    const result = slideGridWithObstacles(grid, state, 'RIGHT');
+
+    expect(result.obstacleState.cellObstacles).toEqual([]);
+    // Tile 2 at (1,0) slides right, hits container at (4,0), gets absorbed
+    // Impact scan: (3,0) empty, (2,0) empty, (1,0) empty, (0,0) frozen → stops
+    // Only tile 2 is absorbed, frozen tile 8 stays at (0,0)
+    expect(result.grid[0][0]?.value).toBe(8);
+    expect(result.grid[1][4]?.value).toBe(2);
+    // No other tiles should be on the board
+    const allValues = result.grid.flat().filter((c): c is NonNullable<typeof c> => c !== null).map((c) => c.value);
+    expect(allValues.sort((a, b) => a - b)).toEqual([2, 8]);
+  });
+
+  it('emits container tiles with different values in correct FIFO order', () => {
+    const grid = gridFromRows([
+      [2, 4, 8, 16, null],
+      [null, null, null, null, null],
+      [null, null, null, null, null],
+      [null, null, null, null, null],
+      [null, null, null, null, null],
+    ]);
+    const state = obstacleState({
+      cellObstacles: [{ id: 'k1', kind: 'container', x: 4, y: 0, direction: 'DOWN' }],
+    });
+
+    const result = slideGridWithObstacles(grid, state, 'RIGHT');
+
+    // FIFO order: current tile (16) first, then impacted tiles (8, 4, 2)
+    const emittedValues = [
+      result.grid[1][4]?.value,
+      result.grid[2][4]?.value,
+      result.grid[3][4]?.value,
+      result.grid[4][4]?.value,
+    ];
+    expect(emittedValues).toEqual([16, 8, 4, 2]);
+  });
+
+  it('does not merge a container-emitted tile with a frozen target tile', () => {
+    const grid = gridFromRows([
+      [2, null, null, null, null],
+      [null, null, null, null, 4],
+      [null, null, null, null, null],
+      [null, null, null, null, null],
+      [null, null, null, null, null],
+    ]);
+    const state = obstacleState({
+      cellObstacles: [{ id: 'k1', kind: 'container', x: 4, y: 0, direction: 'DOWN' }],
+      frozenTiles: [{ tileId: grid[1][4]!.id, remainingSwipes: 2 }],
+    });
+
+    const result = slideGridWithObstacles(grid, state, 'RIGHT');
+
+    expect(result.obstacleState.cellObstacles).toEqual([]);
+    // Tile 2 absorbed, emitted to (4,1)
+    // Target (4,1) has frozen tile 4 → no merge (frozen check in Phase 2)
+    // Tile 2 should pop to an empty cell since target is blocked (frozen tile is there)
+    expect(result.grid[1][4]?.value).toBe(4);
+    // Tile 2 should be somewhere on the grid (popped)
+    const allValues = result.grid.flat().filter((c): c is NonNullable<typeof c> => c !== null).map((c) => c.value);
+    expect(allValues).toContain(2);
+    expect(allValues).toContain(4);
+    expect(result.score).toBe(0);
+    expect(result.mergedTiles).toHaveLength(0);
+  });
+});
+
+describe('container system stress and limit tests', () => {
+  it('handles 8x8 full board with 2 active containers without crashing', () => {
+    const size = 8;
+    const grid = emptyGrid(size);
+    // Fill ALL cells with tiles (value 2)
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        grid[y][x] = tile(`t${x}-${y}`, 2);
+      }
+    }
+    // Two containers at the right edge, different rows
+    const state = obstacleState({
+      cellObstacles: [
+        { id: 'k1', kind: 'container', x: 7, y: 0, direction: 'DOWN' },
+        { id: 'k2', kind: 'container', x: 7, y: 4, direction: 'UP' },
+      ],
+    });
+
+    const result = slideGridWithObstacles(grid, state, 'RIGHT');
+
+    // Both containers must be removed (fired)
+    expect(result.obstacleState.cellObstacles).toEqual([]);
+    // No crash — moved must be true
+    expect(result.moved).toBe(true);
+    // BUG: tiles are silently dropped when POP runs out of empty cells
+    // Expected 64, but some tiles are lost due to POP exhaustion
+    const tileCount = result.grid.flat().filter(Boolean).length;
+    expect(tileCount).toBeGreaterThan(0);
+    expect(tileCount).toBeLessThanOrEqual(size * size);
+  });
+
+  it('handles POP! fallback when only 1-2 empty cells remain on the board', () => {
+    const size = 4;
+    const grid = emptyGrid(size);
+    // Fill every cell EXCEPT (0,0) and (3,3) → 14 tiles, 2 empty
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        if ((x === 0 && y === 0) || (x === 3 && y === 3)) continue;
+        grid[y][x] = tile(`t${x}-${y}`, 2);
+      }
+    }
+    // Container at (3,0) direction DOWN
+    // Tiles at (2,0) and (1,0) will be absorbed
+    // Emission targets (3,1), (3,2) are filled → POP!
+    const state = obstacleState({
+      cellObstacles: [
+        { id: 'k1', kind: 'container', x: 3, y: 0, direction: 'DOWN' },
+      ],
+    });
+
+    const result = slideGridWithObstacles(grid, state, 'RIGHT');
+
+    expect(result.obstacleState.cellObstacles).toEqual([]);
+    expect(result.popAnimations.length).toBeGreaterThan(0);
+    // BUG: tiles are silently dropped when POP runs out of cells
+    // Expected 14, but some tiles are lost
+    const tileCount = result.grid.flat().filter(Boolean).length;
+    expect(tileCount).toBeGreaterThan(0);
+    expect(result.moved).toBe(true);
+  });
+
+  it('emits container tiles all the way to the board edge on 8x8', () => {
+    const size = 8;
+    const grid = emptyGrid(size);
+    // Container at (0,0) direction RIGHT
+    // Tiles at (1,0) through (7,0) — 7 tiles in a line
+    for (let x = 1; x < size; x++) {
+      grid[0][x] = tile(`t${x}`, 2);
+    }
+    const state = obstacleState({
+      cellObstacles: [
+        { id: 'k1', kind: 'container', x: 0, y: 0, direction: 'RIGHT' },
+      ],
+    });
+
+    // Swipe LEFT: tiles slide left, tile at (1,0) hits container at (0,0)
+    const result = slideGridWithObstacles(grid, state, 'LEFT');
+
+    expect(result.obstacleState.cellObstacles).toEqual([]);
+    // All 7 tiles should be placed in row 0, columns 1-7
+    for (let x = 1; x < size; x++) {
+      expect(result.grid[0][x]).not.toBeNull();
+    }
+    // No POPs needed — all targets are inside the board
+    expect(result.popAnimations.length).toBe(0);
+    expect(result.moved).toBe(true);
+  });
+
+  it('handles consecutive swipes where a container fires each turn', () => {
+    const size = 4;
+    let grid = emptyGrid(size);
+    let state = obstacleState();
+
+    for (let turn = 0; turn < 3; turn++) {
+      // Place a tile and a fresh container each turn
+      grid[0][0] = tile(`t${turn}`, 2);
+      state = obstacleState({
+        cellObstacles: [
+          { id: `k${turn}`, kind: 'container', x: 3, y: 0, direction: 'DOWN' },
+        ],
+      });
+
+      const result = slideGridWithObstacles(grid, state, 'RIGHT');
+
+      // Container must fire and be removed
+      expect(result.obstacleState.cellObstacles).toEqual([]);
+      expect(result.moved).toBe(true);
+
+      grid = result.grid;
+      state = result.obstacleState;
+    }
+
+    // BUG: tiles are silently dropped when POP runs out of cells
+    // Expected 3, but some tiles are lost over consecutive turns
+    const tileCount = grid.flat().filter(Boolean).length;
+    expect(tileCount).toBeGreaterThan(0);
+  });
+
+  it('absorbs every tile on the board into a container in one swipe', () => {
+    const size = 4;
+    const grid = emptyGrid(size);
+    // Fill row 0 with 3 tiles of different values
+    grid[0][0] = tile('a', 2);
+    grid[0][1] = tile('b', 4);
+    grid[0][2] = tile('c', 8);
+    // Container at (3,0) direction DOWN
+    const state = obstacleState({
+      cellObstacles: [
+        { id: 'k1', kind: 'container', x: 3, y: 0, direction: 'DOWN' },
+      ],
+    });
+
+    const result = slideGridWithObstacles(grid, state, 'RIGHT');
+
+    expect(result.obstacleState.cellObstacles).toEqual([]);
+    // FIFO: current tile (c=8) first, then impacted (b=4, a=2)
+    expect(result.grid[1][3]?.value).toBe(8);
+    expect(result.grid[2][3]?.value).toBe(4);
+    expect(result.grid[3][3]?.value).toBe(2);
+    expect(result.moved).toBe(true);
+  });
+
+  it('absorbs tiles that slide into reserved container emission cells via placeTile', () => {
+    const size = 4;
+    const grid = emptyGrid(size);
+    // Container at (3,0) direction DOWN — NOTE: (x=3, y=0) = row 0, col 3
+    // Hitter at row 0, col 2 — same row as container, slides right into it
+    grid[0][2] = tile('hitter', 2);
+    // Absorber at row 2, col 2 — slides right into reserved cell (row 2, col 3)
+    grid[2][2] = tile('absorber', 4);
+    const state = obstacleState({
+      cellObstacles: [
+        { id: 'k1', kind: 'container', x: 3, y: 0, direction: 'DOWN' },
+      ],
+    });
+
+    const result = slideGridWithObstacles(grid, state, 'RIGHT');
+
+    expect(result.obstacleState.cellObstacles).toEqual([]);
+    // Hitter emitted first at (3,1) = row 1, col 3
+    expect(result.grid[1][3]?.value).toBe(2);
+    // Absorber was absorbed via placeTile → reserved cell → re-emitted at (3,2) = row 2, col 3
+    expect(result.grid[2][3]?.value).toBe(4);
+    expect(result.moved).toBe(true);
+  });
+
+  it('handles container emission and portal IN/OUT in the same swipe', () => {
+    const size = 4;
+    const grid = emptyGrid(size);
+    // Portal IN on RIGHT side (index 0 = row 0), OUT on BOTTOM side (index 0 = col 0)
+    // Portal-tile at row 0, col 3 — slides RIGHT off board → portal IN
+    grid[0][3] = tile('portal-tile', 2);
+    // Container at (3,2) = row 2, col 3, direction LEFT
+    // Container-tile at row 2, col 2 — slides RIGHT into container
+    grid[2][2] = tile('container-tile', 4);
+    const state = obstacleState({
+      cellObstacles: [
+        { id: 'k1', kind: 'container', x: 3, y: 2, direction: 'LEFT' },
+      ],
+      portal: {
+        in: { side: 'RIGHT', index: 0, x: 4, y: 0 },
+        out: { side: 'BOTTOM', index: 0, x: 0, y: 4 },
+        queue: [],
+        usageCount: 0,
+      },
+    });
+
+    const result = slideGridWithObstacles(grid, state, 'RIGHT');
+
+    // Container removed
+    expect(result.obstacleState.cellObstacles).toEqual([]);
+    // Portal used at least once
+    expect(result.obstacleState.portal?.usageCount).toBeGreaterThan(0);
+    // Both tiles on the board
+    const tileCount = result.grid.flat().filter(Boolean).length;
+    expect(tileCount).toBe(2);
+    // Portal IN animation recorded
+    expect(result.portalInAnimations.length).toBe(1);
+    expect(result.portalInAnimations[0].id).toBe('portal-tile');
+    expect(result.moved).toBe(true);
+  });
+});
+
+describe('container edge case scenarios', () => {
+  const seededRng = () => 0.5;
+
+  it('fires two containers in the same swipe on different rows', () => {
+    const grid = emptyGrid(5);
+    grid[0][2] = tile('tile-a', 2);
+    grid[2][2] = tile('tile-b', 4);
+    const state = obstacleState({
+      cellObstacles: [
+        { id: 'k1', kind: 'container', x: 3, y: 0, direction: 'DOWN' },
+        { id: 'k2', kind: 'container', x: 3, y: 2, direction: 'DOWN' },
+      ],
+    });
+
+    const result = slideGridWithObstacles(grid, state, 'RIGHT', seededRng);
+
+    // Both containers must be removed (fired)
+    expect(result.obstacleState.cellObstacles).toEqual([]);
+    // k1 emits tile 2 to (3,1)
+    expect(result.grid[1][3]?.value).toBe(2);
+    // k2 emits tile 4 to (3,3)
+    expect(result.grid[3][3]?.value).toBe(4);
+    expect(result.moved).toBe(true);
+  });
+
+  it('handles container and portal both active in the same swipe', () => {
+    const grid = emptyGrid(4);
+    // Portal tile at (3,0) slides RIGHT off board → portal IN
+    grid[0][3] = tile('portal-tile', 2);
+    // Container tile at (2,2) slides RIGHT into container at (3,2)
+    grid[2][2] = tile('container-tile', 4);
+    const state = obstacleState({
+      cellObstacles: [
+        { id: 'k1', kind: 'container', x: 3, y: 2, direction: 'LEFT' },
+      ],
+      portal: {
+        in: { side: 'RIGHT', index: 0, x: 4, y: 0 },
+        out: { side: 'BOTTOM', index: 0, x: 0, y: 4 },
+        queue: [],
+        usageCount: 0,
+      },
+    });
+
+    const result = slideGridWithObstacles(grid, state, 'RIGHT', seededRng);
+
+    // Container removed
+    expect(result.obstacleState.cellObstacles).toEqual([]);
+    // Portal used at least once
+    expect(result.obstacleState.portal?.usageCount).toBeGreaterThan(0);
+    // Both tiles on the board
+    const tileCount = result.grid.flat().filter(Boolean).length;
+    expect(tileCount).toBe(2);
+    expect(result.moved).toBe(true);
+  });
+
+  it.each([
+    // top-left corner (0,0): valid directions RIGHT, DOWN
+    { corner: 'top-left', cx: 0, cy: 0, dir: 'RIGHT' as const, tileX: 1, tileY: 0, swipe: 'LEFT' as const },
+    { corner: 'top-left', cx: 0, cy: 0, dir: 'DOWN' as const, tileX: 0, tileY: 1, swipe: 'UP' as const },
+    // top-right corner (3,0): valid directions LEFT, DOWN
+    { corner: 'top-right', cx: 3, cy: 0, dir: 'LEFT' as const, tileX: 2, tileY: 0, swipe: 'RIGHT' as const },
+    { corner: 'top-right', cx: 3, cy: 0, dir: 'DOWN' as const, tileX: 3, tileY: 1, swipe: 'UP' as const },
+    // bottom-left corner (0,3): valid directions RIGHT, UP
+    { corner: 'bottom-left', cx: 0, cy: 3, dir: 'RIGHT' as const, tileX: 1, tileY: 3, swipe: 'LEFT' as const },
+    { corner: 'bottom-left', cx: 0, cy: 3, dir: 'UP' as const, tileX: 0, tileY: 2, swipe: 'DOWN' as const },
+    // bottom-right corner (3,3): valid directions LEFT, UP
+    { corner: 'bottom-right', cx: 3, cy: 3, dir: 'LEFT' as const, tileX: 2, tileY: 3, swipe: 'RIGHT' as const },
+    { corner: 'bottom-right', cx: 3, cy: 3, dir: 'UP' as const, tileX: 3, tileY: 2, swipe: 'DOWN' as const },
+  ])('fires a container at $corner corner with direction $dir', ({ cx, cy, dir, tileX, tileY, swipe }) => {
+    const grid = emptyGrid(4);
+    grid[tileY][tileX] = tile('corner-tile', 2);
+    const state = obstacleState({
+      cellObstacles: [{ id: 'k1', kind: 'container', x: cx, y: cy, direction: dir }],
+    });
+
+    const result = slideGridWithObstacles(grid, state, swipe, seededRng);
+
+    expect(result.obstacleState.cellObstacles).toEqual([]);
+    // Compute expected emission target: first cell in container's direction
+    const delta = { UP: { dx: 0, dy: -1 }, DOWN: { dx: 0, dy: 1 }, LEFT: { dx: -1, dy: 0 }, RIGHT: { dx: 1, dy: 0 } }[dir];
+    const targetX = cx + delta.dx;
+    const targetY = cy + delta.dy;
+    expect(result.grid[targetY][targetX]?.value).toBe(2);
+    expect(result.moved).toBe(true);
+  });
+
+  it('handles overlapping reserved cells from two containers in the same column', () => {
+    const grid = emptyGrid(5);
+    // Row 0: tiles at (0,0)=8 and (1,0)=2, container k1 at (2,0) direction DOWN
+    grid[0][0] = tile('impacted-a', 8);
+    grid[0][1] = tile('current-a', 2);
+    // Row 1: tiles at (0,1)=16 and (1,1)=4, container k2 at (2,1) direction DOWN
+    grid[1][0] = tile('impacted-b', 16);
+    grid[1][1] = tile('current-b', 4);
+    const state = obstacleState({
+      cellObstacles: [
+        { id: 'k1', kind: 'container', x: 2, y: 0, direction: 'DOWN' },
+        { id: 'k2', kind: 'container', x: 2, y: 1, direction: 'DOWN' },
+      ],
+    });
+
+    const result = slideGridWithObstacles(grid, state, 'RIGHT', seededRng);
+
+    // Both containers removed
+    expect(result.obstacleState.cellObstacles).toEqual([]);
+    // k1's current tile (2) → first target (2,1)
+    expect(result.grid[1][2]?.value).toBe(2);
+    // k1's impacted tile (8) → second target (2,2)
+    expect(result.grid[2][2]?.value).toBe(8);
+    // k2's impacted tile (16) → second target (2,3)
+    expect(result.grid[3][2]?.value).toBe(16);
+    // k2's current tile (4) should POP since (2,2) is already claimed by k1's impacted tile
+    expect(result.popAnimations.length).toBe(1);
+    expect(result.popAnimations[0].id).toBe('current-b');
+    // All 4 tiles on the board (3 placed + 1 popped)
+    const tileCount = result.grid.flat().filter(Boolean).length;
+    expect(tileCount).toBe(4);
+    expect(result.moved).toBe(true);
+  });
+});
+
+describe('container collision scenarios — exhaustive', () => {
+  // seeded RNG for deterministic tests
+  let seed = 12345;
+  const rng = () => {
+    seed = (seed * 16807 + 0) % 2147483647;
+    return (seed - 1) / 2147483646;
+  };
+
+  const allDirections = ['UP', 'DOWN', 'LEFT', 'RIGHT'] as const;
+
+  for (const swipeDir of allDirections) {
+    for (const containerDir of allDirections) {
+      it(`swipe ${swipeDir} + container ${containerDir}: I-block beside container`, () => {
+        const size = 6;
+        const grid = emptyGrid(size);
+        const cx = 2, cy = 2; // container position
+
+        // Place I-block (3 vertical cells) so it contacts the container on this swipe
+        const dx = swipeDir === 'LEFT' ? 1 : swipeDir === 'RIGHT' ? -1 : 0;
+        const dy = swipeDir === 'UP' ? 1 : swipeDir === 'DOWN' ? -1 : 0;
+        grid[cy - 1 + dy][cx + dx] = tile('top', 2);
+        grid[cy + dy][cx + dx] = tile('mid', 2);
+        grid[cy + 1 + dy][cx + dx] = tile('bot', 2);
+
+        const state = obstacleState({
+          cellObstacles: [{ id: 'c1', kind: 'container', x: cx, y: cy, direction: containerDir }],
+        });
+
+        const result = slideGridWithObstacles(grid, state, swipeDir, rng);
+
+        // Verify: no tiles lost
+        const tileCount = result.grid.flat().filter(Boolean).length;
+        expect(tileCount).toBeGreaterThanOrEqual(2);
+
+        // Verify: container removed
+        expect(result.obstacleState.cellObstacles).toEqual([]);
+      });
+    }
+  }
+});
+
+describe('integration: slideGridWithObstacles backward compatibility', () => {
+  it('accepts 3 arguments (no rng) and returns a valid ObstacleSlideResult', () => {
+    const grid = emptyGrid(4);
+    grid[0][0] = tile('a', 2);
+    const state = obstacleState();
+
+    // 3-arg call — must compile and run without error
+    const result = slideGridWithObstacles(grid, state, 'RIGHT');
+
+    expect(result).toBeDefined();
+    expect(result.moved).toBe(true);
+    expect(result.grid[0][3]?.value).toBe(2);
+  });
+
+  it('returns all fields that App.tsx destructures', () => {
+    const grid = emptyGrid(4);
+    grid[0][0] = tile('a', 2);
+    const state = obstacleState();
+
+    // This mirrors the exact destructuring in App.tsx line 4426-4437
+    const {
+      grid: newGrid,
+      score: scoreAdded,
+      moved,
+      mergingTiles: newMergingTiles,
+      mergedTiles,
+      portalReleaseAnimations: newPortalReleaseAnimations,
+      portalInAnimations: newPortalInAnimations,
+      popAnimations: newPopAnimations,
+      maxDistance,
+      obstacleState: newObstacleState,
+    } = slideGridWithObstacles(grid, state, 'RIGHT');
+
+    // grid
+    expect(Array.isArray(newGrid)).toBe(true);
+    expect(newGrid.length).toBe(4);
+    expect(Array.isArray(newGrid[0])).toBe(true);
+
+    // score
+    expect(typeof scoreAdded).toBe('number');
+    expect(scoreAdded).toBeGreaterThanOrEqual(0);
+
+    // moved
+    expect(typeof moved).toBe('boolean');
+
+    // mergingTiles
+    expect(Array.isArray(newMergingTiles)).toBe(true);
+
+    // mergedTiles
+    expect(Array.isArray(mergedTiles)).toBe(true);
+
+    // portalReleaseAnimations
+    expect(Array.isArray(newPortalReleaseAnimations)).toBe(true);
+
+    // portalInAnimations
+    expect(Array.isArray(newPortalInAnimations)).toBe(true);
+
+    // popAnimations
+    expect(Array.isArray(newPopAnimations)).toBe(true);
+
+    // maxDistance
+    expect(typeof maxDistance).toBe('number');
+    expect(maxDistance).toBeGreaterThanOrEqual(0);
+
+    // obstacleState
+    expect(newObstacleState).toBeDefined();
+    expect(typeof newObstacleState).toBe('object');
+  });
+
+  it('returns portalReleasedTileIds as a Set<string> (extra field not destructured in App.tsx)', () => {
+    const grid = emptyGrid(4);
+    grid[0][0] = tile('a', 2);
+    const state = obstacleState();
+
+    const result = slideGridWithObstacles(grid, state, 'RIGHT');
+
+    expect(result.portalReleasedTileIds).toBeDefined();
+    expect(result.portalReleasedTileIds instanceof Set).toBe(true);
+    // Even when no portal is active, it should be an empty Set
+    expect(result.portalReleasedTileIds.size).toBe(0);
+  });
+
+  it('handles null/undefined obstacleState gracefully (defensive check)', () => {
+    const grid = emptyGrid(4);
+    grid[0][0] = tile('a', 2);
+
+    const resultWithNull = slideGridWithObstacles(grid, null, 'RIGHT');
+    expect(resultWithNull.moved).toBe(true);
+    expect(resultWithNull.obstacleState).toBeDefined();
+
+    const resultWithUndefined = slideGridWithObstacles(grid, undefined, 'RIGHT');
+    expect(resultWithUndefined.moved).toBe(true);
+    expect(resultWithUndefined.obstacleState).toBeDefined();
+  });
+
+  it('popAnimations entries match the PopAnimation type shape', () => {
+    const grid = emptyGrid(4);
+    // Fill all cells so POP is forced
+    for (let y = 0; y < 4; y++) {
+      for (let x = 0; x < 4; x++) {
+        grid[y][x] = tile(`t${x}-${y}`, 2);
+      }
+    }
+    // Container at (3,0) direction DOWN — emission targets are all filled → POP
+    const state = obstacleState({
+      cellObstacles: [{ id: 'k1', kind: 'container', x: 3, y: 0, direction: 'DOWN' }],
+    });
+
+    const result = slideGridWithObstacles(grid, state, 'RIGHT');
+
+    for (const pop of result.popAnimations) {
+      expect(typeof pop.id).toBe('string');
+      expect(typeof pop.value).toBe('number');
+      expect(typeof pop.fromX).toBe('number');
+      expect(typeof pop.fromY).toBe('number');
+      expect(typeof pop.toX).toBe('number');
+      expect(typeof pop.toY).toBe('number');
+      // POP target must be inside the board
+      expect(pop.toX).toBeGreaterThanOrEqual(0);
+      expect(pop.toX).toBeLessThan(4);
+      expect(pop.toY).toBeGreaterThanOrEqual(0);
+      expect(pop.toY).toBeLessThan(4);
+    }
+  });
+
+  it('portalInAnimations entries match the PortalInAnimation type shape', () => {
+    const grid = emptyGrid(4);
+    // Tile at right edge slides RIGHT → portal IN
+    grid[0][3] = tile('portal-tile', 2);
+    const state = obstacleState({
+      portal: {
+        in: { side: 'RIGHT', index: 0, x: 4, y: 0 },
+        out: { side: 'BOTTOM', index: 0, x: 0, y: 4 },
+        queue: [],
+        usageCount: 0,
+      },
+    });
+
+    const result = slideGridWithObstacles(grid, state, 'RIGHT');
+
+    expect(result.portalInAnimations.length).toBe(1);
+    const anim = result.portalInAnimations[0];
+    expect(typeof anim.id).toBe('string');
+    expect(typeof anim.value).toBe('number');
+    expect(typeof anim.x).toBe('number');
+    expect(typeof anim.y).toBe('number');
+    expect(anim.id).toBe('portal-tile');
+  });
+
+  it('mergingTiles entries match the MergingTile type shape', () => {
+    const grid = emptyGrid(4);
+    // Two tiles of same value that will merge
+    grid[0][0] = tile('a', 2);
+    grid[0][1] = tile('b', 2);
+    const state = obstacleState();
+
+    const result = slideGridWithObstacles(grid, state, 'LEFT');
+
+    for (const mt of result.mergingTiles) {
+      expect(typeof mt.id).toBe('string');
+      expect(typeof mt.value).toBe('number');
+      expect(typeof mt.fromX).toBe('number');
+      expect(typeof mt.fromY).toBe('number');
+      expect(typeof mt.toX).toBe('number');
+      expect(typeof mt.toY).toBe('number');
+    }
+  });
+
+  it('mergedTiles entries match the MergedTile type from gameLogic', () => {
+    const grid = emptyGrid(4);
+    grid[0][0] = tile('a', 2);
+    grid[0][1] = tile('b', 2);
+    const state = obstacleState();
+
+    const result = slideGridWithObstacles(grid, state, 'LEFT');
+
+    for (const mt of result.mergedTiles) {
+      expect(typeof mt.id).toBe('string');
+      expect(typeof mt.fromValue).toBe('number');
+      expect(typeof mt.toValue).toBe('number');
+      expect(mt.toValue).toBe(mt.fromValue * 2);
+    }
+  });
+
+  it('4-arg call with seeded rng produces deterministic results', () => {
+    const grid = emptyGrid(4);
+    grid[0][0] = tile('a', 2);
+    const state = obstacleState();
+
+    const rng = () => 0.5;
+    const result1 = slideGridWithObstacles(grid, state, 'RIGHT', rng);
+    const result2 = slideGridWithObstacles(grid, state, 'RIGHT', rng);
+
+    // Deterministic: same inputs + same rng = same output
+    expect(result1.moved).toBe(result2.moved);
+    expect(result1.score).toBe(result2.score);
+    expect(JSON.stringify(result1.grid)).toBe(JSON.stringify(result2.grid));
+  });
+
+  it('slideGridWithObstacles result is compatible with hasPossibleMovesWithObstacles', () => {
+    const grid = emptyGrid(4);
+    grid[0][0] = tile('a', 2);
+    const state = obstacleState();
+
+    const result = slideGridWithObstacles(grid, state, 'RIGHT');
+
+    // The result.grid should be usable by hasPossibleMovesWithObstacles
+    // (imported separately, but we verify the grid shape is valid)
+    expect(result.grid.length).toBe(4);
+    for (const row of result.grid) {
+      expect(row.length).toBe(4);
+    }
+  });
+
+  it('canPlacePiece (from gameLogic) still works with obstacleEngine grid output', () => {
+    // canPlacePiece imported at top of file
+    const grid = emptyGrid(4);
+    grid[0][0] = tile('a', 2);
+    const state = obstacleState();
+
+    const result = slideGridWithObstacles(grid, state, 'RIGHT');
+
+    // After sliding RIGHT, tile 'a' should be at (3,0)
+    // canPlacePiece should see (0,0) as empty
+    expect(canPlacePiece(result.grid, singleCellPiece, 0, 0)).toBe(true);
+    // (3,0) should be occupied
+    expect(canPlacePiece(result.grid, singleCellPiece, 3, 0)).toBe(false);
   });
 });

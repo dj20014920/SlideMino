@@ -864,6 +864,65 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [nativeUpdateRequirement, setNativeUpdateRequirement] = useState<NativeUpdateRequirement | null>(null);
   const [isOpeningUpdateStore, setIsOpeningUpdateStore] = useState(false);
+  const nativeUpdateCheckInFlight = useRef(false);
+
+  useEffect(() => {
+    if (!isNative || isAppIntoSBuild) return;
+
+    let isDisposed = false;
+
+    const performCheck = async (force: boolean) => {
+      if (nativeUpdateCheckInFlight.current && !force) return;
+      nativeUpdateCheckInFlight.current = true;
+      try {
+        const result = await checkNativeUpdateRequirement();
+        if (!isDisposed) {
+          setNativeUpdateRequirement(result);
+        }
+      } finally {
+        nativeUpdateCheckInFlight.current = false;
+      }
+    };
+
+    // 초기 체크
+    void performCheck(false);
+
+    // Capacitor appStateChange 리스너 (백그라운드→포그라운드)
+    let appStateListenerHandle: { remove: () => Promise<void> } | null = null;
+    void import('@capacitor/app').then(({ App: CapacitorApp }) => {
+      if (isDisposed) return;
+      CapacitorApp.addListener('appStateChange', (state) => {
+        if (state.isActive) {
+          void performCheck(true);
+        }
+      }).then((handle) => {
+        if (isDisposed) {
+          void handle.remove();
+          return;
+        }
+        appStateListenerHandle = handle;
+      }).catch(() => {
+        // ignore
+      });
+    }).catch(() => {
+      // ignore — web environment
+    });
+
+    // online 리스너 (오프라인→온라인)
+    const handleOnline = () => {
+      void performCheck(true);
+    };
+    window.addEventListener('online', handleOnline);
+
+    return () => {
+      isDisposed = true;
+      window.removeEventListener('online', handleOnline);
+      if (appStateListenerHandle) {
+        void appStateListenerHandle.remove();
+      }
+    };
+  }, [isNative, isAppIntoSBuild]);
+
   const [isNetworkOnline, setIsNetworkOnline] = useState<boolean>(() => (
     typeof navigator === 'undefined' ? true : navigator.onLine
   ));
@@ -963,260 +1022,11 @@ const App: React.FC = () => {
 
     window.addEventListener(APP_RESUME_EVENT, applySystemBarsStyle);
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
+      return () => {
       isDisposed = true;
-      timerIds.forEach((id) => window.clearTimeout(id));
       window.removeEventListener(APP_RESUME_EVENT, applySystemBarsStyle);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [isNative, nativeSystemBarsStyle]);
-
-  useEffect(() => {
-    if (!isNative || typeof window === 'undefined') return;
-
-    const syncSafeBottomInset = () => {
-      setMenuSafeBottomInsetPx(Math.max(0, Math.round(getSafeAreaInsetPx('bottom'))));
-    };
-
-    syncSafeBottomInset();
-    const timerIds = VIEWPORT_RECOVERY_DELAYS_MS.map((delayMs) => window.setTimeout(syncSafeBottomInset, delayMs));
-
-    window.addEventListener('resize', syncSafeBottomInset);
-    window.addEventListener(APP_RESUME_EVENT, syncSafeBottomInset);
-    window.visualViewport?.addEventListener('resize', syncSafeBottomInset);
-    return () => {
       timerIds.forEach((id) => window.clearTimeout(id));
-      window.removeEventListener('resize', syncSafeBottomInset);
-      window.removeEventListener(APP_RESUME_EVENT, syncSafeBottomInset);
-      window.visualViewport?.removeEventListener('resize', syncSafeBottomInset);
-    };
-  }, [isNative]);
-
-  // 랭킹 오프라인 큐 자동 동기화
-  useEffect(() => {
-    rankingService.initSync();
-    initEventScoreSync();
-  }, []);
-
-  useEffect(() => {
-    const handleOnline = () => setIsNetworkOnline(true);
-    const handleOffline = () => setIsNetworkOnline(false);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-
-  // 스트릭 상태 확인 + 시즌 보상 체크 (앱 시작 시 1회)
-  useEffect(() => {
-    // 1) 스트릭: 빠진 날 프리즈 소모 또는 리셋 처리
-    const result = checkAndUpdateStreak();
-    setStreakCount(result.currentStreak);
-    setTodayAttended(isTodayAttended());
-
-    if (result.freezeUsed > 0) {
-      showComboMessage(String(t('common:streak.freezeUsed', { count: result.freezeUsed } as any)), 3000);
-    } else if (result.streakBroken) {
-      // 프리즈 자동 사용 OFF인데 프리즈가 있었으면 구분 안내
-      const data = loadStreakData();
-      if (data.freezeCount > 0 && !data.autoFreezeEnabled) {
-        showComboMessage(t('common:streak.freezeAutoOff'), 3000);
-      } else {
-        showComboMessage(t('common:streak.streakReset'), 2500);
-      }
-    }
-
-    // 2) 시즌 보상 체크 (네이티브 앱에서만 의미 있지만, 웹에서도 안내 표시)
-    checkSeasonRewards().then(async result => {
-      if (result.rewards.length > 0) {
-        // 아직 확인하지 않은 보상이 있을 때만 진행
-        if (hasUnseenSeasonRewards(result.rewards)) {
-          // 자동 수령 (서버에 claimed_at 기록 + 로컬 fragment 추가)
-          await claimAllSeasonRewards(result.rewards);
-          setSeasonRewards(result.rewards);
-          openSeasonRewardModal();
-        } else {
-          setSeasonRewards(result.rewards);
-        }
-      }
-      setSeasonCheckSeq(1);
-    }).catch(() => {
-      setSeasonCheckSeq(1);
-      // 오프라인 등 실패 시 무시
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // ===== 미션 시스템 초기화 =====
-  useEffect(() => {
-    initMissionTracking();
-    const syncDailyMissionCompleted = () => {
-      setDailyMissionCompleted(getDailyCompletedCount());
-    };
-    const scheduleMissionNotificationResync = () => {
-      if (missionRescheduleDebounceRef.current != null) {
-        window.clearTimeout(missionRescheduleDebounceRef.current);
-      }
-      missionRescheduleDebounceRef.current = window.setTimeout(() => {
-        missionRescheduleDebounceRef.current = null;
-        void rescheduleNotifications({ allowPermissionPrompt: isEarlyOnboardingCompleted() });
-      }, 500);
-    };
-
-    const unsubComplete = gameEventBus.on('MISSION_COMPLETED', (info: MissionCompleteInfo) => {
-      syncDailyMissionCompleted();
-      scheduleMissionNotificationResync();
-      showComboMessage(`🎯 ${t(info.nameKey as any)} ${t('game:missions.completed' as any)}`, 3000);
-    });
-
-    const unsubProgress = gameEventBus.on('MISSION_PROGRESS', (info: MissionProgressInfo) => {
-      const now = Date.now();
-      if (now - missionProgressThrottleRef.current < 3000) return;
-      missionProgressThrottleRef.current = now;
-      showComboMessage(`📋 ${t(info.nameKey as any)} ${info.milestonePercent}% (${info.current}/${info.target})`, 2000);
-    });
-
-    const unsubMissionStateChanged = gameEventBus.on('MISSION_STATE_CHANGED', () => {
-      syncDailyMissionCompleted();
-      scheduleMissionNotificationResync();
-    });
-
-    return () => {
-      unsubComplete();
-      unsubProgress();
-      unsubMissionStateChanged();
-      if (missionRescheduleDebounceRef.current != null) {
-        window.clearTimeout(missionRescheduleDebounceRef.current);
-        missionRescheduleDebounceRef.current = null;
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    const syncDailyMissionCompleted = () => {
-      setDailyMissionCompleted(getDailyCompletedCount());
-    };
-    const handleVisibilityChange = () => {
-      if (document.visibilityState !== 'visible') return;
-      syncDailyMissionCompleted();
-    };
-
-    const intervalId = window.setInterval(syncDailyMissionCompleted, 60_000);
-    window.addEventListener(APP_RESUME_EVENT, syncDailyMissionCompleted);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      window.clearInterval(intervalId);
-      window.removeEventListener(APP_RESUME_EVENT, syncDailyMissionCompleted);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, []);
-
-  // ===== 로컬 푸시 알림 스케줄링 (앱 시작 시) =====
-  useEffect(() => {
-    void rescheduleNotifications({ allowPermissionPrompt: isEarlyOnboardingCompleted() });
-  }, []);
-
-  // ===== XP/레벨 시스템 초기화 =====
-  useEffect(() => {
-    initXpTracking();
-
-    const refreshXpUI = () => {
-      const p = getXpProgress();
-      setXpLevel(p.level);
-      setXpPercent(p.xpRequired > 0 ? Math.floor((p.xp / p.xpRequired) * 100) : 0);
-    };
-
-    const unsubXp = gameEventBus.on('XP_GAINED', () => {
-      refreshXpUI();
-    });
-
-    const unsubLevelUp = gameEventBus.on('LEVEL_UP', (info) => {
-      refreshXpUI();
-      showComboMessage(`⬆️ Lv.${info.level}! ${info.fragments > 0 ? `+${info.fragments} ✦` : ''}`, 3000);
-
-    });
-
-    return () => { unsubXp(); unsubLevelUp(); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Fake loading delay for the premium feel
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1200);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // 데일리 첫 실행 모달: 시즌 보상 확인 후 → 시즌 모달 닫힌 후 → 로딩 완료 + MENU + 오늘 첫 실행 + 1회 플레이 이후
-  useEffect(() => {
-    if (isLoading) return;
-    if (gameState !== GameState.MENU) return;
-    if (seasonCheckSeq === 0) return;
-    if (isSeasonRewardOpen) return;
-    if (isFirstLaunchToday() && hasEverPlayed()) {
-      setIsDailyLaunchModalOpen(true);
-    }
-  }, [isLoading, gameState, seasonCheckSeq, isSeasonRewardOpen]);
-
-  useEffect(() => {
-    if (!isNative || isAppIntoSBuild) {
-      setNativeUpdateRequirement(null);
-      setIsOpeningUpdateStore(false);
-      return;
-    }
-
-    let isDisposed = false;
-    let checkInFlight = false;
-    let listenerHandle: { remove: () => Promise<void> } | null = null;
-
-    const runVersionCheck = async () => {
-      if (checkInFlight) return;
-      checkInFlight = true;
-      try {
-        const requirement = await checkNativeUpdateRequirement();
-        if (!isDisposed) {
-          setNativeUpdateRequirement(requirement);
-          if (!requirement) {
-            setIsOpeningUpdateStore(false);
-          }
-        }
-      } finally {
-        checkInFlight = false;
-      }
-    };
-
-    void runVersionCheck();
-
-    void import('@capacitor/app').then(({ App: CapacitorApp }) => {
-      if (isDisposed) return;
-      CapacitorApp.addListener('appStateChange', ({ isActive }) => {
-        if (!isActive) return;
-        window.dispatchEvent(new Event(APP_RESUME_EVENT));
-        void runVersionCheck();
-        void rescheduleNotifications({ allowPermissionPrompt: isEarlyOnboardingCompleted() });
-      }).then((handle) => {
-        if (isDisposed) {
-          void handle.remove();
-          return;
-        }
-        listenerHandle = handle;
-      }).catch(() => {
-        // ignore
-      });
-    }).catch(() => {
-      // ignore — web environment
-    });
-
-    return () => {
-      isDisposed = true;
-      if (listenerHandle) {
-        void listenerHandle.remove();
-      }
     };
   }, [isNative, isAppIntoSBuild]);
 

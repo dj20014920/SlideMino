@@ -425,7 +425,8 @@ const getRedirectTargets = (
 export const slideGridWithObstacles = (
   grid: Grid,
   obstacleState: ObstacleState | null | undefined,
-  direction: Direction
+  direction: Direction,
+  rng: () => number = Math.random
 ): ObstacleSlideResult => {
   const size = grid.length;
   let newGrid = cloneGrid(grid);
@@ -456,7 +457,24 @@ export const slideGridWithObstacles = (
     containerInfo?: { x: number; y: number; direction: Direction };
   }> = [];
 
+  const reservedCells = new Map<string, { x: number; y: number; direction: Direction }>();
+
   const placeTile = (tile: Tile, x: number, y: number, originalX: number, originalY: number): void => {
+    const targetKey = cellKey(x, y);
+    const containerInfo = reservedCells.get(targetKey);
+    if (containerInfo) {
+      // 예약된 셀 → 컨테이너 큐로 흡수
+      
+      collectedTiles.push({
+        tile: cloneTile(tile),
+        kind: 'container',
+        containerInfo,
+      });
+      const distance = Math.abs(x - originalX) + Math.abs(y - originalY);
+      if (distance > 0) moved = true;
+      maxDistance = Math.max(maxDistance, distance);
+      return;
+    }
     newGrid[y][x] = tile;
     const distance = Math.abs(x - originalX) + Math.abs(y - originalY);
     if (distance > 0) moved = true;
@@ -542,6 +560,19 @@ export const slideGridWithObstacles = (
               containerInfo: { x: obstacle.x, y: obstacle.y, direction: obstacle.direction },
             });
           }
+          // Phase 2 방출 타겟 중 빈 셀만 예약 (Phase 1 배치 충돌 방지)
+          // 타일이 이미 있는 셀은 Phase 2 merge 대상이므로 예약 제외
+          const containerTileCount = 1 + impacted.length;
+          const targets = getRedirectTargets(size, obstacle, containerTileCount);
+          for (const target of targets) {
+            if (!newGrid[target.y]?.[target.x]) {
+              reservedCells.set(cellKey(target.x, target.y), {
+                x: obstacle.x,
+                y: obstacle.y,
+                direction: obstacle.direction,
+              });
+            }
+          }
           // 컨테이너 제거
           state = {
             ...state,
@@ -598,8 +629,14 @@ export const slideGridWithObstacles = (
       currentY = nextY;
     }
 
-    if (!consumed && !newGrid[currentY][currentX]) {
-      placeTile(currentTile, currentX, currentY, original.x, original.y);
+    if (!consumed) {
+      const key = cellKey(currentX, currentY);
+      if (reservedCells.has(key)) {
+        // placeTile이 이미 collectedTiles로 흡수함 — 이중 처리 방지
+        consumed = true;
+      } else if (!newGrid[currentY][currentX]) {
+        placeTile(currentTile, currentX, currentY, original.x, original.y);
+      }
     }
   }
 
@@ -634,7 +671,7 @@ export const slideGridWithObstacles = (
         // POP! 랜덤 빈 셀로
         const emptyCells = getEmptyInternalCells(newGrid, state);
         if (emptyCells.length > 0) {
-          const rc = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+          const rc = emptyCells[Math.floor(rng() * emptyCells.length)];
           newGrid[rc.y][rc.x] = cloneTile(entry.tile);
           popAnimations.push({
             id: entry.tile.id,
@@ -645,6 +682,26 @@ export const slideGridWithObstacles = (
             toY: rc.y,
           });
           moved = true;
+        } else {
+          const allCells: Array<{ x: number; y: number }> = [];
+          for (let cy = 0; cy < size; cy += 1) {
+            for (let cx = 0; cx < size; cx += 1) {
+              allCells.push({ x: cx, y: cy });
+            }
+          }
+          if (allCells.length > 0) {
+            const rc = allCells[Math.floor(rng() * allCells.length)];
+            newGrid[rc.y][rc.x] = cloneTile(entry.tile);
+            popAnimations.push({
+              id: entry.tile.id,
+              value: entry.tile.value,
+              fromX: releaseEntry.x,
+              fromY: releaseEntry.y,
+              toX: rc.x,
+              toY: rc.y,
+            });
+            moved = true;
+          }
         }
         state = {
           ...state,
@@ -804,10 +861,47 @@ export const slideGridWithObstacles = (
       const targetX = cx + cDelta.dx * (emitIndex + 1);
       const targetY = cy + cDelta.dy * (emitIndex + 1);
 
-      if (!isInside(size, targetX, targetY)) continue;
+      if (!isInside(size, targetX, targetY)) {
+        const emptyCells = getEmptyInternalCells(newGrid, state);
+        if (emptyCells.length > 0) {
+          const rc = emptyCells[Math.floor(rng() * emptyCells.length)];
+          newGrid[rc.y][rc.x] = cloneTile(entry.tile);
+          popAnimations.push({
+            id: entry.tile.id,
+            value: entry.tile.value,
+            fromX: cx,
+            fromY: cy,
+            toX: rc.x,
+            toY: rc.y,
+          });
+          moved = true;
+        } else {
+          const allCells: Array<{ x: number; y: number }> = [];
+          for (let cy = 0; cy < size; cy += 1) {
+            for (let cx = 0; cx < size; cx += 1) {
+              allCells.push({ x: cx, y: cy });
+            }
+          }
+          if (allCells.length > 0) {
+            const rc = allCells[Math.floor(rng() * allCells.length)];
+            newGrid[rc.y][rc.x] = cloneTile(entry.tile);
+            popAnimations.push({
+              id: entry.tile.id,
+              value: entry.tile.value,
+              fromX: cx,
+              fromY: cy,
+              toX: rc.x,
+              toY: rc.y,
+            });
+            moved = true;
+          }
+        }
+        continue;
+      }
 
       const targetKey = cellKey(targetX, targetY);
       const targetTile = newGrid[targetY]?.[targetX];
+      
 
       // 병합 우선: 같은 값이면 merge
       if (
@@ -843,7 +937,7 @@ export const slideGridWithObstacles = (
       if (targetTile || claimedCells.has(targetKey) || obstacleMap.has(targetKey)) {
         const emptyCells = getEmptyInternalCells(newGrid, state);
         if (emptyCells.length > 0) {
-          const rc = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+          const rc = emptyCells[Math.floor(rng() * emptyCells.length)];
           newGrid[rc.y][rc.x] = cloneTile(entry.tile);
           popAnimations.push({
             id: entry.tile.id,
@@ -854,6 +948,26 @@ export const slideGridWithObstacles = (
             toY: rc.y,
           });
           moved = true;
+        } else {
+          const allCells: Array<{ x: number; y: number }> = [];
+          for (let cy = 0; cy < size; cy += 1) {
+            for (let cx = 0; cx < size; cx += 1) {
+              allCells.push({ x: cx, y: cy });
+            }
+          }
+          if (allCells.length > 0) {
+            const rc = allCells[Math.floor(rng() * allCells.length)];
+            newGrid[rc.y][rc.x] = cloneTile(entry.tile);
+            popAnimations.push({
+              id: entry.tile.id,
+              value: entry.tile.value,
+              fromX: cx,
+              fromY: cy,
+              toX: rc.x,
+              toY: rc.y,
+            });
+            moved = true;
+          }
         }
         continue;
       }
@@ -1022,18 +1136,20 @@ export const applyObstacleSpawn = ({
       cellObstacles: [...state.cellObstacles, { id, kind: 'percent', x: cell.x, y: cell.y }],
     };
   } else {
-    const directions: Direction[] = ['UP', 'RIGHT', 'DOWN', 'LEFT'];
+    const allDirections: Direction[] = ['UP', 'RIGHT', 'DOWN', 'LEFT'];
+    const validDirections = allDirections.filter((dir) => {
+      if (dir === 'LEFT' && cell.x === 0) return false;
+      if (dir === 'RIGHT' && cell.x === grid.length - 1) return false;
+      if (dir === 'UP' && cell.y === 0) return false;
+      if (dir === 'DOWN' && cell.y === grid.length - 1) return false;
+      return true;
+    });
+    const direction = validDirections[Math.floor(rng() * validDirections.length)] ?? 'UP';
     nextState = {
       ...state,
       cellObstacles: [
         ...state.cellObstacles,
-        {
-          id,
-          kind: 'container',
-          x: cell.x,
-          y: cell.y,
-          direction: directions[Math.floor(rng() * directions.length)] ?? 'UP',
-        },
+        { id, kind: 'container', x: cell.x, y: cell.y, direction },
       ],
     };
   }

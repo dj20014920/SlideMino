@@ -1004,6 +1004,7 @@ const App: React.FC = () => {
 
     let isDisposed = false;
     const applySystemBarsStyle = () => {
+      if (!SystemBars?.show) return;
       SystemBars.show({})
         .then(() => SystemBars.setStyle({ style: nativeSystemBarsStyle }))
         .catch(() => {

@@ -1,11 +1,11 @@
 {
   "about": {
-    "title": "About 블록 슬라이드 (Block Slide)",
+    "title": "ブロック スライド（Block Slide）について",
     "tagline": "2048とテトリスの完璧な融合",
-    "description": "블록 슬라이드 (Block Slide)は、2048の数字合体とテトリスの戦略的ブロック配置を組み合わせた革新的なブラウザベースのパズルゲームです。"
+    "description": "ブロック スライド（Block Slide）は、2048の数字合体とテトリスの戦略的ブロック配置を組み合わせた革新的なブラウザベースのパズルゲームです。"
   },
   "contact": {
-    "title": "Contact Us",
+    "title": "お問い合わせ",
     "tagline": "お気軽にお問い合わせください！",
     "email": "studio@emozleep.space",
     "description": "質問、バグレポート、フィードバックがありましたらいつでもご連絡ください！"

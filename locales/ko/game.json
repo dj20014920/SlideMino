@@ -132,7 +132,7 @@
   },
   "weeklyEvent": {
     "menuButton": "주간 이벤트",
-    "menuTag": "EVENT",
+    "menuTag": "이벤트",
     "remaining": "남음",
     "myBest": "내 최고점",
     "myRank": "내 순위",
@@ -178,7 +178,7 @@
     },
     "rewards": {
       "participation": "참여 보상",
-      "top10": "TOP 10",
+      "top10": "상위 10",
       "first": "1위",
       "fragments": "스킨 조각 {{count}}개",
       "title": "칭호",

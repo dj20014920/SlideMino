@@ -513,15 +513,15 @@ const ORIENTATION_LOCK_MESSAGES: Record<string, OrientationLockMessage> = {
   },
   en: {
     title: 'Please rotate to portrait mode',
-    body: '블록 슬라이드 (Block Slide) does not support landscape mode.',
+    body: 'Block Slide does not support landscape mode.',
   },
   ja: {
     title: '縦向きにしてください',
-    body: '블록 슬라이드 (Block Slide) は横向きモードに対応していません。',
+    body: 'ブロック スライド（Block Slide）は横向きモードに対応していません。',
   },
   zh: {
     title: '请切换为竖屏',
-    body: '블록 슬라이드 (Block Slide) 不支持横屏模式。',
+    body: 'Block Slide（方块滑动）不支持横屏模式。',
   },
 };
 

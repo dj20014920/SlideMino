@@ -34,7 +34,7 @@
     "viewEventRankings": "이벤트 랭킹 보기"
   },
   "leaderboard": {
-    "title": "Leaderboard",
+    "title": "랭킹",
     "modeTabs": {
       "normal": "일반 모드",
       "combo": "콤보",
@@ -118,8 +118,8 @@
     "updateButton": "지금 업데이트",
     "openingButton": "스토어 여는 중...",
     "store": {
-      "apple": "App Store",
-      "google": "Google Play"
+      "apple": "앱 스토어",
+      "google": "구글 플레이"
     }
   },
   "tutorial": {
@@ -132,7 +132,7 @@
     "learnMore": "자세히 보기"
   },
   "help": {
-    "alreadyImplemented": "HelpModal은 이미 다국어가 구현되어 있습니다."
+    "alreadyImplemented": "도움말은 이미 다국어가 구현되어 있습니다."
   },
   "blockCustomization": {
     "title": "블럭 커스터마이징",
@@ -202,7 +202,7 @@
     "addedToCollection": "컬렉션에 추가되었습니다",
     "notOwned": "미보유 스킨",
     "tapToApply": "탭하여 적용/해제",
-    "collectionComplete": "칼렉션 완성!",
+    "collectionComplete": "컬렉션 완성!",
     "purchaseButton": "🧩 {{cost}}조각으로 교환",
     "insufficientFragments": "조각 부족 ({{current}}/{{cost}})",
     "newLabel": "신규!",

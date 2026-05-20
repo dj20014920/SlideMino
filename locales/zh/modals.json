@@ -34,7 +34,7 @@
     "viewEventRankings": "查看活动排名"
   },
   "leaderboard": {
-    "title": "Leaderboard",
+    "title": "排行榜",
     "modeTabs": {
       "normal": "普通模式",
       "combo": "连击",
@@ -128,11 +128,11 @@
   },
   "cookie": {
     "title": "Cookie与广告提示",
-    "message": "블록 슬라이드 (Block Slide)使用游戏所需的基本Cookie。接受将允许个性化广告，拒绝将收到非个性化广告。",
+    "message": "方块滑动 (Block Slide)使用游戏所需的基本Cookie。接受将允许个性化广告，拒绝将收到非个性化广告。",
     "learnMore": "了解更多"
   },
   "help": {
-    "alreadyImplemented": "HelpModal已实现多语言支持。"
+    "alreadyImplemented": "帮助弹窗已实现多语言支持。"
   },
   "blockCustomization": {
     "title": "方块自定义",

@@ -1,11 +1,11 @@
 {
   "about": {
-    "title": "About 블록 슬라이드 (Block Slide)",
+    "title": "关于 方块滑动（Block Slide）",
     "tagline": "2048与俄罗斯方块的完美融合",
-    "description": "블록 슬라이드 (Block Slide)是一款创新的基于浏览器的益智游戏，结合了2048的数字合并机制和俄罗斯方块的战略块放置。"
+    "description": "方块滑动（Block Slide）是一款创新的基于浏览器的益智游戏，结合了2048的数字合并机制和俄罗斯方块的战略块放置。"
   },
   "contact": {
-    "title": "Contact Us",
+    "title": "联系我们",
     "tagline": "我们期待您的反馈！",
     "email": "studio@emozleep.space",
     "description": "如有问题、错误报告或反馈，请随时与我们联系！"

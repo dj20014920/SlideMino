@@ -63,7 +63,7 @@ const content: Record<Language, LocalizedContent> = {
     },
     en: {
         title: 'How to Play',
-        subtitle: '블록 슬라이드 (Block Slide) Game Guide',
+        subtitle: 'Block Slide Game Guide',
         sections: [
             {
                 icon: <Smartphone size={20} />,
@@ -100,7 +100,7 @@ const content: Record<Language, LocalizedContent> = {
     },
     ja: {
         title: '遊び方',
-        subtitle: '블록 슬라이드 (Block Slide) ゲームガイド',
+        subtitle: 'ブロック スライド（Block Slide）ゲームガイド',
         sections: [
             {
                 icon: <Smartphone size={20} />,
@@ -137,7 +137,7 @@ const content: Record<Language, LocalizedContent> = {
     },
     zh: {
         title: '游戏说明',
-        subtitle: '블록 슬라이드 (Block Slide) 玩法指南',
+        subtitle: 'Block Slide（方块滑动）玩法指南',
         sections: [
             {
                 icon: <Smartphone size={20} />,

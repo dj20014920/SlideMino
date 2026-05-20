@@ -1,21 +1,21 @@
 {
   "about": {
-    "title": "About 블록 슬라이드 (Block Slide)",
-    "tagline": "The Perfect Blend of 2048 and Tetris",
+    "title": "블록 슬라이드(Block Slide) 소개",
+    "tagline": "2048과 테트리스의 완벽한 조화",
     "description": "블록 슬라이드 (Block Slide)는 2048의 숫자 합치기와 테트리스의 전략적 블록 배치를 결합한 혁신적인 브라우저 기반 퍼즐 게임입니다."
   },
   "contact": {
-    "title": "Contact Us",
-    "tagline": "We'd love to hear from you!",
+    "title": "문의하기",
+    "tagline": "여러분의 의견을 기다립니다!",
     "email": "studio@emozleep.space",
     "description": "질문, 버그 리포트, 피드백이 있으시면 언제든지 연락주세요!"
   },
   "terms": {
-    "title": "Terms of Service",
-    "lastUpdated": "Last Updated"
+    "title": "이용약관",
+    "lastUpdated": "최종 업데이트"
   },
   "privacy": {
-    "title": "Privacy Policy",
-    "lastUpdated": "Last Updated"
+    "title": "개인정보처리방침",
+    "lastUpdated": "최종 업데이트"
   }
 }

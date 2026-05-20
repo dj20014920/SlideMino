@@ -9,6 +9,7 @@
  * - 네이티브 앱(Capacitor)에서만 수령 가능
  */
 
+import { validateJsonContentType, validateRequestBodySize } from '../../utils/validation';
 import { hashInstallId } from '../../utils/hash';
 import { checkConfiguredRateLimit, getClientIp, RATE_LIMITS } from '../../utils/rateLimit';
 import { buildCorsHeaders, createJsonResponse, isCrossSiteMutation, isTrustedRequestOrigin } from '../../utils/cors';
@@ -55,6 +56,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // 네이티브 앱에서만 수령 가능
     if (!isNativeAppRequest(request)) {
       return jsonResponse({ success: false, error: 'App only' }, 403, corsHeaders);
+    }
+
+    // Content-Type & Body Size Validation
+    if (!validateJsonContentType(request)) {
+      return jsonResponse({ success: false, error: 'Content-Type must be application/json' }, 415, corsHeaders);
+    }
+    if (!validateRequestBodySize(request, 100_000)) {
+      return jsonResponse({ success: false, error: 'Request body too large' }, 413, corsHeaders);
     }
 
     // 요청 파싱

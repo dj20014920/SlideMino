@@ -13,6 +13,8 @@ import {
   validateGameConsistency,
   validateSessionId,
   validateComboCount,
+  validateJsonContentType,
+  validateRequestBodySize,
 } from '../utils/validation';
 import { getSeasonBoundaries, resetSeasonIfNeeded } from '../utils/seasonReset';
 import { hashInstallId } from '../utils/hash';
@@ -119,6 +121,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }
     }
 
+    // ========== Content-Type & Body Size Validation (Layer 1) ==========
+    if (!validateJsonContentType(request)) {
+      return errorResponse('Content-Type must be application/json', 415, corsHeaders);
+    }
+    if (!validateRequestBodySize(request, 100_000)) {
+      return errorResponse('Request body too large', 413, corsHeaders);
+    }
+
     // ========== 요청 파싱 ==========
     let data: SubmitRequest;
     try {
@@ -180,7 +190,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // ========== 안티-치트 검증 (Layer 3) ==========
     const rawCombo = typeof data.comboMultiplier === 'number' && Number.isFinite(data.comboMultiplier) && data.comboMultiplier >= 1 ? data.comboMultiplier : 1;
     const comboMultiplier = Math.max(1, Math.min(3, rawCombo)); // 1~3 clamp
-    const comboCount = validateComboCount(data.comboCount ?? 0);
+    let comboCount: number;
+    try {
+      comboCount = validateComboCount(data.comboCount ?? 0);
+    } catch (error) {
+      if (error instanceof Error && error.name === 'ValidationError') {
+        return errorResponse(error.message, 400, corsHeaders);
+      }
+      throw error;
+    }
     const consistencyCheck = validateGameConsistency(score, difficulty, duration, moves, undefined, comboMultiplier);
     if (!consistencyCheck.valid) {
       // 일반적인 메시지로 치터에게 정보 노출 방지

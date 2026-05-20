@@ -96,11 +96,15 @@ const PrivacyPolicy: React.FC = () => {
               <strong>Technical Data (기술 데이터):</strong> Platform category (web/iOS/Android), broad device
               group (e.g., iPhone, Galaxy, Web, Tablet, Desktop), browser language setting
               (<code>navigator.language</code>), app version, and security logs. We do <strong>not</strong>{' '}
-              collect precise device model numbers, IMEI, hardware serial numbers, or IP addresses for
-              analytics purposes.
+              collect precise device model numbers, IMEI, or hardware serial numbers. IP addresses are
+              <strong>not</strong> stored or used for analytics or tracking purposes. They may be
+              temporarily processed in server logs for rate limiting, security, and fraud or abuse
+              prevention, and are not retained as analytics data.
               <br />플랫폼 유형(웹/iOS/Android), 기기 그룹(iPhone, Galaxy, Web, Tablet, Desktop 등),
-              브라우저 언어 설정, 앱 버전, 보안 로그를 수집합니다. 정확한 기기 모델 번호, IMEI, 하드웨어 일련번호,
-              IP 주소는 분석 목적으로 수집하지 않습니다.
+              브라우저 언어 설정, 앱 버전, 보안 로그를 수집합니다. 정확한 기기 모델 번호, IMEI, 하드웨어
+              일련번호는 수집하지 않습니다. IP 주소는 분석 또는 추적 목적으로 저장하거나 사용하지 않습니다.
+              IP 주소는 요청 제한, 보안, 사기/남용 방지를 위한 서버 처리 과정에서 일시적으로 처리될 수
+              있으며, 분석 데이터로 보관되지 않습니다.
             </li>
             <li>
               <strong>Leaderboard Data (리더보드 데이터):</strong> When you submit a score to the leaderboard,

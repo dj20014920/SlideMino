@@ -3,6 +3,7 @@
  * 특정 시즌+난이도 보상을 수령 처리
  */
 
+import { validateJsonContentType, validateRequestBodySize } from '../../utils/validation';
 import { hashInstallId } from '../../utils/hash';
 import { checkConfiguredRateLimit, getClientIp, RATE_LIMITS } from '../../utils/rateLimit';
 import { buildCorsHeaders, createJsonResponse, isCrossSiteMutation, isTrustedRequestOrigin } from '../../utils/cors';
@@ -41,6 +42,20 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     if (!allowed) {
       return new Response(JSON.stringify({ error: 'Too many requests' }), {
         status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Content-Type & Body Size Validation
+    if (!validateJsonContentType(request)) {
+      return new Response(JSON.stringify({ error: 'Content-Type must be application/json' }), {
+        status: 415,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    if (!validateRequestBodySize(request, 100_000)) {
+      return new Response(JSON.stringify({ error: 'Request body too large' }), {
+        status: 413,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

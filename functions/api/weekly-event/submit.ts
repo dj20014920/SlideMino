@@ -14,6 +14,8 @@ import {
   validateMoves,
   validateGameConsistency,
   validateComboCount,
+  validateJsonContentType,
+  validateRequestBodySize,
 } from '../../utils/validation';
 import { hashInstallId } from '../../utils/hash';
 import { checkConfiguredRateLimit, getClientIp, RATE_LIMITS } from '../../utils/rateLimit';
@@ -176,6 +178,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     await ensureWeeklyEventSchema(env);
+
+    // Content-Type & Body Size Validation
+    if (!validateJsonContentType(request)) {
+      return errorResponse('Content-Type must be application/json', 415, corsHeaders);
+    }
+    if (!validateRequestBodySize(request, 100_000)) {
+      return errorResponse('Request body too large', 413, corsHeaders);
+    }
 
     // 요청 파싱
     let data: Record<string, unknown>;

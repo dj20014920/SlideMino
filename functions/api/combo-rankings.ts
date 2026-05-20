@@ -80,7 +80,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     // ========== 데이터베이스 조회 (Layer 4) ==========
     // Prepared statement로 SQL Injection 방어
     try {
-      const query = `SELECT install_id_hash, name, best_combo_multiplier, best_combo_count, best_score, game_mode, updated_at
+      const query = `SELECT name, best_combo_multiplier, best_combo_count, best_score, game_mode, updated_at
 FROM combo_rankings
 WHERE season_id = ?1
 ORDER BY best_combo_count DESC, best_combo_multiplier DESC, best_score DESC, updated_at ASC

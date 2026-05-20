@@ -267,3 +267,34 @@ export function validateSessionId(sessionId: unknown): { valid: boolean; value?:
 
   return { valid: true, value: trimmed };
 }
+
+/**
+ * JSON Content-Type 검증
+ * 요청의 Content-Type 헤더가 application/json인지 확인한다.
+ * charset 파라미터가 포함된 경우도 허용 (e.g., application/json; charset=utf-8)
+ */
+export function validateJsonContentType(request: Request): boolean {
+  const contentType = request.headers.get('Content-Type') || '';
+  // Extract media type before any parameters (e.g., 'application/json; charset=utf-8' → 'application/json')
+  // HTTP media types are case-insensitive per RFC 7231
+  const mediaType = contentType.split(';')[0].trim().toLowerCase();
+  return mediaType === 'application/json';
+}
+
+/**
+ * 요청 본문 크기 검증
+ * Content-Length 헤더가 존재하면 maxBytes 이하인지 확인한다.
+ * Content-Length가 없으면 (chunked encoding 등) 통과시킨다.
+ * 빈 본문(Content-Length: 0)은 거부한다.
+ */
+export function validateRequestBodySize(request: Request, maxBytes: number): boolean {
+  const contentLength = request.headers.get('Content-Length');
+  if (contentLength === null) {
+    return true;
+  }
+  const length = parseInt(contentLength, 10);
+  if (isNaN(length) || length <= 0) {
+    return false;
+  }
+  return length <= maxBytes;
+}

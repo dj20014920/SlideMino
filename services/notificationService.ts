@@ -151,6 +151,21 @@ interface RescheduleNotificationOptions {
   allowPermissionPrompt?: boolean;
 }
 
+/** 주간 반복 알림 스케줄 생성 (Capacitor weekday: 일=1, 월=2, ..., 토=7) */
+function scheduleOnWeekday(
+  weekday: number, // JS convention: 일=0, 월=1, ..., 토=6
+  hour: number,
+  minute: number,
+): { on: { weekday: number; hour: number; minute: number }; repeats: boolean; allowWhileIdle: boolean } {
+  // JS weekday(0~6) → Capacitor weekday(1~7)
+  const capacitorWeekday = weekday + 1;
+  return {
+    on: { weekday: capacitorWeekday, hour, minute },
+    repeats: true,
+    allowWhileIdle: true,
+  };
+}
+
 export async function rescheduleNotifications(options: RescheduleNotificationOptions = {}): Promise<void> {
   if (!isNativeApp()) return;
   if (!loadSettings().enabled) return;
@@ -185,7 +200,7 @@ export async function rescheduleNotifications(options: RescheduleNotificationOpt
       id: number;
       title: string;
       body: string;
-      schedule: { at: Date; allowWhileIdle: boolean };
+      schedule: { on?: { weekday: number; hour: number; minute: number }; at?: Date; repeats?: boolean; allowWhileIdle: boolean };
     }> = [];
 
     // 1) 스트릭 리마인더 — 22:00 KST, 오늘 출석 미완료이고 streak 해금 시
@@ -228,34 +243,26 @@ export async function rescheduleNotifications(options: RescheduleNotificationOpt
       }
     }
 
-    // 4) 주간이벤트 시작 알림 — 월요일 10:00 KST, weekly_event 해금 + 미참여 시
+    // 4) 주간이벤트 시작 알림 — 매주 월요일 10:00 KST, weekly_event 해금 + 미참여 시
+    //    on.weekday + repeats로 자동 주간 반복, 이미 지났어도 다음 주에 자동 발동
     if (getLocalAttemptCount() === 0) {
-      const kstDay = getKstDay();
-      if (kstDay === 1) {
-        // 월요일: 시작 알림
-        const at = getTodayKstTime(10, 0);
-        if (at.getTime() > now.getTime()) {
-          const c = getNotifContent(NOTIF_EVENT_START);
-          notifications.push({
-            id: NOTIF_EVENT_START,
-            title: c.title,
-            body: c.body,
-            schedule: { at, allowWhileIdle: true },
-          });
-        }
-      } else if (kstDay === 0) {
-        // 일요일: 종료 리마인더
-        const at = getTodayKstTime(21, 0);
-        if (at.getTime() > now.getTime()) {
-          const c = getNotifContent(NOTIF_EVENT_END_REMINDER);
-          notifications.push({
-            id: NOTIF_EVENT_END_REMINDER,
-            title: c.title,
-            body: c.body,
-            schedule: { at, allowWhileIdle: true },
-          });
-        }
-      }
+      // 월요일 시작 알림 (JS weekday: 월=1 → Capacitor weekday: 2)
+      const c4 = getNotifContent(NOTIF_EVENT_START);
+      notifications.push({
+        id: NOTIF_EVENT_START,
+        title: c4.title,
+        body: c4.body,
+        schedule: scheduleOnWeekday(1, 10, 0), // 월요일 10:00 KST, 매주 반복
+      });
+
+      // 일요일 종료 알림 (JS weekday: 일=0 → Capacitor weekday: 1)
+      const c5 = getNotifContent(NOTIF_EVENT_END_REMINDER);
+      notifications.push({
+        id: NOTIF_EVENT_END_REMINDER,
+        title: c5.title,
+        body: c5.body,
+        schedule: scheduleOnWeekday(0, 21, 0), // 일요일 21:00 KST, 매주 반복
+      });
     }
 
     // 스케줄링

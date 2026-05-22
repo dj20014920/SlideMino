@@ -10,7 +10,7 @@
 
 import { BoardSize, ShapeType, WeeklyEventType, Piece, Phase } from '../types';
 import { STANDARD_SHAPES } from '../constants';
-import { getRotatedCells, getTurnActionAvailability } from './gameLogic';
+import { getRotatedCells, getTurnActionAvailability, createShuffleBagPieceGenerator } from './gameLogic';
 import { getAnalyticsInstallId } from './analyticsService';
 import { getServerAdjustedNow } from './serverTimeService';
 import { KST_OFFSET_MS } from '../config/constants';
@@ -301,6 +301,22 @@ export function generateEventPiece(rule: WeeklyEventRule): Piece {
   };
 }
 
+/**
+ * 이벤트 전용 Bag 기반 피스 생성기
+ * - shapeWeights가 없으면 7-Bag 사용 (공정한 분포)
+ * - shapeWeights가 있으면 기존 가중치 랜덤 방식 사용
+ */
+export const createEventPieceGenerator = (rule: WeeklyEventRule): () => Piece => {
+  const shapes = rule.allowedShapes ?? STANDARD_SHAPES;
+
+  if (!rule.shapeWeights) {
+    return createShuffleBagPieceGenerator(shapes, { disableRotation: rule.disableRotation });
+  }
+
+  // 가중치 있는 이벤트는 기존 generateEventPiece 방식 유지
+  return () => generateEventPiece(rule);
+};
+
 // ============================================
 // 이벤트 게임 상태 분리 저장 (localStorage)
 // ============================================
@@ -327,6 +343,8 @@ export interface EventGameSaveData {
   sessionLockedPlayerName?: string;
   startedAt: number;
   savedAt: number;
+  /** Shuffle Bag 남은 블록 상태 */
+  shuffleBagRemaining?: ShapeType[];
 }
 
 export function saveEventGameState(data: EventGameSaveData): void {
@@ -366,6 +384,13 @@ export function loadEventGameState(): EventGameSaveData | null {
     if (isTerminal) {
       clearEventGameState();
       return null;
+    }
+    // Shuffle Bag 남은 블록 상태 필터링 (유효한 ShapeType만)
+    const VALID_SHAPE_TYPES = new Set<string>(['I', 'O', 'T', 'S', 'Z', 'J', 'L', 'PLUS']);
+    if (Array.isArray((data as any).shuffleBagRemaining)) {
+      (data as any).shuffleBagRemaining = (data as any).shuffleBagRemaining.filter(
+        (s: any): s is ShapeType => VALID_SHAPE_TYPES.has(s as string)
+      );
     }
     return data;
   } catch {

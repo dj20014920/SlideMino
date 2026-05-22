@@ -28,6 +28,9 @@ import {
   getRotatedCells,
   placePieceOnGrid,
   diagnoseGameOver,
+  createShuffleBagPieceGenerator,
+  getShuffleBagRemaining,
+  setShuffleBagRemaining,
   type MergedTile,
 } from './services/gameLogic';
 import {
@@ -81,6 +84,7 @@ import {
   SKIN_CATALOG,
   FRAGMENT_COST_NORMAL,
   FRAGMENT_COST_PREMIUM,
+  STANDARD_SHAPES,
 } from './constants';
 import { useBlockCustomization } from './context/BlockCustomizationContext';
 import {
@@ -168,6 +172,7 @@ import {
   fetchDailyChallengeSeed,
   generateChallengeSlots,
 } from './services/dailyChallengeService';
+
 import { WeeklyEventModal } from './components/WeeklyEventModal';
 import DailyLaunchModal, { isFirstLaunchToday, hasEverPlayed, markEverPlayed } from './components/DailyLaunchModal';
 
@@ -193,6 +198,7 @@ function hasUnseenSeasonRewards(rewards: { season_id: string; difficulty: string
 import {
   getCurrentEvent,
   generateEventPiece,
+  createEventPieceGenerator,
   getEventTimerRemainingMs,
   formatTimerMmSs,
   getLocalAttemptCount,
@@ -894,6 +900,8 @@ const App: React.FC = () => {
       CapacitorApp.addListener('appStateChange', (state) => {
         if (state.isActive) {
           void performCheck(true);
+          // 포그라운드 복귀 시 알림 재스케줄 (권한 재요청 없이)
+          void rescheduleNotifications({ allowPermissionPrompt: false });
         }
       }).then((handle) => {
         if (isDisposed) {
@@ -1449,6 +1457,7 @@ const App: React.FC = () => {
   const challengeDateRef = useRef<string | null>(null);
   const challengeSeedRef = useRef<number | null>(null);
   const challengePieceIndexRef = useRef<number>(0);
+  const nextPieceGenRef = useRef<() => Piece>(() => generateRandomPiece());
   const [isDailyChallengeLoading, setIsDailyChallengeLoading] = useState(false);
 
   // ===== 주간 이벤트 상태 =====
@@ -2203,6 +2212,32 @@ const App: React.FC = () => {
     challengeSeedRef.current = saved.challengeSeed ?? null;
     challengePieceIndexRef.current = saved.challengePieceIndex ?? 0;
 
+    // 게임 모드에 따른 Bag generator 설정
+    if (saved.gameMode === 'daily_challenge' && typeof saved.challengeSeed === 'number') {
+      const seed = saved.challengeSeed;
+      // 데일리 챌린지: 결정론적 시퀀스 유지를 위해 generateChallengeSlots 래핑
+      nextPieceGenRef.current = () => {
+        const piece = generateChallengeSlots(seed, challengePieceIndexRef.current, 1)[0];
+        challengePieceIndexRef.current += 1;
+        return piece;
+      };
+    } else if (saved.gameMode === 'weekly_event' && saved.eventType) {
+      const evRule = EVENT_RULES[saved.eventType as keyof typeof EVENT_RULES];
+      if (evRule) {
+        const eventGen = createEventPieceGenerator(evRule);
+        nextPieceGenRef.current = eventGen;
+        if (saved.shuffleBagRemaining) {
+          setShuffleBagRemaining(eventGen, saved.shuffleBagRemaining);
+        }
+      }
+    } else {
+      const bagGen = createShuffleBagPieceGenerator(STANDARD_SHAPES);
+      nextPieceGenRef.current = bagGen;
+      if (saved.shuffleBagRemaining) {
+        setShuffleBagRemaining(bagGen, saved.shuffleBagRemaining);
+      }
+    }
+
     // 주간 이벤트 상태 복원
     if (saved.gameMode === 'weekly_event' && saved.eventId && saved.eventType) {
       const evRule = EVENT_RULES[saved.eventType as keyof typeof EVENT_RULES];
@@ -2263,6 +2298,7 @@ const App: React.FC = () => {
       eventType: eventRuleRef.current?.type ?? undefined,
       eventAttemptNumber: eventAttemptNumberRef.current,
       eventPlayedMs: getCurrentEventPlayedMs(),
+      shuffleBagRemaining: getShuffleBagRemaining(nextPieceGenRef.current) ?? undefined,
     };
 
     if (gameMode === 'daily_challenge') {
@@ -2283,6 +2319,7 @@ const App: React.FC = () => {
           sessionLockedPlayerName: sessionLockedPlayerName ?? undefined,
           startedAt: gameStartTimeRef.current ?? Date.now(),
           savedAt: Date.now(),
+          shuffleBagRemaining: getShuffleBagRemaining(nextPieceGenRef.current) ?? undefined,
         });
       } else {
         // GAME_OVER는 이어하기 대상이 아니므로 이벤트 전용 슬롯을 정리한다.
@@ -2857,7 +2894,9 @@ const App: React.FC = () => {
     pendingObstacleMergedTileIdsRef.current = [];
     setUnlockedObstacleFeatures([]);
     setObstacleUnlockQueue([]);
-    setSlots([generateRandomPiece(), generateRandomPiece(), generateRandomPiece()]);
+    const bagGen = createShuffleBagPieceGenerator(STANDARD_SHAPES);
+    nextPieceGenRef.current = bagGen;
+    setSlots([bagGen(), bagGen(), bagGen()]);
     setScore(0);
     maxScoreThisRunRef.current = 0;
     setMaxScoreThisRun(0);
@@ -2975,6 +3014,13 @@ const App: React.FC = () => {
       challengeSeedRef.current = seed.seed;
       challengePieceIndexRef.current = 3; // 이미 3개 사용
 
+      // 데일리 챌린지: 결정론적 시퀀스 유지를 위해 generateChallengeSlots 래핑
+      nextPieceGenRef.current = () => {
+        const piece = generateChallengeSlots(seed.seed, challengePieceIndexRef.current, 1)[0];
+        challengePieceIndexRef.current += 1;
+        return piece;
+      };
+
       setBoardSize(challengeSize);
       setGrid(createEmptyGrid(challengeSize));
       setObstacleState(createEmptyObstacleState());
@@ -3074,11 +3120,9 @@ const App: React.FC = () => {
     reviveDestroyEffectTimeoutsRef.current = [];
 
     const eventSize = rule.boardSize;
-    const initialSlots: Piece[] = [
-      generateEventPiece(rule),
-      generateEventPiece(rule),
-      generateEventPiece(rule),
-    ];
+    const eventGen = createEventPieceGenerator(rule);
+    nextPieceGenRef.current = eventGen;
+    const initialSlots: Piece[] = [eventGen(), eventGen(), eventGen()];
 
     setGameMode('weekly_event');
     eventRuleRef.current = rule;
@@ -3194,6 +3238,13 @@ const App: React.FC = () => {
     challengeDateRef.current = null;
     challengeSeedRef.current = null;
     challengePieceIndexRef.current = 0;
+
+    // 이벤트 Bag generator 설정
+    const eventGen = createEventPieceGenerator(rule);
+    nextPieceGenRef.current = eventGen;
+    if (saved.shuffleBagRemaining) {
+      setShuffleBagRemaining(eventGen, saved.shuffleBagRemaining);
+    }
 
     setBoardSize(saved.boardSize);
     setGrid(saved.grid);
@@ -4459,15 +4510,7 @@ const App: React.FC = () => {
           moveCountRef.current += 1;
 
           const newSlots = [...slots];
-          if (gameMode === 'daily_challenge' && challengeSeedRef.current !== null) {
-            const nextPiece = generateChallengeSlots(challengeSeedRef.current, challengePieceIndexRef.current, 1)[0];
-            challengePieceIndexRef.current += 1;
-            newSlots[dragOriginIndex] = nextPiece;
-          } else if (gameMode === 'weekly_event' && eventRuleRef.current) {
-            newSlots[dragOriginIndex] = generateEventPiece(eventRuleRef.current);
-          } else {
-            newSlots[dragOriginIndex] = generateRandomPiece();
-          }
+          newSlots[dragOriginIndex] = nextPieceGenRef.current();
           setSlots(newSlots);
 
           if (hasPossibleMovesWithObstacles(newGrid, obstacleState)) {

@@ -90,3 +90,70 @@ describe('game storage obstacle migration', () => {
     expect(saved?.obstacleState?.portal).toBeNull();
   });
 });
+
+describe('shuffle bag remaining field parsing', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const minimalSave = {
+    version: 1 as const,
+    gameState: GameState.PLAYING,
+    grid: [
+      [{ id: 'tile-1', value: 2 }, null, null, null],
+      [null, null, null, null],
+      [null, null, null, null],
+      [null, null, null, null],
+    ],
+    slots: [{
+      id: 'piece-1',
+      type: ShapeType.I,
+      rotation: 0,
+      initialRotation: 0,
+      cells: [{ x: 0, y: 0 }, { x: 0, y: 1 }, { x: 0, y: 2 }, { x: 0, y: 3 }],
+      value: 1,
+    }],
+    score: 0,
+    phase: Phase.PLACE,
+    boardSize: 4,
+    canSkipSlide: false,
+    undoRemaining: 3,
+    savedAt: Date.now(),
+  };
+
+  it('preserves valid ShapeType array in shuffleBagRemaining', () => {
+    const store = installLocalStorageStub();
+    store.set('slidemino_game_state_v1', JSON.stringify({
+      ...minimalSave,
+      shuffleBagRemaining: [ShapeType.I, ShapeType.O, ShapeType.T],
+    }));
+
+    const saved = loadGameState();
+    expect(saved).toBeDefined();
+    const { shuffleBagRemaining } = saved!;
+    expect(shuffleBagRemaining).toEqual([ShapeType.I, ShapeType.O, ShapeType.T]);
+  });
+
+  it('filters out invalid values from shuffleBagRemaining', () => {
+    const store = installLocalStorageStub();
+    store.set('slidemino_game_state_v1', JSON.stringify({
+      ...minimalSave,
+      shuffleBagRemaining: [ShapeType.I, 'INVALID', ShapeType.O, 123, null],
+    }));
+
+    const saved = loadGameState();
+    expect(saved).toBeDefined();
+    const { shuffleBagRemaining } = saved!;
+    expect(shuffleBagRemaining).toEqual([ShapeType.I, ShapeType.O]);
+  });
+
+  it('returns undefined for old save data without shuffleBagRemaining', () => {
+    const store = installLocalStorageStub();
+    store.set('slidemino_game_state_v1', JSON.stringify(minimalSave));
+
+    const saved = loadGameState();
+    expect(saved).toBeDefined();
+    const { shuffleBagRemaining } = saved!;
+    expect(shuffleBagRemaining).toBeUndefined();
+  });
+});

@@ -32,6 +32,57 @@ export const generateRandomPiece = (allowedShapes?: ShapeType[]): Piece => {
   return createPiece(type, rotation);
 };
 
+// WeakMap to track internal bag arrays + allowedShapes of shuffle bag generators for save/restore
+const shuffleBagMap = new WeakMap<() => Piece, { bag: ShapeType[]; allowedShapes: ReadonlySet<ShapeType> }>();
+
+export const createShuffleBagPieceGenerator = (
+  allowedShapes: ShapeType[] = [...STANDARD_SHAPES],
+  options: { rng?: () => number; disableRotation?: boolean } = {},
+): () => Piece => {
+  const rng = options.rng ?? Math.random;
+  const disableRotation = options.disableRotation ?? false;
+
+  // Use const array + mutation so WeakMap always references the latest state
+  const bag: ShapeType[] = [];
+
+  const refillBag = () => {
+    bag.length = 0;
+    bag.push(...allowedShapes);
+    for (let i = bag.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(rng() * (i + 1));
+      [bag[i], bag[j]] = [bag[j], bag[i]];
+    }
+  };
+
+  // Pre-fill bag so remaining state is immediately available after creation
+  refillBag();
+
+  const generator = () => {
+    if (bag.length === 0) refillBag();
+    const type = bag.pop()!;
+    const rotation = disableRotation ? 0 : Math.floor(rng() * 4);
+    return createPiece(type, rotation);
+  };
+
+  shuffleBagMap.set(generator, { bag, allowedShapes: new Set(allowedShapes) });
+  return generator;
+};
+
+/** Returns a copy of the remaining shapes in the bag, or null if the generator is not a bag generator. */
+export const getShuffleBagRemaining = (gen: () => Piece): ShapeType[] | null => {
+  const entry = shuffleBagMap.get(gen);
+  return entry ? [...entry.bag] : null;
+};
+
+/** Restores saved remaining shapes into a bag generator. No-op for non-bag generators. */
+export const setShuffleBagRemaining = (gen: () => Piece, shapes: ShapeType[]): void => {
+  const entry = shuffleBagMap.get(gen);
+  if (entry) {
+    entry.bag.length = 0;
+    entry.bag.push(...shapes.filter(shape => entry.allowedShapes.has(shape)));
+  }
+};
+
 export const getRotatedCells = (type: ShapeType, rotation: number): Coordinate[] => {
   let cells = [...SHAPES[type]];
 

@@ -7,7 +7,7 @@
  * - 앱을 껐다 켜도, 홈화면에 갔다 와도 게임 이어하기 가능
  */
 
-import { Grid, Piece, Phase, BoardSize, GameState, GameMode, ObstacleFeature, ObstacleState, Tile } from '../types';
+import { Grid, Piece, Phase, BoardSize, GameState, GameMode, ObstacleFeature, ObstacleState, ShapeType, Tile } from '../types';
 import { INITIAL_BLOCK_REFRESH_AMOUNT, INITIAL_UNDO_AMOUNT } from '../constants';
 import {
     cloneObstacleState,
@@ -78,6 +78,8 @@ export interface SavedGameState {
     eventType?: string;
     eventAttemptNumber?: number;
     eventPlayedMs?: number;
+    /** Shuffle Bag 남은 블록 상태 (일반/주간이벤트 모드) */
+    shuffleBagRemaining?: ShapeType[];
     savedAt: number; // timestamp
 }
 
@@ -225,6 +227,12 @@ const parseSavedGameState = (raw: string | null): SavedGameState | null => {
     const eventPlayedMs = typeof parsed.eventPlayedMs === 'number'
         ? Math.max(0, Math.floor(parsed.eventPlayedMs)) : undefined;
 
+    // Shuffle Bag 남은 블록 상태 (유효한 ShapeType만 필터링)
+    const VALID_SHAPE_TYPES = new Set<string>(['I', 'O', 'T', 'S', 'Z', 'J', 'L', 'PLUS']);
+    const shuffleBagRemaining = Array.isArray(parsed.shuffleBagRemaining)
+        ? parsed.shuffleBagRemaining.filter((s): s is ShapeType => VALID_SHAPE_TYPES.has(s as string))
+        : undefined;
+
     // slots 내 Piece에 initialRotation 폴백 (구버전 데이터 호환)
     const normalizedSlots = Array.isArray(parsed.slots)
         ? parsed.slots.map((s: any) => s && typeof s === 'object' && typeof s.rotation === 'number'
@@ -265,6 +273,7 @@ const parseSavedGameState = (raw: string | null): SavedGameState | null => {
         eventType,
         eventAttemptNumber,
         eventPlayedMs,
+        shuffleBagRemaining,
     };
 };
 

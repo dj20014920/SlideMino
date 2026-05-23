@@ -13,6 +13,18 @@ import { RetryBackoffScheduler } from './adResilience';
 import { trackAnalyticsEvent } from './analyticsService';
 
 // ==========================================
+// 📌 진단 유틸리티
+// ==========================================
+
+function safeStringify(obj: unknown): string {
+  try {
+    return JSON.stringify(obj);
+  } catch {
+    return String(obj);
+  }
+}
+
+// ==========================================
 // 📌 타입 정의
 // ==========================================
 
@@ -45,6 +57,15 @@ class BannerAdService {
     baseDelayMs: 3000,
     maxDelayMs: 15000,
   });
+  // 연속 실패 retry 제한
+  private static readonly MAX_BANNER_RETRY_COUNT = 5;
+  private bannerRetryCount = 0;
+  // 진단 카운터 (AdMob 배너 문제 디버깅용)
+  private diagShowRequestSeq = 0;
+  private diagSyncSeq = 0;
+  private diagAdMobLoadSeq = 0;
+  private diagRetrySeq = 0;
+  private diagHideSeq = 0;
   private readonly handleConsentUpdated = (event: Event): void => {
     const detail = event instanceof CustomEvent
       ? (event.detail as { canRequestAds?: boolean } | null)
@@ -100,6 +121,10 @@ class BannerAdService {
       return;
     }
 
+    this.diagShowRequestSeq++;
+    this.bannerRetryCount = 0;
+    console.log(`[AdMobBannerDiag] showBanner requested seq=${this.diagShowRequestSeq} usersBefore=${this.bannerUsers} margin=${options.bottomMarginPx ?? 0} platform=${CURRENT_AD_PLATFORM} status=${this.showStatus}`);
+
     this.requestedBottomMarginPx = this.normalizeBottomMarginPx(options.bottomMarginPx);
 
     // 2. 참조 카운트 (여러 컴포넌트에서 호출될 수 있음)
@@ -137,6 +162,7 @@ class BannerAdService {
         switch (event.type) {
           case 'show':
             this.showStatus = 'showing';
+            this.bannerRetryCount = 0;
             this.loadRetryBackoff.reset();
             if (this.bannerHeightPx <= 0) this.setBannerHeightPx(50);
             console.log('[BannerAdService] 배너 표시 완료');
@@ -205,6 +231,8 @@ class BannerAdService {
     };
 
     try {
+      this.diagAdMobLoadSeq++;
+      console.log(`[AdMobBannerDiag] AdMob.showBanner loadSeq=${this.diagAdMobLoadSeq} adId=${effectiveAdId} isTesting=${requestPolicy.shouldUseTestAds} size=${options.adSize} margin=${bottomMarginPx} users=${this.bannerUsers} status=${this.showStatus}`);
       await AdMob.showBanner(options);
       this.showStatus = 'showing';
       if (this.bannerHeightPx <= 0) this.setBannerHeightPx(50);
@@ -243,7 +271,9 @@ class BannerAdService {
 
     AdMob.addListener(BannerAdPluginEvents.Loaded, () => {
       this.showStatus = 'showing';
+      this.bannerRetryCount = 0;
       this.loadRetryBackoff.reset();
+      console.log(`[AdMobBannerDiag] Loaded users=${this.bannerUsers} status=${this.showStatus} margin=${this.activeBottomMarginPx} height=${this.bannerHeightPx}`);
     });
 
     AdMob.addListener(BannerAdPluginEvents.Opened, () => {
@@ -263,7 +293,8 @@ class BannerAdService {
     AdMob.addListener(BannerAdPluginEvents.FailedToLoad, (error) => {
       this.showStatus = 'failed';
       this.setBannerHeightPx(0);
-      console.error('[BannerAdService] AdMob 배너 로드 실패:', error);
+      console.error(`[AdMobBannerDiag] FailedToLoad users=${this.bannerUsers} status=${this.showStatus} margin=${this.activeBottomMarginPx} error=${safeStringify(error)}`);
+      console.error('[AdMobBannerDiag] FailedToLoad raw:', error);
       this.scheduleLoadRetry();
     });
   }
@@ -274,6 +305,8 @@ class BannerAdService {
 
   public async hideBanner(): Promise<void> {
     this.bannerUsers = Math.max(0, this.bannerUsers - 1);
+    this.diagHideSeq++;
+    console.log(`[AdMobBannerDiag] hideBanner requested seq=${this.diagHideSeq} usersAfter=${this.bannerUsers} status=${this.showStatus}`);
     if (import.meta.env.DEV) {
       console.log('[BannerAdService] hide 요청, 사용자 수:', this.bannerUsers);
     }
@@ -333,6 +366,9 @@ class BannerAdService {
   private async syncBannerVisibility(): Promise<void> {
     const shouldShow = this.bannerUsers > 0;
     const targetBottomMarginPx = shouldShow ? this.requestedBottomMarginPx : 0;
+
+    this.diagSyncSeq++;
+    console.log(`[AdMobBannerDiag] syncBannerVisibility seq=${this.diagSyncSeq} shouldShow=${shouldShow} targetMargin=${targetBottomMarginPx} activeMargin=${this.activeBottomMarginPx} status=${this.showStatus} users=${this.bannerUsers}`);
 
     if (shouldShow) {
       if (this.showStatus === 'showing') {
@@ -395,10 +431,26 @@ class BannerAdService {
   }
 
   private scheduleLoadRetry(): void {
-    if (this.bannerUsers <= 0) return;
+    if (this.bannerUsers <= 0) {
+      console.log(`[AdMobBannerDiag] scheduleLoadRetry skip (no users) users=${this.bannerUsers}`);
+      return;
+    }
 
+    this.diagRetrySeq++;
+    console.log(`[AdMobBannerDiag] scheduleLoadRetry scheduled seq=${this.diagRetrySeq} users=${this.bannerUsers} status=${this.showStatus}`);
     this.loadRetryBackoff.schedule(() => {
-      if (this.bannerUsers <= 0 || this.showStatus !== 'failed') return;
+      if (this.bannerUsers <= 0 || this.showStatus !== 'failed') {
+        console.log(`[AdMobBannerDiag] scheduleLoadRetry fire skip users=${this.bannerUsers} status=${this.showStatus}`);
+        return;
+      }
+
+      this.bannerRetryCount++;
+      if (this.bannerRetryCount > BannerAdService.MAX_BANNER_RETRY_COUNT) {
+        console.log(`[AdMobBannerDiag] scheduleLoadRetry max retries reached count=${this.bannerRetryCount}/${BannerAdService.MAX_BANNER_RETRY_COUNT}`);
+        return;
+      }
+
+      console.log(`[AdMobBannerDiag] scheduleLoadRetry fire seq=${this.diagRetrySeq} users=${this.bannerUsers} status=${this.showStatus} retryCount=${this.bannerRetryCount}/${BannerAdService.MAX_BANNER_RETRY_COUNT}`);
       this.enqueueSync().catch((error) => {
         console.error('[BannerAdService] 배너 재시도 실패:', error);
       });
@@ -424,6 +476,7 @@ class BannerAdService {
       } else if (CURRENT_AD_PLATFORM === 'admob-ios' || CURRENT_AD_PLATFORM === 'admob-android') {
         // AdMob Android keeps the hidden view around after hideBanner().
         // Recreate instead, so menu/game margin changes cannot leave the banner GONE.
+        console.log(`[AdMobBannerDiag] hideCurrentBanner calling removeBanner users=${this.bannerUsers} status=${this.showStatus} margin=${this.activeBottomMarginPx}`);
         await AdMob.removeBanner();
       }
 

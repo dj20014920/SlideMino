@@ -169,3 +169,20 @@ onboarding-weekly-overlay.png
 
 .github/
 .gstack/
+
+# Review artifacts (local-only)
+.review-artifacts/
+
+# Analysis outputs (local-only)
+analysis/
+
+# Capacitor build outputs
+android/capacitor-cordova-android-plugins/
+ios/capacitor-cordova-ios-plugins/
+
+# Google services (private)
+android/app/google-services.json
+ios/App/GoogleService-Info.plist
+
+# Capacitor config (may contain private keys)
+capacitor.config.ts

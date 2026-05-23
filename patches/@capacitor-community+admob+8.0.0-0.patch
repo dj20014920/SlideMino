@@ -1,8 +1,6 @@
-diff --git a/node_modules/@capacitor-community/admob/android/build.gradle b/node_modules/@capacitor-community/admob/android/build.gradle
-index f0ee0c9..c589cb9 100644
 --- a/node_modules/@capacitor-community/admob/android/build.gradle
 +++ b/node_modules/@capacitor-community/admob/android/build.gradle
-@@ -37,7 +37,7 @@ android {
+@@ -37,7 +37,7 @@
      buildTypes {
          release {
              minifyEnabled false
@@ -11,13 +9,11 @@ index f0ee0c9..c589cb9 100644
          }
      }
      lintOptions {
-diff --git a/node_modules/@capacitor-community/admob/android/src/main/java/com/getcapacitor/community/admob/banner/BannerExecutor.java b/node_modules/@capacitor-community/admob/android/src/main/java/com/getcapacitor/community/admob/banner/BannerExecutor.java
-index c629139..bfa52ba 100644
 --- a/node_modules/@capacitor-community/admob/android/src/main/java/com/getcapacitor/community/admob/banner/BannerExecutor.java
 +++ b/node_modules/@capacitor-community/admob/android/src/main/java/com/getcapacitor/community/admob/banner/BannerExecutor.java
-@@ -48,6 +48,10 @@ public class BannerExecutor extends Executor {
+@@ -48,6 +48,10 @@
      }
-
+ 
      public void showBanner(final PluginCall call) {
 +        activitySupplier.get().runOnUiThread(() -> showBannerOnUiThread(call));
 +    }
@@ -25,11 +21,11 @@ index c629139..bfa52ba 100644
 +    private void showBannerOnUiThread(final PluginCall call) {
          final AdOptions adOptions = AdOptions.getFactory().createBannerOptions(call);
          float density = contextSupplier.get().getResources().getDisplayMetrics().density;
-
-@@ -90,62 +94,45 @@ public class BannerExecutor extends Executor {
+ 
+@@ -90,62 +94,45 @@
                  CoordinatorLayout.LayoutParams.WRAP_CONTENT
              );
-
+ 
 -            // TODO: Make an enum like the AdSizeEnum?
 -            switch (adOptions.position) {
 -                case "TOP_CENTER":
@@ -43,28 +39,27 @@ index c629139..bfa52ba 100644
 -                    break;
 -            }
 +            applyBannerLayoutGravity(mAdViewLayoutParams, adOptions.position);
-+
+ 
 +            int densityMargin = (int) (adOptions.margin * density);
 +            int horizontalMarginPx = calculateHorizontalMarginPx(adOptions, density, defaultWidthPixels, realWidthPixels, fullscreen);
 +
 +            applyBannerLayoutMargins(mAdViewLayoutParams, adOptions.position, horizontalMarginPx, densityMargin, 0, 0, 0, 0);
-
++
              // set Safe Area only for Android 15+
              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
                  View rootView = activitySupplier.get().getWindow().getDecorView();
                  rootView.setOnApplyWindowInsetsListener((v, insets) -> {
 -                    int bottomInset = insets.getSystemWindowInsetBottom();
 -                    int topInset = insets.getSystemWindowInsetTop();
--
++                    android.graphics.Insets safeInsets = insets.getInsetsIgnoringVisibility(
++                        android.view.WindowInsets.Type.systemBars() | android.view.WindowInsets.Type.displayCutout()
++                    );
+ 
 -                    if ("TOP_CENTER".equals(adOptions.position)) {
 -                        mAdViewLayoutParams.setMargins(0, topInset, 0, 0);
 -                    } else {
 -                        mAdViewLayoutParams.setMargins(0, 0, 0, bottomInset);
 -                    }
-+                    android.graphics.Insets safeInsets = insets.getInsetsIgnoringVisibility(
-+                        android.view.WindowInsets.Type.systemBars() | android.view.WindowInsets.Type.displayCutout()
-+                    );
-+
 +                    applyBannerLayoutMargins(
 +                        mAdViewLayoutParams,
 +                        adOptions.position,
@@ -75,15 +70,15 @@ index c629139..bfa52ba 100644
 +                        safeInsets.right,
 +                        safeInsets.bottom
 +                    );
-
+ 
                      mAdViewLayout.setLayoutParams(mAdViewLayoutParams);
                      return insets;
                  });
 +                rootView.requestApplyInsets();
              }
-
+ 
              mAdViewLayout.setLayoutParams(mAdViewLayoutParams);
-
+ 
 -            int densityMargin = (int) (adOptions.margin * density);
 -
 -            // Center Banner Ads
@@ -104,17 +99,30 @@ index c629139..bfa52ba 100644
 -            }
 -
              createNewAdView(adOptions);
-
+ 
              call.resolve();
          } catch (Exception ex) {
 +            removeCurrentAdViewFromHierarchy();
              call.reject(ex.getLocalizedMessage(), ex);
          }
      }
-@@ -231,6 +218,88 @@ public class BannerExecutor extends Executor {
+@@ -207,6 +194,7 @@
+                         if (mAdView != null) {
+                             mViewGroup.removeView(mAdViewLayout);
+                             mAdViewLayout.removeView(mAdView);
++                            Log.d("AdMobBannerDiag", "removeBanner destroying banner");
+                             mAdView.destroy();
+                             mAdView = null;
+                             Log.d(logTag, "Banner AD Removed");
+@@ -227,10 +215,93 @@
+             .get()
+             .runOnUiThread(() -> {
+                 final AdRequest adRequest = RequestHelper.createRequest(adOptions);
++                Log.d("AdMobBannerDiag", "updateExistingAdView loadAd adSize=" + adOptions.adSize + " margin=" + adOptions.margin + " position=" + adOptions.position + " adId=" + adOptions.adId);
+                 mAdView.loadAd(adRequest);
              });
      }
-
+ 
 +    private void removeCurrentAdViewFromHierarchy() {
 +        if (mAdView == null) {
 +            return;
@@ -200,3 +208,28 @@ index c629139..bfa52ba 100644
      /**
       * Follow iOS method Name:
       * https://developers.google.com/admob/ios/banner?hl=ja
+@@ -246,6 +317,7 @@
+                 // Add the AdView to the view hierarchy.
+                 mAdViewLayout.addView(mAdView);
+                 // Start loading the ad.
++                Log.d("AdMobBannerDiag", "loadAd called adSize=" + adOptions.adSize + " margin=" + adOptions.margin + " position=" + adOptions.position + " adId=" + adOptions.adId);
+                 mAdView.loadAd(adRequest);
+                 mAdView.setAdListener(
+                     new AdListener() {
+@@ -253,6 +325,8 @@
+                         public void onAdLoaded() {
+                             final BannerAdSizeInfo sizeInfo = new BannerAdSizeInfo(mAdView);
+ 
++                            Log.d("AdMobBannerDiag", "onAdLoaded responseInfo=" + (mAdView.getResponseInfo() != null ? mAdView.getResponseInfo().toString() : "null"));
++
+                             notifyListeners(BannerAdPluginEvents.SizeChanged.getWebEventName(), sizeInfo);
+                             notifyListeners(BannerAdPluginEvents.Loaded.getWebEventName(), emptyObject);
+                             super.onAdLoaded();
+@@ -260,6 +334,7 @@
+ 
+                         @Override
+                         public void onAdFailedToLoad(@NonNull LoadAdError adError) {
++                            Log.d("AdMobBannerDiag", "onAdFailedToLoad code=" + adError.getCode() + " message=" + adError.getMessage() + " domain=" + adError.getDomain() + " responseInfo=" + (adError.getResponseInfo() != null ? adError.getResponseInfo().toString() : "null") + " adError=" + adError.toString());
+                             if (mAdView != null) {
+                                 mViewGroup.removeView(mAdViewLayout);
+                                 mAdViewLayout.removeView(mAdView);

@@ -13,7 +13,7 @@
 import { isNativeApp } from '../utils/platform';
 import { isTodayAttended } from './streakService';
 import { getDailyCompletedCount } from './missionService';
-import { getLocalAttemptCount } from './weeklyEventService';
+import { getLocalAttemptCount, hasAnyEventParticipationHistory } from './weeklyEventService';
 import { KST_OFFSET_MS } from '../config/constants';
 import i18n from '../i18n/config';
 import { DEFAULT_LANGUAGE, LANGUAGE_STORAGE_KEY, normalizeLanguage } from '../i18n/constants';
@@ -245,7 +245,8 @@ export async function rescheduleNotifications(options: RescheduleNotificationOpt
 
     // 4) 주간이벤트 시작 알림 — 매주 월요일 10:00 KST, weekly_event 해금 + 미참여 시
     //    on.weekday + repeats로 자동 주간 반복, 이미 지났어도 다음 주에 자동 발동
-    if (getLocalAttemptCount() === 0) {
+    //    과거 참여 이력이 있는 사용자는 재발송 방지 (Week N 참여 → Week N+1 알림 반복 방지)
+    if (getLocalAttemptCount() === 0 && !hasAnyEventParticipationHistory()) {
       // 월요일 시작 알림 (JS weekday: 월=1 → Capacitor weekday: 2)
       const c4 = getNotifContent(NOTIF_EVENT_START);
       notifications.push({

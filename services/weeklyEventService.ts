@@ -641,6 +641,12 @@ export function getLocalAttemptCount(): number {
   return Math.max(localCount, Math.min(WEEKLY_EVENT_MAX_ATTEMPTS, queuedFinalCount));
 }
 
+/** 과거 이벤트 참여 이력이 있는지 확인 */
+export function hasAnyEventParticipationHistory(): boolean {
+  const history = loadEventParticipationHistory();
+  return history.length > 0;
+}
+
 /** 로컬 도전 횟수 증가 + 참여 히스토리 기록 */
 export function incrementLocalAttemptCount(score: number): void {
   const current = getCurrentEvent();

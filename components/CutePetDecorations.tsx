@@ -69,14 +69,14 @@ export const PetHeaderTitleDecor: React.FC<PetDecorProps & { titleText: string }
       {/* 타이틀 박스 */}
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', padding: '8px 22px', border: `2px solid ${c.border}`, background: 'var(--pet-bg)', borderRadius: '12px', boxShadow: `0 3px 0 rgba(0,0,0,0.3)` }}>
         {/* 좌 수염 */}
-        <div style={{ position: 'absolute', left: '-20px', display: 'flex', flexDirection: 'column', gap: '5px', pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', left: '-20px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px', pointerEvents: 'none' }}>
           <div style={{ width: '14px', height: '2px', background: c.border }}/>
           <div style={{ width: '18px', height: '2px', background: c.border }}/>
           <div style={{ width: '11px', height: '2px', background: c.border }}/>
         </div>
         <span style={{ color: c.mint, fontFamily: 'DungGeunMo, monospace', fontSize: '13px', fontWeight: 800, letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{titleText}</span>
         {/* 우 수염 */}
-        <div style={{ position: 'absolute', right: '-20px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px', pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', right: '-20px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '5px', pointerEvents: 'none' }}>
           <div style={{ width: '14px', height: '2px', background: c.border }}/>
           <div style={{ width: '18px', height: '2px', background: c.border }}/>
           <div style={{ width: '11px', height: '2px', background: c.border }}/>
@@ -120,6 +120,16 @@ export const PetBoardOverlay: React.FC<PetDecorProps> = ({ themeId }) => {
         justifyContent: 'space-between',
         imageRendering: 'pixelated',
       }}>
+        {/* 귀와 귀 사이를 메워주는 이마(정수리) 라인 */}
+        <div style={{
+          position: 'absolute',
+          bottom: 0,
+          left: c.isDog ? '42px' : '38px',
+          right: c.isDog ? '42px' : '38px',
+          height: '2.5px',
+          background: c.border,
+          zIndex: 5,
+        }} />
         {/* 왼쪽 귀 */}
         {c.isDog ? (
           <svg width="48" height="28" viewBox="0 0 48 28" fill="none">
@@ -187,6 +197,7 @@ export const PetBoardOverlay: React.FC<PetDecorProps> = ({ themeId }) => {
         transform: 'translateY(-50%)',
         display: 'flex',
         flexDirection: 'column',
+        alignItems: 'flex-end',
         gap: '6px',
         imageRendering: 'pixelated',
       }}>
@@ -203,7 +214,7 @@ export const PetBoardOverlay: React.FC<PetDecorProps> = ({ themeId }) => {
         transform: 'translateY(-50%)',
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'flex-end',
+        alignItems: 'flex-start',
         gap: '6px',
         imageRendering: 'pixelated',
       }}>
@@ -219,7 +230,7 @@ export const PetBoardOverlay: React.FC<PetDecorProps> = ({ themeId }) => {
 export const PetGridFrameDecor = PetBoardOverlay;
 
 // ── 4. 하단 배너 위 빼꼼 고양이 ─────────────────────────────────────────────
-export const PetBottomBannerDecor: React.FC<PetDecorProps> = ({ themeId }) => {
+export const PetBottomBannerDecor: React.FC<PetDecorProps & { children: React.ReactNode }> = ({ themeId, children }) => {
   const c = getThemeColors(themeId);
 
   const PetSvgNormal = () => (
@@ -287,46 +298,35 @@ export const PetBottomBannerDecor: React.FC<PetDecorProps> = ({ themeId }) => {
   );
 
   return (
-    <div style={{ position: 'relative', width: '100%', marginTop: '20px', imageRendering: 'pixelated' }}>
-      {/* 배너 테두리 */}
-      <div style={{ position: 'relative', border: `2px solid ${c.border}`, background: 'var(--pet-bg)', borderRadius: '12px', overflow: 'visible' }}>
-        {/* 왼쪽 빼꼼 고양이 */}
-        <div style={{ position: 'absolute', top: '-40px', left: '8px', pointerEvents: 'none', zIndex: 10 }}>
-          <PetSvgNormal/>
-          <Paws/>
+    <div style={{ position: 'relative', width: '100%', marginTop: '24px', imageRendering: 'pixelated', overflow: 'visible' }}>
+      {/* 왼쪽 빼꼼 고양이 */}
+      <div style={{ position: 'absolute', top: '-40px', left: '8px', pointerEvents: 'none', zIndex: 10 }}>
+        <PetSvgNormal/>
+        <Paws/>
+      </div>
+
+      {/* 오른쪽 빼꼼 고양이 (찡그린) */}
+      <div style={{ position: 'absolute', top: '-40px', right: '10px', pointerEvents: 'none', zIndex: 10 }}>
+        <PetSvgCross/>
+        {/* 불꽃 */}
+        <div style={{ position: 'absolute', top: '-10px', right: '-4px', display: 'flex', gap: '1px' }}>
+          <span style={{ color: c.red, fontSize: '9px', lineHeight: 1 }}>☄</span>
+          <span style={{ color: c.red, fontSize: '12px', lineHeight: 1 }}>☄</span>
         </div>
+        <Paws/>
+      </div>
 
-        {/* 오른쪽 빼꼼 고양이 (찡그린) */}
-        <div style={{ position: 'absolute', top: '-40px', right: '10px', pointerEvents: 'none', zIndex: 10 }}>
-          <PetSvgCross/>
-          {/* 불꽃 */}
-          <div style={{ position: 'absolute', top: '-10px', right: '-4px', display: 'flex', gap: '1px' }}>
-            <span style={{ color: c.red, fontSize: '9px', lineHeight: 1 }}>☄</span>
-            <span style={{ color: c.red, fontSize: '12px', lineHeight: 1 }}>☄</span>
-          </div>
-          <Paws/>
-        </div>
-
-        {/* 배너 내부 */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', fontFamily: 'DungGeunMo, monospace' }}>
-          <span style={{ color: c.mint, fontSize: '15px', fontWeight: 800 }}>Nice job!</span>
-
-          <div style={{ border: `2px solid ${c.border}`, borderRadius: '10px', color: c.border, background: 'rgba(0,0,0,0.4)', padding: '5px 16px', fontSize: '12px', fontWeight: 'bold', boxShadow: '0 2px 0 rgba(0,0,0,0.35)' }}>
-            Test mode
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>test ad.</span>
-            {/* Google Admob 로고 */}
-            <svg width="26" height="26" viewBox="0 0 26 26">
-              <circle cx="13" cy="13" r="12" fill="#1565C0"/>
-              <circle cx="13" cy="13" r="12" fill="none" stroke={c.border} strokeWidth="1.5"/>
-              <circle cx="13" cy="13" r="4.5" fill="#42A5F5"/>
-              <circle cx="13" cy="13" r="4.5" fill="none" stroke="white" strokeWidth="1.5"/>
-              <rect x="16.5" y="15.5" width="5" height="2" rx="1" fill="#F57C00" transform="rotate(45 16.5 15.5)"/>
-            </svg>
-          </div>
-        </div>
+      {/* 배너 테두리 (자식 래핑) */}
+      <div style={{
+        position: 'relative',
+        border: `2.5px solid ${c.border}`,
+        background: 'var(--pet-bg)',
+        borderRadius: '12px',
+        overflow: 'hidden',
+        boxShadow: '0 3px 0 rgba(0,0,0,0.3)',
+        zIndex: 5
+      }}>
+        {children}
       </div>
     </div>
   );

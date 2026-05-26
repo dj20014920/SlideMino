@@ -5868,7 +5868,34 @@ const App: React.FC = () => {
           {/* 로고 영역 */}
           {isPremiumUiThemeActive ? (
             <div className={`${premiumWindowClassName} premium-home-window-surface w-full max-w-md animate-fade-in`}>
-              <div className={`${premiumWindowBodyClassName} premium-home-window-body-surface text-center px-4 py-5`}>
+              <div className={`${premiumWindowBodyClassName} premium-home-window-body-surface text-center px-4 py-5 relative`}>
+                {premiumUiTheme?.family === 'cute_pet' && (
+                  <div className="flex justify-center mb-4 scale-110 select-none pointer-events-none" aria-hidden="true">
+                    {premiumUiTheme.id === 'cute_dog' ? (
+                      <svg width="88" height="14" viewBox="0 0 88 14" fill="none">
+                        <rect x="0"  y="4" width="10" height="2" fill="var(--pet-border)"/>
+                        <rect x="0"  y="8" width="10" height="2" fill="var(--pet-border)"/>
+                        <rect x="18" y="3" width="5" height="5" fill="var(--pet-border)"/>
+                        <path d="M34 6H37V10H51V6H54V10H51V12H37V10Z" fill="var(--pet-border)"/>
+                        <rect x="63" y="3" width="5" height="5" fill="var(--pet-border)"/>
+                        <rect x="78" y="4" width="10" height="2" fill="var(--pet-border)"/>
+                        <rect x="78" y="8" width="10" height="2" fill="var(--pet-border)"/>
+                      </svg>
+                    ) : (
+                      <svg width="88" height="14" viewBox="0 0 88 14" fill="none">
+                        <rect x="0"  y="4" width="10" height="2" fill="var(--pet-border)"/>
+                        <rect x="0"  y="8" width="10" height="2" fill="var(--pet-border)"/>
+                        <rect x="17" y="1" width="2" height="10" fill="var(--pet-border)"/>
+                        <rect x="13" y="5" width="10" height="2" fill="var(--pet-border)"/>
+                        <rect x="40" y="5" width="4" height="4" fill="var(--pet-border)"/>
+                        <rect x="69" y="1" width="2" height="10" fill="var(--pet-border)"/>
+                        <rect x="65" y="5" width="10" height="2" fill="var(--pet-border)"/>
+                        <rect x="78" y="4" width="10" height="2" fill="var(--pet-border)"/>
+                        <rect x="78" y="8" width="10" height="2" fill="var(--pet-border)"/>
+                      </svg>
+                    )}
+                  </div>
+                )}
                 <h1 className="text-5xl font-bold tracking-tight leading-tight">
                   {(() => {
                     const titleText = String(t('game:title'));
@@ -5972,9 +5999,17 @@ const App: React.FC = () => {
                   </div>
                 )}
 
-                <div className="mt-3 flex justify-center">
-                  <AppDownloadBanner isPremiumUiThemeActive={true} />
-                </div>
+                {premiumUiTheme?.family === 'cute_pet' ? (
+                  <div className="mt-4 w-full scale-95 origin-center">
+                    <PetBottomBannerDecor themeId={premiumUiTheme.id as any}>
+                      <AdBanner reserveNativeSpace={false} webLayout="compact-banner" />
+                    </PetBottomBannerDecor>
+                  </div>
+                ) : (
+                  <div className="mt-3 flex justify-center">
+                    <AppDownloadBanner isPremiumUiThemeActive={true} />
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -6952,7 +6987,13 @@ const App: React.FC = () => {
             ${isSwipeFocusMode ? 'opacity-20 pointer-events-none' : 'opacity-100'}
           `}>
             {isPremiumUiThemeActive && premiumUiTheme?.family === 'cute_pet' ? (
-              <PetBottomBannerDecor themeId={premiumUiTheme.id} />
+              <PetBottomBannerDecor themeId={premiumUiTheme.id}>
+                <AdBanner
+                  includeSafeBottomInReservedSpace={true}
+                  webLayout="compact-banner"
+                  webReservedHeightPx={STABLE_BANNER_RESERVE_PX}
+                />
+              </PetBottomBannerDecor>
             ) : (
               <AdBanner
                 includeSafeBottomInReservedSpace={true}

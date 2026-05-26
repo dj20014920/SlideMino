@@ -160,7 +160,7 @@
 
 /* 깜고 테마 타일 ::before */
 .theme-cute-black-cat .pet-tile-face::before {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3C!-- 왼쪽 귀 --%3E%3Cpath d='M2 20H20V16H16V10H10V16H2Z' fill='%23E7C6A0'/%3E%3Cpath d='M4 20H10V16H6V12H4Z' fill='%23FF8B8B' opacity='0.85'/%3E%3C!-- 오른쪽 귀 --%3E%3Cpath d='M62 20H44V16H48V10H54V16H62Z' fill='%23E7C6A0'/%3E%3Cpath d='M60 20H54V16H58V12H60Z' fill='%23FF8B8B' opacity='0.85'/%3E%3C!-- 왼쪽 눈 --%3E%3Crect x='18' y='30' width='3' height='10' fill='%23E7C6A0'/%3E%3Crect x='14' y='34' width='11' height='2' fill='%23E7C6A0'/%3E%3C!-- 오른쪽 눈 --%3E%3Crect x='43' y='30' width='3' height='10' fill='%23E7C6A0'/%3E%3Crect x='39' y='34' width='11' height='2' fill='%23E7C6A0'/%3E%3C!-- 코 --%3E%3Crect x='30' y='36' width='4' height='4' fill='%23E7C6A0'/%3E%3C!-- 볼 홍조 --%3E%3Crect x='10' y='40' width='8' height='3' fill='%23FF8B8B' opacity='0.5'/%3E%3Crect x='46' y='40' width='8' height='3' fill='%23FF8B8B' opacity='0.5'/%3E%3C/svg%3E") !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3C!-- 왼쪽 귀 --%3E%3Cpath d='M2 20H20V16H16V10H10V16H2Z' fill='%23E7C6A0'/%3E%3Cpath d='M4 20H10V16H6V12H4Z' fill='%23FF8B8B' opacity='0.85'/%3E%3C!-- 오른쪽 귀 --%3E%3Cpath d='M62 20H44V16H48V10H54V16H62Z' fill='%23E7C6A0'/%3E%3Cpath d='M60 20H54V16H58V12H60Z' fill='%23FF8B8B' opacity='0.85'/%3E%3C!-- 이마 라인 (귀 사이 연결) --%3E%3Crect x='20' y='18' width='24' height='2' fill='%23E7C6A0'/%3E%3C!-- 왼쪽 눈 --%3E%3Crect x='18' y='30' width='3' height='10' fill='%23E7C6A0'/%3E%3Crect x='14' y='34' width='11' height='2' fill='%23E7C6A0'/%3E%3C!-- 오른쪽 눈 --%3E%3Crect x='43' y='30' width='3' height='10' fill='%23E7C6A0'/%3E%3Crect x='39' y='34' width='11' height='2' fill='%23E7C6A0'/%3E%3C!-- 코 --%3E%3Crect x='30' y='36' width='4' height='4' fill='%23E7C6A0'/%3E%3C!-- 볼 홍조 --%3E%3Crect x='10' y='40' width='8' height='3' fill='%23FF8B8B' opacity='0.5'/%3E%3Crect x='46' y='40' width='8' height='3' fill='%23FF8B8B' opacity='0.5'/%3E%3C/svg%3E") !important;
 }
 
 /* 흰고 테마 타일 ::before */
@@ -227,6 +227,73 @@
   box-shadow: 0 6px 0 rgba(0, 0, 0, 0.3), 0 12px 30px rgba(0, 0, 0, 0.4) !important;
   border-radius: var(--pet-radius-lg) !important;
   color: var(--pet-text-color) !important;
+  position: relative !important;
+  overflow: visible !important;
+}
+
+/* 윈도우 모달 귀 데코 공통 */
+.pet-window::before,
+.pet-window::after {
+  content: '' !important;
+  position: absolute !important;
+  background-repeat: no-repeat !important;
+  background-size: contain !important;
+  z-index: 10 !important;
+  pointer-events: none !important;
+}
+
+/* 고양이 공통 귀 크기 및 오프셋 */
+.theme-cute-black-cat .pet-window::before,
+.theme-cute-white-cat .pet-window::before {
+  top: -28px !important;
+  left: 10px !important;
+  width: 44px !important;
+  height: 30px !important;
+}
+.theme-cute-black-cat .pet-window::after,
+.theme-cute-white-cat .pet-window::after {
+  top: -28px !important;
+  right: 10px !important;
+  width: 44px !important;
+  height: 30px !important;
+}
+
+/* 댕댕이 공통 귀 크기 및 오프셋 */
+.theme-cute-dog .pet-window::before {
+  top: -26px !important;
+  left: 10px !important;
+  width: 48px !important;
+  height: 28px !important;
+}
+.theme-cute-dog .pet-window::after {
+  top: -26px !important;
+  right: 10px !important;
+  width: 48px !important;
+  height: 28px !important;
+}
+
+/* 깜고 테마 귀 SVG */
+.theme-cute-black-cat .pet-window::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 30'%3E%3Cpath d='M0 30H38V26H30V20H22V12H14V0H0Z' fill='%23E7C6A0'/%3E%3Cpath d='M2 30H14V26H8V14H2Z' fill='%23FF8B8B' opacity='0.85'/%3E%3C/svg%3E") !important;
+}
+.theme-cute-black-cat .pet-window::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 30'%3E%3Cpath d='M44 30H6V26H14V20H22V12H30V0H44Z' fill='%23E7C6A0'/%3E%3Cpath d='M42 30H30V26H36V14H42Z' fill='%23FF8B8B' opacity='0.85'/%3E%3C/svg%3E") !important;
+}
+
+/* 흰고 테마 귀 SVG */
+.theme-cute-white-cat .pet-window::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 30'%3E%3Cpath d='M0 30H38V26H30V20H22V12H14V0H0Z' fill='%23222222'/%3E%3Cpath d='M2 30H14V26H8V14H2Z' fill='%23FF8B8B' opacity='0.85'/%3E%3C/svg%3E") !important;
+}
+.theme-cute-white-cat .pet-window::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 30'%3E%3Cpath d='M44 30H6V26H14V20H22V12H30V0H44Z' fill='%23222222'/%3E%3Cpath d='M42 30H30V26H36V14H42Z' fill='%23FF8B8B' opacity='0.85'/%3E%3C/svg%3E") !important;
+}
+
+/* 댕댕이 테마 귀 SVG */
+.theme-cute-dog .pet-window::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 28'%3E%3Cpath d='M0 28H34V18H24V8H12V18H0Z' fill='%235c3d24'/%3E%3Cpath d='M8 28H20V20H8Z' fill='%23c08080' opacity='0.75'/%3E%3C/svg%3E") !important;
+}
+.theme-cute-dog .pet-window::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 28'%3E%3Cpath d='M48 28H14V18H24V8H36V18H48Z' fill='%235c3d24'/%3E%3Cpath d='M28 28H40V20H28Z' fill='%23c08080' opacity='0.75'/%3E%3C/svg%3E") !important;
 }
 
 .pet-window-body {
@@ -245,6 +312,25 @@
   padding: 8px 14px !important;
   font-weight: bold;
   border-radius: var(--pet-radius-lg) var(--pet-radius-lg) 0 0;
+  position: relative !important;
+}
+
+.pet-title-bar::before {
+  content: '' !important;
+  position: absolute !important;
+  top: -2px !important;
+  left: 54px !important;
+  right: 54px !important;
+  height: 2.5px !important;
+  background: var(--pet-border) !important;
+  z-index: 12 !important;
+  pointer-events: none !important;
+}
+
+/* 댕댕이는 귀 너비가 48px이므로 이마 수평선 오프셋 약간 조정 */
+.theme-cute-dog .pet-title-bar::before {
+  left: 58px !important;
+  right: 58px !important;
 }
 
 .pet-title-bar-text {
@@ -301,6 +387,19 @@
   padding-bottom: 8px !important;
   margin-bottom: -2px;
   border-bottom: 2px solid var(--pet-btn-hover-bg) !important;
+}
+
+.pet-tabstrip-tab[aria-selected="true"]::before,
+.pet-tabstrip-tab[data-active="true"]::before {
+  content: '🐾 ' !important;
+  font-size: 11px !important;
+  margin-right: 4px !important;
+  display: inline-block !important;
+}
+
+.pet-tabstrip-tab:hover:not([aria-selected="true"]):not([data-active="true"]) {
+  background: var(--pet-btn-hover-bg) !important;
+  color: var(--pet-text-color) !important;
 }
 
 /* ── 11. 패널 썬큰(Sunken) 효과 ── */

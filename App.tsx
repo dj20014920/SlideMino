@@ -58,6 +58,7 @@ import { GameOverModal } from './components/GameOverModal';
 import { GameModeTutorial } from './components/GameModeTutorial';
 import { SequentialOnboardingOverlay } from './components/SequentialOnboardingOverlay';
 import { LeaderboardModal } from './components/LeaderboardModal';
+import { RealTimeRankingPanel } from './components/RealTimeRankingPanel';
 import { NameInputModal } from './components/NameInputModal';
 import { ActiveGameExitModal, type ActiveGameExitContext } from './components/ActiveGameExitModal';
 import { TutorialOverlay } from './components/TutorialOverlay';
@@ -1397,6 +1398,7 @@ const App: React.FC = () => {
   const [isCustomizationOpen, setIsCustomizationOpen] = useState(false);
   const [isSkinOpen, setIsSkinOpen] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
+  const [isRankingPanelOpen, setIsRankingPanelOpen] = useState(false);
 
   // ── 최초 50점 스킨 보상 ──
   const [showFirstSkinRewardModal, setShowFirstSkinRewardModal] = useState(false);
@@ -5740,6 +5742,32 @@ const App: React.FC = () => {
           );
         })}
 
+        {/* 리더보드 버튼 */}
+        <button
+          onClick={openLeaderboardModal}
+          data-tutorial-anchor="leaderboard-btn"
+          className={`
+            relative group w-full py-4 px-6 rounded-2xl ${premiumMenuButtonClassName}
+            bg-gradient-to-br from-amber-500 via-yellow-500 to-orange-500
+            border border-amber-400/30
+            shadow-lg shadow-amber-900/20
+            hover:shadow-xl hover:shadow-amber-600/30 hover:-translate-y-0.5
+            active:translate-y-0 active:shadow-md
+            transition-all duration-200 ease-out
+            text-white font-semibold text-lg
+          `}
+        >
+          <span className="flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <Trophy size={20} />
+              <span>{t('modals:leaderboard.title')}</span>
+            </span>
+            <span className="text-amber-200/70 font-normal text-sm">
+              🏆 TOP 100
+            </span>
+          </span>
+        </button>
+
         {/* XP/레벨 버튼 */}
         <button
           onClick={openXpModal}
@@ -7030,6 +7058,17 @@ const App: React.FC = () => {
       <AnimatePresence mode="wait">
         {isLoading && <LoadingScreen key="loading-screen-game" />}
       </AnimatePresence>
+
+      {/* 실시간 랭킹 사이드 패널 */}
+      <RealTimeRankingPanel
+        boardSize={boardSize}
+        score={score}
+        gameState={gameState}
+        liveRankEstimate={liveRankEstimate}
+        playerName={playerName}
+        isOpen={isRankingPanelOpen}
+        onToggle={() => setIsRankingPanelOpen(prev => !prev)}
+      />
     </>
   );
 };

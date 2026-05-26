@@ -33,7 +33,7 @@ type SkinModalProps = {
   autoDraw?: boolean;
 };
 
-type SkinSectionKey = 'premium' | 'cute' | 'neon' | 'liquid' | 'mesh' | 'normal';
+type SkinSectionKey = 'premium' | 'cat' | 'dog' | 'neon' | 'liquid' | 'mesh' | 'normal';
 const EXPLORE_GALAXY_SKIN_ID = 'skin_digital_explore_galaxy';
 const PIXELBLAST_SKIN_ID = 'skin_digital_pixelblast_void';
 const SKIN_SWATCH_GRID_CLASS_NAME = 'grid grid-cols-6 gap-2.5';
@@ -147,14 +147,24 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
   const [acquisitionIsDuplicate, setAcquisitionIsDuplicate] = useState(false);
   const [remainingAds, setRemainingAds] = useState(skinRewardAdService.getRemainingDailyViews());
   const [adError, setAdError] = useState<string | null>(null);
+  const [activeBigTab, setActiveBigTab] = useState<'premium' | 'normal'>('premium');
   const [openSections, setOpenSections] = useState<Readonly<Record<SkinSectionKey, boolean>>>({
     premium: true,
-    cute: true,
+    cat: true,
+    dog: true,
     neon: true,
     liquid: true,
     mesh: true,
     normal: true,
   });
+
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   // ── 무료 뽑기 상태 ──
   const [freeDrawResultSkinId, setFreeDrawResultSkinId] = useState<string | null>(null);
@@ -214,13 +224,14 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
     rowOffset: number; // 전체 행 기준 offset (selectedRowIndex 계산용)
   };
   const skinSections = useMemo((): SkinSection[] => {
-    const premium = SKIN_CATALOG.filter(e => e.premium);
-    const cute = SKIN_CATALOG.filter(e => isCuteSkin(e.id));
-    const neon = SKIN_CATALOG.filter(e => !e.premium && !isCuteSkin(e.id) && isNeonSkin(e.id));
-    const liquidGlass = SKIN_CATALOG.filter(e => !isCuteSkin(e.id) && isLiquidGlassSkin(e.id));
-    const mesh = SKIN_CATALOG.filter(e => !isCuteSkin(e.id) && isMeshSwatchSkin(e.id));
+    const premium = SKIN_CATALOG.filter(e => e.premium && e.category !== 'cat' && e.category !== 'dog');
+    const cat = SKIN_CATALOG.filter(e => e.category === 'cat');
+    const dog = SKIN_CATALOG.filter(e => e.category === 'dog');
+    const neon = SKIN_CATALOG.filter(e => !e.premium && e.category !== 'cat' && e.category !== 'dog' && isNeonSkin(e.id));
+    const liquidGlass = SKIN_CATALOG.filter(e => e.category !== 'cat' && e.category !== 'dog' && isLiquidGlassSkin(e.id));
+    const mesh = SKIN_CATALOG.filter(e => e.category !== 'cat' && e.category !== 'dog' && isMeshSwatchSkin(e.id));
     const normal = SKIN_CATALOG.filter(
-      (e) => !e.premium && !isCuteSkin(e.id) && !isNeonSkin(e.id) && !isMeshSwatchSkin(e.id) && !isLiquidGlassSkin(e.id)
+      (e) => !e.premium && e.category !== 'cat' && e.category !== 'dog' && !isNeonSkin(e.id) && !isMeshSwatchSkin(e.id) && !isLiquidGlassSkin(e.id)
     );
 
     const toRows = (arr: typeof SKIN_CATALOG[number][]) => {
@@ -229,7 +240,8 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
       return r;
     };
 
-    const cuteRows = toRows(cute);
+    const catRows = toRows(cat);
+    const dogRows = toRows(dog);
     const neonRows = toRows(neon);
     const liquidGlassRows = toRows(liquidGlass);
     const meshRows = toRows(mesh);
@@ -239,39 +251,46 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
     return [
       { key: 'premium', titleKey: 'modals:skin.sectionPremium', skins: premium, rows: premiumRows, rowOffset: 0 },
       {
-        key: 'cute',
-        titleKey: 'modals:skin.sectionCute',
-        skins: cute,
-        rows: cuteRows,
+        key: 'cat',
+        titleKey: 'modals:skin.sectionCat',
+        skins: cat,
+        rows: catRows,
         rowOffset: premiumRows.length,
+      },
+      {
+        key: 'dog',
+        titleKey: 'modals:skin.sectionDog',
+        skins: dog,
+        rows: dogRows,
+        rowOffset: premiumRows.length + catRows.length,
       },
       {
         key: 'neon',
         titleKey: 'modals:skin.sectionNeon',
         skins: neon,
         rows: neonRows,
-        rowOffset: premiumRows.length + cuteRows.length,
+        rowOffset: premiumRows.length + catRows.length + dogRows.length,
       },
       {
         key: 'liquid',
         titleKey: 'modals:skin.sectionLiquidGlass',
         skins: liquidGlass,
         rows: liquidGlassRows,
-        rowOffset: premiumRows.length + cuteRows.length + neonRows.length,
+        rowOffset: premiumRows.length + catRows.length + dogRows.length + neonRows.length,
       },
       {
         key: 'mesh',
         titleKey: 'modals:skin.sectionMesh',
         skins: mesh,
         rows: meshRows,
-        rowOffset: premiumRows.length + cuteRows.length + neonRows.length + liquidGlassRows.length,
+        rowOffset: premiumRows.length + catRows.length + dogRows.length + neonRows.length + liquidGlassRows.length,
       },
       {
         key: 'normal',
         titleKey: 'modals:skin.sectionNormal',
         skins: normal,
         rows: normalRows,
-        rowOffset: premiumRows.length + cuteRows.length + neonRows.length + liquidGlassRows.length + meshRows.length,
+        rowOffset: premiumRows.length + catRows.length + dogRows.length + neonRows.length + liquidGlassRows.length + meshRows.length,
       },
     ];
   }, []);
@@ -299,19 +318,30 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
     }));
   }, []);
 
-  // 선택된 스킨이 속한 [섹션인덱스, 행인덱스] 계산
+  // 선택된 스킨이 속한 [섹션키, 행인덱스] 계산
   const selectedLocation = useMemo(() => {
     if (!selectedSkinId) return null;
     for (let si = 0; si < skinSections.length; si++) {
       const sec = skinSections[si];
       const idx = sec.skins.findIndex(e => e.id === selectedSkinId);
-      if (idx >= 0) return { sectionIdx: si, rowIdx: Math.floor(idx / COLS) };
+      if (idx >= 0) return { sectionKey: sec.key, rowIdx: Math.floor(idx / COLS) };
     }
     return null;
   }, [selectedSkinId, skinSections]);
 
+  const tooltipTimeoutRef = useRef<number | null>(null);
+  const tooltipFrameRef = useRef<number | null>(null);
+
   const cancelPendingTooltipMeasurement = useCallback(() => {
     tooltipMeasureRequestRef.current += 1;
+    if (tooltipTimeoutRef.current !== null) {
+      window.clearTimeout(tooltipTimeoutRef.current);
+      tooltipTimeoutRef.current = null;
+    }
+    if (tooltipFrameRef.current !== null) {
+      window.cancelAnimationFrame(tooltipFrameRef.current);
+      tooltipFrameRef.current = null;
+    }
   }, []);
 
   const ensureSkinTargetVisibleAndShowTooltip = useCallback((skinId: string) => {
@@ -327,7 +357,9 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
       if (!target) {
         attempts += 1;
         if (attempts <= maxAttempts) {
-          window.setTimeout(() => window.requestAnimationFrame(run), 80);
+          tooltipTimeoutRef.current = window.setTimeout(() => {
+            tooltipFrameRef.current = window.requestAnimationFrame(run);
+          }, 80);
           return;
         }
         setShowApplyTooltip(false);
@@ -357,7 +389,7 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
     };
 
     setShowApplyTooltip(false);
-    window.requestAnimationFrame(run);
+    tooltipFrameRef.current = window.requestAnimationFrame(run);
   }, [cancelPendingTooltipMeasurement]);
 
   // 모달 열릴 때 광고 미리 로드
@@ -382,14 +414,17 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
     setFreeDrawError(null);
     setIsProcessingFreeDraw(true);
     try {
-      const result = drawSkin(skinSettings);
+      const result = drawSkin(skinSettings, activeBigTab);
       if (!result) {
-        setFreeDrawError(String(t('modals:skin.freeDrawFailed')));
+        if (isMountedRef.current && open) {
+          setFreeDrawError(String(t('modals:skin.freeDrawFailed')));
+        }
         onFreeDrawUsed?.(false);
         return false;
       }
 
       const committed = await commitSkinDrawResultPersisted(result);
+      if (!isMountedRef.current || !open) return false;
       if (!committed) {
         setFreeDrawError(String(t('modals:skin.freeDrawFailed')));
         onFreeDrawUsed?.(false);
@@ -408,10 +443,12 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
       onFreeDrawUsed?.(true);
       return true;
     } finally {
-      freeDrawInFlightRef.current = false;
-      setIsProcessingFreeDraw(false);
+      if (isMountedRef.current) {
+        freeDrawInFlightRef.current = false;
+        setIsProcessingFreeDraw(false);
+      }
     }
-  }, [skinSettings, t, onFreeDrawUsed, commitSkinDrawResultPersisted]);
+  }, [skinSettings, t, onFreeDrawUsed, commitSkinDrawResultPersisted, activeBigTab, open]);
 
   // 무료 뽑기 자동 트리거
   useEffect(() => {
@@ -468,6 +505,7 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
     let adClosed = false;
 
     const startAcquisitionAfterClose = () => {
+      if (!isMountedRef.current || !open) return;
       if (!adClosed || !drawResult) return;
 
       if (drawResult.type === 'new') {
@@ -488,18 +526,20 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
     skinRewardAdService.showRewardAd({
       onRewardEarned: () => {
         trackAnalyticsEvent({ name: 'ad_skin_draw_rewarded' });
-        const result = drawSkin(skinSettings);
+        const result = drawSkin(skinSettings, activeBigTab);
         if (!result) return;
 
         drawResult = result;
         startAcquisitionAfterClose();
       },
       onAdClosed: () => {
+        if (!isMountedRef.current || !open) return;
         adClosed = true;
         startAcquisitionAfterClose();
         setRemainingAds(skinRewardAdService.getRemainingDailyViews());
       },
       onError: (error) => {
+        if (!isMountedRef.current || !open) return;
         const nextRemaining = skinRewardAdService.getRemainingDailyViews();
         const message = error.message?.trim() || '광고 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
         setRemainingAds(nextRemaining);
@@ -507,14 +547,13 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
         skinRewardAdService.preloadAd();
       },
       onDailyLimitReached: () => {
+        if (!isMountedRef.current || !open) return;
         setRemainingAds(skinRewardAdService.getRemainingDailyViews());
         setAdError(null);
       },
     });
-  }, [skinSettings, addSkin, addFragments]);
+  }, [skinSettings, addSkin, addFragments, activeBigTab, open]);
 
-  // autoDraw: 모달 열릴 때 자동으로 광고 시청 후 스킨 뽑기 실행
-  // freeDraw가 활성화된 경우(첫 스킨 보상 미수령)에는 autoDraw를 건너뛴다
   const autoDrawTriggeredRef = useRef(false);
   useEffect(() => {
     if (!open || !autoDraw || autoDrawTriggeredRef.current) return;
@@ -528,7 +567,15 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
     return () => {
       clearTimeout(timer);
     };
-  }, [open, autoDraw, handleDraw]);
+  }, [open, autoDraw, handleDraw, freeDraw]);
+
+  // 탭 전환 시 선택된 스킨 및 툴팁 상태 초기화 (탭 간 드롭다운 댕글링 방지)
+  useEffect(() => {
+    setSelectedSkinId(null);
+    setSelectedSkinHex(null);
+    setShowApplyTooltip(false);
+    cancelPendingTooltipMeasurement();
+  }, [activeBigTab, cancelPendingTooltipMeasurement]);
 
   // 조각으로 스킨 교환
   const [isPurchasing, setIsPurchasing] = useState(false);
@@ -608,20 +655,63 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
                 {t('modals:skin.title')}
               </div>
               <div className={premiumUiTitleBarControlsClassName}>
-                <button aria-label="Close" onClick={onClose} />
+                <button type="button" aria-label="Close" onClick={onClose} />
               </div>
             </div>
 
-            <div className={`${premiumUiWindowBodyClassName} flex-1 min-h-0 overflow-y-auto modal-scroll-panel`}>
-              <p className={premiumUiStatusBarFieldClassName} style={{ marginBottom: '12px' }}>
-                {String(t('modals:skin.ownedCount', { owned: ownedCatalogCount, total: SKIN_CATALOG.length } as any))}
-                {' | 🧩 '}{skinSettings.fragments}
-              </p>
+            {/* Win98 Classic Tabs Bar */}
+            <ul className="window-tabs" role="tablist" style={{ display: 'flex', listStyle: 'none', padding: '0 4px', margin: '0 0 -2px 0', borderBottom: 'none', zIndex: 1 }}>
+              <li role="tab" aria-selected={activeBigTab === 'premium'} style={{ marginRight: '2px' }}>
+                <button 
+                  type="button"
+                  onClick={() => setActiveBigTab('premium')}
+                  style={{
+                    padding: '3px 10px',
+                    background: '#c0c0c0',
+                    border: '1.5px solid',
+                    borderColor: activeBigTab === 'premium' ? '#fff #0a0a0a #c0c0c0 #fff' : '#fff #0a0a0a #0a0a0a #fff',
+                    borderBottom: activeBigTab === 'premium' ? 'none' : '1.5px solid #0a0a0a',
+                    paddingBottom: activeBigTab === 'premium' ? '5px' : '3px',
+                    marginTop: activeBigTab === 'premium' ? '0px' : '2px',
+                    fontWeight: 'bold',
+                    fontSize: '11px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  💎 {t('modals:skin.sectionPremium')}
+                </button>
+              </li>
+              <li role="tab" aria-selected={activeBigTab === 'normal'}>
+                <button 
+                  type="button"
+                  onClick={() => setActiveBigTab('normal')}
+                  style={{
+                    padding: '3px 10px',
+                    background: '#c0c0c0',
+                    border: '1.5px solid',
+                    borderColor: activeBigTab === 'normal' ? '#fff #0a0a0a #c0c0c0 #fff' : '#fff #0a0a0a #0a0a0a #fff',
+                    borderBottom: activeBigTab === 'normal' ? 'none' : '1.5px solid #0a0a0a',
+                    paddingBottom: activeBigTab === 'normal' ? '5px' : '3px',
+                    marginTop: activeBigTab === 'normal' ? '0px' : '2px',
+                    fontWeight: 'bold',
+                    fontSize: '11px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  ✦ {t('modals:skin.sectionNormal')}
+                </button>
+              </li>
+            </ul>
 
-              <div className={premiumUiSunkenClassName} style={{ minHeight: '180px', padding: '8px' }}>
-                <div className="space-y-4">
-                  {skinSections.map((section, sectionIdx) => (
-                    <div key={sectionIdx}>
+            <div className={premiumUiSunkenClassName} style={{ minHeight: '180px', padding: '8px', zIndex: 0 }}>
+              <div className="space-y-4">
+                {skinSections
+                  .filter(sec => activeBigTab === 'premium' 
+                    ? (sec.key === 'premium' || sec.key === 'cat' || sec.key === 'dog')
+                    : (sec.key === 'neon' || sec.key === 'liquid' || sec.key === 'mesh' || sec.key === 'normal')
+                  )
+                  .map((section) => (
+                    <div key={section.key}>
                       <div
                         className={premiumUiSkinTabStripClassName}
                         data-win98-skin-section-tabstrip="true"
@@ -636,7 +726,7 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
                           style={{ marginBottom: 0, padding: '2px 8px', fontSize: '10px', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                         >
                           <span className="font-bold" aria-hidden="true">{openSections[section.key] ? '▾' : '▸'}</span>
-                          {sectionIdx === 0 ? <span className="font-bold">&#9670;</span> : sectionIdx === 1 ? <span className="font-bold">&#9670;</span> : <span className="font-bold">&#9632;</span>}
+                          {section.key === 'premium' || section.key === 'cat' || section.key === 'dog' ? <span className="font-bold">&#9670;</span> : <span className="font-bold">&#9632;</span>}
                           {t(section.titleKey as any)}
                           <span style={{ marginLeft: '2px', fontWeight: 'normal' }}>({section.skins.length})</span>
                         </button>
@@ -717,74 +807,76 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
                             })}
                           </div>
 
-                          {/* Preview for Win98 */}
-                          {selectedLocation?.sectionIdx === sectionIdx && selectedLocation?.rowIdx === rowIndex && selectedSkinId && (
-                            <div className={`${premiumUiFieldRowStackedClassName} border border-dotted border-gray-400 my-1 p-2`}>
-                              <label>{getSkinDisplayName(previewSkin as any)}</label>
-                              <div className="flex gap-1 overflow-x-auto pb-2">
-                                {SKIN_PREVIEW_VALUES.map((v) => (
-                                  <SkinPreviewTile key={v} value={v} skin={previewSkin} tilePx={40} />
-                                ))}
+                          {/* 드롭다운 미리보기 조건: sectionKey 매칭 */}
+                          <AnimatePresence>
+                            {selectedLocation?.sectionKey === section.key && selectedLocation?.rowIdx === rowIndex && selectedSkinId && (
+                              <div style={{ marginTop: '8px', marginBottom: '8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                  <span style={{ fontSize: '11px', fontWeight: 'bold' }}>{t('modals:skin.preview')}</span>
+                                  <span style={{ fontSize: '10px', fontFamily: 'monospace' }}>
+                                    {getSkinDisplayName(previewSkin as any)}
+                                  </span>
+                                </div>
+                                <div style={{ display: 'flex', gap: '8px', paddingBottom: '4px', overflowX: 'auto' }}>
+                                  {SKIN_PREVIEW_VALUES.map((v) => (
+                                    <SkinPreviewTile key={v} value={v} skin={previewSkin} tilePx={52} />
+                                  ))}
+                                </div>
+                                <div style={{ fontSize: '11px', textAlign: 'center', marginTop: '6px' }}>
+                                  {ownedIds.has(selectedSkinId) ? (
+                                    <span style={{ color: '#808080' }}>{t('modals:skin.tapToApply')}</span>
+                                  ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                      <div style={{ color: '#808080' }}>{t('modals:skin.notOwned')}</div>
+                                      {(() => {
+                                        const cost = getFragmentCost(selectedSkinId);
+                                        const canAfford = skinSettings.fragments >= cost;
+                                        return (
+                                          <button
+                                            type="button"
+                                            disabled={!canAfford}
+                                            onClick={(e) => { e.stopPropagation(); handlePurchase(selectedSkinId); }}
+                                            className={premiumUiCompartmentButtonClassName}
+                                            style={{ width: '100%', height: '24px', fontWeight: 'bold', cursor: canAfford ? 'pointer' : 'not-allowed' }}
+                                          >
+                                            {canAfford
+                                              ? String(t('modals:skin.purchaseButton', { cost } as any))
+                                              : String(t('modals:skin.insufficientFragments', { current: skinSettings.fragments, cost } as any))}
+                                          </button>
+                                        );
+                                      })()}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                              <div style={{ textAlign: 'center', marginTop: '4px', fontSize: '11px' }}>
-                                {ownedIds.has(selectedSkinId) ? t('modals:skin.tapToApply') : (
-                                  <>
-                                    <div>{t('modals:skin.notOwned')}</div>
-                                    {(() => {
-                                      const cost = getFragmentCost(selectedSkinId);
-                                      const canAfford = skinSettings.fragments >= cost;
-                                      return (
-                                        <button
-                                          className={premiumUiCompartmentButtonClassName}
-                                          disabled={!canAfford}
-                                          onClick={() => handlePurchase(selectedSkinId)}
-                                          style={{ width: '100%', marginTop: '4px', fontWeight: canAfford ? 'bold' : 'normal' }}
-                                        >
-                                          {canAfford
-                                            ? String(t('modals:skin.purchaseButton', { cost } as any))
-                                            : String(t('modals:skin.insufficientFragments', { current: skinSettings.fragments, cost } as any))}
-                                        </button>
-                                      );
-                                    })()}
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          )}
+                            )}
+                          </AnimatePresence>
                         </React.Fragment>
                       ))}
                     </div>
                   ))}
-                </div>
               </div>
 
+              {/* 탭 내부에 단일 뽑기 버튼 패널 결합 */}
               {isSkinRewardAdSupported() && (
-                <div style={{ marginTop: '12px', textAlign: 'center' }}>
+                <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: '1.5px solid #808080' }}>
                   {showDrawButtonGuide && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className={`${premiumUiFieldRowStackedClassName} bg-violet-50 border border-violet-300 justify-center relative`}
-                      style={{ marginBottom: '4px' }}
-                    >
+                    <div style={{ background: '#ffffe1', border: '1px solid #000', padding: '6px', marginBottom: '8px', fontSize: '11px', position: 'relative' }}>
                       <button
                         type="button"
                         onClick={() => setShowDrawButtonGuide(false)}
-                        style={{ position: 'absolute', top: '2px', right: '6px', fontWeight: 'bold', cursor: 'pointer' }}
-                        aria-label="Close"
+                        style={{ position: 'absolute', top: '2px', right: '4px', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
                       >
                         ×
                       </button>
-                      <p style={{ fontSize: '11px', fontWeight: 'bold' }}>
-                        {t('modals:skin.drawGuideHint' as any, '광고를 보고 더 많은 스킨을 뽑을 수 있어요!')}
-                      </p>
-                    </motion.div>
+                      <p>{t('modals:skin.drawGuideHint' as any, '광고를 보고 더 많은 스킨을 뽑을 수 있어요!')}</p>
+                    </div>
                   )}
                   {freeDrawError && (
-                    <div className={`${premiumUiFieldRowStackedClassName} bg-danger justify-center`} style={{ marginBottom: '4px' }}>
-                      <p>{freeDrawError}</p>
+                    <div style={{ background: '#ffebeb', border: '1px solid #ff0000', padding: '6px', textAlign: 'center', marginBottom: '8px', fontSize: '11px' }}>
+                      <div>{freeDrawError}</div>
                       <button
-                        className={premiumUiCompartmentButtonClassName}
+                        type="button"
                         onClick={() => { void attemptFreeDraw(); }}
                         disabled={isProcessingFreeDraw}
                         style={{ marginTop: '4px', width: '100%', fontWeight: 'bold' }}
@@ -794,20 +886,26 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
                     </div>
                   )}
                   {collectionComplete && (
-                    <div className={`${premiumUiFieldRowStackedClassName} bg-info text-center justify-center`} style={{ marginBottom: '4px' }}>
-                      <p>{t('modals:skin.collectionComplete')}</p>
+                    <div style={{ background: '#fff0d0', border: '1px solid #ffcc00', padding: '6px', textAlign: 'center', marginBottom: '8px', fontSize: '11px', fontWeight: 'bold' }}>
+                      {t('modals:skin.collectionComplete')}
                     </div>
                   )}
                   {remainingAds > 0 ? (
-                    <button className={premiumUiCompartmentButtonClassName} onClick={handleDraw} style={{ width: '100%', height: '32px', fontWeight: 'bold' }}>
+                    <button 
+                      type="button"
+                      className={premiumUiCompartmentButtonClassName} 
+                      onClick={handleDraw} 
+                      style={{ width: '100%', height: '32px', fontWeight: 'bold', cursor: 'pointer' }}
+                    >
+                      {activeBigTab === 'premium' ? '💎 ' : '✦ '}
                       {t('modals:skin.drawButton')} ({remainingAds}/{MAX_DAILY_SKIN_AD_VIEWS})
                     </button>
                   ) : (
-                    <button className={premiumUiCompartmentButtonClassName} disabled style={{ width: '100%' }}>
+                    <button type="button" className={premiumUiCompartmentButtonClassName} disabled style={{ width: '100%' }}>
                       {t('modals:skin.dailyLimit')}
                     </button>
                   )}
-                  {adError && <p style={{ color: 'red', marginTop: '4px' }}>{adError}</p>}
+                  {adError && <p style={{ color: 'red', marginTop: '4px', fontSize: '11px' }}>{adError}</p>}
                 </div>
               )}
             </div>
@@ -877,178 +975,211 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
           </div>
 
           {/* 본문 */}
-          <div className="p-5 overflow-y-auto min-h-0 flex-1 space-y-5 modal-scroll-panel">
+          <div className="p-5 overflow-y-auto min-h-0 flex-1 space-y-5 modal-scroll-panel animate-fade-in">
+            {/* Modern Tab Bar */}
+            <div className="flex p-1 bg-gray-100/80 backdrop-blur-sm rounded-2xl border border-black/5 shadow-inner" style={{ marginBottom: '16px' }}>
+              <button
+                type="button"
+                onClick={() => setActiveBigTab('premium')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-bold rounded-xl transition-all ${
+                  activeBigTab === 'premium'
+                    ? 'bg-white text-gray-900 shadow-sm border border-white/60'
+                    : 'text-gray-500 hover:text-gray-800'
+                }`}
+              >
+                <span>💎</span>
+                <span>{t('modals:skin.sectionPremium')}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveBigTab('normal')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-bold rounded-xl transition-all ${
+                  activeBigTab === 'normal'
+                    ? 'bg-white text-gray-900 shadow-sm border border-white/60'
+                    : 'text-gray-500 hover:text-gray-800'
+                }`}
+              >
+                <span>✦</span>
+                <span>{t('modals:skin.sectionNormal')}</span>
+              </button>
+            </div>
+
             {/* 섹션별 컬렉션 그리드 */}
             <div className="space-y-5">
-              {skinSections.map((section, sectionIdx) => (
-                <div key={sectionIdx}>
-                  {/* 섹션 헤더 */}
-                  <button
-                    type="button"
-                    aria-expanded={openSections[section.key]}
-                    onClick={() => toggleSection(section.key)}
-                    className="w-full flex items-center gap-2 mb-2.5 text-left"
-                  >
-                    <span className="text-xs text-gray-400" aria-hidden="true">{openSections[section.key] ? '▾' : '▸'}</span>
-                    <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">
-                      {t(section.titleKey as any)}{sectionIdx === 0 ? ' 💎' : sectionIdx === 1 ? ' ✦' : ''}
-                    </span>
-                    <div className="flex-1 h-px bg-gray-200" />
-                    <span className="text-xs text-gray-400">{section.skins.length}</span>
-                  </button>
-                  {openSections[section.key] && (
-                    <div className="space-y-2.5">
-                    {section.rows.map((rowSkins, rowIndex) => (
-                      <React.Fragment key={rowIndex}>
-                        {/* 스킨 행 */}
-                        <div className={SKIN_SWATCH_GRID_CLASS_NAME}>
-                          {rowSkins.map((entry) => {
-                            const isOwned = ownedIds.has(entry.id);
-                            const isActive = skinSettings.activeSkinId === entry.id;
-                            const isSelected = selectedSkinId === entry.id;
-                            const isRecentlyAcquired = recentlyAcquiredSkinIds.has(entry.id);
-                            const swatchAppearance = swatchAppearanceBySkinId.get(entry.id);
-                            const className = swatchAppearance?.className ?? '';
-                            const style = swatchAppearance?.style;
-                            const isNeonSwatch = isNeonSkin(entry.id);
-                            const isExploreGalaxySwatch = entry.id === EXPLORE_GALAXY_SKIN_ID;
-                            const themeMaskVariant = getThemeMaskVariant(entry.id);
+              {skinSections
+                .filter(sec => activeBigTab === 'premium' 
+                  ? (sec.key === 'premium' || sec.key === 'cat' || sec.key === 'dog')
+                  : (sec.key === 'neon' || sec.key === 'liquid' || sec.key === 'mesh' || sec.key === 'normal')
+                )
+                .map((section) => (
+                  <div key={section.key}>
+                    {/* 섹션 헤더 */}
+                    <button
+                      type="button"
+                      aria-expanded={openSections[section.key]}
+                      onClick={() => toggleSection(section.key)}
+                      className="w-full flex items-center gap-2 mb-2.5 text-left"
+                    >
+                      <span className="text-xs text-gray-400" aria-hidden="true">{openSections[section.key] ? '▾' : '▸'}</span>
+                      <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+                        {t(section.titleKey as any)}{section.key === 'premium' || section.key === 'cat' || section.key === 'dog' ? ' 💎' : ' ✦'}
+                      </span>
+                      <div className="flex-1 h-px bg-gray-200" />
+                      <span className="text-xs text-gray-400">{section.skins.length}</span>
+                    </button>
+                    {openSections[section.key] && (
+                      <div className="space-y-2.5">
+                      {section.rows.map((rowSkins, rowIndex) => (
+                        <React.Fragment key={rowIndex}>
+                          {/* 스킨 행 */}
+                          <div className={SKIN_SWATCH_GRID_CLASS_NAME}>
+                            {rowSkins.map((entry) => {
+                              const isOwned = ownedIds.has(entry.id);
+                              const isActive = skinSettings.activeSkinId === entry.id;
+                              const isSelected = selectedSkinId === entry.id;
+                              const isRecentlyAcquired = recentlyAcquiredSkinIds.has(entry.id);
+                              const swatchAppearance = swatchAppearanceBySkinId.get(entry.id);
+                              const className = swatchAppearance?.className ?? '';
+                              const style = swatchAppearance?.style;
+                              const isNeonSwatch = isNeonSkin(entry.id);
+                              const isExploreGalaxySwatch = entry.id === EXPLORE_GALAXY_SKIN_ID;
+                              const themeMaskVariant = getThemeMaskVariant(entry.id);
 
-                            return (
-                              <button
-                                key={entry.id}
-                                id={getSkinItemTargetId(entry.id)}
-                                data-tutorial-anchor="skin-swatch"
-                                type="button"
-                                onClick={() => handleSkinTap(entry.id, entry.hex)}
-                                className={`
-                                  relative aspect-square rounded-2xl transition-all duration-150
-                                  ${isSelected ? 'ring-2 ring-gray-900 ring-offset-2' : 'ring-1 ring-black/5'}
-                                  ${isRecentlyAcquired ? 'skin-swatch-new overflow-visible' : 'overflow-hidden'}
-                                  ${isNeonSwatch ? 'bg-slate-950/10 shadow-[inset_0_0_0_1px_rgba(2,6,23,0.12)]' : ''}
-                                `}
-                                style={{
-                                  ['--tutorial-anchor-inset' as any]: `${SKIN_TUTORIAL_ANCHOR_INSET_PX}px`,
-                                }}
-                              >
-                                {isRecentlyAcquired && (
-                                  <div className="skin-new-badge">{t('modals:skin.newLabel')}</div>
-                                )}
-                                  <div
-                                    className={`relative w-full h-full ${isNeonSwatch ? '' : 'overflow-hidden'}`}
-                                    data-skin-swatch="true"
-                                  >
-                                    <div
-                                      className={`relative w-full h-full ${isNeonSwatch ? '' : 'overflow-hidden'} ${isExploreGalaxySwatch ? 'explore-galaxy-phase-sync' : ''} ${className}`}
-                                      style={style}
+                              return (
+                                <button
+                                  key={entry.id}
+                                  id={getSkinItemTargetId(entry.id)}
+                                  data-tutorial-anchor="skin-swatch"
+                                  type="button"
+                                  onClick={() => handleSkinTap(entry.id, entry.hex)}
+                                  className={`
+                                    relative aspect-square rounded-2xl transition-all duration-150
+                                    ${isSelected ? 'ring-2 ring-gray-900 ring-offset-2' : 'ring-1 ring-black/5'}
+                                    ${isRecentlyAcquired ? 'skin-swatch-new overflow-visible' : 'overflow-hidden'}
+                                    ${isNeonSwatch ? 'bg-slate-950/10 shadow-[inset_0_0_0_1px_rgba(2,6,23,0.12)]' : ''}
+                                  `}
+                                  style={{
+                                    ['--tutorial-anchor-inset' as any]: `${SKIN_TUTORIAL_ANCHOR_INSET_PX}px`,
+                                  }}
+                                >
+                                  {isRecentlyAcquired && (
+                                    <span className="skin-new-badge block">{t('modals:skin.newLabel')}</span>
+                                  )}
+                                    <span
+                                      className={`relative block w-full h-full ${isNeonSwatch ? '' : 'overflow-hidden'}`}
+                                      data-skin-swatch="true"
                                     >
-                                      {themeMaskVariant && (
-                                        <span
-                                          className={`skin-theme-mask skin-theme-mask--swatch skin-theme-mask--${themeMaskVariant}`}
-                                          aria-hidden="true"
-                                        />
-                                      )}
-                                      {isExploreGalaxySwatch && (
-                                        <ExploreGalaxyOverlay
-                                          size={4}
-                                        cellPx={10}
-                                        active
-                                        mode="swatch"
-                                        zIndex={1}
-                                      />
+                                      <span
+                                        className={`relative block w-full h-full ${isNeonSwatch ? '' : 'overflow-hidden'} ${isExploreGalaxySwatch ? 'explore-galaxy-phase-sync' : ''} ${className}`}
+                                        style={style}
+                                      >
+                                        {themeMaskVariant && (
+                                          <span
+                                            className={`skin-theme-mask skin-theme-mask--swatch skin-theme-mask--${themeMaskVariant}`}
+                                            aria-hidden="true"
+                                          />
+                                        )}
+                                        {isExploreGalaxySwatch && (
+                                          <ExploreGalaxyOverlay
+                                            size={4}
+                                            cellPx={10}
+                                            active
+                                            mode="swatch"
+                                            zIndex={1}
+                                          />
+                                        )}
+                                      </span>
+                                    </span>
+                                    {!isOwned && (
+                                      <span className="absolute inset-0 bg-black/40 z-[5] block" />
+                                    )}
+                                    {entry.premium && (
+                                      <span className="absolute top-0.5 right-0.5 z-20 text-[8px] leading-none drop-shadow block">💎</span>
+                                    )}
+                                    {isActive && (
+                                      <span className="absolute inset-0 flex items-center justify-center z-10">
+                                        <span className="w-6 h-6 rounded-full bg-white/90 flex items-center justify-center shadow-sm">
+                                          <Check size={14} className="text-gray-900" />
+                                        </span>
+                                      </span>
+                                    )}
+                                    {!isOwned && !isActive && (
+                                      <div className="absolute inset-0 flex items-center justify-center z-10">
+                                        <div className="w-7 h-7 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center shadow-md border border-white/20">
+                                          <Lock size={14} className="text-white drop-shadow-md" />
+                                        </div>
+                                      </div>
+                                    )}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {/* 드롭다운 미리보기: sectionKey 매칭 */}
+                          <AnimatePresence>
+                            {selectedLocation?.sectionKey === section.key && selectedLocation?.rowIdx === rowIndex && selectedSkinId && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
+                                className="overflow-hidden"
+                              >
+                                <div className="pt-3 pb-2 space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-sm font-semibold text-gray-900">{t('modals:skin.preview')}</span>
+                                    <span className="text-xs font-mono text-gray-500">
+                                      {getSkinDisplayName(previewSkin as any)}
+                                    </span>
+                                  </div>
+                                  <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 no-scrollbar">
+                                    {SKIN_PREVIEW_VALUES.map((v) => (
+                                      <SkinPreviewTile key={v} value={v} skin={previewSkin} tilePx={52} />
+                                    ))}
+                                  </div>
+                                  <div className="text-xs text-center space-y-1.5">
+                                    {ownedIds.has(selectedSkinId) ? (
+                                      <span className="text-gray-500">{t('modals:skin.tapToApply')}</span>
+                                    ) : (
+                                      <>
+                                        <div className="text-gray-500">{t('modals:skin.notOwned')}</div>
+                                        {(() => {
+                                          const cost = getFragmentCost(selectedSkinId);
+                                          const canAfford = skinSettings.fragments >= cost;
+                                          return (
+                                            <button
+                                              type="button"
+                                              disabled={!canAfford}
+                                              onClick={(e) => { e.stopPropagation(); handlePurchase(selectedSkinId); }}
+                                              className={`w-full py-1.5 rounded-xl text-xs font-semibold transition-all ${canAfford
+                                                ? 'bg-gray-900 text-white hover:bg-gray-800 active:scale-[0.98]'
+                                                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                }`}
+                                            >
+                                              {canAfford
+                                                ? String(t('modals:skin.purchaseButton', { cost } as any))
+                                                : String(t('modals:skin.insufficientFragments', { current: skinSettings.fragments, cost } as any))}
+                                            </button>
+                                          );
+                                        })()}
+                                      </>
                                     )}
                                   </div>
                                 </div>
-                                {!isOwned && (
-                                  <div className="absolute inset-0 bg-black/40 z-[5]" />
-                                )}
-                                {entry.premium && (
-                                  <div className="absolute top-0.5 right-0.5 z-20 text-[8px] leading-none drop-shadow">💎</div>
-                                )}
-                                {isActive && (
-                                  <div className="absolute inset-0 flex items-center justify-center z-10">
-                                    <div className="w-6 h-6 rounded-full bg-white/90 flex items-center justify-center shadow-sm">
-                                      <Check size={14} className="text-gray-900" />
-                                    </div>
-                                  </div>
-                                )}
-                                {!isOwned && !isActive && (
-                                  <div className="absolute inset-0 flex items-center justify-center z-10">
-                                    <div className="w-7 h-7 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center shadow-md border border-white/20">
-                                      <Lock size={14} className="text-white drop-shadow-md" />
-                                    </div>
-                                  </div>
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        {/* 선택된 스킨의 행이면 바로 아래에 미리보기 드롭다운 */}
-                        <AnimatePresence>
-                          {selectedLocation?.sectionIdx === sectionIdx && selectedLocation?.rowIdx === rowIndex && selectedSkinId && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: 'auto', opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
-                              className="overflow-hidden"
-                            >
-                              <div className="pt-3 pb-2 space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm font-semibold text-gray-900">{t('modals:skin.preview')}</span>
-                                  <span className="text-xs font-mono text-gray-500">
-                                    {getSkinDisplayName(previewSkin as any)}
-                                  </span>
-                                </div>
-                                <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 no-scrollbar">
-                                  {SKIN_PREVIEW_VALUES.map((v) => (
-                                    <SkinPreviewTile key={v} value={v} skin={previewSkin} tilePx={52} />
-                                  ))}
-                                </div>
-                                <div className="text-xs text-center space-y-1.5">
-                                  {ownedIds.has(selectedSkinId) ? (
-                                    <span className="text-gray-500">{t('modals:skin.tapToApply')}</span>
-                                  ) : (
-                                    <>
-                                      <div className="text-gray-500">{t('modals:skin.notOwned')}</div>
-                                      {(() => {
-                                        const cost = getFragmentCost(selectedSkinId);
-                                        const canAfford = skinSettings.fragments >= cost;
-                                        return (
-                                          <button
-                                            type="button"
-                                            disabled={!canAfford}
-                                            onClick={(e) => { e.stopPropagation(); handlePurchase(selectedSkinId); }}
-                                            className={`w-full py-1.5 rounded-xl text-xs font-semibold transition-all ${canAfford
-                                              ? 'bg-gray-900 text-white hover:bg-gray-800 active:scale-[0.98]'
-                                              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                              }`}
-                                          >
-                                            {canAfford
-                                              ? String(t('modals:skin.purchaseButton', { cost } as any))
-                                              : String(t('modals:skin.insufficientFragments', { current: skinSettings.fragments, cost } as any))}
-                                          </button>
-                                        );
-                                      })()}
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </React.Fragment>
-                    ))}
-                    </div>
-                  )}
-                </div>
-              ))}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </React.Fragment>
+                      ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
             </div>
 
-            {/* 뽑기 버튼 영역 */}
+            {/* 스킨 탭 내부의 단일 뽑기 버튼 (Modern 탭 전용 통합) */}
             {isSkinRewardAdSupported() && (
-              <div className="space-y-2">
+              <div className="space-y-2 mt-4 pt-4 border-t border-black/5">
                 {showDrawButtonGuide && (
                   <motion.div
                     initial={{ opacity: 0, y: 8 }}
@@ -1091,10 +1222,11 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
                   <button
                     type="button"
                     onClick={handleDraw}
-                    className="w-full py-3.5 rounded-2xl bg-gray-900 text-white font-semibold text-sm hover:bg-gray-800 active:scale-[0.98] transition-all shadow-lg"
+                    className="w-full py-3.5 rounded-2xl bg-gray-900 text-white font-semibold text-sm hover:bg-gray-800 active:scale-[0.98] transition-all shadow-lg flex items-center justify-center gap-2"
                   >
-                    {t('modals:skin.drawButton')}
-                    <span className="ml-2 text-white/60">
+                    <span>{activeBigTab === 'premium' ? '💎' : '✦'}</span>
+                    <span>{t('modals:skin.drawButton')}</span>
+                    <span className="text-white/60">
                       ({remainingAds}/{MAX_DAILY_SKIN_AD_VIEWS})
                     </span>
                   </button>

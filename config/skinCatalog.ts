@@ -168,9 +168,9 @@ export const ADDITIONAL_SKIN_CATALOG: SkinCatalogEntry[] = [
   {
     id: 'skin_cute_black_cat',
     hex: '#FDE8C0', // 연노랑 배경 크림색
-    category: 'art',
+    category: 'cat',
     nameKey: 'cuteBlackCat',
-    premium: false,
+    premium: true,
     style: {
       type: 'css-pattern',
       value: 'none',
@@ -181,9 +181,9 @@ export const ADDITIONAL_SKIN_CATALOG: SkinCatalogEntry[] = [
   {
     id: 'skin_cute_white_cat',
     hex: '#E6F4F8', // 연하늘 배경색
-    category: 'art',
+    category: 'cat',
     nameKey: 'cuteWhiteCat',
-    premium: false,
+    premium: true,
     style: {
       type: 'css-pattern',
       value: 'none',
@@ -194,9 +194,9 @@ export const ADDITIONAL_SKIN_CATALOG: SkinCatalogEntry[] = [
   {
     id: 'skin_cute_dog',
     hex: '#FFF0F5', // 파스텔 핑크/라벤더 배경색
-    category: 'art',
+    category: 'dog',
     nameKey: 'cuteDog',
-    premium: false,
+    premium: true,
     style: {
       type: 'css-pattern',
       value: 'none',

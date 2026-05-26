@@ -214,16 +214,22 @@ export const saveSkinSettings = (settings: SkinSettings): boolean => {
  * - 보유 스킨이 뽑히면 → 중복 → 스킨 조각 지급
  * - 미보유 스킨이 뽑히면 → 새 스킨 획득
  */
-export const drawSkin = (settings: SkinSettings): SkinDrawResult | null => {
+export const drawSkin = (settings: SkinSettings, filter?: 'premium' | 'normal'): SkinDrawResult | null => {
   if (SKIN_CATALOG.length === 0) return null;
 
+  const targetCatalog = filter
+    ? SKIN_CATALOG.filter(e => filter === 'premium' ? e.premium : !e.premium)
+    : SKIN_CATALOG;
+
+  if (targetCatalog.length === 0) return null;
+
   const ownedIds = new Set(settings.ownedSkins.map(s => s.id));
-  const totalWeight = SKIN_CATALOG.reduce(
+  const totalWeight = targetCatalog.reduce(
     (sum, entry) => sum + (entry.premium ? 1 : 2), 0,
   );
 
   let roll = Math.random() * totalWeight;
-  for (const entry of SKIN_CATALOG) {
+  for (const entry of targetCatalog) {
     roll -= entry.premium ? 1 : 2;
     if (roll <= 0) {
       if (ownedIds.has(entry.id)) {
@@ -234,7 +240,7 @@ export const drawSkin = (settings: SkinSettings): SkinDrawResult | null => {
   }
 
   // 안전장치 (부동소수점 오차 방지)
-  const last = SKIN_CATALOG[SKIN_CATALOG.length - 1];
+  const last = targetCatalog[targetCatalog.length - 1];
   if (ownedIds.has(last.id)) {
     return { type: 'duplicate', skin: last, fragmentsEarned: FRAGMENTS_PER_DUPLICATE };
   }

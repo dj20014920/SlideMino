@@ -3,7 +3,7 @@ import type { PremiumUiThemeId } from '../../types';
 import { resolveActiveSkinModule } from './registry';
 import type { SkinModuleFeatures } from './contracts';
 
-type RuntimeFamilyId = 'default' | 'win98' | 'explore_galaxy' | 'pixelblast_void';
+type RuntimeFamilyId = 'default' | 'win98' | 'explore_galaxy' | 'pixelblast_void' | 'cute_pet';
 type DeepPartial<T> = {
   [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
 };
@@ -151,6 +151,16 @@ const RUNTIME_OVERRIDES: Record<RuntimeFamilyId, DeepPartial<PremiumSkinRuntimeP
     },
     backgroundMode: 'pixelblast',
   },
+  cute_pet: {
+    family: 'cute_pet',
+    board: {
+      ghost: {
+        validStyle: { backgroundColor: 'rgba(91, 226, 167, 0.15)', borderColor: 'var(--pet-border)' },
+        invalidStyle: { backgroundColor: 'rgba(255, 107, 107, 0.15)', borderColor: 'var(--pet-accent-red)' },
+      },
+    },
+    backgroundMode: 'none',
+  },
 };
 
 const resolveRuntimeFamily = (
@@ -160,9 +170,11 @@ const resolveRuntimeFamily = (
   if (themeId === 'retro_windows_98') return 'win98';
   if (themeId === 'explore_galaxy') return 'explore_galaxy';
   if (themeId === 'pixelblast_void') return 'pixelblast_void';
+  if (themeId === 'cute_black_cat' || themeId === 'cute_white_cat' || themeId === 'cute_dog') return 'cute_pet';
   if (skinId === 'skin_digital_pixelblast_void') return 'pixelblast_void';
   if (skinId === 'skin_digital_explore_galaxy') return 'explore_galaxy';
   if (skinId === 'skin_digital_win98') return 'win98';
+  if (skinId === 'skin_cute_black_cat' || skinId === 'skin_cute_white_cat' || skinId === 'skin_cute_dog') return 'cute_pet';
   return 'default';
 };
 

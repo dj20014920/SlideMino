@@ -55,7 +55,7 @@ import { SkinModal } from './components/SkinModal';
 import { Undo2, Home, RotateCw, Move, Palette, Lock, Trophy, HelpCircle, RotateCcw, X } from 'lucide-react';
 
 import { GameOverModal } from './components/GameOverModal';
-import { PetButtonFrame, PetHeaderTitleDecor, PetBottomBannerDecor, PetGridFrameDecor } from './components/CutePetDecorations';
+import { PetButtonFrame, PetHeaderTitleDecor, PetBottomBannerDecor, PetBoardOverlay } from './components/CutePetDecorations';
 import { GameModeTutorial } from './components/GameModeTutorial';
 import { SequentialOnboardingOverlay } from './components/SequentialOnboardingOverlay';
 import { LeaderboardModal } from './components/LeaderboardModal';
@@ -591,7 +591,8 @@ const getViewportSize = (): ViewportSize => {
 const getGameLayoutProfile = (
   { width, height }: ViewportSize,
   chromeHeights: LayoutChromeHeights = DEFAULT_LAYOUT_CHROME_HEIGHTS,
-  boardScaleCeilingMin: number = DEFAULT_BOARD_SCALE_CEILING_MIN
+  boardScaleCeilingMin: number = DEFAULT_BOARD_SCALE_CEILING_MIN,
+  isCutePet: boolean = false
 ): GameLayoutProfile => {
   const safeWidth = Math.max(240, Math.round(width));
   const safeHeight = Math.max(320, Math.round(height));
@@ -634,7 +635,7 @@ const getGameLayoutProfile = (
   // 새로고침 버튼 행(min-h-10)과 두 번째 gap까지 포함해 정확하게 보드 높이 예산 계산
   const REFRESH_ROW_HEIGHT_PX = 40;
   const boardHeightBudgetPx =
-    availableMainHeightPx - slotHeightPx - mainGapPx * 2 - REFRESH_ROW_HEIGHT_PX - mainTopPaddingPx - mainBottomPaddingPx;
+    availableMainHeightPx - slotHeightPx - mainGapPx * 2 - REFRESH_ROW_HEIGHT_PX - mainTopPaddingPx - mainBottomPaddingPx - (isCutePet ? 30 : 0);
   const boardScaleCeiling = clamp(
     Math.min(contentWidthPx, boardHeightBudgetPx) / 420,
     boardScaleCeilingMin,
@@ -1374,9 +1375,10 @@ const App: React.FC = () => {
     () => getGameLayoutProfile(
       viewportSize,
       layoutChromeHeights,
-      isWin98ThemeActive ? WIN98_BOARD_SCALE_CEILING_MIN : DEFAULT_BOARD_SCALE_CEILING_MIN
+      isWin98ThemeActive ? WIN98_BOARD_SCALE_CEILING_MIN : DEFAULT_BOARD_SCALE_CEILING_MIN,
+      isPremiumUiThemeActive && premiumUiTheme?.family === 'cute_pet'
     ),
-    [viewportSize, layoutChromeHeights, isWin98ThemeActive]
+    [viewportSize, layoutChromeHeights, isWin98ThemeActive, isPremiumUiThemeActive, premiumUiTheme]
   );
 
   const baseBoardScale = useMemo(() => {
@@ -6460,7 +6462,9 @@ const App: React.FC = () => {
             style={{
               maxWidth: `${gameLayoutProfile.columnWidthPx}px`,
               // safe-top은 상단 래퍼가 일괄 담당하므로 헤더는 내부 여백만 설정
-              paddingTop: isGameHeaderCompact ? (isPremiumUiThemeActive ? '6px' : '10px') : (isPremiumUiThemeActive ? '8px' : '16px'),
+              paddingTop: isPremiumUiThemeActive && premiumUiTheme?.family === 'cute_pet'
+                ? (isGameHeaderCompact ? '18px' : '28px')
+                : isGameHeaderCompact ? (isPremiumUiThemeActive ? '6px' : '10px') : (isPremiumUiThemeActive ? '8px' : '16px'),
               // 보드와의 간격을 줄이기 위해 헤더 하단 여백을 공통값으로 고정
               paddingBottom: isGameHeaderCompact ? '6px' : '10px',
               // 앱인토스: 우측 상단 공통 내비게이션 영역 확보
@@ -6508,14 +6512,14 @@ const App: React.FC = () => {
                 <h2 className={`${isGameHeaderCompact ? 'text-[11px] flex-nowrap min-w-0' : 'text-sm flex-wrap'} font-medium text-gray-400 uppercase tracking-wider flex items-center gap-1.5`}>
                   {t('common:labels.score')}
                   {gameMode === 'normal' && liveRankEstimate !== null && gameState === GameState.PLAYING
-                    && score > 0 && liveRankEstimate.totalEntries >= 2 && (
+                    && score > 0 && liveRankEstimate.totalEntries >= 2 && (!isPremiumUiThemeActive || premiumUiTheme?.family !== 'cute_pet') && (
                       <span className={isGameHeaderCompact ? 'text-[10px] font-semibold text-blue-600 whitespace-nowrap truncate' : 'text-xs font-semibold text-blue-600'}>
                         {String(t('game:liveRank.estimatedRank', { rank: liveRankEstimate.rank } as any))}
                       </span>
                     )}
                 </h2>
                 <div className="relative">
-                  <p className={`${isGameHeaderCompact ? 'text-2xl' : 'text-3xl'} font-bold text-gray-900 tabular-nums leading-none`}>{score}</p>
+                  <p className={`${isGameHeaderCompact ? 'text-2xl' : 'text-3xl'} font-bold ${isPremiumUiThemeActive ? 'text-white' : 'text-gray-900'} tabular-nums leading-none`}>{score}</p>
                   {isPremiumUiThemeActive && premiumUiTheme?.family === 'cute_pet' && (
                     <>
                       {/* 대각선 3줄 주황/레드 불꽃 데코 */}
@@ -6537,7 +6541,7 @@ const App: React.FC = () => {
                   </p>
                 )}
                 {gameMode === 'normal' && liveRankEstimate !== null && gameState === GameState.PLAYING
-                  && score > 0 && liveRankEstimate.totalEntries >= 2 && (
+                  && score > 0 && liveRankEstimate.totalEntries >= 2 && (!isPremiumUiThemeActive || premiumUiTheme?.family !== 'cute_pet') && (
                     <>
                       <p className={isGameHeaderCompact ? 'text-[10px] font-semibold text-blue-500 whitespace-nowrap truncate' : 'text-xs font-semibold text-blue-500'}>
                         {liveRankEstimate.pointsToNext > 0
@@ -6546,7 +6550,7 @@ const App: React.FC = () => {
                       </p>
                     </>
                   )}
-                {shouldShowRankingSyncNotice && (
+                {shouldShowRankingSyncNotice && (!isPremiumUiThemeActive || premiumUiTheme?.family !== 'cute_pet') && (
                   <p className={isGameHeaderCompact ? 'max-w-[150px] text-[10px] font-semibold text-emerald-600 whitespace-nowrap truncate' : 'text-[10px] font-semibold text-emerald-600'}>
                     {rankingSyncNotice}
                   </p>
@@ -6676,59 +6680,36 @@ const App: React.FC = () => {
           `}>
             {isPremiumUiThemeActive ? (
               <div
-                className={`game-mode-focus-shell game-mode-focus-board ${premiumWindowClassName} ${premiumGameBoardWindowClassName} w-full max-w-[520px]`}
+                className={`game-mode-focus-shell game-mode-focus-board w-full max-w-[520px] ${premiumUiTheme?.family === 'cute_pet' ? '' : `${premiumWindowClassName} ${premiumGameBoardWindowClassName}`}`}
                 data-game-phase={phase}
                 data-focus-family={premiumSkinRuntime.family}
               >
-                <div className={`${premiumWindowBodyClassName} ${premiumGameBoardBodyClassName} relative`}>
+                {/* cute_pet: 귀가 위로 28px 솟으므로 paddingTop으로 공간 확보, relative로 오버레이 앵커 */}
+                <div className={`${premiumUiTheme?.family === 'cute_pet' ? 'relative' : `${premiumWindowBodyClassName} ${premiumGameBoardBodyClassName} relative`}`}
+                  style={premiumUiTheme?.family === 'cute_pet' ? { paddingTop: '28px' } : undefined}>
                   <ComboIndicator comboCount={comboCount} timerMs={comboTimerMs} isActive={isComboActive} multiplier={comboMultiplierRef.current} />
-                  {isPremiumUiThemeActive && premiumUiTheme?.family === 'cute_pet' ? (
-                    <PetGridFrameDecor themeId={premiumUiTheme.id}>
-                      <Board
-                        ref={boardHandleRef}
-                        htmlId="game-board"
-                        grid={grid}
-                        obstacleState={obstacleState}
-                        phase={phase}
-                        activePiece={draggingPiece}
-                        boardRef={boardRef}
-                        mergingTiles={mergingTiles}
-                        portalReleaseAnimations={portalReleaseAnimations}
-                        portalInAnimations={portalInAnimations}
-                        popAnimations={popAnimations}
-                        valueOverrides={tileValueOverrides}
-                        boardScale={boardScale}
-                        reviveSelectionEnabled={isReviveSelectionMode}
-                        revivePendingTileId={revivePendingTileId}
-                        onReviveTileTap={handleReviveTileTap}
-                        reviveDestroyEffects={reviveDestroyEffects}
-                        mergedNumberBurstTileIds={mergedNumberBurstTileIds}
-                        mergedNumberBurstByTileId={mergedNumberBurstByTileId}
-                      />
-                    </PetGridFrameDecor>
-                  ) : (
-                    <Board
-                      ref={boardHandleRef}
-                      htmlId="game-board"
-                      grid={grid}
-                      obstacleState={obstacleState}
-                      phase={phase}
-                      activePiece={draggingPiece}
-                      boardRef={boardRef}
-                      mergingTiles={mergingTiles}
-                      portalReleaseAnimations={portalReleaseAnimations}
-                      portalInAnimations={portalInAnimations}
-                      popAnimations={popAnimations}
-                      valueOverrides={tileValueOverrides}
-                      boardScale={boardScale}
-                      reviveSelectionEnabled={isReviveSelectionMode}
-                      revivePendingTileId={revivePendingTileId}
-                      onReviveTileTap={handleReviveTileTap}
-                      reviveDestroyEffects={reviveDestroyEffects}
-                      mergedNumberBurstTileIds={mergedNumberBurstTileIds}
-                      mergedNumberBurstByTileId={mergedNumberBurstByTileId}
-                    />
-                  )}
+                  {/* 보드는 항상 직접 렌더링 — 좌표계를 절대 감싸지 않음 */}
+                  <Board
+                    ref={boardHandleRef}
+                    htmlId="game-board"
+                    grid={grid}
+                    obstacleState={obstacleState}
+                    phase={phase}
+                    activePiece={draggingPiece}
+                    boardRef={boardRef}
+                    mergingTiles={mergingTiles}
+                    portalReleaseAnimations={portalReleaseAnimations}
+                    portalInAnimations={portalInAnimations}
+                    popAnimations={popAnimations}
+                    valueOverrides={tileValueOverrides}
+                    boardScale={boardScale}
+                    reviveSelectionEnabled={isReviveSelectionMode}
+                    revivePendingTileId={revivePendingTileId}
+                    onReviveTileTap={handleReviveTileTap}
+                    reviveDestroyEffects={reviveDestroyEffects}
+                    mergedNumberBurstTileIds={mergedNumberBurstTileIds}
+                    mergedNumberBurstByTileId={mergedNumberBurstByTileId}
+                  />
                 </div>
               </div>
             ) : (
@@ -6818,6 +6799,32 @@ const App: React.FC = () => {
                 `}
               >
                 <span>{t('game:blockRefresh.ad.watchButton')}</span>
+              </button>
+            ) : isPremiumUiThemeActive && premiumUiTheme?.family === 'cute_pet' ? (
+              <button
+                type="button"
+                onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                onClick={handleRefreshPreviewBlocks}
+                disabled={isBlockRefreshButtonDisabled}
+                className={`inline-flex items-center justify-center gap-2 ${premiumGameButtonClassName}`}
+                style={{
+                  padding: '8px 22px',
+                  borderRadius: '24px',
+                  border: `2px solid var(--pet-border)`,
+                  background: isBlockRefreshButtonDisabled ? 'rgba(100,100,100,0.2)' : 'var(--pet-bg)',
+                  color: isBlockRefreshButtonDisabled ? 'var(--pet-text-muted)' : 'var(--pet-text-color)',
+                  boxShadow: '0 3px 0 rgba(0,0,0,0.3)',
+                  fontFamily: 'DungGeunMo, monospace',
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  opacity: isBlockRefreshButtonDisabled ? 0.5 : 1,
+                  cursor: isBlockRefreshButtonDisabled ? 'not-allowed' : 'pointer',
+                  letterSpacing: '0.05em',
+                }}
+              >
+                <span>🐾</span>
+                <span>{t('game:blockRefresh.refreshButton')}</span>
+                <span>🐾</span>
               </button>
             ) : (
               <button
@@ -7135,7 +7142,6 @@ const App: React.FC = () => {
       {/* 실시간 랭킹 사이드 패널 — 웹 전용 */}
       {!isNative && (
         <RealTimeRankingPanel
-          boardSize={boardSize}
           score={score}
           gameState={gameState}
           liveRankEstimate={liveRankEstimate}

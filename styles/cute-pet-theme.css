@@ -1,4 +1,4 @@
-/* 🐾 공통 픽셀 펫 (Cute Pet) 프리미엄 테마 CSS (v12) */
+/* 🐾 공통 픽셀 펫 (Cute Pet) 프리미엄 테마 CSS (v13 — 목표 시안 충실 재현) */
 
 /* ── 0. 픽셀 웹폰트 로딩 정의 (Galmuri11 & DungGeunMo) ── */
 @font-face {
@@ -25,52 +25,64 @@
   font-display: swap;
 }
 
-/* 1. 깜고 프리미엄 테마 색상 변수 - 가독성을 위해 명도 대비 상향 */
+/* ── 1. 깜고(검은고양이) 프리미엄 테마 색상 변수 ── */
 .theme-cute-black-cat {
-  --pet-bg: #18181A;
-  --pet-pattern-color: #242426;
-  --pet-border: #E7C6A0;
-  --pet-cell-bg: #232326;         /* 기존 #1D1D20 에서 대비 대폭 향상 */
-  --pet-cell-border: #3B3B42;     /* 기존 #2C2C30 에서 명도 대비 대폭 향상 */
-  --pet-accent-mint: #5BE2A7;
-  --pet-accent-red: #FF6B6B;
-  --pet-text-color: #FFFFFF;
-  --pet-text-muted: #A0A0A5;      /* 기존 #8E8E93 보다 밝게 가독성 강화 */
-  --pet-btn-hover-bg: #323236;
-  --pet-active-glow: rgba(91, 226, 167, 0.25);
+  --pet-bg:           #18181A;
+  --pet-pattern-color:#242426;
+  --pet-border:       #E7C6A0;   /* 따뜻한 살구 골드 */
+  --pet-border-thin:  2px;
+  --pet-cell-bg:      #232326;
+  --pet-cell-border:  #38383E;
+  --pet-accent-mint:  #5BE2A7;
+  --pet-accent-red:   #FF6B6B;
+  --pet-text-color:   #FFFFFF;
+  --pet-text-muted:   #A0A0A5;
+  --pet-btn-hover-bg: #2E2E32;
+  --pet-active-glow:  rgba(91, 226, 167, 0.25);
+  --pet-radius-lg:    20px;   /* 보드/패널 큰 radius */
+  --pet-radius-md:    14px;   /* 버튼/슬롯 중간 radius */
+  --pet-radius-sm:    10px;   /* 작은 요소 radius */
 }
 
-/* 2. 흰고 프리미엄 테마 색상 변수 */
+/* ── 2. 흰고 프리미엄 테마 ── */
 .theme-cute-white-cat {
-  --pet-bg: #E6F4F8;
-  --pet-pattern-color: #D2EAF0;
-  --pet-border: #121212;
-  --pet-cell-bg: #F0F8FA;
-  --pet-cell-border: #C8E2E8;
-  --pet-accent-mint: #FF6D00;
-  --pet-accent-red: #E53935;
-  --pet-text-color: #121212;
-  --pet-text-muted: #64748B;
+  --pet-bg:           #E6F4F8;
+  --pet-pattern-color:#D2EAF0;
+  --pet-border:       #121212;
+  --pet-border-thin:  2px;
+  --pet-cell-bg:      #F0F8FA;
+  --pet-cell-border:  #C8E2E8;
+  --pet-accent-mint:  #FF6D00;
+  --pet-accent-red:   #E53935;
+  --pet-text-color:   #121212;
+  --pet-text-muted:   #64748B;
   --pet-btn-hover-bg: #D0E4EC;
-  --pet-active-glow: rgba(255, 109, 0, 0.15);
+  --pet-active-glow:  rgba(255, 109, 0, 0.15);
+  --pet-radius-lg:    20px;
+  --pet-radius-md:    14px;
+  --pet-radius-sm:    10px;
 }
 
-/* 3. 댕댕 프리미엄 테마 색상 변수 */
+/* ── 3. 댕댕 프리미엄 테마 ── */
 .theme-cute-dog {
-  --pet-bg: #FFF0F5;
-  --pet-pattern-color: #F5D6E3;
-  --pet-border: #5c3d24;
-  --pet-cell-bg: #FFFDFD;
-  --pet-cell-border: #EBD0C6;
-  --pet-accent-mint: #D81B60;
-  --pet-accent-red: #FF5722;
-  --pet-text-color: #4e3629;
-  --pet-text-muted: #8d6e63;
+  --pet-bg:           #FFF0F5;
+  --pet-pattern-color:#F5D6E3;
+  --pet-border:       #5c3d24;
+  --pet-border-thin:  2px;
+  --pet-cell-bg:      #FFFDFD;
+  --pet-cell-border:  #EBD0C6;
+  --pet-accent-mint:  #D81B60;
+  --pet-accent-red:   #FF5722;
+  --pet-text-color:   #4e3629;
+  --pet-text-muted:   #8d6e63;
   --pet-btn-hover-bg: #F2D2DF;
-  --pet-active-glow: rgba(216, 27, 96, 0.15);
+  --pet-active-glow:  rgba(216, 27, 96, 0.15);
+  --pet-radius-lg:    20px;
+  --pet-radius-md:    14px;
+  --pet-radius-sm:    10px;
 }
 
-/* 4. 공통 픽셀 펫 테마 레이아웃 및 UI 재정의 */
+/* ── 4. 공통 픽셀 펫 테마 베이스 ── */
 .theme-cute-black-cat,
 .theme-cute-white-cat,
 .theme-cute-dog {
@@ -82,68 +94,172 @@
   -webkit-font-smoothing: none;
 }
 
-/* 모든 자식 요소에도 일관된 글꼴 상속 강제 */
+/* 모든 자식에 폰트 상속 */
 .theme-cute-black-cat *,
 .theme-cute-white-cat *,
 .theme-cute-dog * {
   font-family: 'DungGeunMo', 'Galmuri11', monospace !important;
 }
 
-/* 플러스 및 도트 장식 전역 배경 패치 */
+/* ── 5. 앱 셸: + 기호 + 점 격자 배경 패턴 (목표 이미지와 동일) ── */
 .pet-app-shell {
   background-color: var(--pet-bg) !important;
-  background-image: 
-    radial-gradient(var(--pet-pattern-color) 1px, transparent 1px),
-    linear-gradient(90deg, transparent 49px, var(--pet-pattern-color) 49px, var(--pet-pattern-color) 50px, transparent 50px),
-    linear-gradient(0deg, transparent 49px, var(--pet-pattern-color) 49px, var(--pet-pattern-color) 50px, transparent 50px);
-  background-size: 40px 40px, 100px 100px, 100px 100px;
+  /* 목표 이미지: 작은 + 기호들과 점들이 격자형으로 배치 */
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Crect x='19' y='15' width='2' height='10' fill='%23303034' opacity='0.8'/%3E%3Crect x='15' y='19' width='10' height='2' fill='%23303034' opacity='0.8'/%3E%3C/svg%3E");
+  background-size: 40px 40px;
   position: relative;
   width: 100%;
   min-height: 100vh;
 }
 
-/* 픽셀 윈도우 & 모달 창 */
+/* ── 6. 보드 프레임: 큰 둥근 단일 프레임 (목표 이미지 동일) ── */
+.pet-board-shell {
+  box-sizing: border-box !important;
+  background: var(--pet-cell-bg) !important;
+  border: 2.5px solid var(--pet-border) !important;
+  box-shadow:
+    0 0 0 1px rgba(231, 198, 160, 0.2),
+    0 8px 24px rgba(0, 0, 0, 0.5) !important;
+  padding: 12px !important;
+  border-radius: 24px !important;
+  /* Board 자체가 유일한 프레임이므로 추가 테두리 없음 */
+}
+
+/* 보드 셀: 둥근 모서리, 얇은 테두리 */
+.pet-board-cell {
+  background: var(--pet-bg) !important;
+  border: 1.5px solid var(--pet-cell-border) !important;
+  border-radius: 8px !important;
+}
+
+/* ── 7. 픽셀 타일 페이스: 고양이 귀 + 얼굴 배경 SVG ── */
+/* ── 7. 픽셀 타일 페이스: 고양이 귀 + 얼굴 배경 SVG ── */
+.pet-tile-face {
+  border: 2px solid var(--pet-border) !important;
+  border-radius: 8px !important;
+  background-color: var(--pet-bg) !important;
+  position: relative !important;
+  overflow: visible !important;
+}
+
+/* 가상 요소 ::before 로 솟아오른 픽셀 귀와 픽셀 눈코입 렌더링 */
+.pet-tile-face::before {
+  content: '' !important;
+  position: absolute !important;
+  /* 귀가 위로 솟는 10px / 얼굴 영역 44px = 22.7% 만큼 top을 위로 올림 */
+  top: -22.7% !important;
+  left: -2px !important;
+  right: -2px !important;
+  bottom: -2px !important;
+  background-repeat: no-repeat !important;
+  background-size: 100% 100% !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
+}
+
+/* 깜고 테마 타일 ::before */
+.theme-cute-black-cat .pet-tile-face::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3C!-- 왼쪽 귀 --%3E%3Cpath d='M2 20H20V16H16V10H10V16H2Z' fill='%23E7C6A0'/%3E%3Cpath d='M4 20H10V16H6V12H4Z' fill='%23FF8B8B' opacity='0.85'/%3E%3C!-- 오른쪽 귀 --%3E%3Cpath d='M62 20H44V16H48V10H54V16H62Z' fill='%23E7C6A0'/%3E%3Cpath d='M60 20H54V16H58V12H60Z' fill='%23FF8B8B' opacity='0.85'/%3E%3C!-- 왼쪽 눈 --%3E%3Crect x='18' y='30' width='3' height='10' fill='%23E7C6A0'/%3E%3Crect x='14' y='34' width='11' height='2' fill='%23E7C6A0'/%3E%3C!-- 오른쪽 눈 --%3E%3Crect x='43' y='30' width='3' height='10' fill='%23E7C6A0'/%3E%3Crect x='39' y='34' width='11' height='2' fill='%23E7C6A0'/%3E%3C!-- 코 --%3E%3Crect x='30' y='36' width='4' height='4' fill='%23E7C6A0'/%3E%3C!-- 볼 홍조 --%3E%3Crect x='10' y='40' width='8' height='3' fill='%23FF8B8B' opacity='0.5'/%3E%3Crect x='46' y='40' width='8' height='3' fill='%23FF8B8B' opacity='0.5'/%3E%3C/svg%3E") !important;
+}
+
+/* 흰고 테마 타일 ::before */
+.theme-cute-white-cat .pet-tile-face::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M2 20H20V16H16V10H10V16H2Z' fill='%23222222'/%3E%3Cpath d='M4 20H10V16H6V12H4Z' fill='%23FF8B8B' opacity='0.85'/%3E%3Cpath d='M62 20H44V16H48V10H54V16H62Z' fill='%23222222'/%3E%3Cpath d='M60 20H54V16H58V12H60Z' fill='%23FF8B8B' opacity='0.85'/%3E%3Crect x='18' y='30' width='3' height='10' fill='%23222222'/%3E%3Crect x='14' y='34' width='11' height='2' fill='%23222222'/%3E%3Crect x='43' y='30' width='3' height='10' fill='%23222222'/%3E%3Crect x='39' y='34' width='11' height='2' fill='%23222222'/%3E%3Crect x='30' y='36' width='4' height='4' fill='%23222222'/%3E%3Crect x='10' y='40' width='8' height='3' fill='%23FF8B8B' opacity='0.5'/%3E%3Crect x='46' y='40' width='8' height='3' fill='%23FF8B8B' opacity='0.5'/%3E%3C/svg%3E") !important;
+}
+
+/* 댕댕 테마 타일 ::before */
+.theme-cute-dog .pet-tile-face::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3C!-- 처진 댕댕이 귀 --%3E%3Cpath d='M0 20H16V12H8V20Z' fill='%235c3d24'/%3E%3Cpath d='M64 20H48V12H56V20Z' fill='%235c3d24'/%3E%3Crect x='18' y='30' width='5' height='5' fill='%235c3d24'/%3E%3Crect x='41' y='30' width='5' height='5' fill='%235c3d24'/%3E%3Crect x='28' y='36' width='8' height='5' fill='%235c3d24'/%3E%3C/svg%3E") !important;
+}
+
+.pet-tile-number {
+  font-family: 'DungGeunMo', 'Galmuri11', monospace !important;
+  font-weight: bold;
+  text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.9);
+}
+
+/* ── 8. 버튼: 둥근 모서리, 얇은 선 ── */
+.pet-menu-btn,
+.pet-game-btn,
+.pet-icon-btn,
+.pet-pill-btn,
+.pet-header-main-btn,
+.pet-header-icon-btn,
+.pet-header-action-btn,
+.pet-exit-home-btn,
+.pet-exit-cancel-btn {
+  background: var(--pet-bg) !important;
+  border: 2px solid var(--pet-border) !important;
+  border-radius: var(--pet-radius-md) !important;
+  color: var(--pet-text-color) !important;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.3) !important;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+  image-rendering: pixelated;
+  padding: 6px 14px;
+}
+
+.pet-menu-btn:active,
+.pet-game-btn:active,
+.pet-icon-btn:active,
+.pet-pill-btn:active,
+.pet-exit-home-btn:active,
+.pet-exit-cancel-btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3) !important;
+}
+
+.pet-menu-btn:hover,
+.pet-game-btn:hover,
+.pet-icon-btn:hover,
+.pet-pill-btn:hover,
+.pet-exit-home-btn:hover,
+.pet-exit-cancel-btn:hover {
+  background: var(--pet-btn-hover-bg) !important;
+}
+
+/* ── 9. 픽셀 윈도우 & 모달 창 ── */
 .pet-window {
   background: var(--pet-bg) !important;
-  border: 4px solid var(--pet-border) !important;
-  box-shadow: 0 8px 0 rgba(0, 0, 0, 0.3) !important;
-  border-radius: 0px !important;
+  border: 2px solid var(--pet-border) !important;
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.3), 0 12px 30px rgba(0, 0, 0, 0.4) !important;
+  border-radius: var(--pet-radius-lg) !important;
   color: var(--pet-text-color) !important;
-  image-rendering: pixelated;
 }
 
 .pet-window-body {
-  padding: 12px !important;
+  padding: 14px !important;
   background: var(--pet-bg) !important;
 }
 
-/* 타이틀바 (고양이 귀와 매끄러운 픽셀 아웃라인) */
+/* 타이틀바 */
 .pet-title-bar {
   background: var(--pet-bg) !important;
-  border-bottom: 4px solid var(--pet-border) !important;
+  border-bottom: 2px solid var(--pet-border) !important;
   color: var(--pet-text-color) !important;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px !important;
+  padding: 8px 14px !important;
   font-weight: bold;
+  border-radius: var(--pet-radius-lg) var(--pet-radius-lg) 0 0;
 }
 
 .pet-title-bar-text {
   font-size: 14px !important;
   font-weight: 800;
-  text-transform: uppercase;
   color: var(--pet-accent-mint) !important;
 }
 
-/* 닫기 버튼 등의 피팅 */
 .pet-title-bar-controls button {
   background: var(--pet-bg) !important;
   border: 2px solid var(--pet-border) !important;
+  border-radius: 6px;
   width: 22px;
   height: 22px;
   cursor: pointer;
-  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -157,113 +273,56 @@
   background: var(--pet-btn-hover-bg) !important;
 }
 
-/* 픽셀형 버튼 (블록 배치, 홈버튼 등) */
-.pet-menu-btn,
-.pet-game-btn,
-.pet-icon-btn,
-.pet-pill-btn,
-.pet-header-main-btn,
-.pet-header-icon-btn,
-.pet-header-action-btn,
-.pet-exit-home-btn,
-.pet-exit-cancel-btn {
-  background: var(--pet-bg) !important;
-  border: 4px solid var(--pet-border) !important;
-  border-radius: 0px !important;
-  color: var(--pet-text-color) !important;
-  box-shadow: 0 4px 0 rgba(0,0,0,0.2) !important;
-  font-weight: bold;
-  cursor: pointer;
-  transition: transform 0.05s ease, box-shadow 0.05s ease;
-  image-rendering: pixelated;
-  padding: 6px 12px;
-}
-
-.pet-menu-btn:active,
-.pet-game-btn:active,
-.pet-icon-btn:active,
-.pet-pill-btn:active,
-.pet-exit-home-btn:active,
-.pet-exit-cancel-btn:active {
-  transform: translateY(2px);
-  box-shadow: 0 2px 0 rgba(0,0,0,0.2) !important;
-}
-
-.pet-menu-btn:hover,
-.pet-game-btn:hover,
-.pet-icon-btn:hover,
-.pet-pill-btn:hover,
-.pet-exit-home-btn:hover,
-.pet-exit-cancel-btn:hover {
-  background: var(--pet-btn-hover-bg) !important;
-}
-
-/* 4x4 메인 그리드 및 타일 보드 보더 */
-.pet-board-shell {
-  background: var(--pet-bg) !important;
-  border: 4px solid var(--pet-border) !important;
-  box-shadow: 0 8px 0 rgba(0,0,0,0.25) !important;
-  padding: 8px !important;
-  border-radius: 0px !important;
-}
-
-.pet-board-cell {
-  background: var(--pet-cell-bg) !important;
-  border: 2px solid var(--pet-cell-border) !important;
-  border-radius: 0px !important;
-}
-
-/* 탭 스트립 */
+/* ── 10. 탭 스트립 ── */
 .pet-tabstrip {
   display: flex;
   list-style: none;
   padding: 0;
   margin: 0;
-  border-bottom: 4px solid var(--pet-border);
+  border-bottom: 2px solid var(--pet-border);
+  gap: 4px;
 }
 
 .pet-tabstrip-tab {
   background: var(--pet-bg) !important;
-  border: 4px solid var(--pet-border) !important;
+  border: 2px solid var(--pet-border) !important;
   border-bottom: none !important;
-  padding: 6px 12px !important;
+  padding: 6px 14px !important;
   font-weight: bold;
-  color: var(--pet-text-color) !important;
+  color: var(--pet-text-muted) !important;
   cursor: pointer;
-  margin-right: 4px;
-  border-top-left-radius: 4px;
-  border-top-right-radius: 4px;
+  border-radius: var(--pet-radius-sm) var(--pet-radius-sm) 0 0;
 }
 
-/* React 컴포넌트 [data-active="true"] 및 [aria-selected="true"] 동시 매치 */
 .pet-tabstrip-tab[aria-selected="true"],
 .pet-tabstrip-tab[data-active="true"] {
   background: var(--pet-btn-hover-bg) !important;
   color: var(--pet-accent-mint) !important;
   padding-bottom: 8px !important;
-  margin-bottom: -4px;
-  border-bottom: 4px solid var(--pet-btn-hover-bg) !important;
+  margin-bottom: -2px;
+  border-bottom: 2px solid var(--pet-btn-hover-bg) !important;
 }
 
-/* 패널 썬큰(Sunken) 효과 */
+/* ── 11. 패널 썬큰(Sunken) 효과 ── */
 .pet-sunken,
 .pet-sunken-white {
   background: var(--pet-cell-bg) !important;
-  border: 4px solid var(--pet-cell-border) !important;
+  border: 2px solid var(--pet-cell-border) !important;
+  border-radius: var(--pet-radius-md) !important;
   padding: 10px;
-  box-shadow: inset 2px 2px 0 rgba(0,0,0,0.25) !important;
+  box-shadow: inset 2px 2px 6px rgba(0, 0, 0, 0.2) !important;
 }
 
-/* 다크 오버레이 */
+/* ── 12. 모달 오버레이 ── */
 .pet-modal-overlay {
-  background: rgba(0, 0, 0, 0.7) !important;
-  backdrop-filter: blur(3px);
+  background: rgba(0, 0, 0, 0.75) !important;
+  backdrop-filter: blur(4px);
 }
 
-/* 하단 내비게이션 바 OS 상태바 패치 */
+/* ── 13. 하단 내비게이션 바 ── */
 .pet-nav-wrapper {
   background: var(--pet-bg) !important;
-  border-top: 4px solid var(--pet-border) !important;
+  border-top: 2px solid var(--pet-border) !important;
 }
 
 .pet-bottom-nav {
@@ -277,9 +336,10 @@
 .pet-bottom-nav-button {
   background: transparent !important;
   border: none !important;
-  color: var(--pet-text-color) !important;
+  color: var(--pet-text-muted) !important;
   font-weight: bold;
   cursor: pointer;
+  transition: color 0.1s;
 }
 
 .pet-bottom-nav-button:hover {
@@ -295,46 +355,79 @@
 .pet-bottom-nav-badge {
   background: var(--pet-accent-red) !important;
   color: #FFFFFF !important;
-  border: 2px solid var(--pet-border) !important;
-  border-radius: 0px !important;
+  border: 1.5px solid var(--pet-border) !important;
+  border-radius: 4px !important;
   font-size: 8px;
   padding: 0 4px;
   font-weight: bold;
 }
 
-.pet-status-bar {
-  display: flex;
+/* ── 14. 슬롯(블록 대기 영역) ── */
+.pet-slot-shell {
   background: var(--pet-bg) !important;
-  border-top: 4px solid var(--pet-border) !important;
-  padding: 4px;
+  border: 2px solid var(--pet-border) !important;
+  border-radius: var(--pet-radius-md) !important;
+  padding: 8px !important;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.25) !important;
 }
 
-.pet-status-bar-field {
-  padding: 2px 8px;
-  border-right: 2px solid var(--pet-cell-border);
-  font-size: 11px;
-  color: var(--pet-text-muted);
+.pet-slot-mini-cell {
+  background-color: var(--pet-bg) !important;
+  border: 1.5px solid var(--pet-border) !important;
+  border-radius: 6px !important;
+  position: relative !important;
+  overflow: visible !important;
 }
 
-/* 인게임 숫자 폰트 스타일 덮어쓰기 */
-.pet-tile-number {
-  font-family: 'DungGeunMo', 'Galmuri11', monospace !important;
-  font-weight: bold;
-  color: #FFFFFF !important; /* 선명한 가독성 보장 */
-  text-shadow: 2px 2px 0px rgba(0,0,0,0.9);
+.pet-slot-mini-cell::before {
+  content: '' !important;
+  position: absolute !important;
+  /* 귀 높이 7px / 얼굴 20px = 35% 만큼 위로 올림 */
+  top: -35% !important;
+  left: -1.5px !important;
+  right: -1.5px !important;
+  bottom: -1.5px !important;
+  background-repeat: no-repeat !important;
+  background-size: 100% 100% !important;
+  background-color: transparent !important; /* 인라인 스타일의 background-color 영향 방지 */
+  pointer-events: none !important;
+  z-index: 1 !important;
 }
 
-/* ────────── 추가 누락 스타일 보완 ────────── */
+/* 깜고 테마 슬롯 미니셀 ::before */
+.theme-cute-black-cat .pet-slot-mini-cell::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M1 12H10V9H8V5H5V9H1Z' fill='%23E7C6A0'/%3E%3Cpath d='M2 12H5V9H3V6H2Z' fill='%23FF8B8B' opacity='0.85'/%3E%3Cpath d='M31 12H22V9H24V5H27V9H31Z' fill='%23E7C6A0'/%3E%3Cpath d='M30 12H27V9H29V6H30Z' fill='%23FF8B8B' opacity='0.85'/%3E%3Crect x='9' y='17' width='2' height='5' fill='%23E7C6A0'/%3E%3Crect x='7' y='19' width='6' height='1.5' fill='%23E7C6A0'/%3E%3Crect x='21' y='17' width='2' height='5' fill='%23E7C6A0'/%3E%3Crect x='19' y='19' width='6' height='1.5' fill='%23E7C6A0'/%3E%3Crect x='15' y='20' width='2' height='2' fill='%23E7C6A0'/%3E%3Crect x='5' y='22' width='4' height='1.5' fill='%23FF8B8B' opacity='0.5'/%3E%3Crect x='23' y='22' width='4' height='1.5' fill='%23FF8B8B' opacity='0.5'/%3E%3C/svg%3E") !important;
+}
 
+/* 댕댕 테마 슬롯 미니셀 ::before */
+.theme-cute-dog .pet-slot-mini-cell::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M0 12H8V7H4V12Z' fill='%235c3d24'/%3E%3Cpath d='M32 12H24V7H28V12Z' fill='%235c3d24'/%3E%3Crect x='9' y='17' width='3' height='3' fill='%235c3d24'/%3E%3Crect x='20' y='17' width='3' height='3' fill='%235c3d24'/%3E%3Crect x='14' y='20' width='4' height='3' fill='%235c3d24'/%3E%3C/svg%3E") !important;
+}
+
+/* 흰고 테마 슬롯 미니셀 ::before */
+.theme-cute-white-cat .pet-slot-mini-cell::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M1 12H10V9H8V5H5V9H1Z' fill='%23222222'/%3E%3Cpath d='M2 12H5V9H3V6H2Z' fill='%23FF8B8B' opacity='0.85'/%3E%3Cpath d='M31 12H22V9H24V5H27V9H31Z' fill='%23222222'/%3E%3Cpath d='M30 12H27V9H29V6H30Z' fill='%23FF8B8B' opacity='0.85'/%3E%3Crect x='9' y='17' width='2' height='5' fill='%23222222'/%3E%3Crect x='7' y='19' width='6' height='1.5' fill='%23222222'/%3E%3Crect x='21' y='17' width='2' height='5' fill='%23222222'/%3E%3Crect x='19' y='19' width='6' height='1.5' fill='%23222222'/%3E%3Crect x='15' y='20' width='2' height='2' fill='%23222222'/%3E%3C/svg%3E") !important;
+}
+
+.pet-slot-rotate-btn {
+  background: var(--pet-accent-mint) !important;
+  color: var(--pet-bg) !important;
+  border: 2px solid var(--pet-border) !important;
+  border-radius: 6px;
+}
+
+/* ── 15. 기타 공통 ── */
 .pet-compartment {
-  border: 4px solid var(--pet-border) !important;
+  border: 2px solid var(--pet-border) !important;
+  border-radius: var(--pet-radius-md) !important;
   background: var(--pet-bg) !important;
-  padding: 8px;
+  padding: 10px;
 }
 
 .pet-list-item {
   background: var(--pet-cell-bg) !important;
-  border: 2px solid var(--pet-cell-border) !important;
+  border: 1.5px solid var(--pet-cell-border) !important;
+  border-radius: 8px !important;
   color: var(--pet-text-color) !important;
   padding: 8px 12px;
   margin-bottom: 4px;
@@ -343,20 +436,23 @@
 .pet-list-item-highlight {
   background: var(--pet-btn-hover-bg) !important;
   border: 2px solid var(--pet-accent-mint) !important;
+  border-radius: 8px !important;
   color: var(--pet-accent-mint) !important;
 }
 
 .pet-badge {
   background: var(--pet-accent-mint) !important;
   color: var(--pet-bg) !important;
-  border: 2px solid var(--pet-border) !important;
+  border: 1.5px solid var(--pet-border) !important;
+  border-radius: 6px;
   font-weight: bold;
   padding: 2px 6px;
   font-size: 10px;
 }
 
 .pet-fieldset {
-  border: 4px solid var(--pet-border) !important;
+  border: 2px solid var(--pet-border) !important;
+  border-radius: var(--pet-radius-md) !important;
   padding: 12px !important;
   background: var(--pet-bg) !important;
   margin-bottom: 12px;
@@ -369,7 +465,8 @@
 
 .pet-progress-track {
   background: var(--pet-cell-bg) !important;
-  border: 2px solid var(--pet-border) !important;
+  border: 1.5px solid var(--pet-border) !important;
+  border-radius: 6px;
   height: 20px;
   position: relative;
   overflow: hidden;
@@ -378,42 +475,29 @@
 .pet-progress-fill {
   background: var(--pet-accent-mint) !important;
   height: 100%;
+  border-radius: 4px;
 }
 
 .pet-game-header {
-  border-bottom: 4px solid var(--pet-border) !important;
+  border-bottom: 2px solid var(--pet-border) !important;
   background: var(--pet-bg) !important;
 }
 
 .pet-game-board-window {
-  border: 4px solid var(--pet-border) !important;
+  border: 2px solid var(--pet-border) !important;
+  border-radius: var(--pet-radius-lg) !important;
   background: var(--pet-bg) !important;
 }
 
 .pet-board-body {
   background: var(--pet-cell-bg) !important;
-}
-
-.pet-slot-shell {
-  background: var(--pet-bg) !important;
-  border: 4px solid var(--pet-border) !important;
-  padding: 6px !important;
-}
-
-.pet-slot-mini-cell {
-  background: var(--pet-cell-bg) !important;
-  border: 2px solid var(--pet-cell-border) !important;
-}
-
-.pet-slot-rotate-btn {
-  background: var(--pet-accent-mint) !important;
-  color: var(--pet-bg) !important;
-  border: 2px solid var(--pet-border) !important;
+  border-radius: calc(var(--pet-radius-lg) - 2px);
 }
 
 .pet-top-window,
 .pet-menu-window {
-  border: 4px solid var(--pet-border) !important;
+  border: 2px solid var(--pet-border) !important;
+  border-radius: var(--pet-radius-lg) !important;
   background: var(--pet-bg) !important;
 }
 
@@ -427,16 +511,27 @@
   color: var(--pet-text-muted) !important;
 }
 
-.pet-tile-face {
-  border: 4px solid var(--pet-border) !important;
+.pet-status-bar {
+  display: flex;
+  background: var(--pet-bg) !important;
+  border-top: 2px solid var(--pet-border) !important;
+  padding: 4px;
+}
+
+.pet-status-bar-field {
+  padding: 2px 8px;
+  border-right: 1.5px solid var(--pet-cell-border);
+  font-size: 11px;
+  color: var(--pet-text-muted);
 }
 
 .pet-lock-toast {
   background: var(--pet-bg) !important;
-  border: 4px solid var(--pet-accent-red) !important;
+  border: 2px solid var(--pet-accent-red) !important;
+  border-radius: var(--pet-radius-md) !important;
   color: var(--pet-text-color) !important;
   padding: 8px 16px;
-  box-shadow: 0 4px 0 rgba(0,0,0,0.3) !important;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.3) !important;
 }
 
 .pet-field-row,
@@ -453,11 +548,22 @@
 
 .pet-ghost-valid {
   border: 2px dashed var(--pet-accent-mint) !important;
-  background: rgba(91, 226, 167, 0.15) !important;
+  background: rgba(91, 226, 167, 0.12) !important;
+  border-radius: 8px !important;
 }
 
 .pet-ghost-invalid {
   border: 2px dashed var(--pet-accent-red) !important;
-  background: rgba(255, 107, 107, 0.15) !important;
+  background: rgba(255, 107, 107, 0.12) !important;
+  border-radius: 8px !important;
 }
 
+/* ── 16. 보드 위 고양이 프레임 오버레이 ── */
+/* App.tsx에서 relative 컨테이너 위에 absolute로 올라갈 SVG 장식 */
+.pet-board-frame-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  overflow: visible;
+}

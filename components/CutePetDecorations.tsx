@@ -5,289 +5,326 @@ interface PetDecorProps {
   themeId: PremiumUiThemeId;
 }
 
-/**
- * 1. 홈 버튼 및 기능 버튼들의 뾰족 고양이 귀 테두리 데코레이터
- */
-export const PetButtonFrame: React.FC<PetDecorProps & { children: React.ReactNode }> = ({ themeId, children }) => {
-  const isDog = themeId === 'cute_dog';
+function getThemeColors(themeId: PremiumUiThemeId) {
+  const isDog   = themeId === 'cute_dog';
   const isWhite = themeId === 'cute_white_cat';
-  
-  // 테마별 색상 결정
-  const borderColor = isDog ? '#5c3d24' : isWhite ? '#121212' : '#E7C6A0';
-  
+  const isBlack = themeId === 'cute_black_cat';
+  return {
+    isDog, isWhite, isBlack,
+    border:   isDog ? '#5c3d24' : isWhite ? '#222222' : '#E7C6A0',
+    innerEar: isDog ? '#c08080' : '#FF8B8B',
+    petBody:  isBlack ? '#2E2E32' : isWhite ? '#F0F0F0' : '#c8a898',
+    eye:      isBlack ? '#F0F0F0' : '#18181A',
+    blush:    '#FF8A8A',
+    mint:     isBlack ? '#5BE2A7' : isDog ? '#D81B60' : '#FF6D00',
+    red:      isBlack ? '#FF6B6B' : isDog ? '#FF5722' : '#E53935',
+  };
+}
+
+// ── 1. 홈/기능 버튼 프레임 ────────────────────────────────────────────────────
+export const PetButtonFrame: React.FC<PetDecorProps & { children: React.ReactNode }> = ({ themeId, children }) => {
+  const c = getThemeColors(themeId);
   return (
-    <div className="relative inline-block" style={{ imageRendering: 'pixelated' }}>
-      {/* 뾰족 귀 (강아지는 살짝 처진 귀) SVG */}
-      <svg className="absolute -top-[8px] left-0 right-0 h-[10px] w-full" viewBox="0 0 40 10" fill="none" xmlns="http://www.w3.org/2000/svg">
-        {isDog ? (
+    <div className="relative inline-block select-none" style={{ imageRendering: 'pixelated', paddingTop: '10px' }}>
+      {/* 상단 귀 */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', justifyContent: 'space-between', padding: '0 10px', pointerEvents: 'none', zIndex: 10 }}>
+        {c.isDog ? (
           <>
-            {/* 처진 강아지 귀 */}
-            <path d="M 2 2 h 6 v 2 h -6 z M 32 2 h 6 v 2 h -6 z" fill={borderColor} />
-            <path d="M 1 4 h 8 v 3 h -8 z M 31 4 h 8 v 3 h -8 z" fill={borderColor} />
+            <svg width="12" height="8" viewBox="0 0 12 8" fill="none"><path d="M0 0H9V3H11V7H9V8H3V7H0Z" fill={c.border}/><path d="M2 8H5V7H2Z" fill={c.innerEar}/></svg>
+            <svg width="12" height="8" viewBox="0 0 12 8" fill="none"><path d="M3 0H12V7H9V8H3V7H1V3H3Z" fill={c.border}/><path d="M7 8H10V7H7Z" fill={c.innerEar}/></svg>
           </>
         ) : (
           <>
-            {/* 고양이 뾰족 귀 */}
-            <path d="M 4 8 L 8 2 L 12 8 Z M 28 8 L 32 2 L 36 8 Z" fill={borderColor} />
+            <svg width="14" height="10" viewBox="0 0 14 10" fill="none"><path d="M0 10H12V8H10V6H7V3H4V0H0Z" fill={c.border}/><path d="M1 10H5V8H3V5H1Z" fill={c.innerEar} opacity="0.85"/></svg>
+            <svg width="14" height="10" viewBox="0 0 14 10" fill="none"><path d="M14 10H2V8H4V6H7V3H10V0H14Z" fill={c.border}/><path d="M13 10H9V8H11V5H13Z" fill={c.innerEar} opacity="0.85"/></svg>
           </>
         )}
-      </svg>
-      {/* 버튼 본체 */}
-      <div style={{ border: `4px solid ${borderColor}`, background: 'var(--pet-bg)' }}>
+      </div>
+      <div style={{ border: `2px solid ${c.border}`, background: 'var(--pet-bg)', borderRadius: '12px', boxShadow: `0 3px 0 rgba(0,0,0,0.35)`, overflow: 'hidden' }}>
         {children}
       </div>
     </div>
   );
 };
 
-/**
- * 2. '블록 배치' 타이틀바 양옆 수염 + 귀 장식 데코레이션
- */
+// ── 2. 헤더 타이틀 ("블록 배치" 수염 박스) ─────────────────────────────────
 export const PetHeaderTitleDecor: React.FC<PetDecorProps & { titleText: string }> = ({ themeId, titleText }) => {
-  const isDog = themeId === 'cute_dog';
-  const isWhite = themeId === 'cute_white_cat';
-  const color = isDog ? '#5c3d24' : isWhite ? '#121212' : '#E7C6A0';
-  const accentColor = 'var(--pet-accent-mint)';
-
+  const c = getThemeColors(themeId);
   return (
-    <div className="flex flex-col items-center select-none" style={{ imageRendering: 'pixelated', fontFamily: 'DungGeunMo, monospace' }}>
-      {/* 고양이 귀 */}
-      <svg className="w-20 h-4" viewBox="0 0 80 16" fill="none">
-        {isDog ? (
+    <div style={{ position: 'relative', display: 'inline-block', paddingTop: '10px', imageRendering: 'pixelated' }}>
+      {/* 상단 귀 */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', justifyContent: 'space-between', padding: '0 12px', pointerEvents: 'none' }}>
+        {c.isDog ? (
           <>
-            <rect x="10" y="4" width="12" height="8" fill={color} />
-            <rect x="58" y="4" width="12" height="8" fill={color} />
+            <svg width="12" height="8" viewBox="0 0 12 8" fill="none"><path d="M0 0H9V3H11V7H9V8H3V7H0Z" fill={c.border}/></svg>
+            <svg width="12" height="8" viewBox="0 0 12 8" fill="none"><path d="M3 0H12V7H9V8H3V7H1V3H3Z" fill={c.border}/></svg>
           </>
         ) : (
           <>
-            <path d="M 12 16 L 20 4 L 28 16 Z" fill={color} />
-            <path d="M 52 16 L 60 4 L 68 16 Z" fill={color} />
+            <svg width="14" height="10" viewBox="0 0 14 10" fill="none"><path d="M0 10H12V8H10V6H7V3H4V0H0Z" fill={c.border}/><path d="M1 10H5V8H3V5H1Z" fill={c.innerEar} opacity="0.85"/></svg>
+            <svg width="14" height="10" viewBox="0 0 14 10" fill="none"><path d="M14 10H2V8H4V6H7V3H10V0H14Z" fill={c.border}/><path d="M13 10H9V8H11V5H13Z" fill={c.innerEar} opacity="0.85"/></svg>
           </>
         )}
-      </svg>
-      {/* 타이틀 박스 (수염 장식 포함) */}
-      <div className="flex items-center gap-2 px-6 py-2 relative" style={{ border: `4px solid ${color}`, background: 'var(--pet-bg)' }}>
-        {/* 좌측 수염 (3줄 도트) */}
-        <div className="absolute -left-5 flex flex-col gap-1">
-          <div className="w-4 h-1" style={{ background: color }} />
-          <div className="w-5 h-1" style={{ background: color }} />
-          <div className="w-3 h-1" style={{ background: color }} />
+      </div>
+      {/* 타이틀 박스 */}
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', padding: '8px 22px', border: `2px solid ${c.border}`, background: 'var(--pet-bg)', borderRadius: '12px', boxShadow: `0 3px 0 rgba(0,0,0,0.3)` }}>
+        {/* 좌 수염 */}
+        <div style={{ position: 'absolute', left: '-20px', display: 'flex', flexDirection: 'column', gap: '5px', pointerEvents: 'none' }}>
+          <div style={{ width: '14px', height: '2px', background: c.border }}/>
+          <div style={{ width: '18px', height: '2px', background: c.border }}/>
+          <div style={{ width: '11px', height: '2px', background: c.border }}/>
         </div>
-
-        <span className="text-base font-extrabold tracking-wider" style={{ color: accentColor }}>
-          {titleText}
-        </span>
-
-        {/* 우측 수염 (3줄 도트) */}
-        <div className="absolute -right-5 flex flex-col gap-1 items-end">
-          <div className="w-4 h-1" style={{ background: color }} />
-          <div className="w-5 h-1" style={{ background: color }} />
-          <div className="w-3 h-1" style={{ background: color }} />
+        <span style={{ color: c.mint, fontFamily: 'DungGeunMo, monospace', fontSize: '13px', fontWeight: 800, letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{titleText}</span>
+        {/* 우 수염 */}
+        <div style={{ position: 'absolute', right: '-20px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px', pointerEvents: 'none' }}>
+          <div style={{ width: '14px', height: '2px', background: c.border }}/>
+          <div style={{ width: '18px', height: '2px', background: c.border }}/>
+          <div style={{ width: '11px', height: '2px', background: c.border }}/>
         </div>
       </div>
     </div>
   );
 };
 
+// ── 3. 보드 귀+표정+수염 오버레이 ───────────────────────────────────────────
 /**
- * 3. 퍼즐 보드를 덮는 거대 얼굴 프레임 (이마 표정 + 귀 + 수염)
+ * Board div(#game-board)에 position:relative가 있으므로
+ * 이 컴포넌트를 Board 바로 다음에 absolute로 배치합니다.
+ * 
+ * 핵심: wrapper div가 Board와 동일한 크기(100% x 100%)를 갖고
+ *      overflow:visible로 귀가 위로 솟아오릅니다.
  */
-export const PetGridFrameDecor: React.FC<PetDecorProps & { children: React.ReactNode }> = ({ themeId, children }) => {
-  const isDog = themeId === 'cute_dog';
-  const isWhite = themeId === 'cute_white_cat';
-  const color = isDog ? '#5c3d24' : isWhite ? '#121212' : '#E7C6A0';
-  const cellBg = 'var(--pet-cell-bg)';
-  const borderVar = 'var(--pet-border)';
-
+export const PetBoardOverlay: React.FC<PetDecorProps> = ({ themeId }) => {
+  const c = getThemeColors(themeId);
   return (
-    <div className="relative w-full h-full flex flex-col items-center" style={{ imageRendering: 'pixelated' }}>
-      {/* 1. 상단 뾰족 귀 & 이마 표정 SVGs */}
-      <div className="w-full flex justify-between px-8 -mb-[2px] z-10">
+    <div
+      aria-hidden="true"
+      style={{
+        position: 'absolute',
+        // Board의 padding(12px)을 고려해 inset을 -12px로 맞춰 귀가 테두리 위에 딱 붙도록
+        inset: 0,
+        pointerEvents: 'none',
+        zIndex: 20,
+        overflow: 'visible',
+      }}
+    >
+      {/* ── 상단 귀 + 표정 행 ── */}
+      {/* 귀를 보드 테두리 상단 모서리에 올리기 위해 top 음수값 사용 */}
+      <div style={{
+        position: 'absolute',
+        top: '-28px',
+        left: '10px',
+        right: '10px',
+        display: 'flex',
+        alignItems: 'flex-end',
+        justifyContent: 'space-between',
+        imageRendering: 'pixelated',
+      }}>
         {/* 왼쪽 귀 */}
-        <svg className="w-16 h-8" viewBox="0 0 64 32" fill="none">
-          {isDog ? (
-            <path d="M 0 32 H 48 V 8 H 24 L 0 32 Z" fill={color} />
-          ) : (
-            <path d="M 0 32 L 32 0 L 64 32 Z" fill={color} />
-          )}
-        </svg>
+        {c.isDog ? (
+          <svg width="48" height="28" viewBox="0 0 48 28" fill="none">
+            <path d="M0 28H34V18H24V8H12V18H0Z" fill={c.border}/>
+            <path d="M8 28H20V20H8Z" fill={c.innerEar} opacity="0.75"/>
+          </svg>
+        ) : (
+          <svg width="44" height="30" viewBox="0 0 44 30" fill="none">
+            <path d="M0 30H38V26H30V20H22V12H14V0H0Z" fill={c.border}/>
+            <path d="M2 30H14V26H8V14H2Z" fill={c.innerEar} opacity="0.85"/>
+          </svg>
+        )}
 
-        {/* 이마 표정 (= + . + =) */}
-        <div className="flex items-center gap-1.5 px-4 h-8 select-none" style={{ fontFamily: 'DungGeunMo, monospace', fontSize: '15px', color: color, fontWeight: 'bold' }}>
-          <span>=</span>
-          <span>{isDog ? '•' : '+'}</span>
-          <span>{isDog ? '◡' : '.'}</span>
-          <span>{isDog ? '•' : '+'}</span>
-          <span>=</span>
+        {/* 중앙 고양이 표정 */}
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
+          {c.isDog ? (
+            <svg width="88" height="14" viewBox="0 0 88 14" fill="none">
+              <rect x="0"  y="4" width="10" height="2" fill={c.border}/>
+              <rect x="0"  y="8" width="10" height="2" fill={c.border}/>
+              <rect x="18" y="3" width="5" height="5" fill={c.border}/>
+              <path d="M34 6H37V10H51V6H54V10H51V12H37V10Z" fill={c.border}/>
+              <rect x="63" y="3" width="5" height="5" fill={c.border}/>
+              <rect x="78" y="4" width="10" height="2" fill={c.border}/>
+              <rect x="78" y="8" width="10" height="2" fill={c.border}/>
+            </svg>
+          ) : (
+            <svg width="88" height="14" viewBox="0 0 88 14" fill="none">
+              {/* 좌 수염 */}
+              <rect x="0"  y="4" width="10" height="2" fill={c.border}/>
+              <rect x="0"  y="8" width="10" height="2" fill={c.border}/>
+              {/* 좌 눈 + */}
+              <rect x="17" y="1" width="2" height="10" fill={c.border}/>
+              <rect x="13" y="5" width="10" height="2" fill={c.border}/>
+              {/* 코 . */}
+              <rect x="40" y="5" width="4" height="4" fill={c.border}/>
+              {/* 우 눈 + */}
+              <rect x="69" y="1" width="2" height="10" fill={c.border}/>
+              <rect x="65" y="5" width="10" height="2" fill={c.border}/>
+              {/* 우 수염 */}
+              <rect x="78" y="4" width="10" height="2" fill={c.border}/>
+              <rect x="78" y="8" width="10" height="2" fill={c.border}/>
+            </svg>
+          )}
         </div>
 
         {/* 오른쪽 귀 */}
-        <svg className="w-16 h-8" viewBox="0 0 64 32" fill="none">
-          {isDog ? (
-            <path d="M 64 32 H 16 V 8 H 40 L 64 32 Z" fill={color} />
-          ) : (
-            <path d="M 0 32 L 32 0 L 64 32 Z" fill={color} />
-          )}
-        </svg>
+        {c.isDog ? (
+          <svg width="48" height="28" viewBox="0 0 48 28" fill="none">
+            <path d="M48 28H14V18H24V8H36V18H48Z" fill={c.border}/>
+            <path d="M28 28H40V20H28Z" fill={c.innerEar} opacity="0.75"/>
+          </svg>
+        ) : (
+          <svg width="44" height="30" viewBox="0 0 44 30" fill="none">
+            <path d="M44 30H6V26H14V20H22V12H30V0H44Z" fill={c.border}/>
+            <path d="M42 30H30V26H36V14H42Z" fill={c.innerEar} opacity="0.85"/>
+          </svg>
+        )}
       </div>
 
-      {/* 2. 퍼즐 보드 프레임 (좌우 3줄 수염 데코 포함) */}
-      <div className="relative w-full p-2" style={{ border: `4px solid ${color}`, background: cellBg, boxShadow: '0 8px 0 rgba(0,0,0,0.25)' }}>
-        {/* 좌측 수염 */}
-        <div className="absolute top-1/4 -left-5 flex flex-col gap-1.5 z-20">
-          <div className="w-4 h-1.5" style={{ background: color }} />
-          <div className="w-6 h-1.5" style={{ background: color }} />
-          <div className="w-3 h-1.5" style={{ background: color }} />
-        </div>
+      {/* ── 왼쪽 수염 (보드 좌 중앙) ── */}
+      <div style={{
+        position: 'absolute',
+        left: '-20px',
+        top: '50%',
+        transform: 'translateY(-50%)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '6px',
+        imageRendering: 'pixelated',
+      }}>
+        <div style={{ width: '14px', height: '2.5px', background: c.border }}/>
+        <div style={{ width: '18px', height: '2.5px', background: c.border }}/>
+        <div style={{ width: '12px', height: '2.5px', background: c.border }}/>
+      </div>
 
-        {/* 우측 수염 */}
-        <div className="absolute top-1/4 -right-5 flex flex-col gap-1.5 items-end z-20">
-          <div className="w-4 h-1.5" style={{ background: color }} />
-          <div className="w-6 h-1.5" style={{ background: color }} />
-          <div className="w-3 h-1.5" style={{ background: color }} />
-        </div>
-
-        {/* 그리드 내용물 */}
-        <div className="w-full h-full">
-          {children}
-        </div>
+      {/* ── 오른쪽 수염 (보드 우 중앙) ── */}
+      <div style={{
+        position: 'absolute',
+        right: '-20px',
+        top: '50%',
+        transform: 'translateY(-50%)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+        gap: '6px',
+        imageRendering: 'pixelated',
+      }}>
+        <div style={{ width: '14px', height: '2.5px', background: c.border }}/>
+        <div style={{ width: '18px', height: '2.5px', background: c.border }}/>
+        <div style={{ width: '12px', height: '2.5px', background: c.border }}/>
       </div>
     </div>
   );
 };
 
-/**
- * 4. 최하단 배너 위에 머리를 얹고 앞발(솜방망이)을 올린 빼꼼 고양이/강아지 데코레이터
- */
+// 하위 호환성 alias
+export const PetGridFrameDecor = PetBoardOverlay;
+
+// ── 4. 하단 배너 위 빼꼼 고양이 ─────────────────────────────────────────────
 export const PetBottomBannerDecor: React.FC<PetDecorProps> = ({ themeId }) => {
-  const isDog = themeId === 'cute_dog';
-  const isWhite = themeId === 'cute_white_cat';
-  const isBlack = themeId === 'cute_black_cat';
-  
-  // 톤 매치 컬러 바인딩
-  const petColor = isBlack ? '#18181A' : isWhite ? '#FFFFFF' : '#d7ccc8';
-  const borderColor = isDog ? '#5c3d24' : isWhite ? '#121212' : '#E7C6A0';
-  const eyeColor = isBlack ? '#FFFFFF' : '#121212';
-  const blushColor = '#FF8A8A';
-  const mintColor = 'var(--pet-accent-mint)';
-  const redColor = 'var(--pet-accent-red)';
+  const c = getThemeColors(themeId);
+
+  const PetSvgNormal = () => (
+    <svg width="68" height="42" viewBox="0 0 68 42" fill="none">
+      {c.isDog ? (<>
+        <path d="M4 14H12V26H4Z" fill="#8d6e63"/>
+        <path d="M56 14H64V26H56Z" fill="#8d6e63"/>
+        <path d="M8 12H60V42H8Z" fill={c.petBody}/>
+        <rect x="20" y="22" width="5" height="5" fill={c.eye}/>
+        <rect x="43" y="22" width="5" height="5" fill={c.eye}/>
+        <rect x="30" y="28" width="8" height="5" fill="#000"/>
+      </>) : (<>
+        {/* 귀 */}
+        <path d="M10 18L18 4L26 18Z" fill={c.petBody}/>
+        <path d="M42 18L50 4L58 18Z" fill={c.petBody}/>
+        <path d="M13 18L18 8L23 18Z" fill={c.innerEar} opacity="0.85"/>
+        <path d="M45 18L50 8L55 18Z" fill={c.innerEar} opacity="0.85"/>
+        <path d="M8 18H60V42H8Z" fill={c.petBody}/>
+        {/* 왼 눈 + */}
+        <rect x="20" y="23" width="2" height="8" fill={c.eye}/>
+        <rect x="16" y="26" width="10" height="2" fill={c.eye}/>
+        {/* 우 눈 + */}
+        <rect x="46" y="23" width="2" height="8" fill={c.eye}/>
+        <rect x="42" y="26" width="10" height="2" fill={c.eye}/>
+        {/* 코 */}
+        <rect x="32" y="30" width="4" height="4" fill={c.border}/>
+        {/* 볼 */}
+        <rect x="9" y="31" width="7" height="3" fill={c.blush} opacity="0.6"/>
+        <rect x="52" y="31" width="7" height="3" fill={c.blush} opacity="0.6"/>
+      </>)}
+    </svg>
+  );
+
+  const PetSvgCross = () => (
+    <svg width="68" height="42" viewBox="0 0 68 42" fill="none">
+      {c.isDog ? (<>
+        <path d="M4 14H12V26H4Z" fill="#8d6e63"/>
+        <path d="M56 14H64V26H56Z" fill="#8d6e63"/>
+        <path d="M8 12H60V42H8Z" fill={c.petBody}/>
+        <line x1="19" y1="21" x2="26" y2="28" stroke={c.eye} strokeWidth="2.5" strokeLinecap="round"/>
+        <line x1="26" y1="21" x2="19" y2="28" stroke={c.eye} strokeWidth="2.5" strokeLinecap="round"/>
+        <line x1="42" y1="21" x2="49" y2="28" stroke={c.eye} strokeWidth="2.5" strokeLinecap="round"/>
+        <line x1="49" y1="21" x2="42" y2="28" stroke={c.eye} strokeWidth="2.5" strokeLinecap="round"/>
+        <rect x="30" y="28" width="8" height="5" fill="#000"/>
+      </>) : (<>
+        <path d="M10 18L18 4L26 18Z" fill={c.petBody}/>
+        <path d="M42 18L50 4L58 18Z" fill={c.petBody}/>
+        <path d="M13 18L18 8L23 18Z" fill={c.innerEar} opacity="0.85"/>
+        <path d="M45 18L50 8L55 18Z" fill={c.innerEar} opacity="0.85"/>
+        <path d="M8 18H60V42H8Z" fill={c.petBody}/>
+        <line x1="19" y1="23" x2="27" y2="31" stroke={c.eye} strokeWidth="2.5" strokeLinecap="round"/>
+        <line x1="27" y1="23" x2="19" y2="31" stroke={c.eye} strokeWidth="2.5" strokeLinecap="round"/>
+        <line x1="43" y1="23" x2="51" y2="31" stroke={c.eye} strokeWidth="2.5" strokeLinecap="round"/>
+        <line x1="51" y1="23" x2="43" y2="31" stroke={c.eye} strokeWidth="2.5" strokeLinecap="round"/>
+        <rect x="32" y="30" width="4" height="4" fill={c.border}/>
+      </>)}
+    </svg>
+  );
+
+  const Paws = () => (
+    <div style={{ position: 'absolute', bottom: '-9px', left: '6px', display: 'flex', gap: '20px' }}>
+      <div style={{ width: '15px', height: '10px', background: c.border, borderRadius: '5px 5px 0 0' }}/>
+      <div style={{ width: '15px', height: '10px', background: c.border, borderRadius: '5px 5px 0 0' }}/>
+    </div>
+  );
 
   return (
-    <div className="relative w-full h-24 mt-6 border-t-4" style={{ borderColor: borderColor, background: '#1d1d20', imageRendering: 'pixelated' }}>
-      
-      {/* ── 배너 위 빼꼼 펫 2마리 ── */}
-      
-      {/* 1) 좌측 빼꼼 고양이/강아지 */}
-      <div className="absolute -top-[36px] left-6 w-20 h-10 overflow-visible flex flex-col justify-end z-20">
-        {/* 귀와 얼굴 실루엣 */}
-        <svg className="w-16 h-10" viewBox="0 0 64 40" fill="none">
-          {isDog ? (
-            /* 강아지 얼굴 및 쳐진 귀 */
-            <>
-              <path d="M 8 16 H 56 V 40 H 8 Z" fill={petColor} />
-              {/* 왼쪽 귀 */}
-              <path d="M 4 16 h 8 v 12 h -8 z" fill="#8d6e63" />
-              {/* 오른쪽 귀 */}
-              <path d="M 52 16 h 8 v 12 h -8 z" fill="#8d6e63" />
-              {/* 눈동자 */}
-              <rect x="22" y="24" width="4" height="4" fill={eyeColor} />
-              <rect x="38" y="24" width="4" height="4" fill={eyeColor} />
-              {/* 코 */}
-              <rect x="30" y="28" width="4" height="3" fill="#000000" />
-            </>
-          ) : (
-            /* 고양이 얼굴 및 뾰족 귀 */
-            <>
-              <path d="M 12 20 H 52 V 40 H 12 Z" fill={petColor} />
-              {/* 귀 */}
-              <path d="M 12 20 L 20 8 L 28 20 Z" fill={petColor} />
-              <path d="M 36 20 L 44 8 L 52 20 Z" fill={petColor} />
-              {/* 눈 (+) */}
-              <path d="M 18 24 h 6 M 21 21 v 6" stroke={eyeColor} strokeWidth="1.5" />
-              <path d="M 40 24 h 6 M 43 21 v 6" stroke={eyeColor} strokeWidth="1.5" />
-              {/* 코 (.) */}
-              <rect x="31" y="26" width="2" height="2" fill={borderColor} />
-              {/* 볼터치 (..) */}
-              <rect x="16" y="28" width="3" height="2" fill={blushColor} />
-              <rect x="45" y="28" width="3" height="2" fill={blushColor} />
-            </>
-          )}
-        </svg>
-
-        {/* 솜방망이 앞발 */}
-        <div className="absolute -bottom-1 left-2 flex gap-6 z-30">
-          <div className="w-4 h-3 rounded-t" style={{ background: borderColor, border: `2px solid ${borderColor}`, borderBottom: 'none' }} />
-          <div className="w-4 h-3 rounded-t" style={{ background: borderColor, border: `2px solid ${borderColor}`, borderBottom: 'none' }} />
-        </div>
-      </div>
-
-      {/* 2) 우측 빼꼼 고양이 (눈을 질끈 감은 엑스/주황 불꽃 포인트) */}
-      <div className="absolute -top-[36px] right-8 w-20 h-10 overflow-visible flex flex-col justify-end z-20">
-        {/* 귀와 얼굴 실루엣 */}
-        <svg className="w-16 h-10" viewBox="0 0 64 40" fill="none">
-          {isDog ? (
-            /* 오른쪽 멍멍이 */
-            <>
-              <path d="M 8 16 H 56 V 40 H 8 Z" fill={petColor} />
-              <path d="M 4 16 h 8 v 12 h -8 z" fill="#8d6e63" />
-              <path d="M 52 16 h 8 v 12 h -8 z" fill="#8d6e63" />
-              {/* 질끈 감은 눈 */}
-              <path d="M 18 22 l 4 4 M 22 22 l -4 4" stroke={eyeColor} strokeWidth="1.5" />
-              <path d="M 42 22 l 4 4 M 46 22 l -4 4" stroke={eyeColor} strokeWidth="1.5" />
-              <rect x="30" y="26" width="4" height="3" fill="#000000" />
-            </>
-          ) : (
-            /* 오른쪽 냐옹이 */
-            <>
-              <path d="M 12 20 H 52 V 40 H 12 Z" fill={petColor} />
-              <path d="M 12 20 L 20 8 L 28 20 Z" fill={petColor} />
-              <path d="M 36 20 L 44 8 L 52 20 Z" fill={petColor} />
-              {/* 질끈 눈 (X X) */}
-              <path d="M 18 21 l 4 4 M 22 21 l -4 4" stroke={eyeColor} strokeWidth="1.5" />
-              <path d="M 40 21 l 4 4 M 44 21 l -4 4" stroke={eyeColor} strokeWidth="1.5" />
-              <rect x="31" y="25" width="2" height="2" fill={borderColor} />
-            </>
-          )}
-        </svg>
-        
-        {/* 불꽃/땀방울 장식 3개 (FF6B6B) */}
-        <div className="absolute -top-3 -right-4 flex gap-1 z-30">
-          <span style={{ color: redColor, fontSize: '10px', fontWeight: 'bold' }}>☄</span>
-          <span style={{ color: redColor, fontSize: '12px', fontWeight: 'bold' }}>☄</span>
-          <span style={{ color: redColor, fontSize: '8px', fontWeight: 'bold' }}>☄</span>
+    <div style={{ position: 'relative', width: '100%', marginTop: '20px', imageRendering: 'pixelated' }}>
+      {/* 배너 테두리 */}
+      <div style={{ position: 'relative', border: `2px solid ${c.border}`, background: 'var(--pet-bg)', borderRadius: '12px', overflow: 'visible' }}>
+        {/* 왼쪽 빼꼼 고양이 */}
+        <div style={{ position: 'absolute', top: '-40px', left: '8px', pointerEvents: 'none', zIndex: 10 }}>
+          <PetSvgNormal/>
+          <Paws/>
         </div>
 
-        {/* 솜방망이 앞발 */}
-        <div className="absolute -bottom-1 left-2 flex gap-6 z-30">
-          <div className="w-4 h-3 rounded-t" style={{ background: borderColor, border: `2px solid ${borderColor}`, borderBottom: 'none' }} />
-          <div className="w-4 h-3 rounded-t" style={{ background: borderColor, border: `2px solid ${borderColor}`, borderBottom: 'none' }} />
-        </div>
-      </div>
-
-      {/* ── 배너 내부 정보 렌더링 ── */}
-      <div className="w-full h-full flex items-center justify-between px-6 py-4" style={{ fontFamily: 'DungGeunMo, monospace' }}>
-        {/* 1. Nice job! */}
-        <div className="flex items-center gap-1">
-          <span className="text-base font-extrabold tracking-wider" style={{ color: mintColor }}>
-            NICE JOB!
-          </span>
-          <span className="text-xs" style={{ color: borderColor }}>🐾</span>
-        </div>
-
-        {/* 2. Test mode 버튼 (오렌지/레드 밑줄) */}
-        <div className="flex flex-col items-center">
-          <div className="px-3 py-1 bg-black/40 border text-xs" style={{ borderColor: borderColor, color: borderColor }}>
-            TEST MODE
+        {/* 오른쪽 빼꼼 고양이 (찡그린) */}
+        <div style={{ position: 'absolute', top: '-40px', right: '10px', pointerEvents: 'none', zIndex: 10 }}>
+          <PetSvgCross/>
+          {/* 불꽃 */}
+          <div style={{ position: 'absolute', top: '-10px', right: '-4px', display: 'flex', gap: '1px' }}>
+            <span style={{ color: c.red, fontSize: '9px', lineHeight: 1 }}>☄</span>
+            <span style={{ color: c.red, fontSize: '12px', lineHeight: 1 }}>☄</span>
           </div>
-          <div className="w-full h-1 mt-1" style={{ background: redColor }} />
+          <Paws/>
         </div>
 
-        {/* 3. 구글 애드몹 스타일 ad. 로고 */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-white/50">test ad.</span>
-          {/* 애드몹 로고 픽셀 형태 */}
-          <div className="w-6 h-6 border flex items-center justify-center bg-white/5" style={{ borderColor: borderColor }}>
-            <span style={{ color: mintColor, fontSize: '10px' }}>▲</span>
+        {/* 배너 내부 */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', fontFamily: 'DungGeunMo, monospace' }}>
+          <span style={{ color: c.mint, fontSize: '15px', fontWeight: 800 }}>Nice job!</span>
+
+          <div style={{ border: `2px solid ${c.border}`, borderRadius: '10px', color: c.border, background: 'rgba(0,0,0,0.4)', padding: '5px 16px', fontSize: '12px', fontWeight: 'bold', boxShadow: '0 2px 0 rgba(0,0,0,0.35)' }}>
+            Test mode
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>test ad.</span>
+            {/* Google Admob 로고 */}
+            <svg width="26" height="26" viewBox="0 0 26 26">
+              <circle cx="13" cy="13" r="12" fill="#1565C0"/>
+              <circle cx="13" cy="13" r="12" fill="none" stroke={c.border} strokeWidth="1.5"/>
+              <circle cx="13" cy="13" r="4.5" fill="#42A5F5"/>
+              <circle cx="13" cy="13" r="4.5" fill="none" stroke="white" strokeWidth="1.5"/>
+              <rect x="16.5" y="15.5" width="5" height="2" rx="1" fill="#F57C00" transform="rotate(45 16.5 15.5)"/>
+            </svg>
           </div>
         </div>
       </div>

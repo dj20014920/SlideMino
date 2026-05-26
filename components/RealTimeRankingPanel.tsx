@@ -2,13 +2,12 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Trophy, ChevronRight, ChevronLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { rankingService, RankEntry, LiveRankEstimate, LeaderboardTab } from '../services/rankingService';
-import { GameState, BoardSize } from '../types';
+import { rankingService, RankEntry, LiveRankEstimate } from '../services/rankingService';
+import { GameState } from '../types';
 import { getLevelBadgeById } from '../services/xpLevelService';
 import { useBlockCustomization } from '../context/BlockCustomizationContext';
 
 interface RealTimeRankingPanelProps {
-  boardSize: BoardSize;
   score: number;
   gameState: GameState;
   liveRankEstimate: LiveRankEstimate | null;
@@ -19,14 +18,6 @@ interface RealTimeRankingPanelProps {
 
 const RANKING_POLL_INTERVAL_MS = 5000;
 
-const DIFFICULTY_TAB_MAP: Record<BoardSize, LeaderboardTab> = {
-  4: '4x4',
-  5: '5x5',
-  7: '7x7',
-  8: '8x8',
-  10: '10x10',
-};
-
 const MEDAL_EMOJIS = ['🥇', '🥈', '🥉'];
 
 function getMedalEmoji(index: number): string {
@@ -34,7 +25,6 @@ function getMedalEmoji(index: number): string {
 }
 
 export const RealTimeRankingPanel: React.FC<RealTimeRankingPanelProps> = ({
-  boardSize,
   score,
   gameState,
   liveRankEstimate,
@@ -53,8 +43,7 @@ export const RealTimeRankingPanel: React.FC<RealTimeRankingPanelProps> = ({
   const fetchRankings = useCallback(async () => {
     try {
       setIsLoading(true);
-      const tab = DIFFICULTY_TAB_MAP[boardSize] ?? 'ALL';
-      const result = await rankingService.getLeaderboard(tab);
+      const result = await rankingService.getLeaderboard('ALL');
       if (result.offline) {
         setError(true);
         return;
@@ -66,7 +55,7 @@ export const RealTimeRankingPanel: React.FC<RealTimeRankingPanelProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [boardSize]);
+  }, []);
 
   useEffect(() => {
     if (!isOpen || !isPlaying) {
@@ -207,10 +196,10 @@ export const RealTimeRankingPanel: React.FC<RealTimeRankingPanelProps> = ({
         title={isOpen ? '랭킹 닫기' : '실시간 랭킹 보기'}
         className={`
           w-[14px] pointer-events-auto flex items-center justify-center
-          border-l border-gray-200 dark:border-gray-700/50
-          bg-white/30 backdrop-blur-sm
-          hover:bg-white/60 dark:hover:bg-gray-800/60
-          text-gray-400 hover:text-gray-600 dark:hover:text-gray-300
+          border-l border-amber-300/60
+          bg-amber-50/70 backdrop-blur-sm
+          hover:bg-amber-100/80
+          text-amber-600 hover:text-amber-800
           transition-colors duration-200 cursor-pointer
           ${premiumBtnClass}
         `}

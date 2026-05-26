@@ -26,6 +26,7 @@ import {
 
 const EVERVAULT_SKIN_ID = 'skin_digital_evervault';
 const PixelBlast = lazy(() => import('../vendor/pixelblast/PixelBlast'));
+import { PetBoardOverlay } from './CutePetDecorations';
 
 export type BoardHandle = {
   setHoverLocation: (pos: { x: number; y: number } | null) => void;
@@ -210,7 +211,7 @@ const MergingTilesLayer = React.memo<{
             {...TILE_PREMIUM_UI_PRESERVE_ATTRS}
             className={`
               absolute ${isPremiumUiThemeActive ? premiumUiTileFaceClassName : (isNeonBlock ? '' : 'rounded-xl')} flex items-center justify-center
-              font-semibold ${isNeonBlock ? '' : 'overflow-hidden'} text-center
+              font-semibold ${isPremiumUiThemeActive ? 'overflow-visible' : (isNeonBlock ? '' : 'overflow-hidden')} text-center
               ${appearance.className}
               ${isNeonBlock ? 'skin-neon-block--board' : ''}
             `}
@@ -272,7 +273,7 @@ const PortalReleaseLayer = React.memo<{
             {...TILE_PREMIUM_UI_PRESERVE_ATTRS}
             className={`
               absolute ${isPremiumUiThemeActive ? premiumUiTileFaceClassName : (isNeonBlock ? '' : 'rounded-xl')} flex items-center justify-center
-              font-semibold ${isNeonBlock ? '' : 'overflow-hidden'} text-center
+              font-semibold ${isPremiumUiThemeActive ? 'overflow-visible' : (isNeonBlock ? '' : 'overflow-hidden')} text-center
               ${appearance.className}
               ${isNeonBlock ? 'skin-neon-block--board' : ''}
             `}
@@ -326,7 +327,7 @@ const PortalInLayer = React.memo<{
         return (
           <motion.div
             key={`portal-in-${anim.id}`}
-            className={`absolute flex items-center justify-center font-bold overflow-hidden text-center ${premiumUiTileFaceClassName} ${appearance.className ?? ''}`}
+            className={`absolute flex items-center justify-center font-bold ${isPremiumUiThemeActive ? 'overflow-visible' : 'overflow-hidden'} text-center ${premiumUiTileFaceClassName} ${appearance.className ?? ''}`}
             {...TILE_PREMIUM_UI_PRESERVE_ATTRS}
             style={{
               width: tileSize,
@@ -402,7 +403,7 @@ const PopLayer = React.memo<{
             })}
             {/* 타일 포물선 비행 */}
             <motion.div
-              className={`absolute flex items-center justify-center font-bold overflow-hidden text-center ${premiumUiTileFaceClassName} ${appearance.className ?? ''}`}
+              className={`absolute flex items-center justify-center font-bold ${isPremiumUiThemeActive ? 'overflow-visible' : 'overflow-hidden'} text-center ${premiumUiTileFaceClassName} ${appearance.className ?? ''}`}
               {...TILE_PREMIUM_UI_PRESERVE_ATTRS}
               style={{
                 width: tileSize,
@@ -544,7 +545,7 @@ const TilesLayer = React.memo<{
             {...TILE_PREMIUM_UI_PRESERVE_ATTRS}
             className={`
               absolute ${isPremiumUiThemeActive ? '' : (isNeonBlock ? '' : 'rounded-xl')} ${isPremiumUiThemeActive ? premiumUiTileFaceClassName : ''} flex items-center justify-center
-              font-semibold ${isNeonBlock ? '' : 'overflow-hidden'} text-center
+              font-semibold ${isPremiumUiThemeActive ? 'overflow-visible' : (isNeonBlock ? '' : 'overflow-hidden')} text-center
               ${appearance.className}
               ${isNeonBlock ? 'skin-neon-block--board' : ''}
               ${canSelectTiles ? 'cursor-pointer ring-2 ring-transparent hover:ring-amber-200/70 focus-visible:ring-amber-300 focus-visible:outline-none active:brightness-95' : ''}
@@ -646,7 +647,7 @@ const ReviveDestroyLayer = React.memo<{
             <div
               className={`
                 w-full h-full ${isPremiumUiThemeActive ? '' : (isNeonBlock ? '' : 'rounded-xl')} ${isPremiumUiThemeActive ? premiumUiTileFaceClassName : ''} flex items-center justify-center
-                font-semibold ${isNeonBlock ? '' : 'overflow-hidden'} text-center
+                font-semibold ${isPremiumUiThemeActive ? 'overflow-visible' : 'overflow-hidden'} text-center
                 ${appearance.className}
                 ${isNeonBlock ? 'skin-neon-block--board' : ''}
               `}
@@ -1524,7 +1525,9 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
   const premiumUiBoardPaddingClassName = isPremiumUiThemeActive
     ? premiumUiBoardShellClassName === 'win98-board-shell'
       ? 'p-2'
-      : 'p-4'
+      : premiumUiBoardShellClassName === 'pet-board-shell'
+        ? 'p-3'
+        : 'p-4'
     : 'p-3';
 
   // 보드 셸/스킨 장식이 아니라 실제 게임 좌표계 viewport만 측정한다.
@@ -1669,7 +1672,7 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
       <div
         ref={gridViewportRef}
         data-board-grid-viewport="true"
-        className={`relative w-full ${useGalaxyPhaseSyncClass ? 'explore-galaxy-phase-sync' : ''}`}
+        className={`relative w-full h-full ${useGalaxyPhaseSyncClass ? 'explore-galaxy-phase-sync' : ''}`}
         style={{ aspectRatio: '1 / 1' }}
       >
         <style>{`
@@ -1882,9 +1885,13 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
         width: `${boardPx}px`,
         maxWidth: '100%',
         aspectRatio: '1 / 1',
+        margin: '0 auto',
       }}
     >
       {renderBoardContent()}
+      {isPremiumUiThemeActive && premiumSkinRuntime?.family === 'cute_pet' && activeCatalogEntry?.premiumUiThemeId && (
+        <PetBoardOverlay themeId={activeCatalogEntry.premiumUiThemeId} />
+      )}
     </div>
   );
 }));

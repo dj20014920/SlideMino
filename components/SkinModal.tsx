@@ -61,7 +61,7 @@ const SkinPreviewTile = React.memo<{ value: number; skin: { id?: string; hex: st
     const { className, style } = resolveSkinAppearance(
       value,
       skin,
-      skin.id === PIXELBLAST_SKIN_ID ? { premiumUiThemeId: 'pixelblast_void' } : undefined,
+      { premiumUiThemeId: previewThemeId },
     );
     const isNeonBlock = className === 'skin-neon-block';
     const isExploreGalaxy = skin.id === EXPLORE_GALAXY_SKIN_ID;
@@ -304,7 +304,7 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
         resolveSkinAppearance(
           swatchPreviewValue,
           entry,
-          entry.id === PIXELBLAST_SKIN_ID ? { premiumUiThemeId: 'pixelblast_void' } : undefined,
+          { premiumUiThemeId: entry.premiumUiThemeId },
         ),
       );
     }

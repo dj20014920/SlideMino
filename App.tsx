@@ -55,6 +55,7 @@ import { SkinModal } from './components/SkinModal';
 import { Undo2, Home, RotateCw, Move, Palette, Lock, Trophy, HelpCircle, RotateCcw, X } from 'lucide-react';
 
 import { GameOverModal } from './components/GameOverModal';
+import { PetButtonFrame, PetHeaderTitleDecor, PetBottomBannerDecor, PetGridFrameDecor } from './components/CutePetDecorations';
 import { GameModeTutorial } from './components/GameModeTutorial';
 import { SequentialOnboardingOverlay } from './components/SequentialOnboardingOverlay';
 import { LeaderboardModal } from './components/LeaderboardModal';
@@ -1398,7 +1399,7 @@ const App: React.FC = () => {
   const [isCustomizationOpen, setIsCustomizationOpen] = useState(false);
   const [isSkinOpen, setIsSkinOpen] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
-  const [isRankingPanelOpen, setIsRankingPanelOpen] = useState(false);
+  const [isRankingPanelOpen, setIsRankingPanelOpen] = useState(!isNativeApp());
 
   // ── 최초 50점 스킨 보상 ──
   const [showFirstSkinRewardModal, setShowFirstSkinRewardModal] = useState(false);
@@ -6468,22 +6469,41 @@ const App: React.FC = () => {
           >
             <div className={`flex items-center ${isGameHeaderCompact ? 'gap-2' : 'gap-3'} min-w-0`}>
               {/* Home Button */}
-              <button
-                type="button"
-                onClick={handleHomeButtonClick}
-                disabled={isAnimating}
-                className={`
-                  ${isGameHeaderCompact ? 'p-2' : 'p-2.5'} rounded-full flex items-center justify-center ${premiumIconButtonClassName}
-              border shadow-sm transition-all duration-200
-              ${isAnimating
-                    ? 'bg-gray-100/50 text-gray-300 border-gray-200/50 cursor-not-allowed'
-                    : 'bg-white/70 hover:bg-white text-gray-700 border-white/50 hover:shadow-md active:scale-95'
-                  }
-            `}
-                aria-label={t('common:aria.home')}
-              >
-                <Home size={18} />
-              </button>
+              {/* Home Button */}
+              {isPremiumUiThemeActive && premiumUiTheme?.family === 'cute_pet' ? (
+                <PetButtonFrame themeId={premiumUiTheme.id}>
+                  <button
+                    type="button"
+                    onClick={handleHomeButtonClick}
+                    disabled={isAnimating}
+                    className={`
+                      ${isGameHeaderCompact ? 'p-1.5' : 'p-2'} flex items-center justify-center
+                      bg-transparent border-none text-white outline-none active:scale-95
+                    `}
+                    style={{ border: 'none', background: 'transparent' }}
+                    aria-label={t('common:aria.home')}
+                  >
+                    <Home size={18} />
+                  </button>
+                </PetButtonFrame>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleHomeButtonClick}
+                  disabled={isAnimating}
+                  className={`
+                    ${isGameHeaderCompact ? 'p-2' : 'p-2.5'} rounded-full flex items-center justify-center ${premiumIconButtonClassName}
+                border shadow-sm transition-all duration-200
+                ${isAnimating
+                      ? 'bg-gray-100/50 text-gray-300 border-gray-200/50 cursor-not-allowed'
+                      : 'bg-white/70 hover:bg-white text-gray-700 border-white/50 hover:shadow-md active:scale-95'
+                    }
+              `}
+                  aria-label={t('common:aria.home')}
+                >
+                  <Home size={18} />
+                </button>
+              )}
               <div className="space-y-0.5 min-w-0">
                 <h2 className={`${isGameHeaderCompact ? 'text-[11px] flex-nowrap min-w-0' : 'text-sm flex-wrap'} font-medium text-gray-400 uppercase tracking-wider flex items-center gap-1.5`}>
                   {t('common:labels.score')}
@@ -6494,7 +6514,23 @@ const App: React.FC = () => {
                       </span>
                     )}
                 </h2>
-                <p className={`${isGameHeaderCompact ? 'text-2xl' : 'text-3xl'} font-bold text-gray-900 tabular-nums leading-none`}>{score}</p>
+                <div className="relative">
+                  <p className={`${isGameHeaderCompact ? 'text-2xl' : 'text-3xl'} font-bold text-gray-900 tabular-nums leading-none`}>{score}</p>
+                  {isPremiumUiThemeActive && premiumUiTheme?.family === 'cute_pet' && (
+                    <>
+                      {/* 대각선 3줄 주황/레드 불꽃 데코 */}
+                      <div className="absolute -top-3 left-[48px] flex gap-0.5" style={{ imageRendering: 'pixelated' }}>
+                        <span style={{ color: 'var(--pet-accent-red)', fontSize: '8px', fontWeight: 'bold' }}>☄</span>
+                        <span style={{ color: 'var(--pet-accent-red)', fontSize: '10px', fontWeight: 'bold' }}>☄</span>
+                        <span style={{ color: 'var(--pet-accent-red)', fontSize: '6px', fontWeight: 'bold' }}>☄</span>
+                      </div>
+                      {/* 저장 안내 문구 */}
+                      <p style={{ color: 'var(--pet-accent-mint)', fontSize: '8px', fontWeight: 'bold', margin: '4px 0 0 0', fontFamily: 'DungGeunMo, monospace' }}>
+                        [점수는 자동저장됩니다!]
+                      </p>
+                    </>
+                  )}
+                </div>
                 {currentLevelBadge && (
                   <p className={isGameHeaderCompact ? 'text-[10px] font-semibold text-purple-600 whitespace-nowrap truncate' : 'text-xs font-semibold text-purple-600'}>
                     {currentLevelBadge.emoji} Lv.{currentLevelBadge.level}
@@ -6519,22 +6555,29 @@ const App: React.FC = () => {
             </div>
             <div className={`flex flex-col items-end ${isGameHeaderCompact ? 'gap-1.5' : 'gap-2'} transition-opacity duration-200 shrink-0`}>
               {/* Phase Indicator - Glass Pill - 고정 폭으로 레이아웃 안정화 */}
-              <div className={`
-            ${isGameHeaderCompact ? 'px-3 py-1.5 text-xs min-w-[82px] gap-1.5' : 'px-4 py-2 text-sm min-w-[100px] gap-2'} rounded-full font-semibold flex items-center justify-center ${premiumPillButtonClassName}
-            ${isPremiumUiThemeActive ? premiumHeaderMainButtonClassName : ''}
-            transition-all duration-200 ease-out
-            ${phaseIndicatorInteractivityClass}
-            ${isPlacePhase
-                  ? 'bg-emerald-50/90 backdrop-blur-sm border border-emerald-200/90 text-emerald-700 shadow-sm'
-                  : 'bg-slate-100/90 backdrop-blur-sm border border-slate-300/80 text-slate-700 shadow-sm'
-                }
-          `}
-                aria-disabled={!isPlacePhase}
-                tabIndex={isPlacePhase ? 0 : -1}
-              >
-                {isPlacePhase ? t('game:phases.place') : t('game:phases.swipe')}
-                {isSwipePhase && <Move size={14} />}
-              </div>
+              {isPremiumUiThemeActive && premiumUiTheme?.family === 'cute_pet' ? (
+                <PetHeaderTitleDecor 
+                  themeId={premiumUiTheme.id} 
+                  titleText={isPlacePhase ? String(t('game:phases.place')) : String(t('game:phases.swipe'))} 
+                />
+              ) : (
+                <div className={`
+                  ${isGameHeaderCompact ? 'px-3 py-1.5 text-xs min-w-[82px] gap-1.5' : 'px-4 py-2 text-sm min-w-[100px] gap-2'} rounded-full font-semibold flex items-center justify-center ${premiumPillButtonClassName}
+                  ${isPremiumUiThemeActive ? premiumHeaderMainButtonClassName : ''}
+                  transition-all duration-200 ease-out
+                  ${phaseIndicatorInteractivityClass}
+                  ${isPlacePhase
+                        ? 'bg-emerald-50/90 backdrop-blur-sm border border-emerald-200/90 text-emerald-700 shadow-sm'
+                        : 'bg-slate-100/90 backdrop-blur-sm border border-slate-300/80 text-slate-700 shadow-sm'
+                      }
+                `}
+                  aria-disabled={!isPlacePhase}
+                  tabIndex={isPlacePhase ? 0 : -1}
+                >
+                  {isPlacePhase ? t('game:phases.place') : t('game:phases.swipe')}
+                  {isSwipePhase && <Move size={14} />}
+                </div>
+              )}
 
               {/* Help & Undo Buttons - Same Row */}
               <div className={`flex items-center ${isGameHeaderCompact ? 'gap-1.5' : 'gap-2'}`}>
@@ -6639,27 +6682,53 @@ const App: React.FC = () => {
               >
                 <div className={`${premiumWindowBodyClassName} ${premiumGameBoardBodyClassName} relative`}>
                   <ComboIndicator comboCount={comboCount} timerMs={comboTimerMs} isActive={isComboActive} multiplier={comboMultiplierRef.current} />
-                  <Board
-                    ref={boardHandleRef}
-                    htmlId="game-board"
-                    grid={grid}
-                    obstacleState={obstacleState}
-                    phase={phase}
-                    activePiece={draggingPiece}
-                    boardRef={boardRef}
-                    mergingTiles={mergingTiles}
-                    portalReleaseAnimations={portalReleaseAnimations}
-                    portalInAnimations={portalInAnimations}
-                    popAnimations={popAnimations}
-                    valueOverrides={tileValueOverrides}
-                    boardScale={boardScale}
-                    reviveSelectionEnabled={isReviveSelectionMode}
-                    revivePendingTileId={revivePendingTileId}
-                    onReviveTileTap={handleReviveTileTap}
-                    reviveDestroyEffects={reviveDestroyEffects}
-                    mergedNumberBurstTileIds={mergedNumberBurstTileIds}
-                    mergedNumberBurstByTileId={mergedNumberBurstByTileId}
-                  />
+                  {isPremiumUiThemeActive && premiumUiTheme?.family === 'cute_pet' ? (
+                    <PetGridFrameDecor themeId={premiumUiTheme.id}>
+                      <Board
+                        ref={boardHandleRef}
+                        htmlId="game-board"
+                        grid={grid}
+                        obstacleState={obstacleState}
+                        phase={phase}
+                        activePiece={draggingPiece}
+                        boardRef={boardRef}
+                        mergingTiles={mergingTiles}
+                        portalReleaseAnimations={portalReleaseAnimations}
+                        portalInAnimations={portalInAnimations}
+                        popAnimations={popAnimations}
+                        valueOverrides={tileValueOverrides}
+                        boardScale={boardScale}
+                        reviveSelectionEnabled={isReviveSelectionMode}
+                        revivePendingTileId={revivePendingTileId}
+                        onReviveTileTap={handleReviveTileTap}
+                        reviveDestroyEffects={reviveDestroyEffects}
+                        mergedNumberBurstTileIds={mergedNumberBurstTileIds}
+                        mergedNumberBurstByTileId={mergedNumberBurstByTileId}
+                      />
+                    </PetGridFrameDecor>
+                  ) : (
+                    <Board
+                      ref={boardHandleRef}
+                      htmlId="game-board"
+                      grid={grid}
+                      obstacleState={obstacleState}
+                      phase={phase}
+                      activePiece={draggingPiece}
+                      boardRef={boardRef}
+                      mergingTiles={mergingTiles}
+                      portalReleaseAnimations={portalReleaseAnimations}
+                      portalInAnimations={portalInAnimations}
+                      popAnimations={popAnimations}
+                      valueOverrides={tileValueOverrides}
+                      boardScale={boardScale}
+                      reviveSelectionEnabled={isReviveSelectionMode}
+                      revivePendingTileId={revivePendingTileId}
+                      onReviveTileTap={handleReviveTileTap}
+                      reviveDestroyEffects={reviveDestroyEffects}
+                      mergedNumberBurstTileIds={mergedNumberBurstTileIds}
+                      mergedNumberBurstByTileId={mergedNumberBurstByTileId}
+                    />
+                  )}
                 </div>
               </div>
             ) : (
@@ -6872,14 +6941,18 @@ const App: React.FC = () => {
         */}
         <div className="w-full shrink-0">
           <div className={`
-          w-full transition-opacity duration-200
-          ${isSwipeFocusMode ? 'opacity-20 pointer-events-none' : 'opacity-100'}
-        `}>
-            <AdBanner
-              includeSafeBottomInReservedSpace={true}
-              webLayout="compact-banner"
-              webReservedHeightPx={STABLE_BANNER_RESERVE_PX}
-            />
+            w-full transition-opacity duration-200
+            ${isSwipeFocusMode ? 'opacity-20 pointer-events-none' : 'opacity-100'}
+          `}>
+            {isPremiumUiThemeActive && premiumUiTheme?.family === 'cute_pet' ? (
+              <PetBottomBannerDecor themeId={premiumUiTheme.id} />
+            ) : (
+              <AdBanner
+                includeSafeBottomInReservedSpace={true}
+                webLayout="compact-banner"
+                webReservedHeightPx={STABLE_BANNER_RESERVE_PX}
+              />
+            )}
           </div>
         </div>
 
@@ -7059,16 +7132,18 @@ const App: React.FC = () => {
         {isLoading && <LoadingScreen key="loading-screen-game" />}
       </AnimatePresence>
 
-      {/* 실시간 랭킹 사이드 패널 */}
-      <RealTimeRankingPanel
-        boardSize={boardSize}
-        score={score}
-        gameState={gameState}
-        liveRankEstimate={liveRankEstimate}
-        playerName={playerName}
-        isOpen={isRankingPanelOpen}
-        onToggle={() => setIsRankingPanelOpen(prev => !prev)}
-      />
+      {/* 실시간 랭킹 사이드 패널 — 웹 전용 */}
+      {!isNative && (
+        <RealTimeRankingPanel
+          boardSize={boardSize}
+          score={score}
+          gameState={gameState}
+          liveRankEstimate={liveRankEstimate}
+          playerName={playerName}
+          isOpen={isRankingPanelOpen}
+          onToggle={() => setIsRankingPanelOpen(prev => !prev)}
+        />
+      )}
     </>
   );
 };

@@ -1,0 +1,463 @@
+/* 🐾 공통 픽셀 펫 (Cute Pet) 프리미엄 테마 CSS (v12) */
+
+/* ── 0. 픽셀 웹폰트 로딩 정의 (Galmuri11 & DungGeunMo) ── */
+@font-face {
+  font-family: 'DungGeunMo';
+  src: url('https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_2105_2@1.0/DungGeunMo.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Galmuri11";
+  src: url("https://cdn.jsdelivr.net/npm/galmuri@3/dist/Galmuri11.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Galmuri11";
+  src: url("https://cdn.jsdelivr.net/npm/galmuri@3/dist/Galmuri11-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 1. 깜고 프리미엄 테마 색상 변수 - 가독성을 위해 명도 대비 상향 */
+.theme-cute-black-cat {
+  --pet-bg: #18181A;
+  --pet-pattern-color: #242426;
+  --pet-border: #E7C6A0;
+  --pet-cell-bg: #232326;         /* 기존 #1D1D20 에서 대비 대폭 향상 */
+  --pet-cell-border: #3B3B42;     /* 기존 #2C2C30 에서 명도 대비 대폭 향상 */
+  --pet-accent-mint: #5BE2A7;
+  --pet-accent-red: #FF6B6B;
+  --pet-text-color: #FFFFFF;
+  --pet-text-muted: #A0A0A5;      /* 기존 #8E8E93 보다 밝게 가독성 강화 */
+  --pet-btn-hover-bg: #323236;
+  --pet-active-glow: rgba(91, 226, 167, 0.25);
+}
+
+/* 2. 흰고 프리미엄 테마 색상 변수 */
+.theme-cute-white-cat {
+  --pet-bg: #E6F4F8;
+  --pet-pattern-color: #D2EAF0;
+  --pet-border: #121212;
+  --pet-cell-bg: #F0F8FA;
+  --pet-cell-border: #C8E2E8;
+  --pet-accent-mint: #FF6D00;
+  --pet-accent-red: #E53935;
+  --pet-text-color: #121212;
+  --pet-text-muted: #64748B;
+  --pet-btn-hover-bg: #D0E4EC;
+  --pet-active-glow: rgba(255, 109, 0, 0.15);
+}
+
+/* 3. 댕댕 프리미엄 테마 색상 변수 */
+.theme-cute-dog {
+  --pet-bg: #FFF0F5;
+  --pet-pattern-color: #F5D6E3;
+  --pet-border: #5c3d24;
+  --pet-cell-bg: #FFFDFD;
+  --pet-cell-border: #EBD0C6;
+  --pet-accent-mint: #D81B60;
+  --pet-accent-red: #FF5722;
+  --pet-text-color: #4e3629;
+  --pet-text-muted: #8d6e63;
+  --pet-btn-hover-bg: #F2D2DF;
+  --pet-active-glow: rgba(216, 27, 96, 0.15);
+}
+
+/* 4. 공통 픽셀 펫 테마 레이아웃 및 UI 재정의 */
+.theme-cute-black-cat,
+.theme-cute-white-cat,
+.theme-cute-dog {
+  background-color: var(--pet-bg) !important;
+  color: var(--pet-text-color) !important;
+  font-family: 'DungGeunMo', 'Galmuri11', monospace !important;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  -webkit-font-smoothing: none;
+}
+
+/* 모든 자식 요소에도 일관된 글꼴 상속 강제 */
+.theme-cute-black-cat *,
+.theme-cute-white-cat *,
+.theme-cute-dog * {
+  font-family: 'DungGeunMo', 'Galmuri11', monospace !important;
+}
+
+/* 플러스 및 도트 장식 전역 배경 패치 */
+.pet-app-shell {
+  background-color: var(--pet-bg) !important;
+  background-image: 
+    radial-gradient(var(--pet-pattern-color) 1px, transparent 1px),
+    linear-gradient(90deg, transparent 49px, var(--pet-pattern-color) 49px, var(--pet-pattern-color) 50px, transparent 50px),
+    linear-gradient(0deg, transparent 49px, var(--pet-pattern-color) 49px, var(--pet-pattern-color) 50px, transparent 50px);
+  background-size: 40px 40px, 100px 100px, 100px 100px;
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* 픽셀 윈도우 & 모달 창 */
+.pet-window {
+  background: var(--pet-bg) !important;
+  border: 4px solid var(--pet-border) !important;
+  box-shadow: 0 8px 0 rgba(0, 0, 0, 0.3) !important;
+  border-radius: 0px !important;
+  color: var(--pet-text-color) !important;
+  image-rendering: pixelated;
+}
+
+.pet-window-body {
+  padding: 12px !important;
+  background: var(--pet-bg) !important;
+}
+
+/* 타이틀바 (고양이 귀와 매끄러운 픽셀 아웃라인) */
+.pet-title-bar {
+  background: var(--pet-bg) !important;
+  border-bottom: 4px solid var(--pet-border) !important;
+  color: var(--pet-text-color) !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px !important;
+  font-weight: bold;
+}
+
+.pet-title-bar-text {
+  font-size: 14px !important;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--pet-accent-mint) !important;
+}
+
+/* 닫기 버튼 등의 피팅 */
+.pet-title-bar-controls button {
+  background: var(--pet-bg) !important;
+  border: 2px solid var(--pet-border) !important;
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pet-title-bar-controls button::after {
+  content: '✖';
+  font-size: 10px;
+  color: var(--pet-border);
+}
+.pet-title-bar-controls button:hover {
+  background: var(--pet-btn-hover-bg) !important;
+}
+
+/* 픽셀형 버튼 (블록 배치, 홈버튼 등) */
+.pet-menu-btn,
+.pet-game-btn,
+.pet-icon-btn,
+.pet-pill-btn,
+.pet-header-main-btn,
+.pet-header-icon-btn,
+.pet-header-action-btn,
+.pet-exit-home-btn,
+.pet-exit-cancel-btn {
+  background: var(--pet-bg) !important;
+  border: 4px solid var(--pet-border) !important;
+  border-radius: 0px !important;
+  color: var(--pet-text-color) !important;
+  box-shadow: 0 4px 0 rgba(0,0,0,0.2) !important;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.05s ease, box-shadow 0.05s ease;
+  image-rendering: pixelated;
+  padding: 6px 12px;
+}
+
+.pet-menu-btn:active,
+.pet-game-btn:active,
+.pet-icon-btn:active,
+.pet-pill-btn:active,
+.pet-exit-home-btn:active,
+.pet-exit-cancel-btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 rgba(0,0,0,0.2) !important;
+}
+
+.pet-menu-btn:hover,
+.pet-game-btn:hover,
+.pet-icon-btn:hover,
+.pet-pill-btn:hover,
+.pet-exit-home-btn:hover,
+.pet-exit-cancel-btn:hover {
+  background: var(--pet-btn-hover-bg) !important;
+}
+
+/* 4x4 메인 그리드 및 타일 보드 보더 */
+.pet-board-shell {
+  background: var(--pet-bg) !important;
+  border: 4px solid var(--pet-border) !important;
+  box-shadow: 0 8px 0 rgba(0,0,0,0.25) !important;
+  padding: 8px !important;
+  border-radius: 0px !important;
+}
+
+.pet-board-cell {
+  background: var(--pet-cell-bg) !important;
+  border: 2px solid var(--pet-cell-border) !important;
+  border-radius: 0px !important;
+}
+
+/* 탭 스트립 */
+.pet-tabstrip {
+  display: flex;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border-bottom: 4px solid var(--pet-border);
+}
+
+.pet-tabstrip-tab {
+  background: var(--pet-bg) !important;
+  border: 4px solid var(--pet-border) !important;
+  border-bottom: none !important;
+  padding: 6px 12px !important;
+  font-weight: bold;
+  color: var(--pet-text-color) !important;
+  cursor: pointer;
+  margin-right: 4px;
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+}
+
+/* React 컴포넌트 [data-active="true"] 및 [aria-selected="true"] 동시 매치 */
+.pet-tabstrip-tab[aria-selected="true"],
+.pet-tabstrip-tab[data-active="true"] {
+  background: var(--pet-btn-hover-bg) !important;
+  color: var(--pet-accent-mint) !important;
+  padding-bottom: 8px !important;
+  margin-bottom: -4px;
+  border-bottom: 4px solid var(--pet-btn-hover-bg) !important;
+}
+
+/* 패널 썬큰(Sunken) 효과 */
+.pet-sunken,
+.pet-sunken-white {
+  background: var(--pet-cell-bg) !important;
+  border: 4px solid var(--pet-cell-border) !important;
+  padding: 10px;
+  box-shadow: inset 2px 2px 0 rgba(0,0,0,0.25) !important;
+}
+
+/* 다크 오버레이 */
+.pet-modal-overlay {
+  background: rgba(0, 0, 0, 0.7) !important;
+  backdrop-filter: blur(3px);
+}
+
+/* 하단 내비게이션 바 OS 상태바 패치 */
+.pet-nav-wrapper {
+  background: var(--pet-bg) !important;
+  border-top: 4px solid var(--pet-border) !important;
+}
+
+.pet-bottom-nav {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  height: 48px;
+  background: var(--pet-bg) !important;
+}
+
+.pet-bottom-nav-button {
+  background: transparent !important;
+  border: none !important;
+  color: var(--pet-text-color) !important;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.pet-bottom-nav-button:hover {
+  color: var(--pet-accent-mint) !important;
+}
+
+.pet-bottom-nav-button[data-active="true"] {
+  color: var(--pet-accent-mint) !important;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.pet-bottom-nav-badge {
+  background: var(--pet-accent-red) !important;
+  color: #FFFFFF !important;
+  border: 2px solid var(--pet-border) !important;
+  border-radius: 0px !important;
+  font-size: 8px;
+  padding: 0 4px;
+  font-weight: bold;
+}
+
+.pet-status-bar {
+  display: flex;
+  background: var(--pet-bg) !important;
+  border-top: 4px solid var(--pet-border) !important;
+  padding: 4px;
+}
+
+.pet-status-bar-field {
+  padding: 2px 8px;
+  border-right: 2px solid var(--pet-cell-border);
+  font-size: 11px;
+  color: var(--pet-text-muted);
+}
+
+/* 인게임 숫자 폰트 스타일 덮어쓰기 */
+.pet-tile-number {
+  font-family: 'DungGeunMo', 'Galmuri11', monospace !important;
+  font-weight: bold;
+  color: #FFFFFF !important; /* 선명한 가독성 보장 */
+  text-shadow: 2px 2px 0px rgba(0,0,0,0.9);
+}
+
+/* ────────── 추가 누락 스타일 보완 ────────── */
+
+.pet-compartment {
+  border: 4px solid var(--pet-border) !important;
+  background: var(--pet-bg) !important;
+  padding: 8px;
+}
+
+.pet-list-item {
+  background: var(--pet-cell-bg) !important;
+  border: 2px solid var(--pet-cell-border) !important;
+  color: var(--pet-text-color) !important;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+}
+
+.pet-list-item-highlight {
+  background: var(--pet-btn-hover-bg) !important;
+  border: 2px solid var(--pet-accent-mint) !important;
+  color: var(--pet-accent-mint) !important;
+}
+
+.pet-badge {
+  background: var(--pet-accent-mint) !important;
+  color: var(--pet-bg) !important;
+  border: 2px solid var(--pet-border) !important;
+  font-weight: bold;
+  padding: 2px 6px;
+  font-size: 10px;
+}
+
+.pet-fieldset {
+  border: 4px solid var(--pet-border) !important;
+  padding: 12px !important;
+  background: var(--pet-bg) !important;
+  margin-bottom: 12px;
+}
+.pet-fieldset legend {
+  padding: 0 8px !important;
+  font-weight: bold;
+  color: var(--pet-accent-mint) !important;
+}
+
+.pet-progress-track {
+  background: var(--pet-cell-bg) !important;
+  border: 2px solid var(--pet-border) !important;
+  height: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.pet-progress-fill {
+  background: var(--pet-accent-mint) !important;
+  height: 100%;
+}
+
+.pet-game-header {
+  border-bottom: 4px solid var(--pet-border) !important;
+  background: var(--pet-bg) !important;
+}
+
+.pet-game-board-window {
+  border: 4px solid var(--pet-border) !important;
+  background: var(--pet-bg) !important;
+}
+
+.pet-board-body {
+  background: var(--pet-cell-bg) !important;
+}
+
+.pet-slot-shell {
+  background: var(--pet-bg) !important;
+  border: 4px solid var(--pet-border) !important;
+  padding: 6px !important;
+}
+
+.pet-slot-mini-cell {
+  background: var(--pet-cell-bg) !important;
+  border: 2px solid var(--pet-cell-border) !important;
+}
+
+.pet-slot-rotate-btn {
+  background: var(--pet-accent-mint) !important;
+  color: var(--pet-bg) !important;
+  border: 2px solid var(--pet-border) !important;
+}
+
+.pet-top-window,
+.pet-menu-window {
+  border: 4px solid var(--pet-border) !important;
+  background: var(--pet-bg) !important;
+}
+
+.pet-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pet-muted {
+  color: var(--pet-text-muted) !important;
+}
+
+.pet-tile-face {
+  border: 4px solid var(--pet-border) !important;
+}
+
+.pet-lock-toast {
+  background: var(--pet-bg) !important;
+  border: 4px solid var(--pet-accent-red) !important;
+  color: var(--pet-text-color) !important;
+  padding: 8px 16px;
+  box-shadow: 0 4px 0 rgba(0,0,0,0.3) !important;
+}
+
+.pet-field-row,
+.pet-field-row-stacked {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.pet-field-row-stacked {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.pet-ghost-valid {
+  border: 2px dashed var(--pet-accent-mint) !important;
+  background: rgba(91, 226, 167, 0.15) !important;
+}
+
+.pet-ghost-invalid {
+  border: 2px dashed var(--pet-accent-red) !important;
+  background: rgba(255, 107, 107, 0.15) !important;
+}
+

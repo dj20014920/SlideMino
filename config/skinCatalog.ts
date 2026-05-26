@@ -171,11 +171,12 @@ export const ADDITIONAL_SKIN_CATALOG: SkinCatalogEntry[] = [
     category: 'cat',
     nameKey: 'cuteBlackCat',
     premium: true,
+    premiumUiThemeId: 'cute_black_cat',
     style: {
       type: 'css-pattern',
       value: 'none',
       textColor: '#ffffff',
-      customCss: 'border-radius: 12px; border: 2px solid #000000; box-shadow: 0 4px 8px rgba(0,0,0,0.12); font-family: "Outfit", "Inter", sans-serif; font-weight: 800;',
+      customCss: 'border-radius: 4px; border: 2px solid #E7C6A0; box-shadow: 0 4px 8px rgba(0,0,0,0.12); font-family: "Outfit", "Inter", sans-serif; font-weight: 800;',
     },
   },
   {
@@ -184,11 +185,12 @@ export const ADDITIONAL_SKIN_CATALOG: SkinCatalogEntry[] = [
     category: 'cat',
     nameKey: 'cuteWhiteCat',
     premium: true,
+    premiumUiThemeId: 'cute_white_cat',
     style: {
       type: 'css-pattern',
       value: 'none',
       textColor: '#121212',
-      customCss: 'border-radius: 12px; border: 2px solid #121212; box-shadow: 0 4px 8px rgba(0,0,0,0.12); font-family: "Outfit", "Inter", sans-serif; font-weight: 800;',
+      customCss: 'border-radius: 4px; border: 2px solid #121212; box-shadow: 0 4px 8px rgba(0,0,0,0.12); font-family: "Outfit", "Inter", sans-serif; font-weight: 800;',
     },
   },
   {
@@ -197,11 +199,12 @@ export const ADDITIONAL_SKIN_CATALOG: SkinCatalogEntry[] = [
     category: 'dog',
     nameKey: 'cuteDog',
     premium: true,
+    premiumUiThemeId: 'cute_dog',
     style: {
       type: 'css-pattern',
       value: 'none',
       textColor: '#4e3629',
-      customCss: 'border-radius: 12px; border: 2px solid #5c3d24; box-shadow: 0 4px 8px rgba(0,0,0,0.12); font-family: "Outfit", "Inter", sans-serif; font-weight: 800;',
+      customCss: 'border-radius: 4px; border: 2px solid #5c3d24; box-shadow: 0 4px 8px rgba(0,0,0,0.12); font-family: "Outfit", "Inter", sans-serif; font-weight: 800;',
     },
   },
 

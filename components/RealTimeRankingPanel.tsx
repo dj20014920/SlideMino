@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Trophy, X, ChevronRight } from 'lucide-react';
+import { Trophy, ChevronRight, ChevronLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { rankingService, RankEntry, LiveRankEstimate, LeaderboardTab } from '../services/rankingService';
 import { GameState, BoardSize } from '../types';
@@ -86,41 +86,24 @@ export const RealTimeRankingPanel: React.FC<RealTimeRankingPanelProps> = ({
     ? premiumUiObjects.windowClassName ?? 'border border-gray-700/40 bg-gray-800/80 backdrop-blur-sm rounded-lg'
     : '';
 
-  return (
-    <>
-      {/* 토글 버튼 */}
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-label={isOpen ? t('common:aria.close') : '랭킹 보기'}
-        title={isOpen ? '랭킹 닫기' : '실시간 랭킹 보기'}
-        className={`
-          fixed right-2 z-[100] flex items-center justify-center
-          w-10 h-10 rounded-full shadow-lg
-          bg-amber-500 hover:bg-amber-600 text-white
-          transition-all duration-200 active:scale-95
-          ${isPremiumUiThemeActive ? premiumUiObjects.buttons?.iconClassName ?? '' : ''}
-        `}
-        style={{
-          top: 'calc(50% - 20px)',
-        }}
-      >
-        {isOpen ? <ChevronRight size={18} /> : <Trophy size={18} />}
-      </button>
+  const premiumBtnClass = isPremiumUiThemeActive
+    ? premiumUiObjects.buttons?.iconClassName ?? ''
+    : '';
 
+  return (
+    <div className="fixed right-0 top-0 bottom-0 z-[100] flex items-stretch pointer-events-none">
       {/* 패널 */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ x: 300, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: 300, opacity: 0 }}
+            initial={{ x: 220 }}
+            animate={{ x: 0 }}
+            exit={{ x: 220 }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             className={`
-              fixed right-0 top-0 bottom-0 z-[95] w-[220px]
+              w-[220px] overflow-y-auto flex flex-col pointer-events-auto
               bg-white/95 backdrop-blur-md border-l border-gray-200
-              shadow-xl overflow-y-auto
-              flex flex-col
+              shadow-xl
               ${premiumWindowClass}
             `}
             style={{
@@ -136,14 +119,9 @@ export const RealTimeRankingPanel: React.FC<RealTimeRankingPanelProps> = ({
                   {t('modals:leaderboard.title')}
                 </h3>
               </div>
-              <button
-                type="button"
-                onClick={onToggle}
-                className="p-1 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
-                aria-label={t('common:aria.close')}
-              >
-                <X size={16} />
-              </button>
+              <div className="text-[10px] text-gray-400">
+                TOP 7
+              </div>
             </div>
 
             {/* 내 순위 */}
@@ -170,9 +148,6 @@ export const RealTimeRankingPanel: React.FC<RealTimeRankingPanelProps> = ({
 
             {/* 랭킹 리스트 */}
             <div className="flex-1 overflow-y-auto px-3 py-2">
-              <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wide px-1 mb-2">
-                TOP 7
-              </p>
               {isLoading && rankings.length === 0 ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="w-5 h-5 border-2 border-amber-300 border-t-amber-500 rounded-full animate-spin" />
@@ -223,6 +198,27 @@ export const RealTimeRankingPanel: React.FC<RealTimeRankingPanelProps> = ({
           </motion.div>
         )}
       </AnimatePresence>
-    </>
+
+      {/* 토글 핸들 — 우측 전체 높이 얇은 바 */}
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label={isOpen ? t('common:aria.close') : '랭킹 보기'}
+        title={isOpen ? '랭킹 닫기' : '실시간 랭킹 보기'}
+        className={`
+          w-[14px] pointer-events-auto flex items-center justify-center
+          border-l border-gray-200 dark:border-gray-700/50
+          bg-white/30 backdrop-blur-sm
+          hover:bg-white/60 dark:hover:bg-gray-800/60
+          text-gray-400 hover:text-gray-600 dark:hover:text-gray-300
+          transition-colors duration-200 cursor-pointer
+          ${premiumBtnClass}
+        `}
+      >
+        <span className="text-[11px] font-bold">
+          {isOpen ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+        </span>
+      </button>
+    </div>
   );
 };

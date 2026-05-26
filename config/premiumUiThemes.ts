@@ -428,10 +428,158 @@ export const PIXELBLAST_VOID_PREMIUM_UI_THEME: PremiumUiThemeConfig = {
   },
 };
 
+export const CUTE_PET_PREMIUM_UI_OBJECTS: PremiumUiObjectMap = {
+  appShellClassName: 'pet-app-shell',
+  modalOverlayClassName: 'pet-modal-overlay',
+  windowClassName: 'pet-window',
+  windowBodyClassName: 'pet-window-body',
+  titleBarClassName: 'pet-title-bar',
+  titleBarTextClassName: 'pet-title-bar-text',
+  titleBarControlsClassName: 'pet-title-bar-controls',
+  blockClassName: 'pet-board-shell',
+  buttons: {
+    menuClassName: 'pet-menu-btn',
+    gameClassName: 'pet-game-btn',
+    iconClassName: 'pet-icon-btn',
+    pillClassName: 'pet-pill-btn',
+    headerMainClassName: 'pet-header-main-btn',
+    headerIconClassName: 'pet-header-icon-btn',
+    headerActionClassName: 'pet-header-action-btn',
+    compartmentClassName: 'pet-compartment',
+  },
+  tabs: {
+    level: { containerClassName: 'pet-tabstrip', buttonClassName: 'pet-tabstrip-tab' },
+    skin: { containerClassName: 'pet-tabstrip', buttonClassName: 'pet-tabstrip-tab' },
+    mission: { containerClassName: 'pet-tabstrip', buttonClassName: 'pet-tabstrip-tab' },
+  },
+  panels: {
+    sunkenClassName: 'pet-sunken',
+    sunkenWhiteClassName: 'pet-sunken-white',
+    listItemClassName: 'pet-list-item',
+    listItemHighlightClassName: 'pet-list-item-highlight',
+    badgeClassName: 'pet-badge',
+    fieldsetClassName: 'pet-fieldset',
+  },
+  progress: {
+    trackClassName: 'pet-progress-track',
+    fillClassName: 'pet-progress-fill',
+  },
+  board: {
+    gameHeaderClassName: 'pet-game-header',
+    gameWindowClassName: 'pet-game-board-window',
+    gameBodyClassName: 'pet-board-body',
+    slotShellClassName: 'pet-slot-shell',
+    slotMiniCellClassName: 'pet-slot-mini-cell',
+    slotRotateButtonClassName: 'pet-slot-rotate-btn',
+  },
+  extended: {
+    windows: {
+      topWindowClassName: 'pet-top-window',
+      menuWindowClassName: 'pet-menu-window',
+      modalWindowClassName: 'pet-window',
+      radioGroupClassName: 'pet-radio-group',
+    },
+    text: {
+      mutedClassName: 'pet-muted',
+      tileFaceClassName: 'pet-tile-face',
+      tileNumberClassName: 'pet-tile-number',
+    },
+    buttons: {
+      exitHomeClassName: 'pet-exit-home-btn',
+      exitCancelClassName: 'pet-exit-cancel-btn',
+    },
+    tabs: {
+      leaderboardMode: { containerClassName: 'pet-tabstrip', buttonClassName: 'pet-tabstrip-tab' },
+      leaderboardFilter: { containerClassName: 'pet-tabstrip', buttonClassName: 'pet-tabstrip-tab' },
+      leaderboardEventPeriod: { containerClassName: 'pet-tabstrip', buttonClassName: 'pet-tabstrip-tab' },
+      weeklyEvent: { containerClassName: 'pet-tabstrip', buttonClassName: 'pet-tabstrip-tab' },
+    },
+    navigation: {
+      taskbarWrapperClassName: 'pet-nav-wrapper',
+      taskbarClassName: 'pet-bottom-nav',
+      taskbarButtonClassName: 'pet-bottom-nav-button',
+      taskbarBadgeClassName: 'pet-bottom-nav-badge',
+      lockToastClassName: 'pet-lock-toast',
+      navHeightPx: 48,
+    },
+    statusBar: {
+      containerClassName: 'pet-status-bar',
+      fieldClassName: 'pet-status-bar-field',
+    },
+    forms: {
+      fieldRowClassName: 'pet-field-row',
+      fieldRowStackedClassName: 'pet-field-row-stacked',
+    },
+    board: {
+      boardCellClassName: 'pet-board-cell',
+      boardShellClassName: 'pet-board-shell',
+      ghostValidClassName: 'pet-ghost-valid',
+      ghostInvalidClassName: 'pet-ghost-invalid',
+    },
+  },
+};
+
+export const CUTE_BLACK_CAT_PREMIUM_UI_THEME: PremiumUiThemeConfig = {
+  id: 'cute_black_cat',
+  family: 'cute_pet',
+  rootClassName: 'theme-cute-black-cat',
+  externalStylesheet: {
+    id: 'slidemino-cute-pet-theme-link',
+    href: '/styles/cute-pet-theme.css',
+  },
+  labels: {
+    ...DEFAULT_PREMIUM_UI_LABELS,
+    topWindowTitle: '깜고 프리미엄\n(Cute Black Cat)',
+    statusBarText: 'Black Cat OS',
+    statusBarVersion: 'v1.0',
+  },
+  objects: CUTE_PET_PREMIUM_UI_OBJECTS,
+  usageGuide: SHARED_PREMIUM_UI_USAGE_GUIDE,
+};
+
+export const CUTE_WHITE_CAT_PREMIUM_UI_THEME: PremiumUiThemeConfig = {
+  id: 'cute_white_cat',
+  family: 'cute_pet',
+  rootClassName: 'theme-cute-white-cat',
+  externalStylesheet: {
+    id: 'slidemino-cute-pet-theme-link',
+    href: '/styles/cute-pet-theme.css',
+  },
+  labels: {
+    ...DEFAULT_PREMIUM_UI_LABELS,
+    topWindowTitle: '흰고 프리미엄\n(Cute White Cat)',
+    statusBarText: 'White Cat OS',
+    statusBarVersion: 'v1.0',
+  },
+  objects: CUTE_PET_PREMIUM_UI_OBJECTS,
+  usageGuide: SHARED_PREMIUM_UI_USAGE_GUIDE,
+};
+
+export const CUTE_DOG_PREMIUM_UI_THEME: PremiumUiThemeConfig = {
+  id: 'cute_dog',
+  family: 'cute_pet',
+  rootClassName: 'theme-cute-dog',
+  externalStylesheet: {
+    id: 'slidemino-cute-pet-theme-link',
+    href: '/styles/cute-pet-theme.css',
+  },
+  labels: {
+    ...DEFAULT_PREMIUM_UI_LABELS,
+    topWindowTitle: '댕댕 프리미엄\n(Cute Dog)',
+    statusBarText: 'Cute Dog OS',
+    statusBarVersion: 'v1.0',
+  },
+  objects: CUTE_PET_PREMIUM_UI_OBJECTS,
+  usageGuide: SHARED_PREMIUM_UI_USAGE_GUIDE,
+};
+
 const PREMIUM_UI_THEME_BY_ID: Record<PremiumUiThemeId, PremiumUiThemeConfig> = {
   retro_windows_98: RETRO_WINDOWS_98_PREMIUM_UI_THEME,
   explore_galaxy: EXPLORE_GALAXY_PREMIUM_UI_THEME,
   pixelblast_void: PIXELBLAST_VOID_PREMIUM_UI_THEME,
+  cute_black_cat: CUTE_BLACK_CAT_PREMIUM_UI_THEME,
+  cute_white_cat: CUTE_WHITE_CAT_PREMIUM_UI_THEME,
+  cute_dog: CUTE_DOG_PREMIUM_UI_THEME,
 };
 
 export const PREMIUM_UI_THEMES: readonly PremiumUiThemeConfig[] = Object.freeze(

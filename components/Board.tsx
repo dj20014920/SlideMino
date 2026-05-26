@@ -12,8 +12,9 @@ import React, {
 } from 'react';
 import { Grid, ObstacleState, Piece, Phase, Tile, MergingTile, PortalEndpoint, PortalState, PortalReleaseAnimation, PortalInAnimation, PopAnimation, ConcreteObstacle, ContainerObstacle, FrozenTileState } from '../types';
 import { canPlacePieceWithObstacles } from '../services/obstacleEngine';
-import { getTileColor, getTileNumberLayout, getSlideAnimationDurationMs, BOARD_CELL_GAP_PX } from '../constants';
+import { getTileColor, getTileNumberLayout, getSlideAnimationDurationMs, BOARD_CELL_GAP_PX, SKIN_CATALOG } from '../constants';
 import { useBlockCustomization } from '../context/BlockCustomizationContext';
+
 import { motion } from 'framer-motion';
 import EvervaultTileOverlay from './EvervaultTileOverlay';
 import {
@@ -1633,25 +1634,13 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
   const glowOpacityClass = isPremiumUiThemeActive || useGalaxyGhostStyle ? 'opacity-0' : phase === Phase.SLIDE ? 'opacity-100' : 'opacity-0';
   const boardLayersTransform = `translate3d(${layout.offsetX}px, ${layout.offsetY}px, 0)`;
 
-  return (
-    <div
-      ref={boardRef}
-      id={htmlId}
-        className={`
-        relative ${premiumUiBoardPaddingClassName} ${isPremiumUiThemeActive ? premiumUiBoardShellClassName : ''}
-        ${isPremiumUiThemeActive ? '' : 'bg-white/40'}
-        {/* !overflow-visible: 포탈 IN/OUT 마커가 보드 외곽에 위치하므로 필수. 프리미엄 스킨 CSS가 overflow-hidden을 선언해도 덮어쓰이지 않도록 !important 적용 */}
-        ${isPremiumUiThemeActive ? '' : 'rounded-3xl'} select-none !overflow-visible
-        shadow-lg transition-shadow duration-200 ease-out
-        ${boardBorderStyle}
-        ${readonly ? 'pointer-events-none' : ''}
-      `}
-      style={{
-        width: `${boardPx}px`,
-        maxWidth: '100%',
-        aspectRatio: '1 / 1',
-      }}
-    >
+  const activeCatalogEntry = useMemo(() => {
+    if (!activeSkin?.id) return null;
+    return SKIN_CATALOG.find(e => e.id === activeSkin.id) ?? null;
+  }, [activeSkin]);
+
+  const renderBoardContent = () => (
+    <>
       {/* Phase glow */}
       <div
         className={`
@@ -1873,6 +1862,29 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
           </div>
         )}
       </div>
+    </>
+  );
+
+  return (
+    <div
+      ref={boardRef}
+      id={htmlId}
+      className={`
+        relative ${premiumUiBoardPaddingClassName} ${isPremiumUiThemeActive ? premiumUiBoardShellClassName : ''}
+        ${isPremiumUiThemeActive ? '' : 'bg-white/40'}
+        {/* !overflow-visible: 포탈 IN/OUT 마커가 보드 외곽에 위치하므로 필수. 프리미엄 스킨 CSS가 overflow-hidden을 선언해도 덮어쓰이지 않도록 !important 적용 */}
+        ${isPremiumUiThemeActive ? '' : 'rounded-3xl'} select-none !overflow-visible
+        shadow-lg transition-shadow duration-200 ease-out
+        ${boardBorderStyle}
+        ${readonly ? 'pointer-events-none' : ''}
+      `}
+      style={{
+        width: `${boardPx}px`,
+        maxWidth: '100%',
+        aspectRatio: '1 / 1',
+      }}
+    >
+      {renderBoardContent()}
     </div>
   );
 }));

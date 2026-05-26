@@ -649,7 +649,7 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
           {/* Windows 98 Dotted Overlay or Solid Background */}
           <div className={`absolute inset-0 ${premiumUiModalOverlayClassName}`} onClick={onClose} />
 
-          <div className={`${premiumUiWindowClassName} relative z-10 w-full max-w-lg shadow-none flex flex-col max-h-[calc(100dvh-2rem)] modal-safe-panel`} style={{ width: '100%' }}>
+          <div className={`${premiumUiWindowClassName} ${premiumUiModalWindowClassName || ''} relative z-10 w-full max-w-lg shadow-none flex flex-col max-h-[calc(100dvh-2rem)] modal-safe-panel`} style={{ width: '100%' }}>
             <div className={premiumUiTitleBarClassName}>
               <div className={premiumUiTitleBarTextClassName}>
                 {t('modals:skin.title')}
@@ -659,51 +659,61 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
               </div>
             </div>
 
-            {/* Win98 Classic Tabs Bar */}
-            <ul className="window-tabs" role="tablist" style={{ display: 'flex', listStyle: 'none', padding: '0 4px', margin: '0 0 -2px 0', borderBottom: 'none', zIndex: 1 }}>
-              <li role="tab" aria-selected={activeBigTab === 'premium'} style={{ marginRight: '2px' }}>
-                <button 
-                  type="button"
-                  onClick={() => setActiveBigTab('premium')}
-                  style={{
-                    padding: '3px 10px',
-                    background: '#c0c0c0',
-                    border: '1.5px solid',
-                    borderColor: activeBigTab === 'premium' ? '#fff #0a0a0a #c0c0c0 #fff' : '#fff #0a0a0a #0a0a0a #fff',
-                    borderBottom: activeBigTab === 'premium' ? 'none' : '1.5px solid #0a0a0a',
-                    paddingBottom: activeBigTab === 'premium' ? '5px' : '3px',
-                    marginTop: activeBigTab === 'premium' ? '0px' : '2px',
-                    fontWeight: 'bold',
-                    fontSize: '11px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  💎 {t('modals:skin.sectionPremium')}
-                </button>
-              </li>
-              <li role="tab" aria-selected={activeBigTab === 'normal'}>
-                <button 
-                  type="button"
-                  onClick={() => setActiveBigTab('normal')}
-                  style={{
-                    padding: '3px 10px',
-                    background: '#c0c0c0',
-                    border: '1.5px solid',
-                    borderColor: activeBigTab === 'normal' ? '#fff #0a0a0a #c0c0c0 #fff' : '#fff #0a0a0a #0a0a0a #fff',
-                    borderBottom: activeBigTab === 'normal' ? 'none' : '1.5px solid #0a0a0a',
-                    paddingBottom: activeBigTab === 'normal' ? '5px' : '3px',
-                    marginTop: activeBigTab === 'normal' ? '0px' : '2px',
-                    fontWeight: 'bold',
-                    fontSize: '11px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  ✦ {t('modals:skin.sectionNormal')}
-                </button>
-              </li>
-            </ul>
+            {/* Premium UI Body Container with proper body padding */}
+            <div className={`${premiumUiWindowBodyClassName || ''} flex flex-col flex-1 overflow-y-auto`} style={{ minHeight: 0 }}>
+              {/* Win98 Classic or Pet theme Tabs Bar */}
+              <ul 
+                className={premiumUiSkinTabStripClassName || "window-tabs"} 
+                role="tablist" 
+                style={premiumUiSkinTabStripClassName ? { zIndex: 1 } : { display: 'flex', listStyle: 'none', padding: '0 4px', margin: '0 0 -2px 0', borderBottom: 'none', zIndex: 1 }}
+              >
+                <li role="tab" aria-selected={activeBigTab === 'premium'} style={{ marginRight: '2px' }}>
+                  <button 
+                    type="button"
+                    onClick={() => setActiveBigTab('premium')}
+                    data-active={activeBigTab === 'premium'}
+                    className={premiumUiSkinTabButtonClassName || ""}
+                    style={premiumUiSkinTabButtonClassName ? {} : {
+                      padding: '3px 10px',
+                      background: '#c0c0c0',
+                      border: '1.5px solid',
+                      borderColor: activeBigTab === 'premium' ? '#fff #0a0a0a #c0c0c0 #fff' : '#fff #0a0a0a #0a0a0a #fff',
+                      borderBottom: activeBigTab === 'premium' ? 'none' : '1.5px solid #0a0a0a',
+                      paddingBottom: activeBigTab === 'premium' ? '5px' : '3px',
+                      marginTop: activeBigTab === 'premium' ? '0px' : '2px',
+                      fontWeight: 'bold',
+                      fontSize: '11px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    💎 {t('modals:skin.sectionPremium')}
+                  </button>
+                </li>
+                <li role="tab" aria-selected={activeBigTab === 'normal'}>
+                  <button 
+                    type="button"
+                    onClick={() => setActiveBigTab('normal')}
+                    data-active={activeBigTab === 'normal'}
+                    className={premiumUiSkinTabButtonClassName || ""}
+                    style={premiumUiSkinTabButtonClassName ? {} : {
+                      padding: '3px 10px',
+                      background: '#c0c0c0',
+                      border: '1.5px solid',
+                      borderColor: activeBigTab === 'normal' ? '#fff #0a0a0a #c0c0c0 #fff' : '#fff #0a0a0a #0a0a0a #fff',
+                      borderBottom: activeBigTab === 'normal' ? 'none' : '1.5px solid #0a0a0a',
+                      paddingBottom: activeBigTab === 'normal' ? '5px' : '3px',
+                      marginTop: activeBigTab === 'normal' ? '0px' : '2px',
+                      fontWeight: 'bold',
+                      fontSize: '11px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    ✦ {t('modals:skin.sectionNormal')}
+                  </button>
+                </li>
+              </ul>
 
-            <div className={premiumUiSunkenClassName} style={{ minHeight: '180px', padding: '8px', zIndex: 0 }}>
+              <div className={premiumUiSunkenClassName} style={{ minHeight: '180px', padding: '8px', zIndex: 0 }}>
               <div className="space-y-4">
                 {skinSections
                   .filter(sec => activeBigTab === 'premium' 
@@ -910,6 +920,8 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
               )}
             </div>
 
+            </div> {/* End of premiumUiWindowBodyClassName */}
+
             {/* Status Bar */}
             <div className={premiumUiStatusBarContainerClassName} style={{ marginTop: '4px' }}>
               <p className={premiumUiStatusBarFieldClassName}>{premiumUiOverrides?.statusBarText ?? 'Block Slide'}</p>
@@ -954,7 +966,7 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
       >
         <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
-        <div className={`relative z-10 w-full max-w-lg max-h-[90dvh] modal-safe-panel rounded-3xl bg-white/90 backdrop-blur-sm border border-white/60 shadow-2xl overflow-hidden flex flex-col ${isPremiumUiThemeActive ? premiumUiModalWindowClassName : ''}`}>
+        <div className="relative z-10 w-full max-w-lg max-h-[90dvh] modal-safe-panel rounded-3xl bg-white/90 backdrop-blur-sm border border-white/60 shadow-2xl overflow-hidden flex flex-col">
           {/* 헤더 */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-black/5 shrink-0">
             <div>

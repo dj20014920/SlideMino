@@ -33,7 +33,7 @@ type SkinModalProps = {
   autoDraw?: boolean;
 };
 
-type SkinSectionKey = 'premium' | 'neon' | 'liquid' | 'mesh' | 'normal';
+type SkinSectionKey = 'premium' | 'cute' | 'neon' | 'liquid' | 'mesh' | 'normal';
 const EXPLORE_GALAXY_SKIN_ID = 'skin_digital_explore_galaxy';
 const PIXELBLAST_SKIN_ID = 'skin_digital_pixelblast_void';
 const SKIN_SWATCH_GRID_CLASS_NAME = 'grid grid-cols-6 gap-2.5';
@@ -149,6 +149,7 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
   const [adError, setAdError] = useState<string | null>(null);
   const [openSections, setOpenSections] = useState<Readonly<Record<SkinSectionKey, boolean>>>({
     premium: true,
+    cute: true,
     neon: true,
     liquid: true,
     mesh: true,
@@ -200,6 +201,7 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
 
   // 섹션별 그룹화 (일반 / 프리미엄 / 메쉬 그라디언트)
   const COLS = 6;
+  const isCuteSkin = (id: string) => id.startsWith('skin_cute_');
   const isMeshSwatchSkin = (id: string) => id.startsWith('skin_mesh_swatch');
   const isLiquidGlassSkin = (id: string) => id.startsWith('skin_digital_liquid_glass');
   const isNeonParallelSkin = (id: string) => id.startsWith('skin_digital_neon_block_parallel_');
@@ -213,11 +215,12 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
   };
   const skinSections = useMemo((): SkinSection[] => {
     const premium = SKIN_CATALOG.filter(e => e.premium);
-    const neon = SKIN_CATALOG.filter(e => !e.premium && isNeonSkin(e.id));
-    const liquidGlass = SKIN_CATALOG.filter(e => isLiquidGlassSkin(e.id));
-    const mesh = SKIN_CATALOG.filter(e => isMeshSwatchSkin(e.id));
+    const cute = SKIN_CATALOG.filter(e => isCuteSkin(e.id));
+    const neon = SKIN_CATALOG.filter(e => !e.premium && !isCuteSkin(e.id) && isNeonSkin(e.id));
+    const liquidGlass = SKIN_CATALOG.filter(e => !isCuteSkin(e.id) && isLiquidGlassSkin(e.id));
+    const mesh = SKIN_CATALOG.filter(e => !isCuteSkin(e.id) && isMeshSwatchSkin(e.id));
     const normal = SKIN_CATALOG.filter(
-      (e) => !e.premium && !isNeonSkin(e.id) && !isMeshSwatchSkin(e.id) && !isLiquidGlassSkin(e.id)
+      (e) => !e.premium && !isCuteSkin(e.id) && !isNeonSkin(e.id) && !isMeshSwatchSkin(e.id) && !isLiquidGlassSkin(e.id)
     );
 
     const toRows = (arr: typeof SKIN_CATALOG[number][]) => {
@@ -226,6 +229,7 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
       return r;
     };
 
+    const cuteRows = toRows(cute);
     const neonRows = toRows(neon);
     const liquidGlassRows = toRows(liquidGlass);
     const meshRows = toRows(mesh);
@@ -235,32 +239,39 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
     return [
       { key: 'premium', titleKey: 'modals:skin.sectionPremium', skins: premium, rows: premiumRows, rowOffset: 0 },
       {
+        key: 'cute',
+        titleKey: 'modals:skin.sectionCute',
+        skins: cute,
+        rows: cuteRows,
+        rowOffset: premiumRows.length,
+      },
+      {
         key: 'neon',
         titleKey: 'modals:skin.sectionNeon',
         skins: neon,
         rows: neonRows,
-        rowOffset: premiumRows.length,
+        rowOffset: premiumRows.length + cuteRows.length,
       },
       {
         key: 'liquid',
         titleKey: 'modals:skin.sectionLiquidGlass',
         skins: liquidGlass,
         rows: liquidGlassRows,
-        rowOffset: premiumRows.length + neonRows.length,
+        rowOffset: premiumRows.length + cuteRows.length + neonRows.length,
       },
       {
         key: 'mesh',
         titleKey: 'modals:skin.sectionMesh',
         skins: mesh,
         rows: meshRows,
-        rowOffset: premiumRows.length + neonRows.length + liquidGlassRows.length,
+        rowOffset: premiumRows.length + cuteRows.length + neonRows.length + liquidGlassRows.length,
       },
       {
         key: 'normal',
         titleKey: 'modals:skin.sectionNormal',
         skins: normal,
         rows: normalRows,
-        rowOffset: premiumRows.length + neonRows.length + liquidGlassRows.length + meshRows.length,
+        rowOffset: premiumRows.length + cuteRows.length + neonRows.length + liquidGlassRows.length + meshRows.length,
       },
     ];
   }, []);

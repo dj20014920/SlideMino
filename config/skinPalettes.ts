@@ -74,4 +74,7 @@ export const SKIN_EXPLICIT_PALETTES: Record<string, string[]> = {
 export const SKIN_ANIMATIONS: Record<string, string> = {};
 export const SKIN_RENDER_MODES: Record<string, SkinRenderMode> = {
   skin_digital_win98: 'standard',
+  skin_cute_black_cat: 'matte',
+  skin_cute_white_cat: 'matte',
+  skin_cute_dog: 'matte',
 };

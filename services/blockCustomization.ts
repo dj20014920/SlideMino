@@ -293,6 +293,13 @@ const cacheResolvedSkinAppearance = (
   return appearance;
 };
 
+const cleanClassName = (cls: string): string => {
+  return cls
+    .split(' ')
+    .filter((c) => !c.startsWith('text-'))
+    .join(' ');
+};
+
 const DISALLOWED_TILE_STYLE_KEYS = [
   'position',
   'top',
@@ -707,7 +714,6 @@ const buildLiquidGlassTileStyle = (value: number, tintHex: string): CSSPropertie
         `inset -1px 0 0 rgba(0,0,0,${(0.08 * strength).toFixed(3)})`,
         `0 -1px 2px rgba(255,255,255,${(0.16 * strength).toFixed(3)})`,
         `0 0 ${rimGlowBlurPx}px ${glowColor}`,
-        `0 8px 16px rgba(0,0,0,${dropShadowAlpha.toFixed(3)})`,
       ].join(', ');
 
   const style: CSSProperties = {
@@ -721,13 +727,277 @@ const buildLiquidGlassTileStyle = (value: number, tintHex: string): CSSPropertie
     textShadow,
   };
 
-  if (!isMobileRenderTarget) {
-    style.backdropFilter = `blur(${blurPx.toFixed(2)}px) saturate(${saturation.toFixed(3)}) contrast(${contrast.toFixed(3)}) brightness(${brightness.toFixed(3)})`;
-    style.WebkitBackdropFilter = `blur(${blurPx.toFixed(2)}px) saturate(${saturation.toFixed(3)}) contrast(${contrast.toFixed(3)}) brightness(${brightness.toFixed(3)})`;
+if (!isMobileRenderTarget) {
+  style.backdropFilter = `blur(${blurPx.toFixed(2)}px) saturate(${saturation.toFixed(3)}) contrast(${contrast.toFixed(3)}) brightness(${brightness.toFixed(3)})`;
+  style.WebkitBackdropFilter = `blur(${blurPx.toFixed(2)}px) saturate(${saturation.toFixed(3)}) contrast(${contrast.toFixed(3)}) brightness(${brightness.toFixed(3)})`;
+}
+
+return style;
+};
+
+// --- Cute Skins 동적 SVG 빌더 ---
+function buildCuteSkinSvgUrl(skinId: string, value: number): string {
+  const isBlackCat = skinId === 'skin_cute_black_cat';
+  const isWhiteCat = skinId === 'skin_cute_white_cat';
+  const isDog = skinId === 'skin_cute_dog';
+
+  // 1. 테마별 고유 색상 및 스타일 셋업
+  let bodyColor = '#252526'; // 검은 고양이: 뭉개짐 방지용 짙은 차콜 그레이
+  let innerEarColor = '#3a3a3a';
+  let eyeColor = '#ffffff';
+  let noseColor = '#ffb7b2';
+  let strokeColor = '#cfbda8'; // 검은 고양이: 귀/실루엣 경계 분리용 세련된 크림 골드 라인
+  let bgColor = 'transparent';
+
+  if (isBlackCat) {
+    bodyColor = '#252526';
+    innerEarColor = '#3e3e3f';
+    eyeColor = '#ffffff';
+    noseColor = '#ffb7b2';
+    strokeColor = '#cfbda8';
+  } else if (isWhiteCat) {
+    bodyColor = '#ffffff';
+    innerEarColor = '#ffe2e2'; // 귀 안쪽 분홍 도트
+    eyeColor = '#121212';
+    noseColor = '#ffb7b2';
+    strokeColor = '#252526';
+  } else if (isDog) {
+    bodyColor = '#ffffff'; // 순백의 뽀송뽀송한 비숑 솜털색
+    innerEarColor = '#f4ece1'; // 비숑의 흘러내린 귀 음영용 미색 도트
+    eyeColor = '#121212'; // 단추 같은 검은 눈
+    noseColor = '#121212'; // 단추 같은 검은 코
+    strokeColor = '#4e3629'; // 댕댕이용 따뜻한 초코 브라운 테두리
   }
 
-  return style;
-};
+  // 2. 가치(value)에 따라 진화하는 8비트 표정 & 모자/액세서리 (y좌표 40~52 확보 -> 시인성 복원을 위해 4px 하강!)
+  let eyeSvg = '';
+  let accessorySvg = '';
+  
+  if (value <= 2) {
+    // 졸린 눈 (_ _)
+    eyeSvg = `
+      <rect x="18" y="48" width="6" height="2" fill="${eyeColor}" />
+      <rect x="20" y="50" width="2" height="2" fill="${eyeColor}" />
+      <rect x="40" y="48" width="6" height="2" fill="${eyeColor}" />
+      <rect x="42" y="50" width="2" height="2" fill="${eyeColor}" />
+    `;
+  } else if (value === 4) {
+    // 십자가 픽셀 눈 (+ +) - 시그니처 표정
+    eyeSvg = `
+      <rect x="20" y="46" width="2" height="6" fill="${eyeColor}" />
+      <rect x="18" y="48" width="6" height="2" fill="${eyeColor}" />
+      <rect x="42" y="46" width="2" height="6" fill="${eyeColor}" />
+      <rect x="40" y="48" width="6" height="2" fill="${eyeColor}" />
+    `;
+  } else if (value === 8) {
+    // 행복한 눈웃음 (^ ^)
+    eyeSvg = `
+      <rect x="18" y="48" width="2" height="2" fill="${eyeColor}" />
+      <rect x="20" y="46" width="2" height="2" fill="${eyeColor}" />
+      <rect x="22" y="48" width="2" height="2" fill="${eyeColor}" />
+      <rect x="40" y="48" width="2" height="2" fill="${eyeColor}" />
+      <rect x="42" y="46" width="2" height="2" fill="${eyeColor}" />
+      <rect x="44" y="48" width="2" height="2" fill="${eyeColor}" />
+    `;
+  } else if (value === 16) {
+    // 장난스런 윙크 눈
+    eyeSvg = `
+      <rect x="18" y="48" width="6" height="2" fill="${eyeColor}" />
+      <rect x="42" y="46" width="2" height="6" fill="${eyeColor}" />
+      <rect x="40" y="48" width="6" height="2" fill="${eyeColor}" />
+    `;
+  } else if (value === 32) {
+    // 동그랗게 놀란 눈 (o o)
+    eyeSvg = `
+      <rect x="18" y="46" width="6" height="6" fill="${eyeColor}" />
+      <rect x="20" y="48" width="2" height="2" fill="${strokeColor}" />
+      <rect x="40" y="46" width="6" height="6" fill="${eyeColor}" />
+      <rect x="42" y="48" width="2" height="2" fill="${strokeColor}" />
+    `;
+  } else if (value === 64) {
+    // 붉은 하트 뿅뿅 눈
+    eyeSvg = `
+      <rect x="18" y="46" width="2" height="2" fill="#ff4d4d" />
+      <rect x="22" y="46" width="2" height="2" fill="#ff4d4d" />
+      <rect x="16" y="48" width="10" height="2" fill="#ff4d4d" />
+      <rect x="18" y="50" width="6" height="2" fill="#ff4d4d" />
+      <rect x="20" y="52" width="2" height="2" fill="#ff4d4d" />
+      <rect x="40" y="46" width="2" height="2" fill="#ff4d4d" />
+      <rect x="44" y="46" width="2" height="2" fill="#ff4d4d" />
+      <rect x="38" y="48" width="10" height="2" fill="#ff4d4d" />
+      <rect x="40" y="50" width="6" height="2" fill="#ff4d4d" />
+      <rect x="42" y="52" width="2" height="2" fill="#ff4d4d" />
+    `;
+  } else if (value === 128) {
+    // 윙크하며 메롱하는 눈/입
+    eyeSvg = `
+      <rect x="18" y="48" width="6" height="2" fill="${eyeColor}" />
+      <rect x="42" y="46" width="2" height="6" fill="${eyeColor}" />
+      <rect x="40" y="48" width="6" height="2" fill="${eyeColor}" />
+    `;
+    accessorySvg = `
+      <rect x="30" y="56" width="4" height="4" fill="#ff4d4d" />
+      <rect x="31" y="58" width="2" height="2" fill="#ff9999" />
+    `;
+  } else if (value === 256) {
+    // 힙스터 픽셀 선글라스
+    eyeSvg = `
+      <rect x="14" y="46" width="36" height="6" fill="#121212" stroke="${strokeColor}" stroke-width="0.5" />
+      <rect x="16" y="52" width="10" height="2" fill="#121212" />
+      <rect x="38" y="52" width="10" height="2" fill="#121212" />
+      <rect x="16" y="48" width="2" height="2" fill="#ffffff" />
+      <rect x="38" y="48" width="2" height="2" fill="#ffffff" />
+    `;
+  } else if (value === 512) {
+    // 부끄 미소와 발그레 볼
+    eyeSvg = `
+      <rect x="18" y="46" width="6" height="2" fill="${eyeColor}" />
+      <rect x="18" y="48" width="2" height="4" fill="${eyeColor}" />
+      <rect x="22" y="48" width="2" height="4" fill="${eyeColor}" />
+      <rect x="40" y="46" width="6" height="2" fill="${eyeColor}" />
+      <rect x="40" y="48" width="2" height="4" fill="${eyeColor}" />
+      <rect x="44" y="48" width="2" height="4" fill="${eyeColor}" />
+    `;
+  } else if (value === 1024) {
+    // 초롱초롱 광채 눈 + 머리 빨간 리본 장식
+    eyeSvg = `
+      <rect x="18" y="46" width="6" height="6" fill="${eyeColor}" />
+      <rect x="18" y="46" width="2" height="2" fill="${strokeColor}" />
+      <rect x="22" y="50" width="2" height="2" fill="${strokeColor}" />
+      <rect x="40" y="46" width="6" height="6" fill="${eyeColor}" />
+      <rect x="40" y="46" width="2" height="2" fill="${strokeColor}" />
+      <rect x="44" y="50" width="2" height="2" fill="${strokeColor}" />
+    `;
+    accessorySvg = `
+      <rect x="8" y="24" width="4" height="4" fill="#e03e3e" />
+      <rect x="16" y="24" width="4" height="4" fill="#e03e3e" />
+      <rect x="12" y="26" width="4" height="2" fill="#ffb0b0" />
+    `;
+  } else if (value === 2048) {
+    // 감격의 촉촉 눈빛 + 실버 왕관
+    eyeSvg = `
+      <rect x="18" y="46" width="6" height="6" fill="${eyeColor}" />
+      <rect x="18" y="48" width="2" height="4" fill="#8cd3ff" />
+      <rect x="40" y="46" width="6" height="6" fill="${eyeColor}" />
+      <rect x="40" y="48" width="2" height="4" fill="#8cd3ff" />
+    `;
+    accessorySvg = `
+      <rect x="26" y="14" width="2" height="2" fill="#d5d5d5" />
+      <rect x="30" y="12" width="4" height="2" fill="#d5d5d5" />
+      <rect x="36" y="14" width="2" height="2" fill="#d5d5d5" />
+      <rect x="28" y="16" width="8" height="4" fill="#b0b0b0" />
+      <rect x="31" y="18" width="2" height="2" fill="#ff4d4d" />
+    `;
+  } else {
+    // 근엄 위엄 황제/여왕 표정 + 골드 대형 왕관
+    eyeSvg = `
+      <rect x="18" y="48" width="6" height="2" fill="${eyeColor}" />
+      <rect x="20" y="46" width="2" height="2" fill="${eyeColor}" />
+      <rect x="40" y="48" width="6" height="2" fill="${eyeColor}" />
+      <rect x="42" y="46" width="2" height="2" fill="${eyeColor}" />
+    `;
+    accessorySvg = `
+      <rect x="22" y="8" width="2" height="2" fill="#ffd700" />
+      <rect x="31" y="4" width="2" height="2" fill="#ffd700" />
+      <rect x="40" y="8" width="2" height="2" fill="#ffd700" />
+      <rect x="24" y="10" width="16" height="4" fill="#ffd700" />
+      <rect x="22" y="14" width="20" height="6" fill="#cca600" />
+      <rect x="26" y="16" width="2" height="2" fill="#ff4d4d" />
+      <rect x="31" y="16" width="2" height="2" fill="#4d79ff" />
+      <rect x="36" y="16" width="2" height="2" fill="#ff4d4d" />
+    `;
+  }
+
+  // 3. 고양이 / 강아지 고유 실루엣 드로잉
+  let shapesSvg = '';
+
+  if (isDog) {
+    // 🐶 8비트 하얀 비숑 프리제 몽글몽글 솜사탕 실루엣 (위로 솟은 귀 제거, 곱슬곱슬 풍성한 털 & 꽉 찬 Fit 머리 대폭 확장!)
+    shapesSvg = `
+      <!-- 1. 픽셀 도트 드롭 섀도우 (비숑 솜사탕 헤드 실루엣 대칭 섀도우) -->
+      <path d="M24 10 H40 V12 H44 V14 H48 V18 H52 V22 H56 V28 H58 V36 H60 V44 H58 V50 H54 V54 H48 V58 H40 V60 H24 V58 H16 V54 H10 V50 H6 V44 H4 V36 H6 V28 H10 V22 H14 V18 H16 V14 H20 V12 H24 Z" fill="rgba(0,0,0,0.18)" transform="translate(2.2, 2.2)" />
+
+      <!-- 2. 비숑 바디 외곽 테두리 (가로 폭 X=4~60 웅장하게 확장, 둥글둥글 털 묘사) -->
+      <path d="M24 10 H40 V12 H44 V14 H48 V18 H52 V22 H56 V28 H58 V36 H60 V44 H58 V50 H54 V54 H48 V58 H40 V60 H24 V58 H16 V54 H10 V50 H6 V44 H4 V36 H6 V28 H10 V22 H14 V18 H16 V14 H20 V12 H24 Z" fill="${strokeColor}" />
+
+      <!-- 3. 비숑 내부 하얀 털 채우기 (새하얗게 꽉 채운 뺨และ 이마 바디 채우기) -->
+      <path d="M24 12 H40 V14 H44 V16 H48 V20 H52 V24 H54 V28 H56 V36 H58 V44 H56 V48 H52 V52 H48 V56 H40 V58 H24 V56 H16 V52 H12 V48 H8 V44 H6 V36 H8 V28 H10 V24 H12 V20 H16 V16 H20 V14 H24 Z" fill="${bodyColor}" />
+
+      <!-- 4. 처진 귀 음영 포인트 도트 (뺨 양옆 솜털 속 부드러운 미색 음영) -->
+      <!-- Left Ear Shadow -->
+      <rect x="12" y="24" width="4" height="10" fill="${innerEarColor}" />
+      <rect x="8" y="28" width="4" height="6" fill="${innerEarColor}" />
+      <!-- Right Ear Shadow -->
+      <rect x="48" y="24" width="4" height="10" fill="${innerEarColor}" />
+      <rect x="52" y="28" width="4" height="6" fill="${innerEarColor}" />
+
+      <!-- 5. 비숑 프리제 단추 같은 이목구비 & 핑크 볼터치 (시인성 복원을 위해 5px 하강!) -->
+      <!-- 검은 2x2 눈 -->
+      <rect x="20" y="45" width="2" height="2" fill="${eyeColor}" />
+      <rect x="42" y="45" width="2" height="2" fill="${eyeColor}" />
+      <!-- 검은 2x1 코 -->
+      <rect x="31" y="48" width="2" height="1" fill="${noseColor}" />
+      <!-- ㅅ자형 미소 입매선 -->
+      <rect x="30" y="49" width="1" height="1" fill="${strokeColor}" />
+      <rect x="33" y="49" width="1" height="1" fill="${strokeColor}" />
+      <rect x="31" y="50" width="2" height="1" fill="${strokeColor}" />
+      <!-- 핑크 러블리 볼터치 -->
+      <rect x="14" y="49" width="4" height="2" fill="#ffb7b2" />
+      <rect x="46" y="49" width="4" height="2" fill="#ffb7b2" />
+
+      <!-- 6. 액세서리 -->
+      ${accessorySvg}
+    `;
+  } else {
+    // 🐈 8비트 고양이 뾰족 귀 & 뺨 둥근 얼굴 실루엣 (이마 라인을 좌우 완벽 대칭 Y=24 수평선으로 정리하여 뾰족 귀 완전 강조!)
+    shapesSvg = `
+      <!-- 1. 픽셀 도트 드롭 섀도우 -->
+      <path d="M14 8 H18 V24 H46 V8 H50 V20 H56 V26 H60 V52 H56 V56 H48 V60 H16 V56 H8 V52 H4 V26 H8 V20 H14 Z" fill="rgba(0,0,0,0.18)" transform="translate(2.2, 2.2)" />
+
+      <!-- 2. 고양이 바디 외곽 테두리 (좌우 완벽 대칭 뾰족 귀 & Y=24 수평 이마 골짜기) -->
+      <path d="M14 8 H18 V24 H46 V8 H50 V20 H56 V26 H60 V52 H56 V56 H48 V60 H16 V56 H8 V52 H4 V26 H8 V20 H14 Z" fill="${strokeColor}" />
+
+      <!-- 3. 고양이 내부 바디 채우기 (Y=10 치솟음을 제거하고 테두리에 완벽 밀착 대칭 Y=22 이마 채우기!) -->
+      <path d="M16 10 H18 V22 H46 V10 H48 V21 H54 V27 H58 V50 H54 V54 H46 V58 H18 V54 H10 V50 H6 V27 H10 V21 H16 Z" fill="${bodyColor}" />
+
+      <!-- 4. 귀 안쪽 포인트 컬러 채우기 -->
+      <!-- Left Ear Inner -->
+      <rect x="12" y="16" width="4" height="4" fill="${innerEarColor}" />
+      <rect x="14" y="14" width="2" height="2" fill="${innerEarColor}" />
+      <!-- Right Ear Inner -->
+      <rect x="48" y="16" width="4" height="4" fill="${innerEarColor}" />
+      <rect x="48" y="14" width="2" height="2" fill="${innerEarColor}" />
+
+      <!-- 5. 고양이 이목구비 & 핑크 볼터치 (시인성 복원을 위해 Y좌표 4px 하강!) -->
+      ${eyeSvg}
+      <rect x="31" y="53" width="2" height="2" fill="${noseColor}" />
+      <rect x="30" y="55" width="1" height="1" fill="${strokeColor}" />
+      <rect x="33" y="55" width="1" height="1" fill="${strokeColor}" />
+      <rect x="4" y="52" width="6" height="1" fill="${strokeColor}" />
+      <rect x="6" y="55" width="4" height="1" fill="${strokeColor}" />
+      <rect x="54" y="52" width="6" height="1" fill="${strokeColor}" />
+      <rect x="54" y="55" width="4" height="1" fill="${strokeColor}" />
+      <rect x="14" y="52" width="4" height="2" fill="#ffb7b2" />
+      <rect x="46" y="52" width="4" height="2" fill="#ffb7b2" />
+
+      <!-- 6. 액세서리 -->
+      ${accessorySvg}
+    `;
+  }
+
+  // scale(0.92)에서 scale(0.975)로 가로세로 크게 확장하여 타일 영역에 꽉 차도록(Fit) 밀착!
+  const modelSvg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 64 64" style="background-color: transparent;">
+      <g transform="scale(0.975) translate(0.8, 0.8)">
+        ${shapesSvg}
+      </g>
+    </svg>
+  `;
+
+  // UTF-8 대응을 완벽히 보장하여 base64로 인코딩
+  const encoded = btoa(unescape(encodeURIComponent(modelSvg.trim())));
+  return `url("data:image/svg+xml;base64,${encoded}")`;
+}
 
 // --- New Helper for Previews ---
 export const resolveSkinAppearance = (
@@ -749,6 +1019,48 @@ export const resolveSkinAppearance = (
   if (!styleData && skinId) {
     const entry = SKIN_CATALOG_BY_ID.get(skinId);
     if (entry) styleData = entry.style;
+  }
+
+  // ── Cute Skins: 동적 SVG 8비트 얼굴 실루엣 변형 분기 ──
+  if (skinId.startsWith('skin_cute_')) {
+    const bgUrl = buildCuteSkinSvgUrl(skinId, value);
+    const isBlackCat = skinId === 'skin_cute_black_cat';
+    const textColor = styleData?.textColor || '#ffffff';
+
+    // 자릿수별로 정중앙 배치 상태에서 큼직한 숫자의 시인성을 보장하기 위해 전폭 상향 조정된 em 비율 설계!
+    const digitCount = String(value).length;
+    const scaleRatio = digitCount === 1 ? 0.95 : digitCount === 2 ? 0.82 : digitCount === 3 ? 0.70 : 0.55;
+    const customFontSize = `${scaleRatio}em`;
+
+    const style: CSSProperties = {
+      backgroundColor: 'transparent', // 기존 사각형 배경 완전 투명화
+      backgroundImage: bgUrl,
+      backgroundSize: '100% 100%',
+      backgroundRepeat: 'no-repeat',
+      border: 'none', // 기존 사각형 경계선 완전 제거
+      boxShadow: 'none', // 기존 사각형 그림자 제거
+      overflow: 'visible', // 뾰족귀가 잘리지 않고 보드 밖으로 튀어나와도 보이도록 보장!
+      color: textColor, // 시인성 보장 텍스트 컬러 바인딩
+      padding: '0px', // 글자 중앙 정밀 매핑
+      lineHeight: '1.1', // 글자 높이 최적화
+      fontSize: customFontSize, // em 단위 적용으로 반응형 호환 축소 완수
+      whiteSpace: 'nowrap', // 어떠한 상황에서도 자동 줄바꿈 강제 금지!
+      wordBreak: 'keep-all', // 한 줄 유지 보조
+      letterSpacing: value >= 1000 ? '-0.5px' : 'normal', // 4자리 자간 압축
+      display: 'flex',
+      alignItems: 'center', // 수직 정중앙 정렬 복원!
+      justifyContent: 'center',
+      textShadow: isBlackCat
+        ? '0 0 3px #000000, 0 1px 3px #000000' // 검은 고양이는 흰 숫자가 극단적으로 돋보이도록 강한 블랙 2중 섀도우
+        : '0 0 3px #ffffff, 0 1px 2px #ffffff', // 흰 고양이/강아지는 짙은 글씨가 또렷하도록 강한 화이트 섀도우
+    };
+    if (styleData?.customCss) {
+      applyStructuralCss(style, styleData.customCss as string);
+    }
+    return cacheResolvedSkinAppearance(cacheKey, {
+      className: cleanClassName(getTileColor(value)),
+      style: sanitizeTileAppearanceStyle(style),
+    });
   }
 
   const moduleAppearance = resolveSkinModuleAppearance({

@@ -21,6 +21,9 @@ const NAME_LABELS: Record<
     watercolor: string;
     pixelBlast: string;
     exploreGalaxy: string;
+    cuteBlackCat: string;
+    cuteWhiteCat: string;
+    cuteDog: string;
   }
 > = {
   ko: {
@@ -32,6 +35,9 @@ const NAME_LABELS: Record<
     watercolor: '워터컬러',
     pixelBlast: '픽셀 블라스트',
     exploreGalaxy: '은하 탐험',
+    cuteBlackCat: '검은 고양이',
+    cuteWhiteCat: '흰 고양이',
+    cuteDog: '강아지',
   },
   en: {
     liquidGlass: 'Liquid Glass',
@@ -42,6 +48,9 @@ const NAME_LABELS: Record<
     watercolor: 'Watercolor',
     pixelBlast: 'Pixel Blast',
     exploreGalaxy: 'Explore Galaxy',
+    cuteBlackCat: 'Black Cat',
+    cuteWhiteCat: 'White Cat',
+    cuteDog: 'Cute Puppy',
   },
   ja: {
     liquidGlass: 'リキッドグラス',
@@ -52,6 +61,9 @@ const NAME_LABELS: Record<
     watercolor: 'ウォーターカラー',
     pixelBlast: 'ピクセルブラスト',
     exploreGalaxy: 'ギャラクシー探検',
+    cuteBlackCat: '黒猫',
+    cuteWhiteCat: '白猫',
+    cuteDog: '子犬',
   },
   zh: {
     liquidGlass: '液态玻璃',
@@ -62,6 +74,9 @@ const NAME_LABELS: Record<
     watercolor: '水彩',
     pixelBlast: '像素爆炸',
     exploreGalaxy: '银河探索',
+    cuteBlackCat: '黑猫',
+    cuteWhiteCat: '白猫',
+    cuteDog: '小狗',
   },
 };
 
@@ -110,6 +125,9 @@ export const getSkinFallbackDisplayName = (skin: SkinNameInput, locale?: string)
   if (skin.id === 'skin_digital_explore_galaxy') return labels.exploreGalaxy;
   if (skin.id === 'skin_material_marble') return labels.mineralMarble;
   if (skin.id === 'skin_art_watercolor') return labels.watercolor;
+  if (skin.id === 'skin_cute_black_cat') return labels.cuteBlackCat;
+  if (skin.id === 'skin_cute_white_cat') return labels.cuteWhiteCat;
+  if (skin.id === 'skin_cute_dog') return labels.cuteDog;
 
   return skin.hex.toUpperCase();
 };

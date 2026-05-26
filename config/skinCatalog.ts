@@ -164,6 +164,47 @@ const PIXELBLAST_VOID_PREMIUM_SKIN: SkinCatalogEntry = {
 // ==========================================
 
 export const ADDITIONAL_SKIN_CATALOG: SkinCatalogEntry[] = [
+  // 🐾 귀여운 동물 친구들 (Cute Friends) 스킨 3종
+  {
+    id: 'skin_cute_black_cat',
+    hex: '#FDE8C0', // 연노랑 배경 크림색
+    category: 'art',
+    nameKey: 'cuteBlackCat',
+    premium: false,
+    style: {
+      type: 'css-pattern',
+      value: 'none',
+      textColor: '#ffffff',
+      customCss: 'border-radius: 12px; border: 2px solid #000000; box-shadow: 0 4px 8px rgba(0,0,0,0.12); font-family: "Outfit", "Inter", sans-serif; font-weight: 800;',
+    },
+  },
+  {
+    id: 'skin_cute_white_cat',
+    hex: '#E6F4F8', // 연하늘 배경색
+    category: 'art',
+    nameKey: 'cuteWhiteCat',
+    premium: false,
+    style: {
+      type: 'css-pattern',
+      value: 'none',
+      textColor: '#121212',
+      customCss: 'border-radius: 12px; border: 2px solid #121212; box-shadow: 0 4px 8px rgba(0,0,0,0.12); font-family: "Outfit", "Inter", sans-serif; font-weight: 800;',
+    },
+  },
+  {
+    id: 'skin_cute_dog',
+    hex: '#FFF0F5', // 파스텔 핑크/라벤더 배경색
+    category: 'art',
+    nameKey: 'cuteDog',
+    premium: false,
+    style: {
+      type: 'css-pattern',
+      value: 'none',
+      textColor: '#4e3629',
+      customCss: 'border-radius: 12px; border: 2px solid #5c3d24; box-shadow: 0 4px 8px rgba(0,0,0,0.12); font-family: "Outfit", "Inter", sans-serif; font-weight: 800;',
+    },
+  },
+
   PIXELBLAST_VOID_PREMIUM_SKIN,
   EXPLORE_GALAXY_PREMIUM_SKIN,
   ...NEON_ORDERED_SKINS,

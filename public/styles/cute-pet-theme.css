@@ -403,12 +403,55 @@
 .pet-slot-mini-cell {
   background: var(--pet-cell-bg) !important;
   border: 2px solid var(--pet-cell-border) !important;
+  position: relative !important;
+  overflow: visible !important;
+}
+
+.pet-slot-mini-cell::before {
+  content: '' !important;
+  position: absolute !important;
+  /* 귀 높이 7px / 얼굴 20px = 35% 만큼 위로 올림 */
+  top: -35% !important;
+  left: -1px !important;
+  right: -1px !important;
+  bottom: -1px !important;
+  background-repeat: no-repeat !important;
+  background-size: 100% 100% !important;
+  background-color: transparent !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
+}
+
+/* 깜고 테마 슬롯 미니셀 ::before */
+.theme-cute-black-cat .pet-slot-mini-cell::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M1 12H10V9H8V5H5V9H1Z' fill='%23FFC69F'/%3E%3Cpath d='M2 12H5V9H3V6H2Z' fill='%23FF8B8B' opacity='0.85'/%3E%3Cpath d='M31 12H22V9H24V5H27V9H31Z' fill='%23FFC69F'/%3E%3Cpath d='M30 12H27V9H29V6H30Z' fill='%23FF8B8B' opacity='0.85'/%3E%3Crect x='9' y='17' width='2' height='5' fill='%23FFC69F'/%3E%3Crect x='7' y='19' width='6' height='1.5' fill='%23FFC69F'/%3E%3Crect x='21' y='17' width='2' height='5' fill='%23FFC69F'/%3E%3Crect x='19' y='19' width='6' height='1.5' fill='%23FFC69F'/%3E%3Crect x='15' y='20' width='2' height='2' fill='%23FFC69F'/%3E%3Crect x='5' y='22' width='4' height='1.5' fill='%23FF8B8B' opacity='0.5'/%3E%3Crect x='23' y='22' width='4' height='1.5' fill='%23FF8B8B' opacity='0.5'/%3E%3C/svg%3E") !important;
+}
+
+/* 댕댕 테마 슬롯 미니셀 ::before */
+.theme-cute-dog .pet-slot-mini-cell::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M0 12H8V7H4V12Z' fill='%235c3d24'/%3E%3Cpath d='M32 12H24V7H28V12Z' fill='%235c3d24'/%3E%3Crect x='9' y='17' width='3' height='3' fill='%235c3d24'/%3E%3Crect x='20' y='17' width='3' height='3' fill='%235c3d24'/%3E%3Crect x='14' y='20' width='4' height='3' fill='%235c3d24'/%3E%3C/svg%3E") !important;
+}
+
+/* 흰고 테마 슬롯 미니셀 ::before */
+.theme-cute-white-cat .pet-slot-mini-cell::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M1 12H10V9H8V5H5V9H1Z' fill='%23222222'/%3E%3Cpath d='M2 12H5V9H3V6H2Z' fill='%23FF8B8B' opacity='0.85'/%3E%3Cpath d='M31 12H22V9H24V5H27V9H31Z' fill='%23222222'/%3E%3Cpath d='M30 12H27V9H29V6H30Z' fill='%23FF8B8B' opacity='0.85'/%3E%3Crect x='9' y='17' width='2' height='5' fill='%23222222'/%3E%3Crect x='7' y='19' width='6' height='1.5' fill='%23222222'/%3E%3Crect x='21' y='17' width='2' height='5' fill='%23222222'/%3E%3Crect x='19' y='19' width='6' height='1.5' fill='%23222222'/%3E%3Crect x='15' y='20' width='2' height='2' fill='%23222222'/%3E%3C/svg%3E") !important;
 }
 
 .pet-slot-rotate-btn {
-  background: var(--pet-accent-mint) !important;
+  background: var(--pet-border) !important;
   color: var(--pet-bg) !important;
   border: 2px solid var(--pet-border) !important;
+  border-radius: 6px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: background 0.15s ease, border-color 0.15s ease !important;
+}
+
+.pet-slot-rotate-btn:hover {
+  background: var(--pet-btn-hover-bg) !important;
+  border-color: var(--pet-btn-hover-bg) !important;
+  color: var(--pet-text-color) !important;
 }
 
 .pet-top-window,
@@ -460,3 +503,50 @@
   border: 2px dashed var(--pet-accent-red) !important;
   background: rgba(255, 107, 107, 0.15) !important;
 }
+
+/* ── 썬큰 패널 외부 테두리를 살구색으로 변경 ── */
+.pet-sunken,
+.pet-sunken-white {
+  border: 4px solid var(--pet-border) !important;
+}
+
+/* ── 썬큰 패널 내부 버튼의 중복 살구선 제거 (이중 테두리 통합) ── */
+.pet-sunken .pet-menu-btn,
+.pet-sunken .pet-game-btn,
+.pet-sunken-white .pet-menu-btn,
+.pet-sunken-white .pet-game-btn {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* ── 썬큰 패널 내부의 프리미엄 이어하기(Continue) 버튼의 이중 테두리 통합 (일자 구분선 화) ── */
+.pet-sunken .premium-continue-btn,
+.pet-sunken-white .premium-continue-btn {
+  border: none !important;
+  border-left: 4px solid var(--pet-border) !important;
+  box-shadow: none !important;
+  border-radius: 0px !important;
+  background: transparent !important;
+  padding: 0 !important;
+  width: 40px !important;
+  
+  /* 부모인 .pet-sunken의 padding: 10px을 뚫고 나가 위아래/우측 보더에 완전히 닿도록 음수 마진 적용 */
+  margin: 0 !important;
+  margin-top: -10px !important;
+  margin-bottom: -10px !important;
+  margin-right: -10px !important;
+  
+  /* 부모 높이(52px)를 100% 가득 메우기 위해 100% + 상하 패딩 20px로 연산 */
+  height: calc(100% + 20px) !important;
+}
+
+.pet-sunken .premium-continue-btn:hover,
+.pet-sunken-white .premium-continue-btn:hover {
+  background: var(--pet-btn-hover-bg) !important;
+  
+  /* hover 시에도 보더 라인이 가려지지 않도록 미세 조정 및 보더 라운드 제거 */
+  border-top-right-radius: 0px !important;
+  border-bottom-right-radius: 0px !important;
+}
+
+

@@ -11,7 +11,7 @@ function getThemeColors(themeId: PremiumUiThemeId) {
   const isBlack = themeId === 'cute_black_cat';
   return {
     isDog, isWhite, isBlack,
-    border:   isDog ? '#5c3d24' : isWhite ? '#222222' : '#E7C6A0',
+    border:   isDog ? '#5c3d24' : isWhite ? '#222222' : '#FFC69F',
     innerEar: isDog ? '#c08080' : '#FF8B8B',
     petBody:  isBlack ? '#2E2E32' : isWhite ? '#F0F0F0' : '#c8a898',
     eye:      isBlack ? '#F0F0F0' : '#18181A',
@@ -40,7 +40,7 @@ export const PetButtonFrame: React.FC<PetDecorProps & { children: React.ReactNod
           </>
         )}
       </div>
-      <div style={{ border: `2px solid ${c.border}`, background: 'var(--pet-bg)', borderRadius: '12px', boxShadow: `0 3px 0 rgba(0,0,0,0.35)`, overflow: 'hidden' }}>
+      <div style={{ border: `1.5px solid ${c.border}`, background: 'var(--pet-bg)', borderRadius: '12px', boxShadow: `0 2.5px 0 rgba(0,0,0,0.3)`, overflow: 'hidden' }}>
         {children}
       </div>
     </div>
@@ -67,19 +67,19 @@ export const PetHeaderTitleDecor: React.FC<PetDecorProps & { titleText: string }
         )}
       </div>
       {/* 타이틀 박스 */}
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', padding: '8px 22px', border: `2px solid ${c.border}`, background: 'var(--pet-bg)', borderRadius: '12px', boxShadow: `0 3px 0 rgba(0,0,0,0.3)` }}>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', padding: '6px 20px', border: `1.5px solid ${c.border}`, background: 'var(--pet-bg)', borderRadius: '12px', boxShadow: `0 2.5px 0 rgba(0,0,0,0.25)` }}>
         {/* 좌 수염 */}
         <div style={{ position: 'absolute', left: '-20px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px', pointerEvents: 'none' }}>
-          <div style={{ width: '14px', height: '2px', background: c.border }}/>
-          <div style={{ width: '18px', height: '2px', background: c.border }}/>
-          <div style={{ width: '11px', height: '2px', background: c.border }}/>
+          <div style={{ width: '14px', height: '4px', background: c.border }}/>
+          <div style={{ width: '18px', height: '4px', background: c.border }}/>
+          <div style={{ width: '11px', height: '4px', background: c.border }}/>
         </div>
         <span style={{ color: c.mint, fontFamily: 'DungGeunMo, monospace', fontSize: '13px', fontWeight: 800, letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{titleText}</span>
         {/* 우 수염 */}
         <div style={{ position: 'absolute', right: '-20px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '5px', pointerEvents: 'none' }}>
-          <div style={{ width: '14px', height: '2px', background: c.border }}/>
-          <div style={{ width: '18px', height: '2px', background: c.border }}/>
-          <div style={{ width: '11px', height: '2px', background: c.border }}/>
+          <div style={{ width: '14px', height: '4px', background: c.border }}/>
+          <div style={{ width: '18px', height: '4px', background: c.border }}/>
+          <div style={{ width: '11px', height: '4px', background: c.border }}/>
         </div>
       </div>
     </div>
@@ -126,7 +126,7 @@ export const PetBoardOverlay: React.FC<PetDecorProps> = ({ themeId }) => {
           bottom: 0,
           left: c.isDog ? '42px' : '38px',
           right: c.isDog ? '42px' : '38px',
-          height: '2.5px',
+          height: '1.5px',
           background: c.border,
           zIndex: 5,
         }} />
@@ -201,9 +201,9 @@ export const PetBoardOverlay: React.FC<PetDecorProps> = ({ themeId }) => {
         gap: '6px',
         imageRendering: 'pixelated',
       }}>
-        <div style={{ width: '14px', height: '2.5px', background: c.border }}/>
-        <div style={{ width: '18px', height: '2.5px', background: c.border }}/>
-        <div style={{ width: '12px', height: '2.5px', background: c.border }}/>
+        <div style={{ width: '14px', height: '4px', background: c.border }}/>
+        <div style={{ width: '18px', height: '4px', background: c.border }}/>
+        <div style={{ width: '12px', height: '4px', background: c.border }}/>
       </div>
 
       {/* ── 오른쪽 수염 (보드 우 중앙) ── */}
@@ -218,9 +218,9 @@ export const PetBoardOverlay: React.FC<PetDecorProps> = ({ themeId }) => {
         gap: '6px',
         imageRendering: 'pixelated',
       }}>
-        <div style={{ width: '14px', height: '2.5px', background: c.border }}/>
-        <div style={{ width: '18px', height: '2.5px', background: c.border }}/>
-        <div style={{ width: '12px', height: '2.5px', background: c.border }}/>
+        <div style={{ width: '14px', height: '4px', background: c.border }}/>
+        <div style={{ width: '18px', height: '4px', background: c.border }}/>
+        <div style={{ width: '12px', height: '4px', background: c.border }}/>
       </div>
     </div>
   );
@@ -319,11 +319,11 @@ export const PetBottomBannerDecor: React.FC<PetDecorProps & { children: React.Re
       {/* 배너 테두리 (자식 래핑) */}
       <div style={{
         position: 'relative',
-        border: `2.5px solid ${c.border}`,
+        border: `1.5px solid ${c.border}`,
         background: 'var(--pet-bg)',
         borderRadius: '12px',
         overflow: 'hidden',
-        boxShadow: '0 3px 0 rgba(0,0,0,0.3)',
+        boxShadow: '0 2.5px 0 rgba(0,0,0,0.25)',
         zIndex: 5
       }}>
         {children}

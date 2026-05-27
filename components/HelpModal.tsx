@@ -30,7 +30,7 @@ const content: Record<Language, LocalizedContent> = {
         sections: [
             {
                 icon: <Smartphone size={20} />,
-                title: '🎯 블록 배치',
+                title: '🎯 블록배치',
                 content: '하단의 블록을 드래그하여 보드 위에 놓으세요. 같은 숫자의 블록이 인접하면 합쳐질 준비가 됩니다!'
             },
             {

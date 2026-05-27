@@ -1883,7 +1883,9 @@ export const Board = React.memo(forwardRef<BoardHandle, BoardProps>(function Boa
       `}
       style={{
         width: `${boardPx}px`,
+        height: `${boardPx}px`,
         maxWidth: '100%',
+        maxHeight: '100%',
         aspectRatio: '1 / 1',
         margin: '0 auto',
       }}

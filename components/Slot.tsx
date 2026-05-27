@@ -45,6 +45,7 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
             : 'rounded-2xl bg-white/20 backdrop-blur-sm border border-dashed border-gray-300/50'
           }
         `}
+        style={{ aspectRatio: '1 / 1', height: 'auto', flexShrink: 0, flexGrow: 0, maxHeight: '100%' }}
       />
     );
   }
@@ -72,13 +73,13 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
   ].filter(Boolean).join(', ');
   const fitByWidth = width >= height;
   const normalizedCells = cells.map((c) => ({ x: c.x - minX, y: c.y - minY }));
-  const rotateHitboxPx = isPremiumUiThemeActive ? 16 : 18;
-  const rotateIconPx = isPremiumUiThemeActive ? 8 : 10;
+  const rotateHitboxPx = isPremiumUiThemeActive ? 22 : 18;
+  const rotateIconPx = isPremiumUiThemeActive ? 12 : 10;
 
   return (
     <div
       className={`
-        relative w-full aspect-square flex items-center justify-center
+        relative w-full aspect-square flex items-center justify-center self-center
         ${isPremiumUiThemeActive ? premiumUiSlotShellClassName : 'rounded-2xl bg-white/40 backdrop-blur-sm border border-white/50 shadow-[0_4px_16px_rgba(0,0,0,0.06)]'}
         cursor-grab active:cursor-grabbing 
         transition-all duration-150 ease-out
@@ -96,6 +97,7 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
       `}
       id={htmlId}
       data-slot
+      style={{ aspectRatio: '1 / 1', height: 'auto', flexShrink: 0, flexGrow: 0, maxHeight: '100%' }}
       onPointerDown={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -113,7 +115,7 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
             transition-colors duration-150
             opacity-100
             ${isPremiumUiThemeActive
-              ? `${premiumUiGameButtonClassName} ${premiumUiSlotRotateButtonClassName} text-gray-700`
+              ? `${premiumUiSlotRotateButtonClassName} text-gray-700`
               : 'rounded-full bg-white/80 text-gray-600 border border-white/40 shadow-md hover:bg-gray-800 hover:text-white hover:border-gray-700'
             }
           `}

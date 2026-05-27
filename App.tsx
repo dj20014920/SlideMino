@@ -56,6 +56,7 @@ import { Undo2, Home, RotateCw, Move, Palette, Lock, Trophy, HelpCircle, RotateC
 
 import { GameOverModal } from './components/GameOverModal';
 import { PetButtonFrame, PetHeaderTitleDecor, PetBottomBannerDecor, PetBoardOverlay } from './components/CutePetDecorations';
+import { PawNoiseLayer } from './components/PawNoiseLayer';
 import { GameModeTutorial } from './components/GameModeTutorial';
 import { SequentialOnboardingOverlay } from './components/SequentialOnboardingOverlay';
 import { LeaderboardModal } from './components/LeaderboardModal';
@@ -635,7 +636,7 @@ const getGameLayoutProfile = (
   // 새로고침 버튼 행(min-h-10)과 두 번째 gap까지 포함해 정확하게 보드 높이 예산 계산
   const REFRESH_ROW_HEIGHT_PX = 40;
   const boardHeightBudgetPx =
-    availableMainHeightPx - slotHeightPx - mainGapPx * 2 - REFRESH_ROW_HEIGHT_PX - mainTopPaddingPx - mainBottomPaddingPx - (isCutePet ? 30 : 0);
+    availableMainHeightPx - slotHeightPx - mainGapPx * 2 - REFRESH_ROW_HEIGHT_PX - mainTopPaddingPx - mainBottomPaddingPx - (isCutePet ? 54 : 0);
   const boardScaleCeiling = clamp(
     Math.min(contentWidthPx, boardHeightBudgetPx) / 420,
     boardScaleCeilingMin,
@@ -5466,7 +5467,7 @@ const App: React.FC = () => {
                 e.stopPropagation();
                 continueWeeklyEvent();
               }}
-              className={premiumMenuRowContinueButtonClassName}
+              className={`${premiumMenuRowContinueButtonClassName} premium-continue-btn`}
               aria-label={t('game:difficulties.continue')}
               title={t('game:difficulties.continue')}
             >
@@ -5512,7 +5513,7 @@ const App: React.FC = () => {
                       if (saved) restoreSavedGame(saved);
                     }}
                     id="continue-btn"
-                    className={premiumMenuRowContinueButtonClassName}
+                    className={`${premiumMenuRowContinueButtonClassName} premium-continue-btn`}
                     aria-label={t('game:difficulties.continue')}
                     title={t('game:difficulties.continue')}
                   >
@@ -5857,7 +5858,7 @@ const App: React.FC = () => {
           </div>
         )}
         <div
-          className={`${isPremiumUiThemeActive ? premiumAppShellClassName : ''} min-h-screen min-h-[100dvh] flex flex-col items-center justify-center p-6 space-y-6`}
+          className={`${isPremiumUiThemeActive ? premiumAppShellClassName : ''} min-h-screen min-h-[100dvh] flex flex-col items-center justify-center p-6 space-y-6 relative overflow-hidden`}
           style={{
             paddingTop: 'calc(0.5rem + var(--ui-safe-top))',
             paddingBottom: isNative
@@ -5865,9 +5866,14 @@ const App: React.FC = () => {
               : '24px',
           }}
         >
+          {/* 화면 곳곳을 총총총 은은하게 걸어다니는 고양이 픽셀 발걸음 노이즈 레이어 */}
+          {isPremiumUiThemeActive && premiumUiTheme?.family === 'cute_pet' && (
+            <PawNoiseLayer themeId={premiumUiTheme.id as any} enabled={gameState === GameState.MENU} />
+          )}
+
           {/* 로고 영역 */}
           {isPremiumUiThemeActive ? (
-            <div className={`${premiumWindowClassName} premium-home-window-surface w-full max-w-md animate-fade-in`}>
+            <div className={`${premiumWindowClassName} premium-home-window-surface w-full max-w-md animate-fade-in relative z-10`}>
               <div className={`${premiumWindowBodyClassName} premium-home-window-body-surface text-center px-4 py-5 relative`}>
                 {premiumUiTheme?.family === 'cute_pet' && (
                   <div className="flex justify-center mb-4 scale-110 select-none pointer-events-none" aria-hidden="true">
@@ -5896,7 +5902,7 @@ const App: React.FC = () => {
                     )}
                   </div>
                 )}
-                <h1 className="text-5xl font-bold tracking-tight leading-tight">
+                <h1 className="text-3xl sm:text-4xl font-extrabold tracking-wider leading-tight text-white" style={{ textShadow: '2.5px 2.5px 0px var(--pet-border)' }}>
                   {(() => {
                     const titleText = String(t('game:title'));
                     const matched = titleText.match(/^(.*)\s\((.*)\)$/);
@@ -5937,7 +5943,7 @@ const App: React.FC = () => {
           )}
 
           {isPremiumUiThemeActive ? (
-            <div className={`${premiumWindowClassName} premium-home-window-surface w-full max-w-md animate-slide-up ${premiumMenuWindowClassName}`}>
+            <div className={`${premiumWindowClassName} premium-home-window-surface w-full max-w-md animate-slide-up ${premiumMenuWindowClassName} relative z-10`}>
               <div className={premiumTitleBarClassName}>
                 <div className={premiumTitleBarTextClassName}>{premiumUi?.menuWindowTitle ?? '난이도 선택'}</div>
                 <div className={premiumTitleBarControlsClassName}>
@@ -5945,6 +5951,15 @@ const App: React.FC = () => {
                 </div>
               </div>
               <div className={`${premiumWindowBodyClassName} premium-home-window-body-surface`}>
+                {/* 🐾 고양이 빼꼼 배너를 난이도 선택 바로 위에 배치! */}
+                {premiumUiTheme?.family === 'cute_pet' && (
+                  <div className="mb-4 mt-1 w-full scale-95 origin-center">
+                    <PetBottomBannerDecor themeId={premiumUiTheme.id as any}>
+                      <AdBanner reserveNativeSpace={false} webLayout="compact-banner" />
+                    </PetBottomBannerDecor>
+                  </div>
+                )}
+
                 <div className={`${premiumRadioGroupClassName} p-1`}>
                   {premiumWeeklyEventButton}
                   <fieldset className={premiumFieldsetClassName}>
@@ -5999,13 +6014,7 @@ const App: React.FC = () => {
                   </div>
                 )}
 
-                {premiumUiTheme?.family === 'cute_pet' ? (
-                  <div className="mt-4 w-full scale-95 origin-center">
-                    <PetBottomBannerDecor themeId={premiumUiTheme.id as any}>
-                      <AdBanner reserveNativeSpace={false} webLayout="compact-banner" />
-                    </PetBottomBannerDecor>
-                  </div>
-                ) : (
+                {premiumUiTheme?.family !== 'cute_pet' && (
                   <div className="mt-3 flex justify-center">
                     <AppDownloadBanner isPremiumUiThemeActive={true} />
                   </div>
@@ -6782,7 +6791,7 @@ const App: React.FC = () => {
 
           {/* Inventory Slots */}
           <div className={`
-          game-mode-focus-shell game-mode-focus-slots w-full grid grid-cols-3 gap-4
+          game-mode-focus-shell game-mode-focus-slots w-full grid grid-cols-3 gap-4 items-center
           transition-shadow duration-200
           ${slotFocusSurfaceClass}
           ${isSlotPointerLocked ? 'pointer-events-none' : ''}

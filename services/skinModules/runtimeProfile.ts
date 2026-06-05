@@ -170,11 +170,11 @@ const resolveRuntimeFamily = (
   if (themeId === 'retro_windows_98') return 'win98';
   if (themeId === 'explore_galaxy') return 'explore_galaxy';
   if (themeId === 'pixelblast_void') return 'pixelblast_void';
-  if (themeId === 'cute_black_cat' || themeId === 'cute_white_cat' || themeId === 'cute_dog') return 'cute_pet';
+  if (themeId && themeId.startsWith('cute_')) return 'cute_pet';
   if (skinId === 'skin_digital_pixelblast_void') return 'pixelblast_void';
   if (skinId === 'skin_digital_explore_galaxy') return 'explore_galaxy';
   if (skinId === 'skin_digital_win98') return 'win98';
-  if (skinId === 'skin_cute_black_cat' || skinId === 'skin_cute_white_cat' || skinId === 'skin_cute_dog') return 'cute_pet';
+  if (skinId && skinId.startsWith('skin_cute_')) return 'cute_pet';
   return 'default';
 };
 

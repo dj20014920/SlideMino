@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import { TILE_COLORS, getTileColor, SKIN_CATALOG } from '../constants';
 import type { BlockCustomizationSettingsV1, GlobalTilePaletteSettings, PremiumUiThemeId, SkinSettings, TileSkinOverride, SkinCatalogEntry } from '../types';
+import { PET_SKINS } from '../config/petSkins.config';
 import {
   SKIN_PROGRESSIONS,
   SKIN_EXPLICIT_PALETTES,
@@ -14,6 +15,10 @@ import { resolveSkinModuleAppearance } from './skinModules/registry';
 
 const SKIN_CATALOG_BY_ID = new Map(
   SKIN_CATALOG.map((entry) => [entry.id, entry] as const)
+);
+
+const PET_SKIN_BY_ID = new Map(
+  PET_SKINS.map((entry) => [entry.id, entry] as const)
 );
 
 export const BLOCK_CUSTOMIZATION_STORAGE_KEY = 'slidemino.blockCustomization.v1';
@@ -146,6 +151,85 @@ const relativeLuminance = (rgb: Rgb): number => {
   const g = toLin(rgb.g);
   const b = toLin(rgb.b);
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+
+const contrastRatio = (a: Rgb, b: Rgb): number => {
+  const l1 = relativeLuminance(a);
+  const l2 = relativeLuminance(b);
+  const lighter = Math.max(l1, l2);
+  const darker = Math.min(l1, l2);
+  return (lighter + 0.05) / (darker + 0.05);
+};
+
+const mixHex = (a: string, b: string, t: number): string => (
+  rgbToHex(mixRgb(hexToRgb(a), hexToRgb(b), t))
+);
+
+const softenVeryLightPetFill = (fill: string, tint: string): string => {
+  const fillRgb = hexToRgb(fill);
+  const luminance = relativeLuminance(fillRgb);
+  if (luminance < 0.9) return fill;
+  return mixHex(fill, tint, luminance > 0.97 ? 0.18 : 0.12);
+};
+
+const ensureReadablePetStroke = (stroke: string, fill: string): string => {
+  const strokeRgb = hexToRgb(stroke);
+  const fillRgb = hexToRgb(fill);
+  if (contrastRatio(strokeRgb, fillRgb) >= 3) return stroke;
+  return relativeLuminance(fillRgb) > 0.55 ? '#34404A' : '#D7C3A2';
+};
+
+const resolvePetInkColor = (fill: string): string => (
+  relativeLuminance(hexToRgb(fill)) <= 0.38 ? '#F8FAFC' : '#2F3640'
+);
+
+const resolvePetBlushColor = (value: string | undefined): string => {
+  if (!value) return '#D98C94';
+  return mixHex(value, '#D8A0A0', 0.28);
+};
+
+type CutePetSvgPalette = {
+  isDog: boolean;
+  bodyColor: string;
+  innerEarColor: string;
+  eyeColor: string;
+  noseColor: string;
+  strokeColor: string;
+  blushColor: string;
+  textColor: string;
+};
+
+const resolveCutePetSvgPalette = (skinId: string): CutePetSvgPalette => {
+  const pet = PET_SKIN_BY_ID.get(skinId);
+  if (!pet) {
+    const bodyColor = '#252526';
+    return {
+      isDog: false,
+      bodyColor,
+      innerEarColor: '#3E3E3F',
+      eyeColor: '#FFFFFF',
+      noseColor: '#D98C94',
+      strokeColor: '#CFBDA8',
+      blushColor: '#D98C94',
+      textColor: '#FFFFFF',
+    };
+  }
+
+  const bodyColor = softenVeryLightPetFill(pet.colors.tileBg, pet.colors.uiCellBorder);
+  const strokeColor = ensureReadablePetStroke(pet.colors.tileBorder || pet.colors.earOuter, bodyColor);
+  const eyeColor = resolvePetInkColor(bodyColor);
+  const blushColor = resolvePetBlushColor(pet.colors.blush);
+
+  return {
+    isDog: pet.category === 'dog',
+    bodyColor,
+    innerEarColor: pet.colors.earInner,
+    eyeColor,
+    noseColor: eyeColor === '#F8FAFC' ? blushColor : '#2F3640',
+    strokeColor,
+    blushColor,
+    textColor: pet.colors.tileTextColor,
+  };
 };
 
 const WHITE_TEXT_COLOR = '#f9fafb';
@@ -737,37 +821,15 @@ return style;
 
 // --- Cute Skins 동적 SVG 빌더 ---
 function buildCuteSkinSvgUrl(skinId: string, value: number): string {
-  const isBlackCat = skinId === 'skin_cute_black_cat';
-  const isWhiteCat = skinId === 'skin_cute_white_cat';
-  const isDog = skinId === 'skin_cute_dog';
-
-  // 1. 테마별 고유 색상 및 스타일 셋업
-  let bodyColor = '#252526'; // 검은 고양이: 뭉개짐 방지용 짙은 차콜 그레이
-  let innerEarColor = '#3a3a3a';
-  let eyeColor = '#ffffff';
-  let noseColor = '#ffb7b2';
-  let strokeColor = '#cfbda8'; // 검은 고양이: 귀/실루엣 경계 분리용 세련된 크림 골드 라인
-  let bgColor = 'transparent';
-
-  if (isBlackCat) {
-    bodyColor = '#252526';
-    innerEarColor = '#3e3e3f';
-    eyeColor = '#ffffff';
-    noseColor = '#ffb7b2';
-    strokeColor = '#cfbda8';
-  } else if (isWhiteCat) {
-    bodyColor = '#ffffff';
-    innerEarColor = '#ffe2e2'; // 귀 안쪽 분홍 도트
-    eyeColor = '#121212';
-    noseColor = '#ffb7b2';
-    strokeColor = '#252526';
-  } else if (isDog) {
-    bodyColor = '#ffffff'; // 순백의 뽀송뽀송한 비숑 솜털색
-    innerEarColor = '#f4ece1'; // 비숑의 흘러내린 귀 음영용 미색 도트
-    eyeColor = '#121212'; // 단추 같은 검은 눈
-    noseColor = '#121212'; // 단추 같은 검은 코
-    strokeColor = '#4e3629'; // 댕댕이용 따뜻한 초코 브라운 테두리
-  }
+  const {
+    isDog,
+    bodyColor,
+    innerEarColor,
+    eyeColor,
+    noseColor,
+    strokeColor,
+    blushColor,
+  } = resolveCutePetSvgPalette(skinId);
 
   // 2. 가치(value)에 따라 진화하는 8비트 표정 & 모자/액세서리 (y좌표 40~52 확보 -> 시인성 복원을 위해 4px 하강!)
   let eyeSvg = '';
@@ -817,16 +879,16 @@ function buildCuteSkinSvgUrl(skinId: string, value: number): string {
   } else if (value === 64) {
     // 붉은 하트 뿅뿅 눈
     eyeSvg = `
-      <rect x="18" y="46" width="2" height="2" fill="#ff4d4d" />
-      <rect x="22" y="46" width="2" height="2" fill="#ff4d4d" />
-      <rect x="16" y="48" width="10" height="2" fill="#ff4d4d" />
-      <rect x="18" y="50" width="6" height="2" fill="#ff4d4d" />
-      <rect x="20" y="52" width="2" height="2" fill="#ff4d4d" />
-      <rect x="40" y="46" width="2" height="2" fill="#ff4d4d" />
-      <rect x="44" y="46" width="2" height="2" fill="#ff4d4d" />
-      <rect x="38" y="48" width="10" height="2" fill="#ff4d4d" />
-      <rect x="40" y="50" width="6" height="2" fill="#ff4d4d" />
-      <rect x="42" y="52" width="2" height="2" fill="#ff4d4d" />
+      <rect x="18" y="46" width="2" height="2" fill="#D96875" />
+      <rect x="22" y="46" width="2" height="2" fill="#D96875" />
+      <rect x="16" y="48" width="10" height="2" fill="#D96875" />
+      <rect x="18" y="50" width="6" height="2" fill="#D96875" />
+      <rect x="20" y="52" width="2" height="2" fill="#D96875" />
+      <rect x="40" y="46" width="2" height="2" fill="#D96875" />
+      <rect x="44" y="46" width="2" height="2" fill="#D96875" />
+      <rect x="38" y="48" width="10" height="2" fill="#D96875" />
+      <rect x="40" y="50" width="6" height="2" fill="#D96875" />
+      <rect x="42" y="52" width="2" height="2" fill="#D96875" />
     `;
   } else if (value === 128) {
     // 윙크하며 메롱하는 눈/입
@@ -836,8 +898,8 @@ function buildCuteSkinSvgUrl(skinId: string, value: number): string {
       <rect x="40" y="48" width="6" height="2" fill="${eyeColor}" />
     `;
     accessorySvg = `
-      <rect x="30" y="56" width="4" height="4" fill="#ff4d4d" />
-      <rect x="31" y="58" width="2" height="2" fill="#ff9999" />
+      <rect x="30" y="56" width="4" height="4" fill="#D96875" />
+      <rect x="31" y="58" width="2" height="2" fill="#F0A8AD" />
     `;
   } else if (value === 256) {
     // 힙스터 픽셀 선글라스
@@ -869,9 +931,9 @@ function buildCuteSkinSvgUrl(skinId: string, value: number): string {
       <rect x="44" y="50" width="2" height="2" fill="${strokeColor}" />
     `;
     accessorySvg = `
-      <rect x="8" y="24" width="4" height="4" fill="#e03e3e" />
-      <rect x="16" y="24" width="4" height="4" fill="#e03e3e" />
-      <rect x="12" y="26" width="4" height="2" fill="#ffb0b0" />
+      <rect x="8" y="24" width="4" height="4" fill="#C95F68" />
+      <rect x="16" y="24" width="4" height="4" fill="#C95F68" />
+      <rect x="12" y="26" width="4" height="2" fill="#F0A8AD" />
     `;
   } else if (value === 2048) {
     // 감격의 촉촉 눈빛 + 실버 왕관
@@ -886,7 +948,7 @@ function buildCuteSkinSvgUrl(skinId: string, value: number): string {
       <rect x="30" y="12" width="4" height="2" fill="#d5d5d5" />
       <rect x="36" y="14" width="2" height="2" fill="#d5d5d5" />
       <rect x="28" y="16" width="8" height="4" fill="#b0b0b0" />
-      <rect x="31" y="18" width="2" height="2" fill="#ff4d4d" />
+      <rect x="31" y="18" width="2" height="2" fill="#C95F68" />
     `;
   } else {
     // 근엄 위엄 황제/여왕 표정 + 골드 대형 왕관
@@ -897,14 +959,14 @@ function buildCuteSkinSvgUrl(skinId: string, value: number): string {
       <rect x="42" y="46" width="2" height="2" fill="${eyeColor}" />
     `;
     accessorySvg = `
-      <rect x="22" y="8" width="2" height="2" fill="#ffd700" />
-      <rect x="31" y="4" width="2" height="2" fill="#ffd700" />
-      <rect x="40" y="8" width="2" height="2" fill="#ffd700" />
-      <rect x="24" y="10" width="16" height="4" fill="#ffd700" />
-      <rect x="22" y="14" width="20" height="6" fill="#cca600" />
-      <rect x="26" y="16" width="2" height="2" fill="#ff4d4d" />
-      <rect x="31" y="16" width="2" height="2" fill="#4d79ff" />
-      <rect x="36" y="16" width="2" height="2" fill="#ff4d4d" />
+      <rect x="22" y="8" width="2" height="2" fill="#D6B35F" />
+      <rect x="31" y="4" width="2" height="2" fill="#D6B35F" />
+      <rect x="40" y="8" width="2" height="2" fill="#D6B35F" />
+      <rect x="24" y="10" width="16" height="4" fill="#D6B35F" />
+      <rect x="22" y="14" width="20" height="6" fill="#AA8F4D" />
+      <rect x="26" y="16" width="2" height="2" fill="#C95F68" />
+      <rect x="31" y="16" width="2" height="2" fill="#5B7FAE" />
+      <rect x="36" y="16" width="2" height="2" fill="#C95F68" />
     `;
   }
 
@@ -942,8 +1004,8 @@ function buildCuteSkinSvgUrl(skinId: string, value: number): string {
       <rect x="33" y="49" width="1" height="1" fill="${strokeColor}" />
       <rect x="31" y="50" width="2" height="1" fill="${strokeColor}" />
       <!-- 핑크 러블리 볼터치 -->
-      <rect x="14" y="49" width="4" height="2" fill="#ffb7b2" />
-      <rect x="46" y="49" width="4" height="2" fill="#ffb7b2" />
+      <rect x="14" y="49" width="4" height="2" fill="${blushColor}" />
+      <rect x="46" y="49" width="4" height="2" fill="${blushColor}" />
 
       <!-- 6. 액세서리 -->
       ${accessorySvg}
@@ -977,8 +1039,8 @@ function buildCuteSkinSvgUrl(skinId: string, value: number): string {
       <rect x="6" y="55" width="4" height="1" fill="${strokeColor}" />
       <rect x="54" y="52" width="6" height="1" fill="${strokeColor}" />
       <rect x="54" y="55" width="4" height="1" fill="${strokeColor}" />
-      <rect x="14" y="52" width="4" height="2" fill="#ffb7b2" />
-      <rect x="46" y="52" width="4" height="2" fill="#ffb7b2" />
+      <rect x="14" y="52" width="4" height="2" fill="${blushColor}" />
+      <rect x="46" y="52" width="4" height="2" fill="${blushColor}" />
 
       <!-- 6. 액세서리 -->
       ${accessorySvg}
@@ -1023,9 +1085,10 @@ export const resolveSkinAppearance = (
 
   // ── Cute Skins: 동적 SVG 8비트 얼굴 실루엣 변형 분기 ──
   if (skinId.startsWith('skin_cute_')) {
+    const petPalette = resolveCutePetSvgPalette(skinId);
     const bgUrl = buildCuteSkinSvgUrl(skinId, value);
-    const isBlackCat = skinId === 'skin_cute_black_cat';
-    const textColor = styleData?.textColor || '#ffffff';
+    const isDarkPetBody = relativeLuminance(hexToRgb(petPalette.bodyColor)) <= 0.38;
+    const textColor = styleData?.textColor || petPalette.textColor;
 
     // 자릿수별로 정중앙 배치 상태에서 큼직한 숫자의 시인성을 보장하기 위해 전폭 상향 조정된 em 비율 설계!
     const digitCount = String(value).length;
@@ -1050,9 +1113,12 @@ export const resolveSkinAppearance = (
       display: 'flex',
       alignItems: 'center', // 수직 정중앙 정렬 복원!
       justifyContent: 'center',
-      textShadow: isBlackCat
-        ? '0 0 3px #000000, 0 1px 3px #000000' // 검은 고양이는 흰 숫자가 극단적으로 돋보이도록 강한 블랙 2중 섀도우
-        : '0 0 3px #ffffff, 0 1px 2px #ffffff', // 흰 고양이/강아지는 짙은 글씨가 또렷하도록 강한 화이트 섀도우
+      WebkitTextStroke: isDarkPetBody
+        ? '0.6px rgba(0,0,0,0.55)'
+        : '0.6px rgba(255,255,255,0.55)',
+      textShadow: isDarkPetBody
+        ? '0 1px 2px rgba(0,0,0,0.72)'
+        : '0 1px 0 rgba(255,255,255,0.82)',
     };
     if (styleData?.customCss) {
       applyStructuralCss(style, styleData.customCss as string);

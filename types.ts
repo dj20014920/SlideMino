@@ -215,7 +215,12 @@ export interface PremiumUiMicroOverrides {
  * 현재는 Win98 계열 1종을 운영한다.
  */
 export type PremiumUiThemeFamily = 'win98' | 'explore_galaxy' | 'pixelblast' | 'cute_pet';
-export type PremiumUiThemeId = 'retro_windows_98' | 'explore_galaxy' | 'pixelblast_void' | 'cute_black_cat' | 'cute_white_cat' | 'cute_dog';
+export type PremiumUiThemeId = 'retro_windows_98' | 'explore_galaxy' | 'pixelblast_void'
+  | 'cute_black_cat' | 'cute_white_cat' | 'cute_dog'
+  | 'cute_calico_cat' | 'cute_cheese_cat' | 'cute_siamese_cat' | 'cute_sphynx_cat'
+  | 'cute_shiba' | 'cute_corgi' | 'cute_retriever' | 'cute_poodle'
+  | 'cute_scottish_fold' | 'cute_chihuahua'
+  | 'cute_bichon' | 'cute_maltese';
 
 export interface PremiumUiTabObject {
   containerClassName: string;

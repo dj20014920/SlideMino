@@ -57,6 +57,7 @@ import { Undo2, Home, RotateCw, Move, Palette, Lock, Trophy, HelpCircle, RotateC
 import { GameOverModal } from './components/GameOverModal';
 import { PetButtonFrame, PetHeaderTitleDecor, PetBottomBannerDecor, PetBoardOverlay } from './components/CutePetDecorations';
 import { PawNoiseLayer } from './components/PawNoiseLayer';
+import { PET_SKINS } from './config/petSkins.config';
 import { GameModeTutorial } from './components/GameModeTutorial';
 import { SequentialOnboardingOverlay } from './components/SequentialOnboardingOverlay';
 import { LeaderboardModal } from './components/LeaderboardModal';
@@ -125,6 +126,8 @@ import AdminAnalytics from './pages/AdminAnalytics';
 import { rewardAdService } from './services/rewardAdService';
 import { rewardInterstitialAdService } from './services/rewardInterstitialAdService';
 import { blockRefreshRewardInterstitialAdService } from './services/blockRefreshRewardInterstitialAdService';
+import { skinRewardAdService } from './services/skinRewardAdService';
+import { weeklyEventAttemptAdService } from './services/weeklyEventAttemptAdService';
 import {
   trackAnalyticsEvent,
   trackAppLaunchOnce,
@@ -140,6 +143,8 @@ import {
   isBlockRefreshRewardInterstitialAdSupported,
   isRewardAdSupported,
   isRewardInterstitialAdSupported,
+  isSkinRewardAdSupported,
+  isWeeklyEventAttemptRewardAdSupported,
 } from './services/adConfig';
 import { normalizePlayerName, validatePlayerName } from './utils/playerName';
 import {
@@ -205,6 +210,7 @@ import {
   getEventTimerRemainingMs,
   formatTimerMmSs,
   getLocalAttemptCount,
+  canUnlockWeeklyEventAdBonus,
   canStartWeeklyEventAttempt,
   isEventAttemptAdBonusUnlocked,
   clearEventGameState,
@@ -1234,6 +1240,7 @@ const App: React.FC = () => {
 
   // 데일리 첫 실행 모달: 시즌 보상 확인 후 → 시즌 모달 닫힌 후 → 로딩 완료 + MENU + 오늘 첫 실행 + 1회 플레이 이후
   useEffect(() => {
+    if (!isNative) return;
     if (isLoading) return;
     if (gameState !== GameState.MENU) return;
     if (seasonCheckSeq === 0) return;
@@ -1241,7 +1248,7 @@ const App: React.FC = () => {
     if (isFirstLaunchToday() && hasEverPlayed()) {
       setIsDailyLaunchModalOpen(true);
     }
-  }, [isLoading, gameState, seasonCheckSeq, isSeasonRewardOpen]);
+  }, [isLoading, gameState, seasonCheckSeq, isSeasonRewardOpen, isNative]);
 
   const [grid, setGrid] = useState<Grid>(createEmptyGrid(8));
   const [obstacleState, setObstacleState] = useState<ObstacleState>(() => createEmptyObstacleState());
@@ -1553,11 +1560,15 @@ const App: React.FC = () => {
   }, [openExclusiveModal]);
 
   const openSkinModal = useCallback(() => {
+    if (!isNative) return;
     // pending 여부와 관계없이, 아직 첫 스킨 보상을 수령하지 않은 모든 유저에게 무료 뽑기 기회 제공
     const shouldConsumePendingFreeDraw = !isFirstScoreSkinRewardClaimed();
     setSkinModalFreeDraw(shouldConsumePendingFreeDraw);
+    if (isSkinRewardAdSupported()) {
+      skinRewardAdService.preloadAd();
+    }
     openExclusiveModal('skin');
-  }, [openExclusiveModal]);
+  }, [openExclusiveModal, isNative]);
 
   const openLeaderboardModal = useCallback(() => {
     openExclusiveModal('leaderboard');
@@ -1585,6 +1596,12 @@ const App: React.FC = () => {
   }, [openExclusiveModal]);
 
   const openWeeklyEventModal = useCallback(() => {
+    if (
+      isWeeklyEventAttemptRewardAdSupported()
+      && canUnlockWeeklyEventAdBonus(getLocalAttemptCount(), isEventAttemptAdBonusUnlocked())
+    ) {
+      weeklyEventAttemptAdService.preloadAd();
+    }
     openExclusiveModal('weekly_event');
   }, [openExclusiveModal]);
 
@@ -3444,6 +3461,7 @@ const App: React.FC = () => {
 
   // ── 최초 50점 돌파 시 무료 스킨 뽑기권 지급 ──
   useEffect(() => {
+    if (!isNative) return;
     if (gameState !== GameState.PLAYING) return;
     if (score < 50) return;
     // 노출 1회 플래그 먼저 확인 (재노출 방지: localStorage/sessionStorage 기반)
@@ -3453,7 +3471,7 @@ const App: React.FC = () => {
 
     firstSkinRewardTriggeredRef.current = true;
     setShowFirstSkinRewardModal(true);
-  }, [gameMode, gameState, score]);
+  }, [gameMode, gameState, score, isNative]);
 
 
   useEffect(() => {
@@ -4068,6 +4086,48 @@ const App: React.FC = () => {
     }
     showComboMessage(String(t('modals:gameOver.reviveNoTargets')), 1600);
   }, [grid, isReviveSelectionMode, reviveBreakRemaining, showComboMessage, t]);
+
+  // 메뉴 진입 후 보상형 광고 CTA가 열리기 전에 가능한 광고를 워밍업한다.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (isLoading) return;
+    if (gameState !== GameState.MENU) return;
+    if (
+      isSkinOpen
+      || isWeeklyEventModalOpen
+      || isNameInputOpen
+      || isDailyLaunchModalOpen
+      || showFirstSkinRewardModal
+    ) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      if (
+        isWeeklyEventAttemptRewardAdSupported()
+        && canUnlockWeeklyEventAdBonus(getLocalAttemptCount(), isEventAttemptAdBonusUnlocked())
+      ) {
+        weeklyEventAttemptAdService.preloadAd();
+        return;
+      }
+
+      if (isSkinRewardAdSupported()) {
+        skinRewardAdService.preloadAd();
+      }
+    }, 800);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [
+    gameState,
+    isDailyLaunchModalOpen,
+    isLoading,
+    isNameInputOpen,
+    isSkinOpen,
+    isWeeklyEventModalOpen,
+    showFirstSkinRewardModal,
+  ]);
 
   // 🆕 광고 미리 로드 (게임 진행 중이고 되돌리기가 0일 때)
   useEffect(() => {
@@ -5877,7 +5937,7 @@ const App: React.FC = () => {
               <div className={`${premiumWindowBodyClassName} premium-home-window-body-surface text-center px-4 py-5 relative`}>
                 {premiumUiTheme?.family === 'cute_pet' && (
                   <div className="flex justify-center mb-4 scale-110 select-none pointer-events-none" aria-hidden="true">
-                    {premiumUiTheme.id === 'cute_dog' ? (
+                    {PET_SKINS.find(p => p.id === `skin_${premiumUiTheme.id}`)?.category === 'dog' ? (
                       <svg width="88" height="14" viewBox="0 0 88 14" fill="none">
                         <rect x="0"  y="4" width="10" height="2" fill="var(--pet-border)"/>
                         <rect x="0"  y="8" width="10" height="2" fill="var(--pet-border)"/>
@@ -5902,7 +5962,15 @@ const App: React.FC = () => {
                     )}
                   </div>
                 )}
-                <h1 className="text-3xl sm:text-4xl font-extrabold tracking-wider leading-tight text-white" style={{ textShadow: '2.5px 2.5px 0px var(--pet-border)' }}>
+                <h1
+                  className="text-3xl sm:text-4xl font-extrabold tracking-wider leading-tight"
+                  style={{
+                    color: 'var(--pet-text-color)',
+                    textShadow: premiumUiTheme?.family === 'cute_pet'
+                      ? '1px 1px 0 var(--pet-cell-border)'
+                      : '2.5px 2.5px 0px var(--pet-border)',
+                  }}
+                >
                   {(() => {
                     const titleText = String(t('game:title'));
                     const matched = titleText.match(/^(.*)\s\((.*)\)$/);
@@ -6526,9 +6594,9 @@ const App: React.FC = () => {
                     disabled={isAnimating}
                     className={`
                       ${isGameHeaderCompact ? 'p-1.5' : 'p-2'} flex items-center justify-center
-                      bg-transparent border-none text-white outline-none active:scale-95
+                      bg-transparent border-none outline-none active:scale-95
                     `}
-                    style={{ border: 'none', background: 'transparent' }}
+                    style={{ border: 'none', background: 'transparent', color: 'var(--pet-text-color)' }}
                     aria-label={t('common:aria.home')}
                   >
                     <Home size={18} />
@@ -6563,7 +6631,7 @@ const App: React.FC = () => {
                     )}
                 </h2>
                 <div className="relative">
-                  <p className={`${isGameHeaderCompact ? 'text-2xl' : 'text-3xl'} font-bold ${isPremiumUiThemeActive ? 'text-white' : 'text-gray-900'} tabular-nums leading-none`}>{score}</p>
+                  <p className={`${isGameHeaderCompact ? 'text-2xl' : 'text-3xl'} font-bold tabular-nums leading-none`} style={isPremiumUiThemeActive ? { color: 'var(--pet-text-color)' } : { color: '#111827' }}>{score}</p>
                   {isPremiumUiThemeActive && premiumUiTheme?.family === 'cute_pet' && (
                     <>
                       {/* 대각선 3줄 주황/레드 불꽃 데코 */}

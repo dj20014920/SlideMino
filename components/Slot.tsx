@@ -66,7 +66,21 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
   const previewValue = isLiquidGlassPreview ? 16 : (slotPreviewRuntime.valueOverride ?? 1);
   const appearance = resolveTileAppearance(previewValue);
   const previewAppearanceClassName = appearance.className;
-  const previewAppearanceStyle = appearance.style ?? {};
+  // 슬롯 프리뷰 셀용: 타일 전용 레이아웃 속성 제거 (grid 아이템 크기 비정상 확장 방지)
+  const {
+    display: _d,
+    alignItems: _ai,
+    justifyContent: _jc,
+    fontSize: _fs,
+    lineHeight: _lh,
+    whiteSpace: _ws,
+    wordBreak: _wb,
+    letterSpacing: _ls,
+    WebkitTextStroke: _wts,
+    textShadow: _ts,
+    overflow: _ov,
+    ...slotPreviewStyle
+  } = (appearance.style ?? {}) as Record<string, any>;
   const previewCellBoxShadow = [
     typeof appearance.style?.boxShadow === 'string' ? appearance.style.boxShadow : '',
     isLiquidGlassPreview ? 'inset 0 0 0 1px rgba(255,255,255,0.34)' : '',
@@ -178,8 +192,19 @@ export const Slot = React.memo<SlotProps>(({ piece, onPointerDown, onRotate, ind
                 style={{
                   gridColumn: c.x + 1,
                   gridRow: c.y + 1,
-                  ...previewAppearanceStyle,
+                  ...slotPreviewStyle,
                   ...slotPreviewRuntime.cellStyle,
+                  width: '100%',
+                  height: '100%',
+                  minWidth: 0,
+                  minHeight: 0,
+                  maxWidth: '100%',
+                  maxHeight: '100%',
+                  alignSelf: 'stretch',
+                  justifySelf: 'stretch',
+                  aspectRatio: '1 / 1',
+                  boxSizing: 'border-box',
+                  overflow: 'hidden',
                   ...(isLiquidGlassPreview
                     ? {
                       backgroundColor: 'rgba(255,255,255,0.24)',

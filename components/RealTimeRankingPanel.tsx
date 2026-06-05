@@ -184,6 +184,17 @@ export const RealTimeRankingPanel: React.FC<RealTimeRankingPanelProps> = ({
                 </ul>
               )}
             </div>
+
+            {/* ── 하단 닫기 버튼 ── */}
+            <div className="border-t border-gray-200 px-4 py-3 shrink-0">
+              <button
+                type="button"
+                onClick={onToggle}
+                className="w-full py-2.5 rounded-xl text-sm font-semibold text-gray-400 hover:text-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors"
+              >
+                닫기
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

@@ -16,6 +16,7 @@ import {
 import { getSkinRewardAdId, isSkinRewardAdSupported, CURRENT_AD_PLATFORM } from './adConfig';
 import { ensureAdMobReady } from './admob';
 import { CooldownGate, RetryBackoffScheduler, HourlyFrequencyCap, ClickAbuseGuard } from './adResilience';
+import { rewardVideoAdCoordinator, type RewardVideoAdOwner } from './rewardVideoAdCoordinator';
 import { MAX_DAILY_SKIN_AD_VIEWS } from '../constants';
 import { getServerAdjustedNow } from './serverTimeService';
 
@@ -82,6 +83,7 @@ class SkinDailyAdLimiter {
 }
 
 class SkinRewardAdService {
+  private readonly coordinatorOwner: RewardVideoAdOwner = 'skin-draw';
   private adUnitId: string;
   private loadStatus: AdLoadStatus = 'not_loaded';
   private lastLoadError: AdMobError | null = null;
@@ -110,6 +112,8 @@ class SkinRewardAdService {
     if (CURRENT_AD_PLATFORM === 'admob-ios' || CURRENT_AD_PLATFORM === 'admob-android') {
       this.setupListeners();
     }
+
+    rewardVideoAdCoordinator.register(this.coordinatorOwner, () => this.invalidatePreparedAdState());
   }
 
   private setupListeners(): void {
@@ -117,6 +121,7 @@ class SkinRewardAdService {
       // 동일 이벤트 채널을 공유하는 다른 리워드 광고 요청의 이벤트를 무시한다.
       if (info.adUnitId !== this.adUnitId) return;
       if (this.loadStatus !== 'loading') return;
+      if (!rewardVideoAdCoordinator.isCurrentOwner(this.coordinatorOwner)) return;
       this.loadStatus = 'loaded';
       this.lastLoadError = null;
       this.loadRetryBackoff.reset();
@@ -124,6 +129,7 @@ class SkinRewardAdService {
 
     AdMob.addListener(RewardAdPluginEvents.FailedToLoad, (error: AdMobError) => {
       if (this.loadStatus !== 'loading') return;
+      if (!rewardVideoAdCoordinator.isCurrentOwner(this.coordinatorOwner)) return;
       this.loadStatus = 'failed';
       this.lastLoadError = error;
       console.warn('[SkinRewardAdService] AdMob 광고 로드 실패:', error.code, error.message);
@@ -139,6 +145,7 @@ class SkinRewardAdService {
     AdMob.addListener(RewardAdPluginEvents.FailedToShow, () => {
       if (!this.isHandlingActiveShow()) return;
       this.loadStatus = 'failed';
+      rewardVideoAdCoordinator.clear(this.coordinatorOwner);
       console.warn('[SkinRewardAdService] 광고 표시 실패 이벤트 수신', {
         attemptId: this.activeShowAttemptId,
         loadStatus: this.loadStatus,
@@ -158,6 +165,7 @@ class SkinRewardAdService {
       // 보상형 광고는 1회성 오브젝트라서 닫힌 시점에 즉시 무효화해야 다음 preload가 정상 동작한다.
       this.loadStatus = 'not_loaded';
       this.isProcessingShow = false;
+      rewardVideoAdCoordinator.clear(this.coordinatorOwner);
 
       this.adClosedForCurrentShow = true;
       this.notifyAdClosedOnce();
@@ -174,9 +182,13 @@ class SkinRewardAdService {
 
   public preloadAd(): void {
     if (!isSkinRewardAdSupported()) return;
+    if (this.loadStatus === 'loaded' && !rewardVideoAdCoordinator.isCurrentOwner(this.coordinatorOwner)) {
+      this.loadStatus = 'not_loaded';
+    }
     if (this.loadStatus === 'loading' || this.loadStatus === 'loaded') return;
     if (CURRENT_AD_PLATFORM !== 'admob-ios' && CURRENT_AD_PLATFORM !== 'admob-android') return;
 
+    rewardVideoAdCoordinator.claim(this.coordinatorOwner);
     void this.loadAdMobAd();
   }
 
@@ -185,12 +197,14 @@ class SkinRewardAdService {
     this.lastLoadError = null;
 
     const canRequest = await ensureAdMobReady();
+    if (!rewardVideoAdCoordinator.isCurrentOwner(this.coordinatorOwner)) return;
     if (!canRequest) { this.loadStatus = 'failed'; return; }
 
     const options: RewardAdOptions = { adId: this.adUnitId };
 
     try {
       const info = await AdMob.prepareRewardVideoAd(options);
+      if (!rewardVideoAdCoordinator.isCurrentOwner(this.coordinatorOwner)) return;
       if (info.adUnitId !== this.adUnitId) {
         this.loadStatus = 'failed';
         this.lastLoadError = {
@@ -206,6 +220,7 @@ class SkinRewardAdService {
       this.lastLoadError = null;
       this.loadRetryBackoff.reset();
     } catch (error) {
+      if (!rewardVideoAdCoordinator.isCurrentOwner(this.coordinatorOwner)) return;
       const normalizedError = this.normalizeAdMobError(error);
       this.loadStatus = 'failed';
       this.lastLoadError = normalizedError;
@@ -254,6 +269,10 @@ class SkinRewardAdService {
       return;
     }
 
+    if (this.loadStatus === 'loaded' && !rewardVideoAdCoordinator.isCurrentOwner(this.coordinatorOwner)) {
+      this.loadStatus = 'not_loaded';
+    }
+
     if (this.loadStatus !== 'loaded') {
       if (this.loadStatus === 'not_loaded' || this.loadStatus === 'failed') this.preloadAd();
       if (this.loadStatus === 'failed') {
@@ -287,10 +306,12 @@ class SkinRewardAdService {
     try {
       const reward = await AdMob.showRewardVideoAd();
       this.loadStatus = 'not_loaded';
+      rewardVideoAdCoordinator.clear(this.coordinatorOwner);
       this.handleRewardEarned(reward);
     } catch (error) {
       const normalizedError = this.normalizeAdMobError(error);
       this.loadStatus = 'failed';
+      rewardVideoAdCoordinator.clear(this.coordinatorOwner);
       console.warn('[SkinRewardAdService] 광고 표시 예외', {
         attemptId: this.activeShowAttemptId,
         code: normalizedError.code,
@@ -303,7 +324,14 @@ class SkinRewardAdService {
   }
 
   public isAdReady(): boolean {
-    return this.loadStatus === 'loaded';
+    return this.loadStatus === 'loaded' && rewardVideoAdCoordinator.isCurrentOwner(this.coordinatorOwner);
+  }
+
+  public getLoadStatus(): AdLoadStatus {
+    if (this.loadStatus === 'loaded' && !rewardVideoAdCoordinator.isCurrentOwner(this.coordinatorOwner)) {
+      return 'not_loaded';
+    }
+    return this.loadStatus;
   }
 
   public getRemainingDailyViews(): number {
@@ -312,6 +340,34 @@ class SkinRewardAdService {
 
   private isHandlingActiveShow(): boolean {
     return this.isProcessingShow || this.admobCallbacks !== null;
+  }
+
+  public cleanup(): void {
+    this.clearFinalizeAfterDismissTimer();
+    this.loadRetryBackoff.reset();
+    this.loadStatus = 'not_loaded';
+    this.lastLoadError = null;
+    this.isProcessingShow = false;
+    this.rewardIssuedForCurrentShow = false;
+    this.adClosedForCurrentShow = false;
+    this.adClosedNotifiedForCurrentShow = false;
+    this.admobCallbacks = null;
+    this.activeShowAttemptId = null;
+    rewardVideoAdCoordinator.clear(this.coordinatorOwner);
+  }
+
+  private invalidatePreparedAdState(): void {
+    if (this.isHandlingActiveShow()) return;
+    this.clearFinalizeAfterDismissTimer();
+    this.loadRetryBackoff.clearPending();
+    this.loadStatus = 'not_loaded';
+    this.lastLoadError = null;
+    this.isProcessingShow = false;
+    this.rewardIssuedForCurrentShow = false;
+    this.adClosedForCurrentShow = false;
+    this.adClosedNotifiedForCurrentShow = false;
+    this.admobCallbacks = null;
+    this.activeShowAttemptId = null;
   }
 
   private handleRewardEarned(_reward: AdMobRewardItem): void {

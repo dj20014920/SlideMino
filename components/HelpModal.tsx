@@ -293,9 +293,9 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                             >
                                 <div className="flex items-center gap-2 mb-2">
                                     <span className="text-blue-500">{section.icon}</span>
-                                    <h3 className="font-bold text-gray-800">{section.title}</h3>
+                                    <h3 className="font-bold" style={isPremiumUi ? { color: 'var(--pet-text-color)' } : { color: '#1f2937' }}>{section.title}</h3>
                                 </div>
-                                <p className="text-gray-600 text-sm leading-relaxed">
+                                <p className="text-sm leading-relaxed" style={isPremiumUi ? { color: 'var(--pet-text-muted)' } : { color: '#4b5563' }}>
                                     {section.content}
                                 </p>
                             </div>

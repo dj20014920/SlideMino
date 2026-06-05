@@ -164,7 +164,7 @@ const PIXELBLAST_VOID_PREMIUM_SKIN: SkinCatalogEntry = {
 // ==========================================
 
 export const ADDITIONAL_SKIN_CATALOG: SkinCatalogEntry[] = [
-  // 🐾 귀여운 동물 친구들 (Cute Friends) 스킨 3종
+  // 🐾 귀여운 동물 친구들 (Cute Friends) 스킨 15종
   {
     id: 'skin_cute_black_cat',
     hex: '#FDE8C0', // 연노랑 배경 크림색
@@ -195,7 +195,7 @@ export const ADDITIONAL_SKIN_CATALOG: SkinCatalogEntry[] = [
   },
   {
     id: 'skin_cute_dog',
-    hex: '#FFF0F5', // 파스텔 핑크/라벤더 배경색
+    hex: '#FFF0F5',
     category: 'dog',
     nameKey: 'cuteDog',
     premium: true,
@@ -205,6 +205,186 @@ export const ADDITIONAL_SKIN_CATALOG: SkinCatalogEntry[] = [
       value: 'none',
       textColor: '#4e3629',
       customCss: 'border-radius: 4px; border: 2px solid #5c3d24; box-shadow: 0 4px 8px rgba(0,0,0,0.12); font-family: "Outfit", "Inter", sans-serif; font-weight: 800;',
+    },
+  },
+  // 🐱 삼색이
+  {
+    id: 'skin_cute_calico_cat',
+    hex: '#E67E22',
+    category: 'cat',
+    nameKey: 'cuteCalicoCat',
+    premium: true,
+    premiumUiThemeId: 'cute_calico_cat',
+    style: {
+      type: 'css-pattern',
+      value: 'none',
+      textColor: '#2E2E32',
+      customCss: 'border-radius: 4px; border: 2px solid #D35400; box-shadow: 0 4px 8px rgba(0,0,0,0.1); font-family: "Outfit", "Inter", sans-serif; font-weight: 800;',
+    },
+  },
+  // 🐱 치즈냥이
+  {
+    id: 'skin_cute_cheese_cat',
+    hex: '#F39C12',
+    category: 'cat',
+    nameKey: 'cuteCheeseCat',
+    premium: true,
+    premiumUiThemeId: 'cute_cheese_cat',
+    style: {
+      type: 'css-pattern',
+      value: 'none',
+      textColor: '#7E5109',
+      customCss: 'border-radius: 4px; border: 2px solid #E67E22; box-shadow: 0 4px 8px rgba(0,0,0,0.1); font-family: "Outfit", "Inter", sans-serif; font-weight: 800;',
+    },
+  },
+  // 🐱 샴
+  {
+    id: 'skin_cute_siamese_cat',
+    hex: '#2B82C9',
+    category: 'cat',
+    nameKey: 'cuteSiameseCat',
+    premium: true,
+    premiumUiThemeId: 'cute_siamese_cat',
+    style: {
+      type: 'css-pattern',
+      value: 'none',
+      textColor: '#5C4033',
+      customCss: 'border-radius: 4px; border: 2px solid #5C4033; box-shadow: 0 4px 8px rgba(0,0,0,0.12); font-family: "Outfit", "Inter", sans-serif; font-weight: 800;',
+    },
+  },
+  // 🐱 스핑크스
+  {
+    id: 'skin_cute_sphynx_cat',
+    hex: '#FADBD8',
+    category: 'cat',
+    nameKey: 'cuteSphynx',
+    premium: true,
+    premiumUiThemeId: 'cute_sphynx_cat',
+    style: {
+      type: 'css-pattern',
+      value: 'none',
+      textColor: '#8D6E63',
+      customCss: 'border-radius: 4px; border: 2px solid #8D6E63; box-shadow: 0 4px 8px rgba(0,0,0,0.12); font-family: "Outfit", "Inter", sans-serif; font-weight: 800;',
+    },
+  },
+  // 🐱 스코티시 폴드
+  {
+    id: 'skin_cute_scottish_fold',
+    hex: '#A1887F',
+    category: 'cat',
+    nameKey: 'cuteScottishFold',
+    premium: true,
+    premiumUiThemeId: 'cute_scottish_fold',
+    style: {
+      type: 'css-pattern',
+      value: 'none',
+      textColor: '#4E342E',
+      customCss: 'border-radius: 4px; border: 2px solid #8D6E63; box-shadow: 0 4px 8px rgba(0,0,0,0.1); font-family: "Outfit", "Inter", sans-serif; font-weight: 800;',
+    },
+  },
+  // 🐕 치와와
+  {
+    id: 'skin_cute_chihuahua',
+    hex: '#CA6F1E',
+    category: 'dog',
+    nameKey: 'cuteChihuahua',
+    premium: true,
+    premiumUiThemeId: 'cute_chihuahua',
+    style: {
+      type: 'css-pattern',
+      value: 'none',
+      textColor: '#5C2D00',
+      customCss: 'border-radius: 4px; border: 2px solid #873600; box-shadow: 0 4px 8px rgba(0,0,0,0.12); font-family: "Outfit", "Inter", sans-serif; font-weight: 800;',
+    },
+  },
+  // 🐕 시바견
+  {
+    id: 'skin_cute_shiba',
+    hex: '#E67E22',
+    category: 'dog',
+    nameKey: 'cuteShiba',
+    premium: true,
+    premiumUiThemeId: 'cute_shiba',
+    style: {
+      type: 'css-pattern',
+      value: 'none',
+      textColor: '#5C4033',
+      customCss: 'border-radius: 4px; border: 2px solid #A04000; box-shadow: 0 4px 8px rgba(0,0,0,0.1); font-family: "Outfit", "Inter", sans-serif; font-weight: 800;',
+    },
+  },
+  // 🐕 웰시코기
+  {
+    id: 'skin_cute_corgi',
+    hex: '#D35400',
+    category: 'dog',
+    nameKey: 'cuteCorgi',
+    premium: true,
+    premiumUiThemeId: 'cute_corgi',
+    style: {
+      type: 'css-pattern',
+      value: 'none',
+      textColor: '#5C2D00',
+      customCss: 'border-radius: 4px; border: 2px solid #873600; box-shadow: 0 4px 8px rgba(0,0,0,0.12); font-family: "Outfit", "Inter", sans-serif; font-weight: 800;',
+    },
+  },
+  // 🐕 골든 리트리버
+  {
+    id: 'skin_cute_retriever',
+    hex: '#F5B041',
+    category: 'dog',
+    nameKey: 'cuteRetriever',
+    premium: true,
+    premiumUiThemeId: 'cute_retriever',
+    style: {
+      type: 'css-pattern',
+      value: 'none',
+      textColor: '#7E5109',
+      customCss: 'border-radius: 4px; border: 2px solid #BA4A00; box-shadow: 0 4px 8px rgba(0,0,0,0.1); font-family: "Outfit", "Inter", sans-serif; font-weight: 800;',
+    },
+  },
+  // 🐕 푸들
+  {
+    id: 'skin_cute_poodle',
+    hex: '#AF601A',
+    category: 'dog',
+    nameKey: 'cutePoodle',
+    premium: true,
+    premiumUiThemeId: 'cute_poodle',
+    style: {
+      type: 'css-pattern',
+      value: 'none',
+      textColor: '#5C4033',
+      customCss: 'border-radius: 4px; border: 2px solid #7E5109; box-shadow: 0 4px 8px rgba(0,0,0,0.1); font-family: "Outfit", "Inter", sans-serif; font-weight: 800;',
+    },
+  },
+  // 🐕 비숑 프리제
+  {
+    id: 'skin_cute_bichon',
+    hex: '#FFFFFF',
+    category: 'dog',
+    nameKey: 'cuteBichon',
+    premium: true,
+    premiumUiThemeId: 'cute_bichon',
+    style: {
+      type: 'css-pattern',
+      value: 'none',
+      textColor: '#121212',
+      customCss: 'border-radius: 4px; border: 2px solid #121212; box-shadow: 0 4px 8px rgba(0,0,0,0.1); font-family: "Outfit", "Inter", sans-serif; font-weight: 800;',
+    },
+  },
+  // 🐕 말티즈
+  {
+    id: 'skin_cute_maltese',
+    hex: '#9C27B0',
+    category: 'dog',
+    nameKey: 'cuteMaltese',
+    premium: true,
+    premiumUiThemeId: 'cute_maltese',
+    style: {
+      type: 'css-pattern',
+      value: 'none',
+      textColor: '#424242',
+      customCss: 'border-radius: 4px; border: 2px solid #BDBDBD; box-shadow: 0 4px 8px rgba(0,0,0,0.08); font-family: "Outfit", "Inter", sans-serif; font-weight: 800;',
     },
   },
 

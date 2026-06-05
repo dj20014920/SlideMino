@@ -1,6 +1,7 @@
-/* 🐾 공통 픽셀 펫 (Cute Pet) 프리미엄 테마 CSS (v12) */
+/* 🐾 공통 픽셀 펫 (Cute Pet) 프리미엄 테마 CSS (v13) */
 
 /* ── 0. 픽셀 웹폰트 로딩 정의 (Galmuri11 & DungGeunMo) ── */
+/* @font-face는 CSS Cascade Layers 밖에 선언해야 정상 동작 */
 @font-face {
   font-family: 'DungGeunMo';
   src: url('https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_2105_2@1.0/DungGeunMo.woff') format('woff');
@@ -25,52 +26,240 @@
   font-display: swap;
 }
 
-/* 1. 깜고 프리미엄 테마 색상 변수 - 가독성을 위해 명도 대비 상향 */
+/* ══════════════════════════════════════════════════════════════
+   CSS Cascade Layers: @layer theme
+   index.css에서 @layer theme; 를 @tailwind 앞에 선언하여
+   우선순위: theme > base > components > utilities
+   테마 CSS가 Tailwind 유틸리티(text-gray-900 등)보다 항상 우선 적용됨
+   ══════════════════════════════════════════════════════════════ */
+@layer theme {
+
+/* 1. 깜고 프리미엄 테마 색상 변수 - petSkins.config.ts와 동기화 */
 .theme-cute-black-cat {
-  --pet-bg: #18181A;
-  --pet-pattern-color: #242426;
-  --pet-border: #E7C6A0;
-  --pet-cell-bg: #232326;         /* 기존 #1D1D20 에서 대비 대폭 향상 */
-  --pet-cell-border: #3B3B42;     /* 기존 #2C2C30 에서 명도 대비 대폭 향상 */
-  --pet-accent-mint: #5BE2A7;
+  --pet-bg: #111115;
+  --pet-pattern-color: #1E1E22;
+  --pet-border: #FFD700;
+  --pet-cell-bg: #1D1D22;
+  --pet-cell-border: #3A3A42;
+  --pet-accent-mint: #FF2E93;
   --pet-accent-red: #FF6B6B;
   --pet-text-color: #FFFFFF;
-  --pet-text-muted: #A0A0A5;      /* 기존 #8E8E93 보다 밝게 가독성 강화 */
-  --pet-btn-hover-bg: #323236;
-  --pet-active-glow: rgba(91, 226, 167, 0.25);
+  --pet-text-muted: #8A8A93;
+  --pet-btn-hover-bg: #2E2E36;
+  --pet-active-glow: rgba(255, 46, 147, 0.25);
 }
 
-/* 2. 흰고 프리미엄 테마 색상 변수 */
+/* 2. 흰고 프리미엄 테마 색상 변수 - petSkins.config.ts와 동기화 */
 .theme-cute-white-cat {
-  --pet-bg: #E6F4F8;
-  --pet-pattern-color: #D2EAF0;
-  --pet-border: #121212;
-  --pet-cell-bg: #F0F8FA;
-  --pet-cell-border: #C8E2E8;
-  --pet-accent-mint: #FF6D00;
-  --pet-accent-red: #E53935;
-  --pet-text-color: #121212;
-  --pet-text-muted: #64748B;
-  --pet-btn-hover-bg: #D0E4EC;
-  --pet-active-glow: rgba(255, 109, 0, 0.15);
+  --pet-bg: #F5FAFD;
+  --pet-pattern-color: #E1EDF7;
+  --pet-border: #2F3640;
+  --pet-cell-bg: #EAF3FA;
+  --pet-cell-border: #B2D0E6;
+  --pet-accent-mint: #00D2FF;
+  --pet-accent-red: #FF4D79;
+  --pet-text-color: #2F3640;
+  --pet-text-muted: #5F748D;
+  --pet-btn-hover-bg: #CFE2EF;
+  --pet-active-glow: rgba(0, 210, 255, 0.15);
 }
 
-/* 3. 댕댕 프리미엄 테마 색상 변수 */
+/* 3. 댕댕 프리미엄 테마 색상 변수 - petSkins.config.ts와 동기화 */
 .theme-cute-dog {
   --pet-bg: #FFF0F5;
   --pet-pattern-color: #F5D6E3;
-  --pet-border: #5c3d24;
+  --pet-border: #5C3D24;
   --pet-cell-bg: #FFFDFD;
   --pet-cell-border: #EBD0C6;
   --pet-accent-mint: #D81B60;
   --pet-accent-red: #FF5722;
-  --pet-text-color: #4e3629;
-  --pet-text-muted: #8d6e63;
+  --pet-text-color: #4E3629;
+  --pet-text-muted: #8D6E63;
   --pet-btn-hover-bg: #F2D2DF;
   --pet-active-glow: rgba(216, 27, 96, 0.15);
 }
 
-/* 4. 공통 픽셀 펫 테마 레이아웃 및 UI 재정의 */
+/* 4. 삼색이 프리미엄 테마 색상 변수 - petSkins.config.ts와 동기화 */
+.theme-cute-calico-cat {
+  --pet-bg: #FFF9F5;
+  --pet-pattern-color: #FCECE3;
+  --pet-border: #D35400;
+  --pet-cell-bg: #FFFDFB;
+  --pet-cell-border: #F5D2C1;
+  --pet-accent-mint: #E67E22;
+  --pet-accent-red: #E74C3C;
+  --pet-text-color: #2E2E32;
+  --pet-text-muted: #7F8C8D;
+  --pet-btn-hover-bg: #FCECE3;
+  --pet-active-glow: rgba(230, 126, 34, 0.15);
+}
+
+/* 5. 치즈냥이 프리미엄 테마 색상 변수 - petSkins.config.ts와 동기화 */
+.theme-cute-cheese-cat {
+  --pet-bg: #FFFDF0;
+  --pet-pattern-color: #FCF3CF;
+  --pet-border: #FF9F43;
+  --pet-cell-bg: #FEFDF9;
+  --pet-cell-border: #FAD7A0;
+  --pet-accent-mint: #FF9F43;
+  --pet-accent-red: #E74C3C;
+  --pet-text-color: #7E5109;
+  --pet-text-muted: #A04000;
+  --pet-btn-hover-bg: #FCE4D6;
+  --pet-active-glow: rgba(255, 159, 67, 0.15);
+}
+
+/* 6. 샴 프리미엄 테마 색상 변수 - petSkins.config.ts와 동기화 */
+.theme-cute-siamese-cat {
+  --pet-bg: #FAF0E6;
+  --pet-pattern-color: #EEDC82;
+  --pet-border: #3D251E;
+  --pet-cell-bg: #FFFDF9;
+  --pet-cell-border: #D2B48C;
+  --pet-accent-mint: #00D2FF;
+  --pet-accent-red: #3D251E;
+  --pet-text-color: #3D251E;
+  --pet-text-muted: #8B7355;
+  --pet-btn-hover-bg: #E8DCC4;
+  --pet-active-glow: rgba(0, 210, 255, 0.15);
+}
+
+/* 7. 스핑크스 프리미엄 테마 색상 변수 - petSkins.config.ts와 동기화 */
+.theme-cute-sphynx-cat {
+  --pet-bg: #FFE4E4;
+  --pet-pattern-color: #F5CBA7;
+  --pet-border: #8D6E63;
+  --pet-cell-bg: #FFF0F0;
+  --pet-cell-border: #D7CCC8;
+  --pet-accent-mint: #FFAAAA;
+  --pet-accent-red: #8D6E63;
+  --pet-text-color: #5D4037;
+  --pet-text-muted: #8D6E63;
+  --pet-btn-hover-bg: #FADBD8;
+  --pet-active-glow: rgba(255, 170, 170, 0.15);
+}
+
+/* 8. 스코티시 폴드 프리미엄 테마 색상 변수 - petSkins.config.ts와 동기화 */
+.theme-cute-scottish-fold {
+  --pet-bg: #F5F0EB;
+  --pet-pattern-color: #EDE0D4;
+  --pet-border: #8D6E63;
+  --pet-cell-bg: #FCF9F7;
+  --pet-cell-border: #D7CCC8;
+  --pet-accent-mint: #6D4C41;
+  --pet-accent-red: #D84315;
+  --pet-text-color: #4E342E;
+  --pet-text-muted: #8D6E63;
+  --pet-btn-hover-bg: #E8D5C4;
+  --pet-active-glow: rgba(109, 76, 65, 0.15);
+}
+
+/* 9. 시바견 프리미엄 테마 색상 변수 - petSkins.config.ts와 동기화 */
+.theme-cute-shiba {
+  --pet-bg: #FEF5E7;
+  --pet-pattern-color: #FDEBD0;
+  --pet-border: #A04000;
+  --pet-cell-bg: #FEFDFB;
+  --pet-cell-border: #F5CBA7;
+  --pet-accent-mint: #E67E22;
+  --pet-accent-red: #C0392B;
+  --pet-text-color: #5C4033;
+  --pet-text-muted: #B2BABB;
+  --pet-btn-hover-bg: #FADBD8;
+  --pet-active-glow: rgba(230, 126, 34, 0.15);
+}
+
+/* 10. 웰시코기 프리미엄 테마 색상 변수 - petSkins.config.ts와 동기화 */
+.theme-cute-corgi {
+  --pet-bg: #FFF9EB;
+  --pet-pattern-color: #FCEFD2;
+  --pet-border: #873600;
+  --pet-cell-bg: #FFFDF8;
+  --pet-cell-border: #F5DCA3;
+  --pet-accent-mint: #D35400;
+  --pet-accent-red: #E74C3C;
+  --pet-text-color: #5C2D00;
+  --pet-text-muted: #9A7D0A;
+  --pet-btn-hover-bg: #FAD7A0;
+  --pet-active-glow: rgba(211, 84, 0, 0.15);
+}
+
+/* 11. 골든 리트리버 프리미엄 테마 색상 변수 - petSkins.config.ts와 동기화 */
+.theme-cute-retriever {
+  --pet-bg: #FEF9E7;
+  --pet-pattern-color: #FCF3CF;
+  --pet-border: #BA4A00;
+  --pet-cell-bg: #FEFDF9;
+  --pet-cell-border: #FAD7A0;
+  --pet-accent-mint: #D35400;
+  --pet-accent-red: #E74C3C;
+  --pet-text-color: #7E5109;
+  --pet-text-muted: #9A7D0A;
+  --pet-btn-hover-bg: #FCE4D6;
+  --pet-active-glow: rgba(211, 84, 0, 0.15);
+}
+
+/* 12. 치와와 프리미엄 테마 색상 변수 - petSkins.config.ts와 동기화 */
+.theme-cute-chihuahua {
+  --pet-bg: #FFF9EB;
+  --pet-pattern-color: #FCEFD2;
+  --pet-border: #873600;
+  --pet-cell-bg: #FFFDF8;
+  --pet-cell-border: #F5DCA3;
+  --pet-accent-mint: #CA6F1E;
+  --pet-accent-red: #FADBD8;
+  --pet-text-color: #5C2D00;
+  --pet-text-muted: #9A7D0A;
+  --pet-btn-hover-bg: #FAD7A0;
+  --pet-active-glow: rgba(202, 111, 30, 0.15);
+}
+
+/* 13. 비숑 프리제 프리미엄 테마 색상 변수 - petSkins.config.ts와 동기화 */
+.theme-cute-bichon {
+  --pet-bg: #FFFFFF;
+  --pet-pattern-color: #F0F0F0;
+  --pet-border: #121212;
+  --pet-cell-bg: #FFFFFF;
+  --pet-cell-border: #E0E0E0;
+  --pet-accent-mint: #FF8B8B;
+  --pet-accent-red: #121212;
+  --pet-text-color: #121212;
+  --pet-text-muted: #9E9E9E;
+  --pet-btn-hover-bg: #F5F5F5;
+  --pet-active-glow: rgba(255, 139, 139, 0.15);
+}
+
+/* 14. 푸들 프리미엄 테마 색상 변수 - petSkins.config.ts와 동기화 */
+.theme-cute-poodle {
+  --pet-bg: #FDF2E9;
+  --pet-pattern-color: #F5CBA7;
+  --pet-border: #7E5109;
+  --pet-cell-bg: #FDFBF7;
+  --pet-cell-border: #E59866;
+  --pet-accent-mint: #AF601A;
+  --pet-accent-red: #CD6155;
+  --pet-text-color: #5C4033;
+  --pet-text-muted: #935116;
+  --pet-btn-hover-bg: #EDBB99;
+  --pet-active-glow: rgba(175, 96, 26, 0.15);
+}
+
+/* 15. 말티즈 프리미엄 테마 색상 변수 - petSkins.config.ts와 동기화 */
+.theme-cute-maltese {
+  --pet-bg: #FEFEFE;
+  --pet-pattern-color: #F0F0F0;
+  --pet-border: #BDBDBD;
+  --pet-cell-bg: #FFFFFF;
+  --pet-cell-border: #E0E0E0;
+  --pet-accent-mint: #E74C3C;
+  --pet-accent-red: #F1C40F;
+  --pet-text-color: #424242;
+  --pet-text-muted: #9E9E9E;
+  --pet-btn-hover-bg: #F5F5F5;
+  --pet-active-glow: rgba(231, 76, 60, 0.15);
+}
+
+/* 16. 공통 픽셀 펫 테마 레이아웃 및 UI 재정의 */
 .theme-cute-black-cat,
 .theme-cute-white-cat,
 .theme-cute-dog {
@@ -320,7 +509,6 @@
 .pet-tile-number {
   font-family: 'DungGeunMo', 'Galmuri11', monospace !important;
   font-weight: bold;
-  color: #FFFFFF !important; /* 선명한 가독성 보장 */
   text-shadow: 2px 2px 0px rgba(0,0,0,0.9);
 }
 
@@ -401,40 +589,8 @@
 }
 
 .pet-slot-mini-cell {
-  background: var(--pet-cell-bg) !important;
   border: 2px solid var(--pet-cell-border) !important;
-  position: relative !important;
-  overflow: visible !important;
-}
-
-.pet-slot-mini-cell::before {
-  content: '' !important;
-  position: absolute !important;
-  /* 귀 높이 7px / 얼굴 20px = 35% 만큼 위로 올림 */
-  top: -35% !important;
-  left: -1px !important;
-  right: -1px !important;
-  bottom: -1px !important;
-  background-repeat: no-repeat !important;
-  background-size: 100% 100% !important;
-  background-color: transparent !important;
-  pointer-events: none !important;
-  z-index: 1 !important;
-}
-
-/* 깜고 테마 슬롯 미니셀 ::before */
-.theme-cute-black-cat .pet-slot-mini-cell::before {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M1 12H10V9H8V5H5V9H1Z' fill='%23FFC69F'/%3E%3Cpath d='M2 12H5V9H3V6H2Z' fill='%23FF8B8B' opacity='0.85'/%3E%3Cpath d='M31 12H22V9H24V5H27V9H31Z' fill='%23FFC69F'/%3E%3Cpath d='M30 12H27V9H29V6H30Z' fill='%23FF8B8B' opacity='0.85'/%3E%3Crect x='9' y='17' width='2' height='5' fill='%23FFC69F'/%3E%3Crect x='7' y='19' width='6' height='1.5' fill='%23FFC69F'/%3E%3Crect x='21' y='17' width='2' height='5' fill='%23FFC69F'/%3E%3Crect x='19' y='19' width='6' height='1.5' fill='%23FFC69F'/%3E%3Crect x='15' y='20' width='2' height='2' fill='%23FFC69F'/%3E%3Crect x='5' y='22' width='4' height='1.5' fill='%23FF8B8B' opacity='0.5'/%3E%3Crect x='23' y='22' width='4' height='1.5' fill='%23FF8B8B' opacity='0.5'/%3E%3C/svg%3E") !important;
-}
-
-/* 댕댕 테마 슬롯 미니셀 ::before */
-.theme-cute-dog .pet-slot-mini-cell::before {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M0 12H8V7H4V12Z' fill='%235c3d24'/%3E%3Cpath d='M32 12H24V7H28V12Z' fill='%235c3d24'/%3E%3Crect x='9' y='17' width='3' height='3' fill='%235c3d24'/%3E%3Crect x='20' y='17' width='3' height='3' fill='%235c3d24'/%3E%3Crect x='14' y='20' width='4' height='3' fill='%235c3d24'/%3E%3C/svg%3E") !important;
-}
-
-/* 흰고 테마 슬롯 미니셀 ::before */
-.theme-cute-white-cat .pet-slot-mini-cell::before {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M1 12H10V9H8V5H5V9H1Z' fill='%23222222'/%3E%3Cpath d='M2 12H5V9H3V6H2Z' fill='%23FF8B8B' opacity='0.85'/%3E%3Cpath d='M31 12H22V9H24V5H27V9H31Z' fill='%23222222'/%3E%3Cpath d='M30 12H27V9H29V6H30Z' fill='%23FF8B8B' opacity='0.85'/%3E%3Crect x='9' y='17' width='2' height='5' fill='%23222222'/%3E%3Crect x='7' y='19' width='6' height='1.5' fill='%23222222'/%3E%3Crect x='21' y='17' width='2' height='5' fill='%23222222'/%3E%3Crect x='19' y='19' width='6' height='1.5' fill='%23222222'/%3E%3Crect x='15' y='20' width='2' height='2' fill='%23222222'/%3E%3C/svg%3E") !important;
+  overflow: hidden !important;
 }
 
 .pet-slot-rotate-btn {
@@ -543,10 +699,87 @@
 .pet-sunken .premium-continue-btn:hover,
 .pet-sunken-white .premium-continue-btn:hover {
   background: var(--pet-btn-hover-bg) !important;
-  
+
   /* hover 시에도 보더 라인이 가려지지 않도록 미세 조정 및 보더 라운드 제거 */
   border-top-right-radius: 0px !important;
   border-bottom-right-radius: 0px !important;
+}
+
+} /* end @layer theme */
+
+/* ══════════════════════════════════════════════════════════════
+   랭킹/미션 등 Tailwind text-gray-* utilities 오버라이드
+   @layer theme 밖에 선언하여 utilities보다 높은 우선순위 확보
+   ══════════════════════════════════════════════════════════════ */
+.theme-cute-black-cat .pet-list-item,
+.theme-cute-black-cat .pet-sunken,
+.theme-cute-black-cat .pet-window-body {
+  color: var(--pet-text-color) !important;
+}
+
+/* 랭킹 사용자 이름: 기본 text-gray-800(#1f2937) → 배경과 대비되는 흰색 */
+.theme-cute-black-cat .font-bold.text-gray-800,
+.theme-cute-black-cat .font-semibold.text-gray-800 {
+  color: var(--pet-text-color) !important;
+}
+
+/* 랭킹 서브 텍스트 (레벨, 난이도 등): text-gray-400 → 밝은 muted */
+.theme-cute-black-cat .text-gray-400 {
+  color: var(--pet-text-muted) !important;
+}
+
+/* 랭킹 탭 비활성 텍스트: text-gray-500 */
+.theme-cute-black-cat .text-gray-500 {
+  color: var(--pet-text-muted) !important;
+}
+
+/* 랭킹 탭 비활성 텍스트: text-gray-600 */
+.theme-cute-black-cat .text-gray-600 {
+  color: var(--pet-text-color) !important;
+}
+
+/* 랭킹 점수: text-emerald-600 → accent-mint으로 변경 */
+.theme-cute-black-cat .text-emerald-600 {
+  color: var(--pet-accent-mint) !important;
+}
+
+/* 미션/이벤트 관련 오렌지 텍스트 */
+.theme-cute-black-cat .text-orange-600,
+.theme-cute-black-cat .text-orange-700,
+.theme-cute-black-cat .text-orange-900 {
+  color: var(--pet-text-color) !important;
+}
+
+/* 미션/이벤트 관련 빨간 텍스트 */
+.theme-cute-black-cat .text-red-400,
+.theme-cute-black-cat .text-red-600 {
+  color: var(--pet-accent-red) !important;
+}
+
+/* 미션/이벤트 관련 파란 텍스트 */
+.theme-cute-black-cat .text-blue-600 {
+  color: var(--pet-accent-mint) !important;
+}
+
+/* 미션/이벤트 관련 보라 텍스트 */
+.theme-cute-black-cat .text-purple-600,
+.theme-cute-black-cat .text-purple-700 {
+  color: var(--pet-accent-mint) !important;
+}
+
+/* 배경 클래스 오버라이드 — 썬큰/바디 배경을 테마 배경으로 */
+.theme-cute-black-cat .bg-gray-50,
+.theme-cute-black-cat .bg-gray-50\/50 {
+  background-color: var(--pet-bg) !important;
+}
+
+.theme-cute-black-cat .bg-white {
+  background-color: var(--pet-cell-bg) !important;
+}
+
+/* 보더 오버라이드 */
+.theme-cute-black-cat .border-gray-100 {
+  border-color: var(--pet-cell-border) !important;
 }
 
 

@@ -500,7 +500,7 @@ export const CUTE_PET_PREMIUM_UI_OBJECTS: PremiumUiObjectMap = {
       taskbarButtonClassName: 'pet-bottom-nav-button',
       taskbarBadgeClassName: 'pet-bottom-nav-badge',
       lockToastClassName: 'pet-lock-toast',
-      navHeightPx: 48,
+      navHeightPx: 64,
     },
     statusBar: {
       containerClassName: 'pet-status-bar',
@@ -573,6 +573,38 @@ export const CUTE_DOG_PREMIUM_UI_THEME: PremiumUiThemeConfig = {
   usageGuide: SHARED_PREMIUM_UI_USAGE_GUIDE,
 };
 
+const themeLabels = (title: string, statusText: string): PremiumUiMicroOverrides => ({
+  ...DEFAULT_PREMIUM_UI_LABELS,
+  topWindowTitle: `${title}\n(${statusText})`,
+  statusBarText: `${statusText} OS`,
+  statusBarVersion: 'v1.0',
+});
+const petTheme = (id: string, title: string, statusText: string, rootClass: string): PremiumUiThemeConfig => ({
+  id: id as PremiumUiThemeId,
+  family: 'cute_pet',
+  rootClassName: rootClass,
+  externalStylesheet: {
+    id: 'slidemino-cute-pet-theme-link',
+    href: '/styles/cute-pet-theme.css',
+  },
+  labels: themeLabels(title, statusText),
+  objects: CUTE_PET_PREMIUM_UI_OBJECTS,
+  usageGuide: SHARED_PREMIUM_UI_USAGE_GUIDE,
+});
+
+export const CUTE_CALICO_CAT_PREMIUM_UI_THEME = petTheme('cute_calico_cat', '삼색이 프리미엄', 'Calico Cat', 'theme-cute-calico-cat');
+export const CUTE_CHEESE_CAT_PREMIUM_UI_THEME = petTheme('cute_cheese_cat', '치즈냥이 프리미엄', 'Cheese Cat', 'theme-cute-cheese-cat');
+export const CUTE_SIAMESE_CAT_PREMIUM_UI_THEME = petTheme('cute_siamese_cat', '샴 프리미엄', 'Siamese Cat', 'theme-cute-siamese-cat');
+export const CUTE_SPHYNX_CAT_PREMIUM_UI_THEME = petTheme('cute_sphynx_cat', '스핑크스 프리미엄', 'Sphynx Cat', 'theme-cute-sphynx-cat');
+export const CUTE_SHIBA_PREMIUM_UI_THEME = petTheme('cute_shiba', '시바견 프리미엄', 'Shiba Inu', 'theme-cute-shiba');
+export const CUTE_CORGI_PREMIUM_UI_THEME = petTheme('cute_corgi', '웰시코기 프리미엄', 'Corgi', 'theme-cute-corgi');
+export const CUTE_RETRIEVER_PREMIUM_UI_THEME = petTheme('cute_retriever', '골든 리트리버 프리미엄', 'Golden Retriever', 'theme-cute-retriever');
+export const CUTE_POODLE_PREMIUM_UI_THEME = petTheme('cute_poodle', '푸들 프리미엄', 'Poodle', 'theme-cute-poodle');
+export const CUTE_SCOTTISH_FOLD_PREMIUM_UI_THEME = petTheme('cute_scottish_fold', '스코티시 폴드 프리미엄', 'Scottish Fold', 'theme-cute-scottish-fold');
+export const CUTE_CHIHUAHUA_PREMIUM_UI_THEME = petTheme('cute_chihuahua', '치와와 프리미엄', 'Chihuahua', 'theme-cute-chihuahua');
+export const CUTE_BICHON_PREMIUM_UI_THEME = petTheme('cute_bichon', '비숑 프리제 프리미엄', 'Bichon Frise', 'theme-cute-bichon');
+export const CUTE_MALTESE_PREMIUM_UI_THEME = petTheme('cute_maltese', '말티즈 프리미엄', 'Maltese', 'theme-cute-maltese');
+
 const PREMIUM_UI_THEME_BY_ID: Record<PremiumUiThemeId, PremiumUiThemeConfig> = {
   retro_windows_98: RETRO_WINDOWS_98_PREMIUM_UI_THEME,
   explore_galaxy: EXPLORE_GALAXY_PREMIUM_UI_THEME,
@@ -580,6 +612,18 @@ const PREMIUM_UI_THEME_BY_ID: Record<PremiumUiThemeId, PremiumUiThemeConfig> = {
   cute_black_cat: CUTE_BLACK_CAT_PREMIUM_UI_THEME,
   cute_white_cat: CUTE_WHITE_CAT_PREMIUM_UI_THEME,
   cute_dog: CUTE_DOG_PREMIUM_UI_THEME,
+  cute_calico_cat: CUTE_CALICO_CAT_PREMIUM_UI_THEME,
+  cute_cheese_cat: CUTE_CHEESE_CAT_PREMIUM_UI_THEME,
+  cute_siamese_cat: CUTE_SIAMESE_CAT_PREMIUM_UI_THEME,
+  cute_sphynx_cat: CUTE_SPHYNX_CAT_PREMIUM_UI_THEME,
+  cute_shiba: CUTE_SHIBA_PREMIUM_UI_THEME,
+  cute_corgi: CUTE_CORGI_PREMIUM_UI_THEME,
+  cute_retriever: CUTE_RETRIEVER_PREMIUM_UI_THEME,
+  cute_poodle: CUTE_POODLE_PREMIUM_UI_THEME,
+  cute_scottish_fold: CUTE_SCOTTISH_FOLD_PREMIUM_UI_THEME,
+  cute_chihuahua: CUTE_CHIHUAHUA_PREMIUM_UI_THEME,
+  cute_bichon: CUTE_BICHON_PREMIUM_UI_THEME,
+  cute_maltese: CUTE_MALTESE_PREMIUM_UI_THEME,
 };
 
 export const PREMIUM_UI_THEMES: readonly PremiumUiThemeConfig[] = Object.freeze(

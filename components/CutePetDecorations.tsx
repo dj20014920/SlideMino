@@ -1,23 +1,79 @@
 import React from 'react';
 import type { PremiumUiThemeId } from '../types';
+import { PET_SKINS } from '../config/petSkins.config';
 
 interface PetDecorProps {
   themeId: PremiumUiThemeId;
 }
 
-function getThemeColors(themeId: PremiumUiThemeId) {
-  const isDog   = themeId === 'cute_dog';
-  const isWhite = themeId === 'cute_white_cat';
-  const isBlack = themeId === 'cute_black_cat';
+type Rgb = { r: number; g: number; b: number };
+
+const hexToRgb = (hex: string): Rgb => {
+  const h = hex.startsWith('#') ? hex.slice(1) : hex;
   return {
-    isDog, isWhite, isBlack,
-    border:   isDog ? '#5c3d24' : isWhite ? '#222222' : '#FFC69F',
-    innerEar: isDog ? '#c08080' : '#FF8B8B',
-    petBody:  isBlack ? '#2E2E32' : isWhite ? '#F0F0F0' : '#c8a898',
-    eye:      isBlack ? '#F0F0F0' : '#18181A',
-    blush:    '#FF8A8A',
-    mint:     isBlack ? '#5BE2A7' : isDog ? '#D81B60' : '#FF6D00',
-    red:      isBlack ? '#FF6B6B' : isDog ? '#FF5722' : '#E53935',
+    r: parseInt(h.slice(0, 2), 16),
+    g: parseInt(h.slice(2, 4), 16),
+    b: parseInt(h.slice(4, 6), 16),
+  };
+};
+
+const rgbToHex = ({ r, g, b }: Rgb): string => {
+  const toHex = (value: number) => Math.round(Math.max(0, Math.min(255, value))).toString(16).padStart(2, '0');
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+};
+
+const mixHex = (a: string, b: string, t: number): string => {
+  const ar = hexToRgb(a);
+  const br = hexToRgb(b);
+  return rgbToHex({
+    r: ar.r + (br.r - ar.r) * t,
+    g: ar.g + (br.g - ar.g) * t,
+    b: ar.b + (br.b - ar.b) * t,
+  });
+};
+
+const relativeLuminance = (hex: string): number => {
+  const { r, g, b } = hexToRgb(hex);
+  const toLinear = (value: number) => {
+    const v = Math.max(0, Math.min(255, value)) / 255;
+    return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+};
+
+const contrastRatio = (a: string, b: string): number => {
+  const l1 = relativeLuminance(a);
+  const l2 = relativeLuminance(b);
+  return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+};
+
+const softenVeryLightFill = (fill: string, tint: string): string => {
+  const luminance = relativeLuminance(fill);
+  if (luminance < 0.9) return fill;
+  return mixHex(fill, tint, luminance > 0.97 ? 0.18 : 0.12);
+};
+
+const ensureReadableStroke = (stroke: string, fill: string): string => {
+  if (contrastRatio(stroke, fill) >= 3) return stroke;
+  return relativeLuminance(fill) > 0.55 ? '#34404A' : '#D7C3A2';
+};
+
+function getThemeColors(themeId: PremiumUiThemeId) {
+  const skinId = `skin_${themeId}`;
+  const pet = PET_SKINS.find(p => p.id === skinId);
+  const isDog = pet?.category === 'dog';
+  const cols = pet?.colors;
+  const petBody = cols ? softenVeryLightFill(cols.tileBg, cols.uiCellBorder) : '#c8a898';
+  const border = cols ? ensureReadableStroke(cols.tileBorder || cols.earOuter, petBody) : '#FFC69F';
+  return {
+    isDog,
+    border,
+    innerEar: cols ? mixHex(cols.earInner, '#D8A0A0', 0.22) : '#FF8B8B',
+    petBody,
+    eye:      relativeLuminance(petBody) <= 0.38 ? '#F8FAFC' : '#18181A',
+    blush:    cols?.blush ? mixHex(cols.blush, '#D8A0A0', 0.28) : '#D98C94',
+    mint:     'var(--pet-accent-mint)',
+    red:      'var(--pet-accent-red)',
   };
 }
 
@@ -234,14 +290,14 @@ export const PetBottomBannerDecor: React.FC<PetDecorProps & { children: React.Re
   const c = getThemeColors(themeId);
 
   const PetSvgNormal = () => (
-    <svg width="68" height="42" viewBox="0 0 68 42" fill="none">
+    <svg width="68" height="42" viewBox="0 0 68 42" fill="none" stroke={c.border} strokeWidth="1.5" strokeLinejoin="round">
       {c.isDog ? (<>
-        <path d="M4 14H12V26H4Z" fill="#8d6e63"/>
-        <path d="M56 14H64V26H56Z" fill="#8d6e63"/>
+        <path d="M4 14H12V26H4Z" fill={c.border}/>
+        <path d="M56 14H64V26H56Z" fill={c.border}/>
         <path d="M8 12H60V42H8Z" fill={c.petBody}/>
         <rect x="20" y="22" width="5" height="5" fill={c.eye}/>
         <rect x="43" y="22" width="5" height="5" fill={c.eye}/>
-        <rect x="30" y="28" width="8" height="5" fill="#000"/>
+        <rect x="30" y="28" width="8" height="5" fill={c.eye}/>
       </>) : (<>
         {/* 귀 */}
         <path d="M10 18L18 4L26 18Z" fill={c.petBody}/>
@@ -265,16 +321,16 @@ export const PetBottomBannerDecor: React.FC<PetDecorProps & { children: React.Re
   );
 
   const PetSvgCross = () => (
-    <svg width="68" height="42" viewBox="0 0 68 42" fill="none">
+    <svg width="68" height="42" viewBox="0 0 68 42" fill="none" stroke={c.border} strokeWidth="1.5" strokeLinejoin="round">
       {c.isDog ? (<>
-        <path d="M4 14H12V26H4Z" fill="#8d6e63"/>
-        <path d="M56 14H64V26H56Z" fill="#8d6e63"/>
+        <path d="M4 14H12V26H4Z" fill={c.border}/>
+        <path d="M56 14H64V26H56Z" fill={c.border}/>
         <path d="M8 12H60V42H8Z" fill={c.petBody}/>
         <line x1="19" y1="21" x2="26" y2="28" stroke={c.eye} strokeWidth="2.5" strokeLinecap="round"/>
         <line x1="26" y1="21" x2="19" y2="28" stroke={c.eye} strokeWidth="2.5" strokeLinecap="round"/>
         <line x1="42" y1="21" x2="49" y2="28" stroke={c.eye} strokeWidth="2.5" strokeLinecap="round"/>
         <line x1="49" y1="21" x2="42" y2="28" stroke={c.eye} strokeWidth="2.5" strokeLinecap="round"/>
-        <rect x="30" y="28" width="8" height="5" fill="#000"/>
+        <rect x="30" y="28" width="8" height="5" fill={c.eye}/>
       </>) : (<>
         <path d="M10 18L18 4L26 18Z" fill={c.petBody}/>
         <path d="M42 18L50 4L58 18Z" fill={c.petBody}/>

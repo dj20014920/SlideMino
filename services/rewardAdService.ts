@@ -20,6 +20,7 @@ import {
 import { getRewardAdId, isRewardAdSupported, CURRENT_AD_PLATFORM } from './adConfig';
 import { ensureAdMobReady } from './admob';
 import { CooldownGate, RetryBackoffScheduler, HourlyFrequencyCap, ClickAbuseGuard } from './adResilience';
+import { rewardVideoAdCoordinator, type RewardVideoAdOwner } from './rewardVideoAdCoordinator';
 import { MAX_DAILY_AD_VIEWS, REWARD_UNDO_AMOUNT } from '../constants';
 import { KST_OFFSET_MS } from '../config/constants';
 import { getServerAdjustedNow } from './serverTimeService';
@@ -222,6 +223,7 @@ class RewardSessionManager {
 // ==========================================
 
 class RewardAdService {
+  private readonly coordinatorOwner: RewardVideoAdOwner = 'undo';
   private loadStatus: AdLoadStatus = 'not_loaded';
   private showStatus: AdShowStatus = 'idle';
   private cleanupLoadFn: (() => void) | null = null;
@@ -254,6 +256,20 @@ class RewardAdService {
     if (CURRENT_AD_PLATFORM === 'admob-ios' || CURRENT_AD_PLATFORM === 'admob-android') {
       this.setupAdMobListeners();
     }
+
+    rewardVideoAdCoordinator.register(this.coordinatorOwner, () => this.invalidatePreparedAdState());
+  }
+
+  private invalidatePreparedAdState(): void {
+    if (this.isHandlingActiveShow()) return;
+    this.cleanupLoadFn?.();
+    this.cleanupLoadFn = null;
+    this.loadRetryBackoff.clearPending();
+    this.loadStatus = 'not_loaded';
+    this.showStatus = 'idle';
+    this.isProcessingShow = false;
+    this.admobCallbacks = null;
+    this.currentSessionId = null;
   }
 
   // ==========================================
@@ -268,6 +284,7 @@ class RewardAdService {
     AdMob.addListener(RewardAdPluginEvents.Loaded, (info: AdLoadInfo) => {
       if (info.adUnitId !== this.adGroupId) return;
       if (this.loadStatus !== 'loading') return;
+      if (!rewardVideoAdCoordinator.isCurrentOwner(this.coordinatorOwner)) return;
       this.loadStatus = 'loaded';
       this.loadRetryBackoff.reset();
       console.log('[RewardAdService] AdMob 광고 로드 완료:', info);
@@ -276,6 +293,7 @@ class RewardAdService {
     // 광고 로드 실패
     AdMob.addListener(RewardAdPluginEvents.FailedToLoad, (error: AdMobError) => {
       if (this.loadStatus !== 'loading') return;
+      if (!rewardVideoAdCoordinator.isCurrentOwner(this.coordinatorOwner)) return;
       this.loadStatus = 'failed';
       console.error('[RewardAdService] AdMob 광고 로드 실패:', error);
       this.scheduleLoadRetry();
@@ -295,6 +313,7 @@ class RewardAdService {
       this.showStatus = 'idle';
       this.isProcessingShow = false;
       this.loadStatus = 'failed';
+      rewardVideoAdCoordinator.clear(this.coordinatorOwner);
       this.scheduleLoadRetry();
 
       if (this.admobCallbacks) {
@@ -321,6 +340,7 @@ class RewardAdService {
       this.showStatus = 'closed';
       this.loadStatus = 'not_loaded';
       this.isProcessingShow = false;
+      rewardVideoAdCoordinator.clear(this.coordinatorOwner);
 
       if (this.admobCallbacks) {
         this.admobCallbacks.onAdClosed();
@@ -348,10 +368,16 @@ class RewardAdService {
     // 플랫폼 지원 체크
     if (!this.checkPlatformSupport()) return;
 
+    if (this.loadStatus === 'loaded' && !rewardVideoAdCoordinator.isCurrentOwner(this.coordinatorOwner)) {
+      this.loadStatus = 'not_loaded';
+    }
+
     // 이미 로드 중이거나 로드됨
     if (this.loadStatus === 'loading' || this.loadStatus === 'loaded') {
       return;
     }
+
+    rewardVideoAdCoordinator.claim(this.coordinatorOwner);
 
     // 플랫폼별 분기
     if (CURRENT_AD_PLATFORM === 'apps-in-toss') {
@@ -376,6 +402,11 @@ class RewardAdService {
       onEvent: (event) => {
         switch (event.type) {
           case 'loaded':
+            if (!rewardVideoAdCoordinator.isCurrentOwner(this.coordinatorOwner)) {
+              this.cleanupLoadFn?.();
+              this.cleanupLoadFn = null;
+              return;
+            }
             this.loadStatus = 'loaded';
             this.loadRetryBackoff.reset();
             console.log('[RewardAdService] 광고 로드 완료');
@@ -399,6 +430,9 @@ class RewardAdService {
     console.log('[RewardAdService] AdMob 광고 로드 시작...');
 
     const canRequest = await ensureAdMobReady();
+    if (!rewardVideoAdCoordinator.isCurrentOwner(this.coordinatorOwner)) {
+      return;
+    }
     if (!canRequest) {
       this.loadStatus = 'failed';
       return;
@@ -408,6 +442,9 @@ class RewardAdService {
 
     try {
       const info = await AdMob.prepareRewardVideoAd(options);
+      if (!rewardVideoAdCoordinator.isCurrentOwner(this.coordinatorOwner)) {
+        return;
+      }
       if (info.adUnitId !== this.adGroupId) {
         this.loadStatus = 'failed';
         console.error('[RewardAdService] AdMob 광고 로드 mismatch:', info.adUnitId, this.adGroupId);
@@ -417,6 +454,9 @@ class RewardAdService {
       this.loadStatus = 'loaded';
       this.loadRetryBackoff.reset();
     } catch (error) {
+      if (!rewardVideoAdCoordinator.isCurrentOwner(this.coordinatorOwner)) {
+        return;
+      }
       this.loadStatus = 'failed';
       console.error('[RewardAdService] AdMob 광고 로드 실패:', error);
       this.scheduleLoadRetry();
@@ -463,6 +503,10 @@ class RewardAdService {
     }
 
     // 6. 광고 로드 상태 체크
+    if (this.loadStatus === 'loaded' && !rewardVideoAdCoordinator.isCurrentOwner(this.coordinatorOwner)) {
+      this.loadStatus = 'not_loaded';
+    }
+
     if (this.loadStatus !== 'loaded') {
       if (this.loadStatus === 'not_loaded' || this.loadStatus === 'failed') {
         this.preloadAd();
@@ -509,6 +553,7 @@ class RewardAdService {
           case 'requested':
             console.log('[RewardAdService] 광고 요청 완료');
             this.loadStatus = 'not_loaded';
+            rewardVideoAdCoordinator.clear(this.coordinatorOwner);
             break;
 
           case 'show':
@@ -544,6 +589,7 @@ class RewardAdService {
             this.showStatus = 'idle';
             this.isProcessingShow = false;
             this.loadStatus = 'failed';
+            rewardVideoAdCoordinator.clear(this.coordinatorOwner);
             callbacks.onError(new Error('광고 표시 실패'));
             break;
         }
@@ -553,6 +599,7 @@ class RewardAdService {
         this.showStatus = 'idle';
         this.isProcessingShow = false;
         this.loadStatus = 'failed';
+        rewardVideoAdCoordinator.clear(this.coordinatorOwner);
         callbacks.onError(error);
       },
     });
@@ -566,6 +613,7 @@ class RewardAdService {
     try {
       await AdMob.showRewardVideoAd();
       this.loadStatus = 'not_loaded';
+      rewardVideoAdCoordinator.clear(this.coordinatorOwner);
       // 보상 처리는 리스너에서 수행됨 (setupAdMobListeners에서 설정)
     } catch (error) {
       console.error('[RewardAdService] AdMob 광고 표시 실패:', error);
@@ -573,6 +621,7 @@ class RewardAdService {
       this.isProcessingShow = false;
       this.loadStatus = 'failed';
       this.admobCallbacks = null;
+      rewardVideoAdCoordinator.clear(this.coordinatorOwner);
       this.scheduleLoadRetry();
       callbacks.onError(error as Error);
     }
@@ -627,10 +676,13 @@ class RewardAdService {
   }
 
   public isAdReady(): boolean {
-    return this.loadStatus === 'loaded';
+    return this.loadStatus === 'loaded' && rewardVideoAdCoordinator.isCurrentOwner(this.coordinatorOwner);
   }
 
   public getLoadStatus(): AdLoadStatus {
+    if (this.loadStatus === 'loaded' && !rewardVideoAdCoordinator.isCurrentOwner(this.coordinatorOwner)) {
+      return 'not_loaded';
+    }
     return this.loadStatus;
   }
 
@@ -646,6 +698,9 @@ class RewardAdService {
     this.showStatus = 'idle';
     this.isProcessingShow = false;
     this.sessionManager.clearSession();
+    this.admobCallbacks = null;
+    this.currentSessionId = null;
+    rewardVideoAdCoordinator.clear(this.coordinatorOwner);
 
     console.log('[RewardAdService] 리소스 정리');
   }

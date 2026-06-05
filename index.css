@@ -1,3 +1,6 @@
+/* CSS Cascade Layers: 테마 레이어 우선순위 선언 (theme > base > components > utilities) */
+@layer theme;
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

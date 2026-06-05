@@ -10,6 +10,13 @@ const LIQUID_GLASS_SKIN_PREFIX = 'skin_digital_liquid_glass_';
 const LEGACY_LIQUID_GLASS_SKIN_ID = 'skin_digital_liquid_glass';
 const MESH_SWATCH_SKIN_PREFIX = 'skin_mesh_swatch_';
 
+type CuteSkinNames = {
+  cuteBlackCat: string; cuteWhiteCat: string; cuteDog: string;
+  cuteCalicoCat: string; cuteCheeseCat: string; cuteSiameseCat: string; cuteSphynx: string;
+  cuteShiba: string; cuteCorgi: string; cuteRetriever: string; cutePoodle: string;
+  cuteScottishFold: string; cuteChihuahua: string; cuteBichon: string; cuteMaltese: string;
+};
+
 const NAME_LABELS: Record<
   SupportedNameLocale,
   {
@@ -21,10 +28,7 @@ const NAME_LABELS: Record<
     watercolor: string;
     pixelBlast: string;
     exploreGalaxy: string;
-    cuteBlackCat: string;
-    cuteWhiteCat: string;
-    cuteDog: string;
-  }
+  } & CuteSkinNames
 > = {
   ko: {
     liquidGlass: '리퀴드 글래스',
@@ -38,6 +42,18 @@ const NAME_LABELS: Record<
     cuteBlackCat: '검은 고양이',
     cuteWhiteCat: '흰 고양이',
     cuteDog: '강아지',
+    cuteCalicoCat: '삼색이',
+    cuteCheeseCat: '치즈냥이',
+    cuteSiameseCat: '샴',
+    cuteSphynx: '스핑크스',
+    cuteShiba: '시바견',
+    cuteCorgi: '웰시코기',
+    cuteRetriever: '골든 리트리버',
+    cutePoodle: '푸들',
+    cuteScottishFold: '스코티시 폴드',
+    cuteChihuahua: '치와와',
+    cuteBichon: '비숑 프리제',
+    cuteMaltese: '말티즈',
   },
   en: {
     liquidGlass: 'Liquid Glass',
@@ -51,6 +67,18 @@ const NAME_LABELS: Record<
     cuteBlackCat: 'Black Cat',
     cuteWhiteCat: 'White Cat',
     cuteDog: 'Cute Puppy',
+    cuteCalicoCat: 'Calico Cat',
+    cuteCheeseCat: 'Cheese Cat',
+    cuteSiameseCat: 'Siamese',
+    cuteSphynx: 'Sphynx',
+    cuteShiba: 'Shiba Inu',
+    cuteCorgi: 'Corgi',
+    cuteRetriever: 'Golden Retriever',
+    cutePoodle: 'Poodle',
+    cuteScottishFold: 'Scottish Fold',
+    cuteChihuahua: 'Chihuahua',
+    cuteBichon: 'Bichon Frise',
+    cuteMaltese: 'Maltese',
   },
   ja: {
     liquidGlass: 'リキッドグラス',
@@ -64,6 +92,18 @@ const NAME_LABELS: Record<
     cuteBlackCat: '黒猫',
     cuteWhiteCat: '白猫',
     cuteDog: '子犬',
+    cuteCalicoCat: '三毛猫',
+    cuteCheeseCat: 'チーズ猫',
+    cuteSiameseCat: 'シャム猫',
+    cuteSphynx: 'スフィンクス',
+    cuteShiba: '柴犬',
+    cuteCorgi: 'コーギー',
+    cuteRetriever: 'ゴールデンレトリバー',
+    cutePoodle: 'プードル',
+    cuteScottishFold: 'スコティッシュフォールド',
+    cuteChihuahua: 'チワワ',
+    cuteBichon: 'ビション・フリーゼ',
+    cuteMaltese: 'マルチーズ',
   },
   zh: {
     liquidGlass: '液态玻璃',
@@ -77,8 +117,22 @@ const NAME_LABELS: Record<
     cuteBlackCat: '黑猫',
     cuteWhiteCat: '白猫',
     cuteDog: '小狗',
+    cuteCalicoCat: '三花猫',
+    cuteCheeseCat: '奶酪猫',
+    cuteSiameseCat: '暹罗猫',
+    cuteSphynx: '斯芬克斯猫',
+    cuteShiba: '柴犬',
+    cuteCorgi: '柯基犬',
+    cuteRetriever: '金毛寻回犬',
+    cutePoodle: '贵宾犬',
+    cuteScottishFold: '苏格兰折耳猫',
+    cuteChihuahua: '吉娃娃',
+    cuteBichon: '比熊犬',
+    cuteMaltese: '马尔济斯犬',
   },
 };
+
+import { PET_SKINS } from '../config/petSkins.config';
 
 const to2 = (n: number): string => String(Math.max(1, n)).padStart(2, '0');
 
@@ -125,9 +179,13 @@ export const getSkinFallbackDisplayName = (skin: SkinNameInput, locale?: string)
   if (skin.id === 'skin_digital_explore_galaxy') return labels.exploreGalaxy;
   if (skin.id === 'skin_material_marble') return labels.mineralMarble;
   if (skin.id === 'skin_art_watercolor') return labels.watercolor;
-  if (skin.id === 'skin_cute_black_cat') return labels.cuteBlackCat;
-  if (skin.id === 'skin_cute_white_cat') return labels.cuteWhiteCat;
-  if (skin.id === 'skin_cute_dog') return labels.cuteDog;
+  if (skin.id && skin.id.startsWith('skin_cute_')) {
+    const petDef = PET_SKINS.find(p => p.id === skin.id);
+    if (petDef) {
+      const key = petDef.nameKey as keyof CuteSkinNames;
+      return labels[key] || skin.hex.toUpperCase();
+    }
+  }
 
   return skin.hex.toUpperCase();
 };

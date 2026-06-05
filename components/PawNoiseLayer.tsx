@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import type { PremiumUiThemeId } from '../types';
+import { PET_SKINS } from '../config/petSkins.config';
 
 interface PawParticle {
   id: number;
@@ -29,9 +30,7 @@ export const PawNoiseLayer: React.FC<PawNoiseLayerProps> = ({ themeId, enabled }
     curveVelocity: number; // 곡선 회전 가속도
   } | null>(null);
 
-  const isDog = themeId === 'cute_dog';
-  const isWhite = themeId === 'cute_white_cat';
-  const pawColor = isDog ? '#5c3d24' : isWhite ? '#222222' : '#FFC69F';
+  const petDef = PET_SKINS.find(p => p.id === `skin_${themeId}`);
 
   useEffect(() => {
     if (!enabled) {
@@ -159,6 +158,7 @@ export const PawNoiseLayer: React.FC<PawNoiseLayerProps> = ({ themeId, enabled }
   }, [enabled, themeId]);
 
   if (!enabled || paws.length === 0) return null;
+  const pawColor = petDef?.colors.uiTextMuted ?? petDef?.colors.earOuter ?? '#FFC69F';
 
   return (
     <div

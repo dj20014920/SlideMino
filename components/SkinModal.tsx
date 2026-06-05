@@ -146,6 +146,8 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
   const [acquisitionSkin, setAcquisitionSkin] = useState<{ id?: string; hex: string; style?: any } | null>(null);
   const [acquisitionIsDuplicate, setAcquisitionIsDuplicate] = useState(false);
   const [remainingAds, setRemainingAds] = useState(skinRewardAdService.getRemainingDailyViews());
+  const [isSkinAdReady, setIsSkinAdReady] = useState(skinRewardAdService.isAdReady());
+  const [skinAdLoadStatus, setSkinAdLoadStatus] = useState(skinRewardAdService.getLoadStatus());
   const [adError, setAdError] = useState<string | null>(null);
   const [activeBigTab, setActiveBigTab] = useState<'premium' | 'normal'>('premium');
   const [openSections, setOpenSections] = useState<Readonly<Record<SkinSectionKey, boolean>>>({
@@ -394,10 +396,28 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
 
   // 모달 열릴 때 광고 미리 로드
   useEffect(() => {
-    if (open && isSkinRewardAdSupported()) {
-      skinRewardAdService.preloadAd();
-      setRemainingAds(skinRewardAdService.getRemainingDailyViews());
+    if (!open) {
+      setIsSkinAdReady(false);
+      setSkinAdLoadStatus(skinRewardAdService.getLoadStatus());
+      return;
     }
+
+    if (!isSkinRewardAdSupported()) return;
+
+    skinRewardAdService.preloadAd();
+    setRemainingAds(skinRewardAdService.getRemainingDailyViews());
+    setIsSkinAdReady(skinRewardAdService.isAdReady());
+    setSkinAdLoadStatus(skinRewardAdService.getLoadStatus());
+
+    const intervalId = window.setInterval(() => {
+      setRemainingAds(skinRewardAdService.getRemainingDailyViews());
+      setIsSkinAdReady(skinRewardAdService.isAdReady());
+      setSkinAdLoadStatus(skinRewardAdService.getLoadStatus());
+    }, 500);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
   }, [open]);
 
   // ESC 키로 닫기
@@ -501,6 +521,14 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
     setAdError(null);
     trackAnalyticsEvent({ name: 'ad_skin_draw_request' });
 
+    const currentLoadStatus = skinRewardAdService.getLoadStatus();
+    if (!skinRewardAdService.isAdReady() && currentLoadStatus !== 'failed') {
+      skinRewardAdService.preloadAd();
+      setIsSkinAdReady(false);
+      setSkinAdLoadStatus(skinRewardAdService.getLoadStatus());
+      return;
+    }
+
     let drawResult: SkinDrawResult | null = null;
     let adClosed = false;
 
@@ -537,18 +565,24 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
         adClosed = true;
         startAcquisitionAfterClose();
         setRemainingAds(skinRewardAdService.getRemainingDailyViews());
+        setIsSkinAdReady(skinRewardAdService.isAdReady());
+        setSkinAdLoadStatus(skinRewardAdService.getLoadStatus());
       },
       onError: (error) => {
         if (!isMountedRef.current || !open) return;
         const nextRemaining = skinRewardAdService.getRemainingDailyViews();
         const message = error.message?.trim() || '광고 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
         setRemainingAds(nextRemaining);
+        setIsSkinAdReady(skinRewardAdService.isAdReady());
+        setSkinAdLoadStatus(skinRewardAdService.getLoadStatus());
         setAdError(message);
         skinRewardAdService.preloadAd();
       },
       onDailyLimitReached: () => {
         if (!isMountedRef.current || !open) return;
         setRemainingAds(skinRewardAdService.getRemainingDailyViews());
+        setIsSkinAdReady(skinRewardAdService.isAdReady());
+        setSkinAdLoadStatus(skinRewardAdService.getLoadStatus());
         setAdError(null);
       },
     });
@@ -558,16 +592,20 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
   useEffect(() => {
     if (!open || !autoDraw || autoDrawTriggeredRef.current) return;
     if (freeDraw) return;
+    if (!isSkinAdReady) {
+      if (isSkinRewardAdSupported()) skinRewardAdService.preloadAd();
+      return;
+    }
     autoDrawTriggeredRef.current = true;
 
     const timer = setTimeout(() => {
       handleDraw();
-    }, 800);
+    }, 100);
 
     return () => {
       clearTimeout(timer);
     };
-  }, [open, autoDraw, handleDraw, freeDraw]);
+  }, [open, autoDraw, handleDraw, freeDraw, isSkinAdReady]);
 
   // 탭 전환 시 선택된 스킨 및 툴팁 상태 초기화 (탭 간 드롭다운 댕글링 방지)
   useEffect(() => {
@@ -634,6 +672,11 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
     if (activeSkin) return activeSkin;
     return SKIN_CATALOG[0] ?? { hex: '#64748b' };
   }, [selectedSkinId, selectedSkinHex, activeSkin]);
+
+  const isSkinAdPreparing = remainingAds > 0 && isSkinRewardAdSupported() && !isSkinAdReady && skinAdLoadStatus !== 'failed';
+  const skinDrawButtonText = isSkinAdPreparing
+    ? String(t('game:rewardAd.loading'))
+    : String(t('modals:skin.drawButton'));
 
   if (!open) return null;
 
@@ -905,10 +948,11 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
                       type="button"
                       className={premiumUiCompartmentButtonClassName} 
                       onClick={handleDraw} 
-                      style={{ width: '100%', height: '32px', fontWeight: 'bold', cursor: 'pointer' }}
+                      disabled={isSkinAdPreparing}
+                      style={{ width: '100%', height: '32px', fontWeight: 'bold', cursor: isSkinAdPreparing ? 'wait' : 'pointer' }}
                     >
                       {activeBigTab === 'premium' ? '💎 ' : '✦ '}
-                      {t('modals:skin.drawButton')} ({remainingAds}/{MAX_DAILY_SKIN_AD_VIEWS})
+                      {skinDrawButtonText} ({remainingAds}/{MAX_DAILY_SKIN_AD_VIEWS})
                     </button>
                   ) : (
                     <button type="button" className={premiumUiCompartmentButtonClassName} disabled style={{ width: '100%' }}>
@@ -1234,11 +1278,16 @@ export function SkinModal({ open, onClose, freeDraw, onFreeDrawUsed, autoDraw }:
                   <button
                     type="button"
                     onClick={handleDraw}
-                    className="w-full py-3.5 rounded-2xl bg-gray-900 text-white font-semibold text-sm hover:bg-gray-800 active:scale-[0.98] transition-all shadow-lg flex items-center justify-center gap-2"
+                    disabled={isSkinAdPreparing}
+                    className={`w-full py-3.5 rounded-2xl font-semibold text-sm transition-all shadow-lg flex items-center justify-center gap-2 ${
+                      isSkinAdPreparing
+                        ? 'bg-gray-100 text-gray-500 cursor-wait'
+                        : 'bg-gray-900 text-white hover:bg-gray-800 active:scale-[0.98]'
+                    }`}
                   >
                     <span>{activeBigTab === 'premium' ? '💎' : '✦'}</span>
-                    <span>{t('modals:skin.drawButton')}</span>
-                    <span className="text-white/60">
+                    <span>{skinDrawButtonText}</span>
+                    <span className={isSkinAdPreparing ? 'text-gray-400' : 'text-white/60'}>
                       ({remainingAds}/{MAX_DAILY_SKIN_AD_VIEWS})
                     </span>
                   </button>

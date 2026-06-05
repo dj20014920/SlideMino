@@ -19,6 +19,7 @@ import {
 } from './adConfig';
 import { ensureAdMobReady } from './admob';
 import { CooldownGate, RetryBackoffScheduler, HourlyFrequencyCap, ClickAbuseGuard } from './adResilience';
+import { rewardVideoAdCoordinator, type RewardVideoAdOwner } from './rewardVideoAdCoordinator';
 import { MAX_DAILY_WEEKLY_EVENT_ATTEMPT_AD_VIEWS } from '../constants';
 import { getServerAdjustedNow } from './serverTimeService';
 
@@ -84,6 +85,7 @@ class WeeklyEventAttemptDailyAdLimiter {
 }
 
 class WeeklyEventAttemptAdService {
+  private readonly coordinatorOwner: RewardVideoAdOwner = 'weekly-event-attempt';
   private adUnitId: string;
   private loadStatus: AdLoadStatus = 'not_loaded';
   private lastLoadError: AdMobError | null = null;
@@ -101,12 +103,15 @@ class WeeklyEventAttemptAdService {
     if (CURRENT_AD_PLATFORM === 'admob-ios' || CURRENT_AD_PLATFORM === 'admob-android') {
       this.setupListeners();
     }
+
+    rewardVideoAdCoordinator.register(this.coordinatorOwner, () => this.invalidatePreparedAdState());
   }
 
   private setupListeners(): void {
     AdMob.addListener(RewardAdPluginEvents.Loaded, (info: AdLoadInfo) => {
       if (info.adUnitId !== this.adUnitId) return;
       if (this.loadStatus !== 'loading') return;
+      if (!rewardVideoAdCoordinator.isCurrentOwner(this.coordinatorOwner)) return;
       this.loadStatus = 'loaded';
       this.lastLoadError = null;
       this.loadRetryBackoff.reset();
@@ -114,6 +119,7 @@ class WeeklyEventAttemptAdService {
 
     AdMob.addListener(RewardAdPluginEvents.FailedToLoad, (error: AdMobError) => {
       if (this.loadStatus !== 'loading') return;
+      if (!rewardVideoAdCoordinator.isCurrentOwner(this.coordinatorOwner)) return;
       this.loadStatus = 'failed';
       this.lastLoadError = error;
       this.loadRetryBackoff.schedule(() => {
@@ -124,6 +130,7 @@ class WeeklyEventAttemptAdService {
     AdMob.addListener(RewardAdPluginEvents.FailedToShow, () => {
       if (!this.isHandlingActiveShow()) return;
       this.loadStatus = 'failed';
+      rewardVideoAdCoordinator.clear(this.coordinatorOwner);
       this.isProcessingShow = false;
       this.rewardIssuedForCurrentShow = false;
       if (this.admobCallbacks) {
@@ -148,6 +155,7 @@ class WeeklyEventAttemptAdService {
     AdMob.addListener(RewardAdPluginEvents.Dismissed, () => {
       if (!this.isHandlingActiveShow()) return;
       this.loadStatus = 'not_loaded';
+      rewardVideoAdCoordinator.clear(this.coordinatorOwner);
       this.isProcessingShow = false;
       this.rewardIssuedForCurrentShow = false;
       if (this.admobCallbacks) {
@@ -160,8 +168,12 @@ class WeeklyEventAttemptAdService {
 
   public preloadAd(): void {
     if (!this.isSupported()) return;
+    if (this.loadStatus === 'loaded' && !rewardVideoAdCoordinator.isCurrentOwner(this.coordinatorOwner)) {
+      this.loadStatus = 'not_loaded';
+    }
     if (this.loadStatus === 'loading' || this.loadStatus === 'loaded') return;
     if (CURRENT_AD_PLATFORM !== 'admob-ios' && CURRENT_AD_PLATFORM !== 'admob-android') return;
+    rewardVideoAdCoordinator.claim(this.coordinatorOwner);
     void this.loadAdMobAd();
   }
 
@@ -170,6 +182,7 @@ class WeeklyEventAttemptAdService {
     this.lastLoadError = null;
 
     const canRequest = await ensureAdMobReady();
+    if (!rewardVideoAdCoordinator.isCurrentOwner(this.coordinatorOwner)) return;
     if (!canRequest) {
       this.loadStatus = 'failed';
       return;
@@ -179,6 +192,7 @@ class WeeklyEventAttemptAdService {
 
     try {
       const info = await AdMob.prepareRewardVideoAd(options);
+      if (!rewardVideoAdCoordinator.isCurrentOwner(this.coordinatorOwner)) return;
       if (info.adUnitId !== this.adUnitId) {
         this.loadStatus = 'failed';
         this.lastLoadError = {
@@ -194,6 +208,7 @@ class WeeklyEventAttemptAdService {
       this.lastLoadError = null;
       this.loadRetryBackoff.reset();
     } catch (error) {
+      if (!rewardVideoAdCoordinator.isCurrentOwner(this.coordinatorOwner)) return;
       const normalizedError = this.normalizeAdMobError(error);
       this.loadStatus = 'failed';
       this.lastLoadError = normalizedError;
@@ -236,6 +251,10 @@ class WeeklyEventAttemptAdService {
       return;
     }
 
+    if (this.loadStatus === 'loaded' && !rewardVideoAdCoordinator.isCurrentOwner(this.coordinatorOwner)) {
+      this.loadStatus = 'not_loaded';
+    }
+
     if (this.loadStatus !== 'loaded') {
       if (this.loadStatus === 'not_loaded' || this.loadStatus === 'failed') this.preloadAd();
       if (this.loadStatus === 'failed' && this.lastLoadError?.code === 3) {
@@ -257,8 +276,10 @@ class WeeklyEventAttemptAdService {
     try {
       await AdMob.showRewardVideoAd();
       this.loadStatus = 'not_loaded';
+      rewardVideoAdCoordinator.clear(this.coordinatorOwner);
     } catch (error) {
       this.loadStatus = 'failed';
+      rewardVideoAdCoordinator.clear(this.coordinatorOwner);
       this.isProcessingShow = false;
       this.rewardIssuedForCurrentShow = false;
       this.admobCallbacks = null;
@@ -271,7 +292,14 @@ class WeeklyEventAttemptAdService {
   }
 
   public isAdReady(): boolean {
-    return this.loadStatus === 'loaded';
+    return this.loadStatus === 'loaded' && rewardVideoAdCoordinator.isCurrentOwner(this.coordinatorOwner);
+  }
+
+  public getLoadStatus(): AdLoadStatus {
+    if (this.loadStatus === 'loaded' && !rewardVideoAdCoordinator.isCurrentOwner(this.coordinatorOwner)) {
+      return 'not_loaded';
+    }
+    return this.loadStatus;
   }
 
   public getRemainingDailyViews(): number {
@@ -285,10 +313,21 @@ class WeeklyEventAttemptAdService {
     this.isProcessingShow = false;
     this.rewardIssuedForCurrentShow = false;
     this.admobCallbacks = null;
+    rewardVideoAdCoordinator.clear(this.coordinatorOwner);
   }
 
   private isHandlingActiveShow(): boolean {
     return this.isProcessingShow || this.admobCallbacks !== null;
+  }
+
+  private invalidatePreparedAdState(): void {
+    if (this.isHandlingActiveShow()) return;
+    this.loadRetryBackoff.clearPending();
+    this.loadStatus = 'not_loaded';
+    this.lastLoadError = null;
+    this.isProcessingShow = false;
+    this.rewardIssuedForCurrentShow = false;
+    this.admobCallbacks = null;
   }
 
   private normalizeAdMobError(error: unknown): AdMobError {

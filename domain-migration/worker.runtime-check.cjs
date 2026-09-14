@@ -13,7 +13,7 @@ const { Miniflare } = require(process.env.MINIFLARE_MODULE || 'miniflare');
   outboundService: async request => {
    seen.push({ url: request.url, method: request.method, body: await request.text(), headers: Object.fromEntries(request.headers) });
    const allowed = ['https://slidemino.emozleep.space', 'https://www.slidemino.emozleep.space', 'capacitor://localhost'];
-   const headers = new Headers({ 'content-type': 'application/json', 'access-control-allow-origin': request.headers.get('origin') || 'https://slidemino.emozleep.space', 'cache-control': 'no-store', location: 'https://slidemino.emozleep.space/admin' });
+   const headers = new Headers({ 'content-type': 'application/json', 'access-control-allow-origin': allowed.includes(request.headers.get('origin')) ? request.headers.get('origin') : 'https://slidemino.emozleep.space', 'cache-control': 'no-store', location: 'https://slidemino.emozleep.space/admin' });
    headers.append('set-cookie', 'admin=fixture; Domain=slidemino.emozleep.space; Path=/; Secure; HttpOnly; SameSite=Strict');
    headers.append('set-cookie', 'external=unchanged; Domain=example.com; Secure');
    headers.append('set-cookie', 'Domain=emozleep.space; Domain=notemozleep.space; Secure');
@@ -48,6 +48,11 @@ const { Miniflare } = require(process.env.MINIFLARE_MODULE || 'miniflare');
   }
   const native = await mf.dispatchFetch('https://slidemino.cdjstudio.xyz/api/submit', { method: 'POST', body: '{', headers: { origin: 'capacitor://localhost' } });
   assert.equal(native.status, 400); assert.equal(native.headers.get('access-control-allow-origin'), 'capacitor://localhost');
+  for (const origin of [undefined, 'https://attacker.invalid']) {
+   const response = await mf.dispatchFetch('https://slidemino.cdjstudio.xyz/api/rankings', { headers: origin ? { origin } : {} });
+   assert.equal(response.status, 403);
+   assert.equal(response.headers.get('access-control-allow-origin'), 'https://slidemino.cdjstudio.xyz');
+  }
   const preview = await mf.dispatchFetch('https://preview.workers.dev/api/submit', { method: 'POST' });
   assert.equal(preview.status, 503);
   const page = await mf.dispatchFetch('https://slidemino.cdjstudio.xyz/privacy');

@@ -40,8 +40,9 @@ export default {
     const responseHeaders = new Headers(upstream.headers);
     responseHeaders.set('x-cdj-domain-migration', 'slidemino-v1');
     const allowedOrigin = responseHeaders.get('access-control-allow-origin');
-    if (legacyOrigin && allowedOrigin === legacyOrigin) {
-      responseHeaders.set('access-control-allow-origin', origin);
+    const publicAllowedOrigin = [...originAliases].find(([, legacy]) => legacy === allowedOrigin)?.[0];
+    if (publicAllowedOrigin) {
+      responseHeaders.set('access-control-allow-origin', publicAllowedOrigin);
       const vary = responseHeaders.get('vary');
       if (!vary?.split(',').some(value => value.trim().toLowerCase() === 'origin')) responseHeaders.set('vary', vary ? vary + ', Origin' : 'Origin');
     }

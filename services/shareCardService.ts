@@ -34,7 +34,7 @@ export interface ShareCardOptions {
 const CARD_W = 1080;
 const CARD_H = 1350;
 const APP_STORE_URL = 'https://apps.apple.com/kr/app/%EB%B8%94%EB%A1%9D-%EC%8A%AC%EB%9D%BC%EC%9D%B4%EB%93%9C-block-slide/id6757861065';
-const WEB_URL = 'https://www.slidemino.emozleep.space/';
+const WEB_URL = 'https://www.slidemino.cdjstudio.xyz/';
 const FONT_FAMILY = "Inter, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif";
 
 // ====== 유틸 ======

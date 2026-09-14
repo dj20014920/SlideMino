@@ -641,7 +641,7 @@ export const rankingService = {
         }
 
         try {
-            const url = new URL(getApiUrl('/api/rankings'), typeof window !== 'undefined' ? window.location.origin : 'https://slidemino.emozleep.space');
+            const url = new URL(getApiUrl('/api/rankings'), typeof window !== 'undefined' ? window.location.origin : 'https://slidemino.cdjstudio.xyz');
             url.searchParams.set('tab', normalizeLeaderboardTabForApi(tab));
             url.searchParams.set('_ts', String(Date.now()));
             const response = await fetch(url.toString(), { cache: 'no-store' });

@@ -39,10 +39,10 @@ const PrivacyPolicy: React.FC = () => {
           <h2>2. Developer Information / 개발자 정보</h2>
           <ul>
             <li><strong>Developer / 개발자:</strong> Emozleep Studio</li>
-            <li><strong>Email / 이메일:</strong> studio@emozleep.space</li>
+            <li><strong>Email / 이메일:</strong> studio@cdjstudio.xyz</li>
             <li><strong>Website / 웹사이트:</strong>{' '}
-              <a href="https://slidemino.emozleep.space" target="_blank" rel="noopener noreferrer">
-                https://slidemino.emozleep.space
+              <a href="https://slidemino.cdjstudio.xyz" target="_blank" rel="noopener noreferrer">
+                https://slidemino.cdjstudio.xyz
               </a>
             </li>
           </ul>
@@ -308,10 +308,10 @@ const PrivacyPolicy: React.FC = () => {
             <li><strong>Access (접근):</strong> Request a copy of your data stored on our servers.
               <br />서버에 저장된 데이터의 사본을 요청할 수 있습니다.</li>
             <li><strong>Deletion (삭제):</strong> Clear your local game data at any time through browser/app
-              settings. Request deletion of server-side data by contacting us at studio@emozleep.space.
+              settings. Request deletion of server-side data by contacting us at studio@cdjstudio.xyz.
               We will process deletion requests within 30 days.
               <br />브라우저/앱 설정을 통해 언제든지 로컬 게임 데이터를 삭제할 수 있습니다. 서버 측 데이터 삭제는
-              studio@emozleep.space로 연락하여 요청할 수 있으며, 30일 이내에 처리됩니다.</li>
+              studio@cdjstudio.xyz로 연락하여 요청할 수 있으며, 30일 이내에 처리됩니다.</li>
             <li><strong>Correction (정정):</strong> Update or correct your information by contacting us.
               <br />당사에 연락하여 정보를 업데이트하거나 수정할 수 있습니다.</li>
             <li><strong>Opt-Out of Personalized Ads (맞춤 광고 거부):</strong> Disable cookies through browser
@@ -327,9 +327,9 @@ const PrivacyPolicy: React.FC = () => {
               <br />이동 가능한 형식으로 데이터를 요청할 수 있습니다.</li>
           </ul>
           <p>
-            To exercise any of these rights, contact us at <strong>studio@emozleep.space</strong>. We will
+            To exercise any of these rights, contact us at <strong>studio@cdjstudio.xyz</strong>. We will
             respond to all requests within 30 days.
-            <br />이러한 권리를 행사하려면 <strong>studio@emozleep.space</strong>로 연락해 주세요. 모든 요청에 30일 이내에 응답합니다.
+            <br />이러한 권리를 행사하려면 <strong>studio@cdjstudio.xyz</strong>로 연락해 주세요. 모든 요청에 30일 이내에 응답합니다.
           </p>
         </section>
 
@@ -378,7 +378,7 @@ const PrivacyPolicy: React.FC = () => {
           <p>
             If you are a parent or guardian and believe that a child under 13 has used this app or
             provided personal information to us in any way, please contact us immediately at{' '}
-            <strong>studio@emozleep.space</strong>. We will:
+            <strong>studio@cdjstudio.xyz</strong>. We will:
           </p>
           <ul>
             <li>Promptly investigate the claim / 신고를 즉시 조사합니다</li>
@@ -455,7 +455,7 @@ const PrivacyPolicy: React.FC = () => {
             <li>Right to non-discrimination for exercising your privacy rights</li>
           </ul>
           <p>
-            To exercise these rights, contact us at <strong>studio@emozleep.space</strong>.
+            To exercise these rights, contact us at <strong>studio@cdjstudio.xyz</strong>.
           </p>
 
           <h3>12.3 For Users in South Korea / 대한민국 사용자</h3>
@@ -467,7 +467,7 @@ const PrivacyPolicy: React.FC = () => {
             <li>수집하는 개인정보의 항목을 최소화합니다.</li>
             <li>개인정보의 보유 및 이용 기간을 준수합니다.</li>
             <li>이용자는 언제든지 개인정보의 열람, 정정, 삭제, 처리정지를 요구할 수 있습니다.</li>
-            <li>개인정보 관련 문의: studio@emozleep.space</li>
+            <li>개인정보 관련 문의: studio@cdjstudio.xyz</li>
           </ul>
         </section>
 
@@ -543,9 +543,9 @@ const PrivacyPolicy: React.FC = () => {
           </p>
           <ul>
             <li><strong>Developer / 개발자:</strong> Emozleep Studio</li>
-            <li><strong>Email / 이메일:</strong> studio@emozleep.space</li>
+            <li><strong>Email / 이메일:</strong> studio@cdjstudio.xyz</li>
             <li><strong>Website / 웹사이트:</strong>{' '}
-              <a href="https://slidemino.emozleep.space/#/contact">Contact Page</a></li>
+              <a href="https://slidemino.cdjstudio.xyz/#/contact">Contact Page</a></li>
           </ul>
           <p>
             We will respond to all requests within <strong>30 days</strong>.

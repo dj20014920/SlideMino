@@ -2,7 +2,7 @@
 
 A modern, addictive browser-based puzzle game that combines 2048's merging mechanics with Tetris-style block placement. Built with React, TypeScript, and Vite.
 
-🎮 **Play Now:** [slidemino.emozleep.space](https://slidemino.emozleep.space)
+🎮 **Play Now:** [slidemino.cdjstudio.xyz](https://slidemino.cdjstudio.xyz)
 
 ## ✨ Features
 
@@ -191,8 +191,8 @@ npx wrangler pages deploy dist --project-name slidemino
 
 ## 📞 Contact
 
-- **Email:** studio@emozleep.space
-- **Website:** [slidemino.emozleep.space](https://slidemino.emozleep.space)
+- **Email:** studio@cdjstudio.xyz
+- **Website:** [slidemino.cdjstudio.xyz](https://slidemino.cdjstudio.xyz)
 
 ---
 

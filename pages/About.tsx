@@ -348,7 +348,7 @@ const About: React.FC = () => {
             <h3>Q: How do I report bugs or provide feedback?</h3>
             <p>
               <strong>A:</strong> We'd love to hear from you! Visit our <a href="#/contact">Contact Page</a> or 
-              email us directly at <a href="mailto:studio@emozleep.space">studio@emozleep.space</a> to 
+              email us directly at <a href="mailto:studio@cdjstudio.xyz">studio@cdjstudio.xyz</a> to
               send us your feedback, bug reports, or suggestions for improvement.
             </p>
           </div>

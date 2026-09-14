@@ -1,0 +1,220 @@
+{
+  "originalDeployment": "988d5b4a-e777-43fc-b902-c82fbe5970d0",
+  "originalFilesVerified": 33,
+  "allowedChanges": [
+    "literal domain",
+    "JavaScript filename cache namespace"
+  ],
+  "renames": {
+    "AdminConsoleLog-g33yFjWE.js": "AdminConsoleLog-g33yFjWE-cdjstudio.js",
+    "PixelBlast-CPHuk8x_.js": "PixelBlast-CPHuk8x_-cdjstudio.js",
+    "index-BVBkAqyQ.js": "index-BVBkAqyQ-cdjstudio.js",
+    "index-CgCSV8FU.js": "index-CgCSV8FU-cdjstudio.js",
+    "index-DzxKw-ZA.js": "index-DzxKw-ZA-cdjstudio.js",
+    "web-B7GUDv-S.js": "web-B7GUDv-S-cdjstudio.js",
+    "web-BFOsNmiC.js": "web-BFOsNmiC-cdjstudio.js",
+    "web-CgRPhhf4.js": "web-CgRPhhf4-cdjstudio.js",
+    "web-DeBDVkTY.js": "web-DeBDVkTY-cdjstudio.js",
+    "web-zL7RyEjQ.js": "web-zL7RyEjQ-cdjstudio.js"
+  },
+  "files": [
+    {
+      "sourcePath": "/ads.txt",
+      "outputPath": "ads.txt",
+      "beforeSha256": "bdcf572933c76051280f8865c3f7edca05fe4b6ca89fc0e4ffbc37e96793c63d",
+      "afterSha256": "bdcf572933c76051280f8865c3f7edca05fe4b6ca89fc0e4ffbc37e96793c63d"
+    },
+    {
+      "sourcePath": "/app-ads.txt",
+      "outputPath": "app-ads.txt",
+      "beforeSha256": "15ba189250fd7f8dafc83f7f8173975c0e8711b9b4b984d99ba7fa45e7ce7640",
+      "afterSha256": "15ba189250fd7f8dafc83f7f8173975c0e8711b9b4b984d99ba7fa45e7ce7640"
+    },
+    {
+      "sourcePath": "/assets/AdminConsoleLog-g33yFjWE.js",
+      "outputPath": "assets/AdminConsoleLog-g33yFjWE-cdjstudio.js",
+      "beforeSha256": "d8a0351a74b0d22b81ebd55f92d88373332d436d8b125e5551ea3ae42eaba2cd",
+      "afterSha256": "a79e63ae7d41e0619a3e6a0878c152697617b6345a2aed5193fcfb2882865622"
+    },
+    {
+      "sourcePath": "/assets/PixelBlast-CPHuk8x_.js",
+      "outputPath": "assets/PixelBlast-CPHuk8x_-cdjstudio.js",
+      "beforeSha256": "5a7e789fb3e863d4edb01bceb5ee246bc019a33f5f12abcacacd5da2dc16ba05",
+      "afterSha256": "b037a7c4e0c1abcebecd9feffd450db7925de9944ef9863e5cf648c7ec6a3e85"
+    },
+    {
+      "sourcePath": "/assets/PixelBlast-UI54JTY7.css",
+      "outputPath": "assets/PixelBlast-UI54JTY7.css",
+      "beforeSha256": "a3f77b9e9ac8592d8cfdeaec5f95651a50ac613f0b444994dea180ca46c5071a",
+      "afterSha256": "a3f77b9e9ac8592d8cfdeaec5f95651a50ac613f0b444994dea180ca46c5071a"
+    },
+    {
+      "sourcePath": "/assets/index-BVBkAqyQ.js",
+      "outputPath": "assets/index-BVBkAqyQ-cdjstudio.js",
+      "beforeSha256": "3ed439c3e84cbb6d8573d3a6999c34b7fb663a0ddde5cb4b12065a21de452529",
+      "afterSha256": "23588777e9fb2924233998861d5bf5436fe6704f91d90225af9f7537b5fe2656"
+    },
+    {
+      "sourcePath": "/assets/index-CgCSV8FU.js",
+      "outputPath": "assets/index-CgCSV8FU-cdjstudio.js",
+      "beforeSha256": "b8e635fbf6583e108be54c2938a73e02c36a7750b4247167f0ed481763dc48fc",
+      "afterSha256": "29dee570712000841d1ecbfcee96a7448dffa00fb410719b8daf4b8d97bcaf01"
+    },
+    {
+      "sourcePath": "/assets/index-DzxKw-ZA.js",
+      "outputPath": "assets/index-DzxKw-ZA-cdjstudio.js",
+      "beforeSha256": "42a1a9f3627d1fe5a26ef820fac06e15850f1f04d62ad23e9531c4612470bc9a",
+      "afterSha256": "4274ddd9326cb6543c3afaf2a12ec1dd752884ac26bf6a8392d05b7ba471b338"
+    },
+    {
+      "sourcePath": "/assets/index-Ep69s4j6.css",
+      "outputPath": "assets/index-Ep69s4j6.css",
+      "beforeSha256": "a502afe70529c9b10e46914d8112874c60e2e5df8680b393169548322b544daf",
+      "afterSha256": "a502afe70529c9b10e46914d8112874c60e2e5df8680b393169548322b544daf"
+    },
+    {
+      "sourcePath": "/assets/web-B7GUDv-S.js",
+      "outputPath": "assets/web-B7GUDv-S-cdjstudio.js",
+      "beforeSha256": "c83bed3f4e83ac78554023ef61f3889f24979938c14e350a8a41310413baf00c",
+      "afterSha256": "2f6a222fb27042bec0a5146702c821fe70ee941e1e5e27c80a0b4d9ed9133da3"
+    },
+    {
+      "sourcePath": "/assets/web-BFOsNmiC.js",
+      "outputPath": "assets/web-BFOsNmiC-cdjstudio.js",
+      "beforeSha256": "8d376eecc152c2111bcbbc7d865fa6397d3d3bed2447996807512f9967ebfaba",
+      "afterSha256": "f94020cd4dd5dcb5cb6d5c66268a09b5d501d0dc51d0b13a6228335b6cf6dc4c"
+    },
+    {
+      "sourcePath": "/assets/web-CgRPhhf4.js",
+      "outputPath": "assets/web-CgRPhhf4-cdjstudio.js",
+      "beforeSha256": "afbd5806f7fd2ab85eebc957321f03420f686b23a9269b73ac685138201de095",
+      "afterSha256": "186e8b637cab4fb143262725a99ed0d698ef8c8f1f3fdf61c0a7a7022d6109d7"
+    },
+    {
+      "sourcePath": "/assets/web-DeBDVkTY.js",
+      "outputPath": "assets/web-DeBDVkTY-cdjstudio.js",
+      "beforeSha256": "a0a6ce59f1850ff831d0d0f02898b52220e04a4d5caa13303e8c0386515029ca",
+      "afterSha256": "71b24e4f464920f65c1d0582ed3b9bc6e1bf2bd822de7220b32f5744951d3927"
+    },
+    {
+      "sourcePath": "/assets/web-zL7RyEjQ.js",
+      "outputPath": "assets/web-zL7RyEjQ-cdjstudio.js",
+      "beforeSha256": "0089dc7753b436dff54601fd29d1b480988a7d76b03fc5a4ab30e7ea12bcd363",
+      "afterSha256": "ad83b483e97216f0f4cbad8509a7d1e14a1520ca503af34e16479c3d66f88fcd"
+    },
+    {
+      "sourcePath": "/brand-icon.png",
+      "outputPath": "brand-icon.png",
+      "beforeSha256": "b00a1a64b3df7e764ecc58479f1a1eb20ff2fd3d3d10e86d6bbb597c03420b5b",
+      "afterSha256": "b00a1a64b3df7e764ecc58479f1a1eb20ff2fd3d3d10e86d6bbb597c03420b5b"
+    },
+    {
+      "sourcePath": "/icon-192.png",
+      "outputPath": "icon-192.png",
+      "beforeSha256": "8f74953dcd910113e74faea6820268a8be217cdf59572d3599361ed0f036a552",
+      "afterSha256": "8f74953dcd910113e74faea6820268a8be217cdf59572d3599361ed0f036a552"
+    },
+    {
+      "sourcePath": "/icon-512.png",
+      "outputPath": "icon-512.png",
+      "beforeSha256": "5df800f0471c5eb46e77218bef06f927eba73db80d887964250955a7c820c3fb",
+      "afterSha256": "5df800f0471c5eb46e77218bef06f927eba73db80d887964250955a7c820c3fb"
+    },
+    {
+      "sourcePath": "/icon.png",
+      "outputPath": "icon.png",
+      "beforeSha256": "cbe20ca0e624b2cae6f2f87e1335d960320e9566c40c60b6887ec776dfb75c4a",
+      "afterSha256": "cbe20ca0e624b2cae6f2f87e1335d960320e9566c40c60b6887ec776dfb75c4a"
+    },
+    {
+      "sourcePath": "/icon_generator.html",
+      "outputPath": "icon_generator.html",
+      "beforeSha256": "33fcac2ee11564b2f4ffa031afd370d9857c1e04b162c47de204b3e6858cebd7",
+      "afterSha256": "33fcac2ee11564b2f4ffa031afd370d9857c1e04b162c47de204b3e6858cebd7"
+    },
+    {
+      "sourcePath": "/index.html",
+      "outputPath": "index.html",
+      "beforeSha256": "9e938f8af30973992bbd13d0e8f5120b98fd6fb36235fceaceeb22668b8440d9",
+      "afterSha256": "fcf70e55b25d653ff01e600341e849745127693a18f17f32dea87716609f5415"
+    },
+    {
+      "sourcePath": "/manifest.json",
+      "outputPath": "manifest.json",
+      "beforeSha256": "98b884bbfef85456a0be12613d2d56c85b2254512732d5ac0b208b37a206f7c2",
+      "afterSha256": "98b884bbfef85456a0be12613d2d56c85b2254512732d5ac0b208b37a206f7c2"
+    },
+    {
+      "sourcePath": "/native-update.json",
+      "outputPath": "native-update.json",
+      "beforeSha256": "f36473dd2bc5c286efe3454dc04b4ce65bc077702909c4976c0eb85b280223cb",
+      "afterSha256": "f36473dd2bc5c286efe3454dc04b4ce65bc077702909c4976c0eb85b280223cb"
+    },
+    {
+      "sourcePath": "/og-image.png",
+      "outputPath": "og-image.png",
+      "beforeSha256": "a27204b0bfe508ad9835486d2fdbfca6ed045f1ab4794bf74b27e91c3f0e5197",
+      "afterSha256": "a27204b0bfe508ad9835486d2fdbfca6ed045f1ab4794bf74b27e91c3f0e5197"
+    },
+    {
+      "sourcePath": "/robots.txt",
+      "outputPath": "robots.txt",
+      "beforeSha256": "43fe06c8a24bcc38d15e8b172684f2f1790d7c505a040b717f092155fd25fd08",
+      "afterSha256": "43fe06c8a24bcc38d15e8b172684f2f1790d7c505a040b717f092155fd25fd08"
+    },
+    {
+      "sourcePath": "/splash.png",
+      "outputPath": "splash.png",
+      "beforeSha256": "aa8d51ea2e814dfa8ec404b9d14929db11228d2be3568a7536942dee8c881237",
+      "afterSha256": "aa8d51ea2e814dfa8ec404b9d14929db11228d2be3568a7536942dee8c881237"
+    },
+    {
+      "sourcePath": "/styles/cute-pet-theme.css",
+      "outputPath": "styles/cute-pet-theme.css",
+      "beforeSha256": "ceeb1bbd50a8a2d3a5b6a8b6b72f4b59dd4385a449c3887d208a5d550b6d3912",
+      "afterSha256": "ceeb1bbd50a8a2d3a5b6a8b6b72f4b59dd4385a449c3887d208a5d550b6d3912"
+    },
+    {
+      "sourcePath": "/styles/cute-pet-theme.css.orig",
+      "outputPath": "styles/cute-pet-theme.css.orig",
+      "beforeSha256": "d6d6e1c454dd02bc0958a8646005cc20b9b8dd2e2f215d952a4ea38f370059a6",
+      "afterSha256": "d6d6e1c454dd02bc0958a8646005cc20b9b8dd2e2f215d952a4ea38f370059a6"
+    },
+    {
+      "sourcePath": "/vendor/98css/LICENSE",
+      "outputPath": "vendor/98css/LICENSE",
+      "beforeSha256": "8933005629892c51d896f7591b5e79c39a17617ce678231e4c3aa7d412d2682f",
+      "afterSha256": "8933005629892c51d896f7591b5e79c39a17617ce678231e4c3aa7d412d2682f"
+    },
+    {
+      "sourcePath": "/vendor/98css/fonts/converted/ms_sans_serif.woff",
+      "outputPath": "vendor/98css/fonts/converted/ms_sans_serif.woff",
+      "beforeSha256": "11318ea166b8c0112088af3fa038da18071a3fe93d0a39c894998a940e804ba0",
+      "afterSha256": "11318ea166b8c0112088af3fa038da18071a3fe93d0a39c894998a940e804ba0"
+    },
+    {
+      "sourcePath": "/vendor/98css/fonts/converted/ms_sans_serif.woff2",
+      "outputPath": "vendor/98css/fonts/converted/ms_sans_serif.woff2",
+      "beforeSha256": "11b5a68acb6b967d1faa5a3f58432028e9c9cada37c8778d9dcc7415dca73a32",
+      "afterSha256": "11b5a68acb6b967d1faa5a3f58432028e9c9cada37c8778d9dcc7415dca73a32"
+    },
+    {
+      "sourcePath": "/vendor/98css/fonts/converted/ms_sans_serif_bold.woff",
+      "outputPath": "vendor/98css/fonts/converted/ms_sans_serif_bold.woff",
+      "beforeSha256": "e7b28b601df431c5f7b62c466380ac9869395eacf4c9fafec5f4d7a67040e963",
+      "afterSha256": "e7b28b601df431c5f7b62c466380ac9869395eacf4c9fafec5f4d7a67040e963"
+    },
+    {
+      "sourcePath": "/vendor/98css/fonts/converted/ms_sans_serif_bold.woff2",
+      "outputPath": "vendor/98css/fonts/converted/ms_sans_serif_bold.woff2",
+      "beforeSha256": "5f3fbc5790b315fc158b749078e7fd1d74e1f9b463f6b7266c1908cb82a450ae",
+      "afterSha256": "5f3fbc5790b315fc158b749078e7fd1d74e1f9b463f6b7266c1908cb82a450ae"
+    },
+    {
+      "sourcePath": "/vendor/98css/style.css",
+      "outputPath": "vendor/98css/style.css",
+      "beforeSha256": "22f66e3d607eb6406b2832ae096716d8c1124d2a8124723adb287402dfdf82fa",
+      "afterSha256": "22f66e3d607eb6406b2832ae096716d8c1124d2a8124723adb287402dfdf82fa"
+    }
+  ]
+}

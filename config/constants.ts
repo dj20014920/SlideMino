@@ -8,7 +8,7 @@
 // ==========================================
 
 /** 프로덕션 도메인 (www 제외) */
-export const DOMAIN = 'slidemino.emozleep.space' as const;
+export const DOMAIN = 'slidemino.cdjstudio.xyz' as const;
 
 /** 프로덕션 전체 URL */
 export const BASE_URL = `https://${DOMAIN}` as const;
@@ -43,7 +43,7 @@ export const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 // Contact 정보
 // ==========================================
 
-export const CONTACT_EMAIL = 'studio@emozleep.space' as const;
+export const CONTACT_EMAIL = 'studio@cdjstudio.xyz' as const;
 
 // ==========================================
 // SEO 관련

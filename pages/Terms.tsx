@@ -18,7 +18,7 @@ const Terms: React.FC = () => {
         <section>
           <h2>1. Acceptance of Terms</h2>
           <p>
-            Welcome to 블록 슬라이드 (Block Slide)! By accessing or using our game at slidemino.emozleep.space
+            Welcome to 블록 슬라이드 (Block Slide)! By accessing or using our game at slidemino.cdjstudio.xyz
             (the "Service"), you agree to be bound by these Terms of Service ("Terms"). If you do not
             agree to these Terms, please do not use the Service.
           </p>
@@ -330,8 +330,8 @@ const Terms: React.FC = () => {
             contact us:
           </p>
           <ul>
-            <li><strong>Email:</strong> studio@emozleep.space</li>
-            <li><strong>Website:</strong> <a href="https://slidemino.emozleep.space/#/contact">Contact Page</a></li>
+            <li><strong>Email:</strong> studio@cdjstudio.xyz</li>
+            <li><strong>Website:</strong> <a href="https://slidemino.cdjstudio.xyz/#/contact">Contact Page</a></li>
           </ul>
           <p>We will respond to all inquiries within 5-7 business days.</p>
         </section>

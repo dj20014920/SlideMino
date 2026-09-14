@@ -39,7 +39,7 @@ const Contact: React.FC = () => {
               <p>The primary way to reach us for all inquiries, bug reports, feedback, or support requests.</p>
               <div className="contact-details">
                 <p><strong>Contact Email:</strong></p>
-                <a href="mailto:studio@emozleep.space" className="text-lg font-semibold">studio@emozleep.space</a>
+                <a href="mailto:studio@cdjstudio.xyz" className="text-lg font-semibold">studio@cdjstudio.xyz</a>
                 
                 <p className="mt-4 text-sm">
                   We handle all types of inquiries: general questions, bug reports, privacy requests, 
@@ -59,7 +59,7 @@ const Contact: React.FC = () => {
                   We value your input! Share your ideas for new features, report bugs you've encountered, 
                   or let us know what you love about the game.
                 </p>
-                <a href="mailto:studio@emozleep.space?subject=블록 슬라이드 (Block Slide) Feedback" className="action-link">
+                <a href="mailto:studio@cdjstudio.xyz?subject=블록 슬라이드 (Block Slide) Feedback" className="action-link">
                   <Send size={18} />
                   <span>Send Feedback</span>
                 </a>
@@ -220,7 +220,7 @@ const Contact: React.FC = () => {
           <h2>Stay Updated</h2>
           <p>
             Want to know about new features, updates, and improvements to 블록 슬라이드 (Block Slide)? 
-            Send us an email at <a href="mailto:studio@emozleep.space">studio@emozleep.space</a> expressing 
+            Send us an email at <a href="mailto:studio@cdjstudio.xyz">studio@cdjstudio.xyz</a> expressing
             interest in updates, and we'll keep you in the loop!
           </p>
           <p>
@@ -248,7 +248,7 @@ const Contact: React.FC = () => {
         </section>
 
         <div className="contact-cta">
-          <a href="mailto:studio@emozleep.space" className="cta-button">
+          <a href="mailto:studio@cdjstudio.xyz" className="cta-button">
             <Mail size={24} />
             <span>Send Us an Email</span>
           </a>

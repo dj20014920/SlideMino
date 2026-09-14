@@ -1093,7 +1093,7 @@ export async function fetchEventRankings(eventId?: string): Promise<EventRanking
     const installId = getAnalyticsInstallId();
     const baseUrl = typeof window !== 'undefined'
       ? window.location.origin
-      : 'https://slidemino.emozleep.space';
+      : 'https://slidemino.cdjstudio.xyz';
     const url = new URL(getApiUrl(`${API_BASE}/rankings`), baseUrl);
     url.searchParams.set('eventId', resolvedEventId);
     url.searchParams.set('installId', installId);
